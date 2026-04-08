@@ -1,0 +1,271 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id
+  name          String
+  email         String    @unique
+  emailVerified Boolean   @default(false)
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  sessions      Session[]
+  accounts      BankAccount[]
+  authAccounts  Account[]
+  transactions  Transaction[]
+  settings      UserSettings?
+  billReminders BillReminder[]
+  recurringTransactions RecurringTransaction[]
+  netWorthEntries NetWorthEntry[]
+  categoryBudgets CategoryBudget[]
+  ownedBusiness   Business?
+  teamMemberships TeamMember[]
+  submittedExpenses  Expense[] @relation("SubmittedExpenses")
+  reviewedExpenses   Expense[] @relation("ReviewedExpenses")
+  salaries           Salary[]
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@map("AuthAccount")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model BankAccount {
+  id           String        @id
+  userId       String
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name         String
+  type         String        // cash|checking|savings|credit|investment|other
+  balance      Float         @default(0)
+  currency     String        @default("USD")
+  color        String        @default("#a855f7")
+  icon         String        @default("wallet")
+  isDefault    Boolean       @default(false)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  transactions Transaction[]
+}
+
+model Transaction {
+  id          String      @id
+  userId      String
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accountId   String?
+  account     BankAccount? @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  amount      Float
+  category    String      // Food|Gym|Transport|Shopping|Subscriptions|Other
+  type        String      // Expense|Income
+  isImpulse   Boolean     @default(false)
+  note        String?
+  dateISO     String      // YYYY-MM-DD
+  currency    String      @default("USD")
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+model UserSettings {
+  id             String  @id
+  userId         String  @unique
+  user           User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  monthlyBudget  Float   @default(0)
+  startingBalance Float  @default(0)
+  hourlyValue    Float   @default(0)
+  showTimeCost   Boolean @default(false)
+  currency       String  @default("USD")
+  currencySymbol String  @default("$")
+  monthlyIncome  Float   @default(0)
+  savingsGoal    Float   @default(0)
+  spendingStyle  String  @default("moderate")
+  primaryGoal    String  @default("track")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model BillReminder {
+  id          String    @id
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String
+  amount      Float
+  dueDay      Int       // day of month (1-31)
+  category    String    @default("Other")
+  isRecurring Boolean   @default(true)
+  isPaid      Boolean   @default(false)
+  paidAt      DateTime?
+  nextDueDate String    // YYYY-MM-DD
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model RecurringTransaction {
+  id          String    @id
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accountId   String?
+  name        String
+  amount      Float
+  category    String
+  type        String    // Expense|Income
+  isImpulse   Boolean   @default(false)
+  frequency   String    // daily|weekly|biweekly|monthly|yearly
+  startDate   String    // YYYY-MM-DD
+  nextDate    String    // YYYY-MM-DD
+  lastCreated String?   // YYYY-MM-DD
+  isActive    Boolean   @default(true)
+  currency    String    @default("USD")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model NetWorthEntry {
+  id        String   @id
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date      String   // YYYY-MM-DD
+  assets    Float    @default(0)
+  liabilities Float  @default(0)
+  netWorth  Float    @default(0)
+  breakdown String?  // JSON string
+  createdAt DateTime @default(now())
+}
+
+model CategoryBudget {
+  id        String   @id
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category  String
+  amount    Float
+  period    String   @default("monthly")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, category])
+}
+
+model Business {
+  id          String          @id @default(cuid())
+  ownerId     String          @unique
+  name        String
+  inviteCode  String?         @unique
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  owner       User            @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  teamMembers TeamMember[]
+  expenses    Expense[]
+  budget      BusinessBudget?
+  salaries    Salary[]
+}
+
+model TeamMember {
+  id         String   @id @default(cuid())
+  businessId String
+  userId     String
+  role       String   // "owner" | "manager" | "employee"
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([businessId, userId])
+}
+
+model Expense {
+  id          String    @id @default(cuid())
+  businessId  String
+  submitterId String
+  reviewerId  String?
+  amount      Float
+  category    String    // Travel|Software|Meals|Transport|Office|Other
+  description String
+  imageUrl    String?
+  status      String    @default("pending") // pending|approved|rejected
+  submittedAt DateTime  @default(now())
+  reviewedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  business    Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  submitter   User      @relation("SubmittedExpenses", fields: [submitterId], references: [id], onDelete: Cascade)
+  reviewer    User?     @relation("ReviewedExpenses", fields: [reviewerId], references: [id], onDelete: SetNull)
+}
+
+model BusinessBudget {
+  id             String   @id @default(cuid())
+  businessId     String   @unique
+  totalMonthly   Float    @default(0)
+  categories     String?  // JSON: { "Travel": 500, "Meals": 200, ... }
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  business       Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+}
+
+model Salary {
+  id         String          @id @default(cuid())
+  businessId String
+  userId     String
+  amount     Float           // monthly salary amount
+  currency   String          @default("USD")
+  title      String?         // job title / role label
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+  business   Business        @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  user       User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  payments   SalaryPayment[]
+
+  @@unique([businessId, userId])
+}
+
+model SalaryPayment {
+  id        String    @id @default(cuid())
+  salaryId  String
+  month     Int       // 1–12
+  year      Int
+  status    String    @default("unpaid") // "paid" | "unpaid"
+  paidAt    DateTime?
+  note      String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  salary    Salary    @relation(fields: [salaryId], references: [id], onDelete: Cascade)
+
+  @@unique([salaryId, month, year])
+}

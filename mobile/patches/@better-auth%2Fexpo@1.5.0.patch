@@ -1,0 +1,19 @@
+diff --git a/dist/client.mjs b/dist/client.mjs
+index e0d03851a19ff314d78f0912a2ef4f93b9dc9acd..820207774dbd4e6f90e7dc7bed5d8cb9885513ad 100644
+--- a/dist/client.mjs
++++ b/dist/client.mjs
+@@ -1,4 +1,4 @@
+-import { createRequire } from "node:module";
++// [patched] node:module removed — not available in React Native
+ import { safeJSONParse } from "@better-auth/core/utils/json";
+ import { SECURE_COOKIE_PREFIX, parseSetCookieHeader, parseSetCookieHeader as parseSetCookieHeader$1, stripSecureCookiePrefix } from "better-auth/cookies";
+ import Constants from "expo-constants";
+@@ -7,7 +7,7 @@ import { AppState, Platform } from "react-native";
+ import { kFocusManager, kOnlineManager } from "better-auth/client";
+ 
+ //#region \0rolldown/runtime.js
+-var __require = /* @__PURE__ */ createRequire(import.meta.url);
++var __require = function(id) { try { return require(id); } catch(e) { return {}; } };
+ 
+ //#endregion
+ //#region src/focus-manager.ts

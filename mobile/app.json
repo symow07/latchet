@@ -1,0 +1,23 @@
+{
+  "expo": {
+    "name": "vibecode",
+    "slug": "vibecode",
+    "scheme": "vibecode",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "bundleIdentifier": "com.vibecodeapp.budget",
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.vibecodeapp.budget",
+      "edgeToEdgeEnabled": true
+    },
+    "plugins": ["expo-router"],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
