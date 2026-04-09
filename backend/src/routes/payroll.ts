@@ -3,6 +3,7 @@ import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { prisma } from "../prisma";
 import { auth } from "../auth";
+import { getUserBusiness } from "../lib/get-user-business";
 
 const payrollRouter = new Hono<{
   Variables: {
@@ -15,17 +16,6 @@ payrollRouter.use("*", async (c, next) => {
   if (!c.get("user")) return c.json({ error: "Unauthorized" }, 401);
   await next();
 });
-
-// Helper: find business for user (owner or member)
-async function getUserBusiness(userId: string) {
-  const owned = await prisma.business.findUnique({ where: { ownerId: userId } });
-  if (owned) return owned;
-  const m = await prisma.teamMember.findFirst({
-    where: { userId },
-    include: { business: true },
-  });
-  return m?.business ?? null;
-}
 
 // Helper: get or create payment record for month/year
 async function ensurePayment(salaryId: string, month: number, year: number) {
@@ -47,13 +37,24 @@ payrollRouter.get("/", async (c) => {
   const business = await getUserBusiness(user.id);
   if (!business) return c.json({ error: "Not a member of any business" }, 403);
 
+  // Employees can only see their own salary
+  const myMembership = await prisma.teamMember.findUnique({
+    where: { businessId_userId: { businessId: business.id, userId: user.id } },
+  });
+  const isEmployee = myMembership?.role === "employee";
+
+  const limit = Math.min(Math.max(Number(c.req.query("limit")) || 50, 1), 100);
+  const offset = Math.max(Number(c.req.query("offset")) || 0, 0);
+
   const salaries = await prisma.salary.findMany({
-    where: { businessId: business.id },
+    where: { businessId: business.id, ...(isEmployee ? { userId: user.id } : {}) },
     include: {
       user: { select: { id: true, name: true, email: true, image: true } },
       payments: { where: { month, year } },
     },
     orderBy: { createdAt: "asc" },
+    take: limit,
+    skip: offset,
   });
 
   // Ensure a payment row exists for every salary this month

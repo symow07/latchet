@@ -102,6 +102,8 @@ model Transaction {
   currency    String      @default("USD")
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
+
+  @@index([userId, dateISO])
 }
 
 model UserSettings {
@@ -136,6 +138,8 @@ model BillReminder {
   nextDueDate String    // YYYY-MM-DD
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+
+  @@index([userId, nextDueDate])
 }
 
 model RecurringTransaction {
@@ -156,6 +160,9 @@ model RecurringTransaction {
   currency    String    @default("USD")
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([isActive, nextDate])
 }
 
 model NetWorthEntry {
@@ -227,6 +234,9 @@ model Expense {
   business    Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
   submitter   User      @relation("SubmittedExpenses", fields: [submitterId], references: [id], onDelete: Cascade)
   reviewer    User?     @relation("ReviewedExpenses", fields: [reviewerId], references: [id], onDelete: SetNull)
+
+  @@index([businessId, status])
+  @@index([businessId, submittedAt])
 }
 
 model BusinessBudget {
@@ -253,6 +263,7 @@ model Salary {
   payments   SalaryPayment[]
 
   @@unique([businessId, userId])
+  @@index([businessId])
 }
 
 model SalaryPayment {

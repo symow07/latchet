@@ -63,11 +63,11 @@ export function detectSubscriptions(transactions: Transaction[]): DetectedSubscr
     // Determine average interval
     const avgInterval = intervals.reduce((a, b) => a + b, 0) / intervals.length;
 
-    // Detect frequency
+    // Detect frequency (unified ranges with subscription-detection.ts)
     let frequency: 'weekly' | 'monthly' | 'yearly' | null = null;
     if (avgInterval >= 5 && avgInterval <= 10) frequency = 'weekly';
-    else if (avgInterval >= 25 && avgInterval <= 35) frequency = 'monthly';
-    else if (avgInterval >= 350 && avgInterval <= 380) frequency = 'yearly';
+    else if (avgInterval >= 25 && avgInterval <= 38) frequency = 'monthly';
+    else if (avgInterval >= 330 && avgInterval <= 400) frequency = 'yearly';
 
     if (!frequency) return;
 

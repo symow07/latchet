@@ -3,10 +3,22 @@ import * as SQLite from 'expo-sqlite';
 const DB_NAME = 'real_budget.db';
 
 let db: SQLite.SQLiteDatabase | null = null;
+let initPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 
 export async function initializeDatabase(): Promise<SQLite.SQLiteDatabase> {
   if (db) return db;
+  if (initPromise) return initPromise;
 
+  initPromise = performInit();
+  try {
+    return await initPromise;
+  } catch (e) {
+    initPromise = null; // allow retry on failure
+    throw e;
+  }
+}
+
+async function performInit(): Promise<SQLite.SQLiteDatabase> {
   db = await SQLite.openDatabaseAsync(DB_NAME);
 
   await db.execAsync(`

@@ -3,7 +3,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import "./env";
 import { logger } from "hono/logger";
-import { auth, authRateLimiter } from "./auth";
+import { auth, loginRateLimiter, otpRateLimiter, generalAuthRateLimiter } from "./auth";
 import { transactionsRouter } from "./routes/transactions";
 import { accountsRouter } from "./routes/accounts";
 import { settingsRouter } from "./routes/settings";
@@ -16,6 +16,8 @@ import { businessRouter } from "./routes/business";
 import { expensesRouter } from "./routes/expenses";
 import { budgetRouter } from "./routes/budget";
 import { payrollRouter } from "./routes/payroll";
+import { startRecurringProcessor } from "./jobs/recurring-processor";
+import { startBillReminderChecker } from "./jobs/bill-reminder-checker";
 
 const app = new Hono<{
   Variables: {
@@ -57,21 +59,39 @@ app.use("*", async (c, next) => {
   await next();
 });
 
-// Auth routes (rate-limited)
-app.use("/api/auth/*", authRateLimiter());
+// Auth routes (path-specific rate limiting) — both versioned and unversioned
+app.use("/api/auth/sign-in/*", loginRateLimiter);
+app.use("/api/auth/email-otp/*", otpRateLimiter);
+app.use("/api/auth/*", generalAuthRateLimiter);
 app.on(["GET", "POST"], "/api/auth/*", (c) => auth.handler(c.req.raw));
 
 // Health check
 app.get("/health", (c) => c.json({ status: "ok" }));
 
-// Current user
-app.get("/api/me", (c) => {
+// Current user (versioned + backward-compatible)
+const meHandler = (c: any) => {
   const user = c.get("user");
   if (!user) return c.json({ error: "Unauthorized" }, 401);
   return c.json({ user });
-});
+};
+app.get("/api/v1/me", meHandler);
+app.get("/api/me", meHandler);
 
-// Routes
+// Versioned routes (v1) — canonical paths
+app.route("/api/v1/sample", sampleRouter);
+app.route("/api/v1/transactions", transactionsRouter);
+app.route("/api/v1/accounts", accountsRouter);
+app.route("/api/v1/settings", settingsRouter);
+app.route("/api/v1/bill-reminders", billRemindersRouter);
+app.route("/api/v1/recurring", recurringRouter);
+app.route("/api/v1/net-worth", netWorthRouter);
+app.route("/api/v1/category-budgets", categoryBudgetsRouter);
+app.route("/api/v1/business", businessRouter);
+app.route("/api/v1/expenses", expensesRouter);
+app.route("/api/v1/business/budget", budgetRouter);
+app.route("/api/v1/payroll", payrollRouter);
+
+// Backward-compatible unversioned routes (alias to v1)
 app.route("/api/sample", sampleRouter);
 app.route("/api/transactions", transactionsRouter);
 app.route("/api/accounts", accountsRouter);
@@ -84,6 +104,10 @@ app.route("/api/business", businessRouter);
 app.route("/api/expenses", expensesRouter);
 app.route("/api/business/budget", budgetRouter);
 app.route("/api/payroll", payrollRouter);
+
+// Start background jobs
+startRecurringProcessor();
+startBillReminderChecker();
 
 const port = Number(process.env.PORT) || 3000;
 

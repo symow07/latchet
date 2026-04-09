@@ -3,6 +3,7 @@ import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { prisma } from "../prisma";
 import { auth } from "../auth";
+import { getUserBusiness } from "../lib/get-user-business";
 
 const budgetRouter = new Hono<{
   Variables: {
@@ -17,17 +18,6 @@ budgetRouter.use("*", async (c, next) => {
   if (!user) return c.json({ error: "Unauthorized" }, 401);
   await next();
 });
-
-// Helper: get business for current user (owner or member)
-async function getUserBusiness(userId: string) {
-  const owned = await prisma.business.findUnique({ where: { ownerId: userId } });
-  if (owned) return owned;
-  const membership = await prisma.teamMember.findFirst({
-    where: { userId },
-    include: { business: true },
-  });
-  return membership?.business ?? null;
-}
 
 // Helper: current month date range
 function currentMonthRange() {
@@ -74,9 +64,14 @@ budgetRouter.get("/", async (c) => {
     byCategory[expense.category] = cat;
   }
 
-  const categoryBudgets: Record<string, number> = budget?.categories
-    ? JSON.parse(budget.categories)
-    : {};
+  let categoryBudgets: Record<string, number> = {};
+  if (budget?.categories) {
+    try {
+      categoryBudgets = JSON.parse(budget.categories);
+    } catch {
+      // Malformed JSON in DB — fall back to empty
+    }
+  }
 
   return c.json({
     budget: {

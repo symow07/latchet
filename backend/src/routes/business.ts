@@ -23,6 +23,22 @@ function generateCode(): string {
   return randomBytes(3).toString("hex").toUpperCase(); // 6 char hex
 }
 
+// Simple rate limiter for invite code attempts
+const joinAttempts = new Map<string, { count: number; resetAt: number }>();
+const JOIN_MAX = 5;
+const JOIN_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
+
+function checkJoinRateLimit(userId: string): boolean {
+  const now = Date.now();
+  const entry = joinAttempts.get(userId);
+  if (!entry || now > entry.resetAt) {
+    joinAttempts.set(userId, { count: 1, resetAt: now + JOIN_WINDOW_MS });
+    return true;
+  }
+  entry.count++;
+  return entry.count <= JOIN_MAX;
+}
+
 // ─── createBusiness ───────────────────────────────────────────────────────────
 // POST /api/business
 businessRouter.post(
@@ -133,6 +149,10 @@ businessRouter.post(
   async (c) => {
     const user = c.get("user")!;
     const { code } = c.req.valid("json");
+
+    if (!checkJoinRateLimit(user.id)) {
+      return c.json({ error: "Too many join attempts, try again later" }, 429);
+    }
 
     const business = await prisma.business.findUnique({
       where: { inviteCode: code.toUpperCase() },

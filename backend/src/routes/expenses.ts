@@ -75,19 +75,29 @@ expensesRouter.get("/", async (c) => {
   const membership = await getMembership(user.id);
   if (!membership) return c.json({ error: "Not a member of any business" }, 403);
 
-  const expenses = await prisma.expense.findMany({
-    where: {
-      businessId: membership.businessId,
-      ...(status ? { status } : {}),
-    },
-    include: {
-      submitter: { select: { id: true, name: true, email: true } },
-      reviewer:  { select: { id: true, name: true, email: true } },
-    },
-    orderBy: { submittedAt: "desc" },
-  });
+  const limit = Math.min(Math.max(Number(c.req.query("limit")) || 50, 1), 100);
+  const offset = Math.max(Number(c.req.query("offset")) || 0, 0);
 
-  return c.json({ expenses });
+  const where = {
+    businessId: membership.businessId,
+    ...(status ? { status } : {}),
+  };
+
+  const [expenses, total] = await Promise.all([
+    prisma.expense.findMany({
+      where,
+      include: {
+        submitter: { select: { id: true, name: true, email: true } },
+        reviewer:  { select: { id: true, name: true, email: true } },
+      },
+      orderBy: { submittedAt: "desc" },
+      take: limit,
+      skip: offset,
+    }),
+    prisma.expense.count({ where }),
+  ]);
+
+  return c.json({ expenses, pagination: { limit, offset, total, hasMore: offset + limit < total } });
 });
 
 // ─── PATCH /api/expenses/:id/approve ─────────────────────────────────────────
@@ -105,6 +115,7 @@ expensesRouter.patch("/:id/approve", async (c) => {
   });
   if (!expense) return c.json({ error: "Expense not found" }, 404);
   if (expense.status !== "pending") return c.json({ error: "Expense is not pending" }, 400);
+  if (expense.submitterId === user.id) return c.json({ error: "Cannot approve your own expense" }, 403);
 
   const updated = await prisma.expense.update({
     where: { id },
@@ -133,6 +144,7 @@ expensesRouter.patch("/:id/reject", async (c) => {
   });
   if (!expense) return c.json({ error: "Expense not found" }, 404);
   if (expense.status !== "pending") return c.json({ error: "Expense is not pending" }, 400);
+  if (expense.submitterId === user.id) return c.json({ error: "Cannot reject your own expense" }, 403);
 
   const updated = await prisma.expense.update({
     where: { id },

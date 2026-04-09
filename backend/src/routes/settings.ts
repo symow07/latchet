@@ -1,6 +1,21 @@
 import { Hono } from "hono";
+import { zValidator } from "@hono/zod-validator";
+import { z } from "zod";
 import { prisma } from "../prisma";
 import { auth } from "../auth";
+
+const settingsSchema = z.object({
+  monthlyBudget: z.number().min(0).max(10_000_000).optional().default(0),
+  startingBalance: z.number().min(-10_000_000).max(10_000_000).optional().default(0),
+  hourlyValue: z.number().min(0).max(100_000).optional().default(0),
+  showTimeCost: z.boolean().optional().default(false),
+  currency: z.string().min(1).max(5).optional().default("USD"),
+  currencySymbol: z.string().min(1).max(5).optional().default("$"),
+  monthlyIncome: z.number().min(0).max(10_000_000).optional().default(0),
+  savingsGoal: z.number().min(0).max(10_000_000).optional().default(0),
+  spendingStyle: z.enum(["frugal", "moderate", "generous"]).optional().default("moderate"),
+  primaryGoal: z.enum(["track", "save", "invest", "debt"]).optional().default("track"),
+});
 
 const router = new Hono<{
   Variables: {
@@ -9,50 +24,33 @@ const router = new Hono<{
   };
 }>();
 
-router.get("/", async (c) => {
+// Auth guard
+router.use("*", async (c, next) => {
   const user = c.get("user");
   if (!user) return c.json({ error: "Unauthorized" }, 401);
+  await next();
+});
 
+router.get("/", async (c) => {
+  const user = c.get("user")!;
   const settings = await prisma.userSettings.findUnique({
     where: { userId: user.id },
   });
   return c.json(settings);
 });
 
-router.put("/", async (c) => {
-  const user = c.get("user");
-  if (!user) return c.json({ error: "Unauthorized" }, 401);
-
-  const body = await c.req.json();
+router.put("/", zValidator("json", settingsSchema), async (c) => {
+  const user = c.get("user")!;
+  const body = c.req.valid("json");
 
   const settings = await prisma.userSettings.upsert({
     where: { userId: user.id },
     create: {
       id: `settings_${user.id}`,
       userId: user.id,
-      monthlyBudget: body.monthlyBudget || 0,
-      startingBalance: body.startingBalance || 0,
-      hourlyValue: body.hourlyValue || 0,
-      showTimeCost: body.showTimeCost || false,
-      currency: body.currency || "USD",
-      currencySymbol: body.currencySymbol || "$",
-      monthlyIncome: body.monthlyIncome || 0,
-      savingsGoal: body.savingsGoal || 0,
-      spendingStyle: body.spendingStyle || "moderate",
-      primaryGoal: body.primaryGoal || "track",
+      ...body,
     },
-    update: {
-      monthlyBudget: body.monthlyBudget,
-      startingBalance: body.startingBalance,
-      hourlyValue: body.hourlyValue,
-      showTimeCost: body.showTimeCost,
-      currency: body.currency,
-      currencySymbol: body.currencySymbol,
-      monthlyIncome: body.monthlyIncome,
-      savingsGoal: body.savingsGoal,
-      spendingStyle: body.spendingStyle,
-      primaryGoal: body.primaryGoal,
-    },
+    update: body,
   });
   return c.json(settings);
 });

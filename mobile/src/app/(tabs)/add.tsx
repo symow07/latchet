@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { addTransaction, getSettings, getAccounts } from '@/lib/db';
@@ -60,6 +60,8 @@ export default function AddTransactionScreen() {
     queryFn: getAccounts,
   });
 
+  const queryClient = useQueryClient();
+
   const defaultAccount = accounts.find(a => a.isDefault === 1);
   const currentAccountId = selectedAccountId || defaultAccount?.id;
   const selectedAccount = accounts.find(a => a.id === currentAccountId);
@@ -68,7 +70,7 @@ export default function AddTransactionScreen() {
     mutationFn: async () => {
       if (!amount || parseFloat(amount) <= 0) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-        return;
+        throw new Error('Invalid amount');
       }
 
       await addTransaction({
@@ -82,13 +84,48 @@ export default function AddTransactionScreen() {
         currency: settings?.currency || 'USD',
       });
     },
+    onMutate: async () => {
+      // Cancel outgoing refetches so they don't overwrite our optimistic update
+      await queryClient.cancelQueries({ queryKey: ['transactions'] });
+
+      // Snapshot previous state for rollback
+      const previousTransactions = queryClient.getQueryData(['transactions']);
+
+      // Optimistically add the new transaction to the cache
+      const optimisticTx = {
+        id: `temp_${Date.now()}`,
+        amount: parseFloat(amount || '0'),
+        category,
+        type,
+        isImpulse: isImpulse ? 1 : 0,
+        note: note || null,
+        dateISO: format(date, 'yyyy-MM-dd'),
+        accountId: currentAccountId || null,
+        currency: settings?.currency || 'USD',
+        createdAt: new Date().toISOString(),
+      };
+
+      queryClient.setQueryData(['transactions'], (old: any[] | undefined) =>
+        old ? [optimisticTx, ...old] : [optimisticTx]
+      );
+
+      return { previousTransactions };
+    },
+    onError: (_error, _vars, context) => {
+      // Rollback on failure
+      if (context?.previousTransactions) {
+        queryClient.setQueryData(['transactions'], context.previousTransactions);
+      }
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    },
     onSuccess: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.back();
     },
-    onError: (error) => {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      console.error(error);
+    onSettled: () => {
+      // Always refetch to get the real server data
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['accounts'] });
     },
   });
 

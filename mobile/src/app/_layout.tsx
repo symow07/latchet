@@ -6,7 +6,7 @@ import { useColorScheme } from '@/lib/useColorScheme';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { View, Text, Pressable } from 'react-native';
 import { initializeDatabase } from '@/lib/db';
 import { useSession } from '@/lib/auth/use-session';
@@ -24,18 +24,21 @@ const queryClient = new QueryClient();
 function LockScreen({ onUnlock }: { onUnlock: () => void }) {
   const insets = useSafeAreaInsets();
   const [authenticating, setAuthenticating] = useState(false);
+  const authenticatingRef = useRef(false);
 
   const tryAuthenticate = useCallback(async () => {
-    if (authenticating) return;
+    if (authenticatingRef.current) return;
+    authenticatingRef.current = true;
     setAuthenticating(true);
     const success = await authenticateWithBiometrics();
+    authenticatingRef.current = false;
     setAuthenticating(false);
     if (success) onUnlock();
-  }, [authenticating, onUnlock]);
+  }, [onUnlock]);
 
   useEffect(() => {
     tryAuthenticate();
-  }, [tryAuthenticate]);
+  }, []);
 
   return (
     <View style={{ flex: 1 }}>
@@ -148,32 +151,59 @@ function RootLayoutNav({ colorScheme }: { colorScheme: 'light' | 'dark' | null |
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   const [dbReady, setDbReady] = useState(false);
+  const [dbError, setDbError] = useState<string | null>(null);
   const [locked, setLocked] = useState(false);
 
-  useEffect(() => {
-    async function prepare() {
-      try {
-        await initializeDatabase();
-      } catch (e) {
-        console.warn('[DB Init]', e);
-      }
-
-      // Check if biometric lock is enabled
-      try {
-        const val = await AsyncStorage.getItem('@biometric_lock');
-        if (val === 'true') {
-          const available = await isBiometricAvailable();
-          if (available) setLocked(true);
-        }
-      } catch {
-        // silently skip if AsyncStorage fails (e.g. web)
-      }
-
-      setDbReady(true);
+  const initApp = useCallback(async () => {
+    setDbError(null);
+    try {
+      await initializeDatabase();
+    } catch (e) {
+      console.error('[DB Init]', e);
+      setDbError(e instanceof Error ? e.message : 'Failed to initialize database');
       await SplashScreen.hideAsync();
+      return;
     }
-    prepare();
+
+    // Check if biometric lock is enabled
+    try {
+      const val = await AsyncStorage.getItem('@biometric_lock');
+      if (val === 'true') {
+        const available = await isBiometricAvailable();
+        if (available) setLocked(true);
+      }
+    } catch {
+      // silently skip if AsyncStorage fails (e.g. web)
+    }
+
+    setDbReady(true);
+    await SplashScreen.hideAsync();
   }, []);
+
+  useEffect(() => {
+    initApp();
+  }, []);
+
+  if (dbError) {
+    return (
+      <SafeAreaProvider>
+        <View style={{ flex: 1, backgroundColor: '#000', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+          <Text style={{ color: '#ef4444', fontSize: 20, fontWeight: '700', marginBottom: 12 }}>
+            Database Error
+          </Text>
+          <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 14, textAlign: 'center', marginBottom: 24 }}>
+            {dbError}
+          </Text>
+          <Pressable
+            onPress={initApp}
+            style={{ paddingHorizontal: 32, paddingVertical: 14, borderRadius: 16, backgroundColor: '#2563eb' }}
+          >
+            <Text style={{ color: '#fff', fontWeight: '600', fontSize: 16 }}>Retry</Text>
+          </Pressable>
+        </View>
+      </SafeAreaProvider>
+    );
+  }
 
   if (!dbReady) return null;
 
