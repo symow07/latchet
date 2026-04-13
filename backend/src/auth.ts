@@ -1,7 +1,7 @@
 import { betterAuth } from "better-auth";
 import { expo } from "@better-auth/expo";
 import { prismaAdapter } from "better-auth/adapters/prisma";
-import { emailOTP } from "better-auth/plugins";
+import { emailOTP, bearer } from "better-auth/plugins";
 import { prisma } from "./prisma";
 import { env } from "./env";
 import type { Context, Next } from "hono";
@@ -158,12 +158,11 @@ export const auth = betterAuth({
   ],
   plugins: [
     expo(),
+    bearer(),
     emailOTP({
       otpLength: 6,
       expiresIn: 300, // 5 minutes
       async sendVerificationOTP({ email, otp, type }) {
-        if (type !== "sign-in") return;
-
         const smtpUrl = env.SMTP_SERVICE_URL;
         const response = await fetch(smtpUrl, {
           method: "POST",
@@ -184,12 +183,17 @@ export const auth = betterAuth({
   ],
   advanced: {
     trustedProxyHeaders: true,
-    // CSRF protection enabled (enforced via trustedOrigins above)
+    // CSRF protection enabled (enforced via trustedOrigins above).
+    // secure: true in production (HTTPS), false in local dev (plain HTTP).
+    //   Browsers and React Native silently drop Secure cookies over plain HTTP,
+    //   so the session token would never be stored and every getSession() would
+    //   return null, creating a login → redirect → login loop.
+    // partitioned: omitted — CHIPS is a cutting-edge browser spec and has no
+    //   support in React Native / Expo's cookie handling layer.
     defaultCookieAttributes: {
       sameSite: "lax",
-      secure: true,
+      secure: env.NODE_ENV === "production",
       httpOnly: true,
-      partitioned: true,
     },
   },
 });
