@@ -41,15 +41,31 @@ export async function pushLocalDataToCloud(): Promise<SyncResult> {
   }
 }
 
+/** Fetch all transactions from the cloud, paginating until exhausted */
+async function fetchAllCloudTransactions(): Promise<any[]> {
+  const PAGE = 100;
+  let offset = 0;
+  const all: any[] = [];
+  while (true) {
+    const res = await api.get<{ data: any[]; pagination: { hasMore: boolean } }>(
+      `/api/transactions?limit=${PAGE}&offset=${offset}`
+    );
+    const page = res?.data ?? [];
+    all.push(...page);
+    if (!res?.pagination?.hasMore || page.length === 0) break;
+    offset += PAGE;
+  }
+  return all;
+}
+
 /** Pull cloud data down and merge into local SQLite */
 export async function pullCloudDataToLocal(): Promise<SyncResult> {
   try {
-    const [txResponse, cloudAccounts, cloudSettings] = await Promise.all([
-      api.get<{ data: any[] }>("/api/transactions"),
+    const [cloudTransactions, cloudAccounts, cloudSettings] = await Promise.all([
+      fetchAllCloudTransactions(),
       api.get<any[]>("/api/accounts"),
       api.get<any>("/api/settings"),
     ]);
-    const cloudTransactions = txResponse?.data ?? [];
 
     // Sync accounts first (transactions depend on them)
     const localAccounts = await getAccounts();

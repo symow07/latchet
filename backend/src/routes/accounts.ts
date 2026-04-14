@@ -1,6 +1,19 @@
 import { Hono } from "hono";
+import { zValidator } from "@hono/zod-validator";
+import { z } from "zod";
 import { prisma } from "../prisma";
 import { auth } from "../auth";
+
+const accountSchema = z.object({
+  id: z.string().optional(),
+  name: z.string().min(1).max(100),
+  type: z.enum(["cash", "checking", "savings", "credit", "investment", "other"]),
+  balance: z.number().optional().default(0),
+  currency: z.string().min(1).max(5).optional().default("USD"),
+  color: z.string().optional().default("#a855f7"),
+  icon: z.string().optional().default("wallet"),
+  isDefault: z.boolean().optional().default(false),
+});
 
 const router = new Hono<{
   Variables: {
@@ -25,20 +38,20 @@ router.get("/", async (c) => {
   return c.json(accounts);
 });
 
-router.post("/", async (c) => {
+router.post("/", zValidator("json", accountSchema), async (c) => {
   const user = c.get("user")!;
-  const body = await c.req.json();
+  const body = c.req.valid("json");
   const account = await prisma.bankAccount.create({
     data: {
       id: body.id || `acc_${Date.now()}_${Math.random().toString(36).slice(2)}`,
       userId: user.id,
       name: body.name,
       type: body.type,
-      balance: body.balance || 0,
-      currency: body.currency || "USD",
-      color: body.color || "#a855f7",
-      icon: body.icon || "wallet",
-      isDefault: body.isDefault || false,
+      balance: body.balance,
+      currency: body.currency,
+      color: body.color,
+      icon: body.icon,
+      isDefault: body.isDefault,
     },
   });
   return c.json(account, 201);
@@ -90,49 +103,49 @@ router.post("/sync", async (c) => {
     createdAt?: string | number;
   }
 
-  let synced = 0;
+  // Pre-validate ownership for all accounts
+  const validated: Array<AccountInput & { _exists: boolean }> = [];
   for (const acc of accounts as AccountInput[]) {
-    // Validate ownership before upsert — never trust client-provided id
+    if (!acc.id || !acc.name || !acc.type) continue;
     const existing = await prisma.bankAccount.findUnique({ where: { id: acc.id } });
-
-    if (existing && existing.userId !== user.id) {
-      // Record belongs to another user — skip silently
-      continue;
-    }
-
-    if (existing) {
-      await prisma.bankAccount.update({
-        where: { id: acc.id },
-        data: {
-          name: acc.name,
-          type: acc.type,
-          balance: acc.balance,
-          currency: acc.currency,
-          color: acc.color,
-          icon: acc.icon,
-          isDefault: acc.isDefault,
-        },
-      });
-    } else {
-      await prisma.bankAccount.create({
-        data: {
-          id: acc.id,
-          userId: user.id,
-          name: acc.name,
-          type: acc.type,
-          balance: acc.balance || 0,
-          currency: acc.currency || "USD",
-          color: acc.color || "#a855f7",
-          icon: acc.icon || "wallet",
-          isDefault: acc.isDefault || false,
-          createdAt: new Date(acc.createdAt || Date.now()),
-        },
-      });
-    }
-    synced++;
+    if (existing && existing.userId !== user.id) continue;
+    validated.push({ ...acc, _exists: !!existing });
   }
 
-  return c.json({ synced });
+  // Execute all upserts atomically
+  await prisma.$transaction(
+    validated.map((acc) =>
+      acc._exists
+        ? prisma.bankAccount.update({
+            where: { id: acc.id },
+            data: {
+              name: acc.name,
+              type: acc.type,
+              balance: acc.balance,
+              currency: acc.currency,
+              color: acc.color,
+              icon: acc.icon,
+              isDefault: acc.isDefault,
+            },
+          })
+        : prisma.bankAccount.create({
+            data: {
+              id: acc.id,
+              userId: user.id,
+              name: acc.name,
+              type: acc.type,
+              balance: acc.balance || 0,
+              currency: acc.currency || "USD",
+              color: acc.color || "#a855f7",
+              icon: acc.icon || "wallet",
+              isDefault: acc.isDefault || false,
+              createdAt: new Date(acc.createdAt || Date.now()),
+            },
+          })
+    )
+  );
+
+  return c.json({ synced: validated.length });
 });
 
 export { router as accountsRouter };

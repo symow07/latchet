@@ -119,53 +119,51 @@ router.post("/sync", async (c) => {
     createdAt: z.union([z.string(), z.number()]).optional(),
   });
 
-  let synced = 0;
+  // Pre-validate all rows and filter out any that fail schema or ownership check
+  const validated: Array<(typeof syncSchema)["_output"] & { _exists: boolean }> = [];
   for (const raw of transactions) {
     const parsed = syncSchema.safeParse(raw);
     if (!parsed.success) continue;
     const tx = parsed.data;
-
-    // Validate ownership — never trust client-provided id
     const existing = await prisma.transaction.findUnique({ where: { id: tx.id } });
-
-    if (existing && existing.userId !== user.id) {
-      // Belongs to another user — skip
-      continue;
-    }
-
-    if (existing) {
-      await prisma.transaction.update({
-        where: { id: tx.id },
-        data: {
-          amount: tx.amount,
-          category: tx.category,
-          type: tx.type,
-          isImpulse: tx.isImpulse,
-          note: tx.note,
-          dateISO: tx.dateISO,
-        },
-      });
-    } else {
-      await prisma.transaction.create({
-        data: {
-          id: tx.id,
-          userId: user.id,
-          accountId: tx.accountId || null,
-          amount: tx.amount,
-          category: tx.category,
-          type: tx.type,
-          isImpulse: tx.isImpulse,
-          note: tx.note || null,
-          dateISO: tx.dateISO,
-          currency: tx.currency,
-          createdAt: new Date(tx.createdAt || Date.now()),
-        },
-      });
-    }
-    synced++;
+    if (existing && existing.userId !== user.id) continue; // ownership violation — skip
+    validated.push({ ...tx, _exists: !!existing });
   }
 
-  return c.json({ synced });
+  // Execute all upserts atomically
+  await prisma.$transaction(
+    validated.map((tx) =>
+      tx._exists
+        ? prisma.transaction.update({
+            where: { id: tx.id },
+            data: {
+              amount: tx.amount,
+              category: tx.category,
+              type: tx.type,
+              isImpulse: tx.isImpulse,
+              note: tx.note,
+              dateISO: tx.dateISO,
+            },
+          })
+        : prisma.transaction.create({
+            data: {
+              id: tx.id,
+              userId: user.id,
+              accountId: tx.accountId || null,
+              amount: tx.amount,
+              category: tx.category,
+              type: tx.type,
+              isImpulse: tx.isImpulse,
+              note: tx.note || null,
+              dateISO: tx.dateISO,
+              currency: tx.currency,
+              createdAt: new Date(tx.createdAt || Date.now()),
+            },
+          })
+    )
+  );
+
+  return c.json({ synced: validated.length });
 });
 
 export { router as transactionsRouter };
