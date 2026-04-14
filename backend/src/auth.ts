@@ -24,7 +24,8 @@ async function extractIdentifier(c: Context): Promise<string | null> {
   try {
     const cloned = c.req.raw.clone();
     const body = await cloned.json();
-    return body?.email || body?.phone || null;
+    const b = body as Record<string, unknown>;
+    return (b?.email as string) || (b?.phone as string) || null;
   } catch {
     return null;
   }

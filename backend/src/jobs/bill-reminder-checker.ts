@@ -8,11 +8,11 @@ function advanceMonth(dateStr: string, dueDay: number): string {
     Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)
   ).getUTCDate();
   d.setUTCDate(Math.min(dueDay, lastDay));
-  return d.toISOString().split("T")[0];
+  return d.toISOString().split("T")[0]!;
 }
 
 async function checkBillReminders() {
-  const today = new Date().toISOString().split("T")[0];
+  const today = new Date().toISOString().split("T")[0]!;
 
   const dueReminders = await prisma.billReminder.findMany({
     where: {

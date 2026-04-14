@@ -23,11 +23,11 @@ function computeNextDate(currentDate: string, frequency: string): string {
       d.setUTCMonth(d.getUTCMonth() + 1);
   }
 
-  return d.toISOString().split("T")[0];
+  return d.toISOString().split("T")[0]!;
 }
 
 async function processRecurring() {
-  const today = new Date().toISOString().split("T")[0];
+  const today = new Date().toISOString().split("T")[0]!;
 
   const dueRecurrences = await prisma.recurringTransaction.findMany({
     where: {
