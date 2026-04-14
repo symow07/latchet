@@ -1,0 +1,12 @@
+.claude/
+.expo/
+.DS_Store
+.env
+.env.*
+changelog.txt
+CLAUDE.md
+AGENTS.md
+node_modules/
+
+
+
