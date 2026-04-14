@@ -44,11 +44,12 @@ export async function pushLocalDataToCloud(): Promise<SyncResult> {
 /** Pull cloud data down and merge into local SQLite */
 export async function pullCloudDataToLocal(): Promise<SyncResult> {
   try {
-    const [cloudTransactions, cloudAccounts, cloudSettings] = await Promise.all([
-      api.get<any[]>("/api/transactions"),
+    const [txResponse, cloudAccounts, cloudSettings] = await Promise.all([
+      api.get<{ data: any[] }>("/api/transactions"),
       api.get<any[]>("/api/accounts"),
       api.get<any>("/api/settings"),
     ]);
+    const cloudTransactions = txResponse?.data ?? [];
 
     // Sync accounts first (transactions depend on them)
     const localAccounts = await getAccounts();
