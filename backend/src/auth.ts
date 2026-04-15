@@ -138,6 +138,65 @@ setInterval(() => {
   for (const [key, expiry] of lockoutStore) if (now > expiry) lockoutStore.delete(key);
 }, 60_000).unref();
 
+// ── Password hashing (PBKDF2-SHA256) ────────────────────────────────────────
+// BetterAuth's built-in scrypt uses N=16384,r=16 — 2× the standard r=8 —
+// which takes 10+ seconds on Railway's shared CPU and hits every request timeout.
+// PBKDF2-SHA256 at 100k iterations meets OWASP minimums and completes in ~100ms.
+async function hashPassword(password: string): Promise<string> {
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const saltHex = Array.from(salt, (b) => b.toString(16).padStart(2, "0")).join("");
+  const keyMaterial = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(password.normalize("NFKC")),
+    "PBKDF2",
+    false,
+    ["deriveBits"]
+  );
+  const bits = await crypto.subtle.deriveBits(
+    { name: "PBKDF2", salt, iterations: 100_000, hash: "SHA-256" },
+    keyMaterial,
+    256
+  );
+  const keyHex = Array.from(new Uint8Array(bits), (b) =>
+    b.toString(16).padStart(2, "0")
+  ).join("");
+  return `pbkdf2:${saltHex}:${keyHex}`;
+}
+
+async function verifyPassword({
+  hash,
+  password,
+}: {
+  hash: string;
+  password: string;
+}): Promise<boolean> {
+  const parts = hash.split(":");
+  if (parts[0] !== "pbkdf2" || parts.length !== 3) return false;
+  const saltHex = parts[1]!;
+  const keyHex = parts[2]!;
+  const salt = new Uint8Array(saltHex.match(/.{2}/g)!.map((b) => parseInt(b, 16)));
+  const keyMaterial = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(password.normalize("NFKC")),
+    "PBKDF2",
+    false,
+    ["deriveBits"]
+  );
+  const bits = await crypto.subtle.deriveBits(
+    { name: "PBKDF2", salt, iterations: 100_000, hash: "SHA-256" },
+    keyMaterial,
+    256
+  );
+  const derivedHex = Array.from(new Uint8Array(bits), (b) =>
+    b.toString(16).padStart(2, "0")
+  ).join("");
+  if (derivedHex.length !== keyHex.length) return false;
+  let diff = 0;
+  for (let i = 0; i < derivedHex.length; i++)
+    diff |= derivedHex.charCodeAt(i) ^ keyHex.charCodeAt(i);
+  return diff === 0;
+}
+
 // ── Auth configuration ──────────────────────────────────────────
 export const auth = betterAuth({
   database: prismaAdapter(prisma, { provider: "sqlite" }),
@@ -145,42 +204,9 @@ export const auth = betterAuth({
   baseURL: env.BACKEND_URL,
   emailAndPassword: {
     enabled: true,
-  },
-  // Instrument every DB-level hook that fires before sendVerificationOTP so
-  // Railway logs will show the last reached step before the hang.
-  databaseHooks: {
-    user: {
-      create: {
-        before: async (user: any) => {
-          console.log(`[hook:user-create:before] email=${user.email}`);
-          return { data: user };
-        },
-        after: async (user: any) => {
-          console.log(`[hook:user-create:after] id=${user.id} email=${user.email}`);
-        },
-      },
-    },
-    session: {
-      create: {
-        before: async (session: any) => {
-          console.log(`[hook:session-create:before] userId=${session.userId}`);
-          return { data: session };
-        },
-        after: async (session: any) => {
-          console.log(`[hook:session-create:after] id=${session.id}`);
-        },
-      },
-    },
-    verification: {
-      create: {
-        before: async (verification: any) => {
-          console.log(`[hook:verification-create:before] identifier=${verification.identifier}`);
-          return { data: verification };
-        },
-        after: async (verification: any) => {
-          console.log(`[hook:verification-create:after] identifier=${verification.identifier}`);
-        },
-      },
+    password: {
+      hash: hashPassword,
+      verify: verifyPassword,
     },
   },
   trustedOrigins: [

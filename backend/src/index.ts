@@ -100,8 +100,8 @@ app.on(["GET", "POST"], "/api/auth/*", async (c) => {
       auth.handler(c.req.raw),
       new Promise<never>((_, reject) =>
         setTimeout(
-          () => reject(new Error("auth.handler timeout after 10s")),
-          10_000
+          () => reject(new Error("auth.handler timeout after 30s")),
+          30_000
         )
       ),
     ]);
