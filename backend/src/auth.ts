@@ -140,11 +140,48 @@ setInterval(() => {
 
 // ── Auth configuration ──────────────────────────────────────────
 export const auth = betterAuth({
-  database: prismaAdapter(prisma, { provider: "sqlite" }),
+  database: prismaAdapter(prisma as any, { provider: "sqlite" }),
   secret: env.BETTER_AUTH_SECRET,
   baseURL: env.BACKEND_URL,
   emailAndPassword: {
     enabled: true,
+  },
+  // Instrument every DB-level hook that fires before sendVerificationOTP so
+  // Railway logs will show the last reached step before the hang.
+  databaseHooks: {
+    user: {
+      create: {
+        before: async (user: any) => {
+          console.log(`[hook:user-create:before] email=${user.email}`);
+          return { data: user };
+        },
+        after: async (user: any) => {
+          console.log(`[hook:user-create:after] id=${user.id} email=${user.email}`);
+        },
+      },
+    },
+    session: {
+      create: {
+        before: async (session: any) => {
+          console.log(`[hook:session-create:before] userId=${session.userId}`);
+          return { data: session };
+        },
+        after: async (session: any) => {
+          console.log(`[hook:session-create:after] id=${session.id}`);
+        },
+      },
+    },
+    verification: {
+      create: {
+        before: async (verification: any) => {
+          console.log(`[hook:verification-create:before] identifier=${verification.identifier}`);
+          return { data: verification };
+        },
+        after: async (verification: any) => {
+          console.log(`[hook:verification-create:after] identifier=${verification.identifier}`);
+        },
+      },
+    },
   },
   trustedOrigins: [
     "vibecode://*/*",
