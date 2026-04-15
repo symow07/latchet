@@ -1,34 +1,25 @@
 import { PrismaClient } from "@prisma/client";
+import { env } from "./env";
 
-const basePrisma = new PrismaClient();
+// SQLite is a single-writer database. Prisma's default connection pool spawns
+// multiple connections that compete for the write lock and hang on SQLITE_BUSY.
+// connection_limit=1 eliminates all intra-process lock contention — the single
+// root cause of the 10-second signup hang on Railway.
+const dbUrl = (() => {
+  const base = env.DATABASE_URL;
+  if (base.includes("connection_limit")) return base;
+  return base.includes("?") ? `${base}&connection_limit=1` : `${base}?connection_limit=1`;
+})();
 
-async function initSqlitePragmas() {
-  await basePrisma.$queryRawUnsafe("PRAGMA journal_mode = WAL;");
-  await basePrisma.$queryRawUnsafe("PRAGMA foreign_keys = ON;");
-  await basePrisma.$queryRawUnsafe("PRAGMA busy_timeout = 10000;");
-  await basePrisma.$queryRawUnsafe("PRAGMA synchronous = NORMAL;");
-}
-initSqlitePragmas();
-
-// Wrap every Prisma query with timing logs so Railway logs show exactly which
-// DB operation is hanging. This is diagnostic instrumentation — remove once
-// the root cause is confirmed.
-export const prisma = basePrisma.$extends({
-  query: {
-    $allModels: {
-      async $allOperations({ operation, model, args, query }) {
-        const t0 = Date.now();
-        console.log(`[db:start] ${model}.${operation}`);
-        try {
-          const result = await query(args);
-          console.log(`[db:done] ${model}.${operation} in ${Date.now() - t0}ms`);
-          return result;
-        } catch (err) {
-          const msg = err instanceof Error ? err.message : String(err);
-          console.error(`[db:error] ${model}.${operation} in ${Date.now() - t0}ms: ${msg}`);
-          throw err;
-        }
-      },
-    },
-  },
+export const prisma = new PrismaClient({
+  datasources: { db: { url: dbUrl } },
 });
+
+// Pragmas only need to be set once per connection. With connection_limit=1
+// there is exactly one connection for the lifetime of the process.
+prisma
+  .$queryRawUnsafe("PRAGMA journal_mode = WAL;")
+  .then(() => prisma.$queryRawUnsafe("PRAGMA foreign_keys = ON;"))
+  .then(() => prisma.$queryRawUnsafe("PRAGMA busy_timeout = 3000;"))
+  .then(() => prisma.$queryRawUnsafe("PRAGMA synchronous = NORMAL;"))
+  .catch((err) => console.error("[prisma] pragma init failed:", err));

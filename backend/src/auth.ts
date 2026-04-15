@@ -140,7 +140,7 @@ setInterval(() => {
 
 // ── Auth configuration ──────────────────────────────────────────
 export const auth = betterAuth({
-  database: prismaAdapter(prisma as any, { provider: "sqlite" }),
+  database: prismaAdapter(prisma, { provider: "sqlite" }),
   secret: env.BETTER_AUTH_SECRET,
   baseURL: env.BACKEND_URL,
   emailAndPassword: {
