@@ -165,14 +165,19 @@ export const auth = betterAuth({
       expiresIn: 300, // 5 minutes
       async sendVerificationOTP({ email, otp, type }) {
         const smtpUrl = env.SMTP_SERVICE_URL;
+        console.log(`[otp:start] type=${type} email=${email}`);
 
         // Hard 5-second timeout — without this the fetch hangs forever when
         // the SMTP service is unreachable, freezing the entire signup request.
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 5_000);
+        const timeout = setTimeout(() => {
+          console.log(`[otp:timeout] AbortController fired for ${email}`);
+          controller.abort();
+        }, 5_000);
 
         let response: Response;
         try {
+          console.log(`[otp:before-fetch] url=${smtpUrl} email=${email}`);
           response = await fetch(smtpUrl, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -184,25 +189,29 @@ export const auth = betterAuth({
             }),
             signal: controller.signal,
           });
+          console.log(`[otp:after-fetch] status=${response.status} email=${email}`);
         } catch (err) {
           // AbortError means we hit the 5-second deadline; any other error is a
           // network-level failure (DNS, TCP reset, etc.). Log the reason so it's
           // debuggable, then surface a clean error to the caller — never hang.
           const reason = err instanceof Error ? err.message : String(err);
-          console.error(`[auth] OTP send failed for ${email} (type=${type}): ${reason}`);
+          console.error(`[otp:catch] OTP send failed for ${email} (type=${type}): ${reason}`);
           throw new Error("Failed to send verification code");
         } finally {
           clearTimeout(timeout);
+          console.log(`[otp:finally] cleanup done for ${email}`);
         }
 
         if (!response.ok) {
           // Never leak OTP value or upstream response details to the client,
           // but log status so on-call can triage without guessing.
           console.error(
-            `[auth] OTP send HTTP error for ${email} (type=${type}): status=${response.status}`
+            `[otp:http-error] status=${response.status} email=${email} type=${type}`
           );
           throw new Error("Failed to send verification code");
         }
+
+        console.log(`[otp:success] OTP sent for ${email} type=${type}`);
       },
     }),
   ],

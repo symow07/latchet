@@ -45,9 +45,38 @@ app.use(
 
 app.use("*", logger());
 
-// Auth middleware - populates user/session for all routes
+// Auth middleware - populates user/session for all routes.
+// getSession is wrapped with a 5-second timeout: if the DB hangs (e.g. SQLite
+// lock on Railway) we skip setting user/session and continue rather than
+// freezing every request indefinitely.
 app.use("*", async (c, next) => {
-  const session = await auth.api.getSession({ headers: c.req.raw.headers });
+  const isAuthPath = c.req.path.startsWith("/api/auth/");
+  if (isAuthPath) {
+    console.log(`[session-mw:start] ${c.req.method} ${c.req.path}`);
+  }
+  const t0 = Date.now();
+
+  let session: Awaited<ReturnType<typeof auth.api.getSession>>;
+  try {
+    session = await Promise.race([
+      auth.api.getSession({ headers: c.req.raw.headers }),
+      new Promise<never>((_, reject) =>
+        setTimeout(
+          () => reject(new Error("getSession timeout after 5s")),
+          5_000
+        )
+      ),
+    ]);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`[session-mw:error] ${c.req.method} ${c.req.path} in ${Date.now() - t0}ms: ${msg}`);
+    session = null;
+  }
+
+  if (isAuthPath) {
+    console.log(`[session-mw:done] in ${Date.now() - t0}ms hasSession=${session != null}`);
+  }
+
   if (!session) {
     c.set("user", null);
     c.set("session", null);
@@ -63,7 +92,27 @@ app.use("*", async (c, next) => {
 app.use("/api/auth/sign-in/*", loginRateLimiter);
 app.use("/api/auth/email-otp/*", otpRateLimiter);
 app.use("/api/auth/*", generalAuthRateLimiter);
-app.on(["GET", "POST"], "/api/auth/*", (c) => auth.handler(c.req.raw));
+app.on(["GET", "POST"], "/api/auth/*", async (c) => {
+  const t0 = Date.now();
+  console.log(`[auth-route:enter] ${c.req.method} ${c.req.path}`);
+  try {
+    const response = await Promise.race([
+      auth.handler(c.req.raw),
+      new Promise<never>((_, reject) =>
+        setTimeout(
+          () => reject(new Error("auth.handler timeout after 10s")),
+          10_000
+        )
+      ),
+    ]);
+    console.log(`[auth-route:done] ${c.req.method} ${c.req.path} in ${Date.now() - t0}ms status=${response.status}`);
+    return response;
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`[auth-route:error] ${c.req.method} ${c.req.path} in ${Date.now() - t0}ms: ${msg}`);
+    return c.json({ error: "Request timed out or failed" }, 503);
+  }
+});
 
 // Health check
 app.get("/health", (c) => c.json({ status: "ok" }));
