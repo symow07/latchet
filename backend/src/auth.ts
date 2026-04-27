@@ -209,6 +209,40 @@ export const auth = betterAuth({
       verify: verifyPassword,
     },
   },
+  // Diagnostic-only: log the FIRST adapter call BetterAuth makes on each path.
+  // The "auth.handler timeout" with no other logs means we can't tell whether
+  // BetterAuth hung pre-DB (PBKDF2, validation, plugin chain) or mid-DB.
+  // These `before` callbacks fire from the adapter — the moment one prints,
+  // we know BetterAuth has reached a real DB op.
+  databaseHooks: {
+    user: {
+      create: {
+        before: async (user) => {
+          const u = user as { email?: string };
+          console.log(`[hook:user-create:before] email=${u.email}`);
+          return { data: user };
+        },
+      },
+    },
+    session: {
+      create: {
+        before: async (session) => {
+          const s = session as { userId?: string };
+          console.log(`[hook:session-create:before] userId=${s.userId}`);
+          return { data: session };
+        },
+      },
+    },
+    verification: {
+      create: {
+        before: async (verification) => {
+          const v = verification as { identifier?: string };
+          console.log(`[hook:verification-create:before] identifier=${v.identifier}`);
+          return { data: verification };
+        },
+      },
+    },
+  },
   trustedOrigins: [
     "vibecode://*/*",
     "exp://*/*",

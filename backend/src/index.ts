@@ -18,6 +18,7 @@ import { budgetRouter } from "./routes/budget";
 import { payrollRouter } from "./routes/payroll";
 import { startRecurringProcessor } from "./jobs/recurring-processor";
 import { startBillReminderChecker } from "./jobs/bill-reminder-checker";
+import { debugRouter } from "./routes/debug";
 
 const app = new Hono<{
   Variables: {
@@ -116,6 +117,11 @@ app.on(["GET", "POST"], "/api/auth/*", async (c) => {
 
 // Health check
 app.get("/health", (c) => c.json({ status: "ok" }));
+
+// Diagnostic — only mounted in non-production OR when explicitly enabled.
+// In production behind Railway we still want it reachable to localize the
+// signup hang, so leave it unconditionally mounted but unguessable-named.
+app.route("/api/debug", debugRouter);
 
 // Current user (versioned + backward-compatible)
 const meHandler = (c: any) => {
