@@ -20,15 +20,26 @@ function getIp(c: Context): string {
   return c.req.header("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
 }
 
-async function extractIdentifier(c: Context): Promise<string | null> {
-  try {
-    const cloned = c.req.raw.clone();
-    const body = await cloned.json();
-    const b = body as Record<string, unknown>;
-    return (b?.email as string) || (b?.phone as string) || null;
-  } catch {
-    return null;
-  }
+// Identifier extraction is intentionally body-free.
+//
+// Why: previously this did `c.req.raw.clone()` + `await cloned.json()` to get
+// `email` / `phone` for per-identifier rate-limiting on POST /api/auth/*.
+// On Bun under production load, tee-ing the request body via `clone()` and
+// fully consuming one branch before the original is read by `auth.handler`
+// can deadlock the original branch — the underlying socket stream stalls
+// instead of completing. That manifests exactly as the observed bug:
+// `auth.handler(c.req.raw)` awaits body parsing and never returns, no DB
+// query issues, no hooks fire, request 503s at the 30s wrapper timeout.
+//
+// We can recover identifier-style limits later from query string or a
+// header without touching the body. Per-IP limits (which still run below)
+// already cover the same misuse vector for unauthenticated POSTs.
+function extractIdentifier(c: Context): string | null {
+  const fromQuery = c.req.query("email") || c.req.query("phone");
+  if (fromQuery) return fromQuery;
+  const fromHeader = c.req.header("x-rate-limit-identifier");
+  if (fromHeader) return fromHeader;
+  return null;
 }
 
 function checkStore(
@@ -77,7 +88,7 @@ export function createRateLimiter(opts: {
 }) {
   return async (c: Context, next: Next) => {
     const ip = getIp(c);
-    const identifier = await extractIdentifier(c);
+    const identifier = extractIdentifier(c);
 
     // Check lockout (by identifier first, then IP)
     if (identifier && !checkLockout(`id:${identifier}`)) {
