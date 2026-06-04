@@ -69,18 +69,15 @@ export default function AdvisorTab() {
 
   const sendMessageMutation = useMutation({
     mutationFn: async (userMessage: string) => {
-      const apiKey = process.env.EXPO_PUBLIC_VIBECODE_OPENAI_API_KEY;
-      if (!apiKey) {
-        throw new Error('AI service not configured. Please add an OpenAI API key.');
-      }
-
+      // TODO: route via backend AI proxy — never expose API keys in mobile bundle.
+      // The local prompt builder still runs so the architecture is ready for a
+      // proxied call; getAIResponse currently throws a friendly unavailable error.
       const conversationHistory = messages.map(m => ({
         role: m.role,
         content: m.content,
       }));
-
       const prompt = buildAIPrompt(analysis, settings ?? null, userMessage, conversationHistory);
-      const response = await getAIResponse(prompt, apiKey);
+      const response = await getAIResponse(prompt, '');
       return response;
     },
     onSuccess: (response) => {
@@ -193,6 +190,18 @@ export default function AdvisorTab() {
                 <Text className="text-gray-300 text-sm leading-5">
                   Ask me anything about your finances. I can help you understand spending patterns,
                   identify savings opportunities, and give personalized advice based on your actual data.
+                </Text>
+              </View>
+
+              {/* Temporarily unavailable notice */}
+              <View
+                className="rounded-2xl p-4 mb-4"
+                style={{ backgroundColor: 'rgba(245, 158, 11, 0.1)', borderWidth: 1, borderColor: 'rgba(245, 158, 11, 0.25)' }}
+              >
+                <Text className="text-amber-400 font-semibold text-sm mb-1">AI chat is temporarily unavailable</Text>
+                <Text className="text-gray-400 text-xs leading-4">
+                  We&apos;re moving the advisor to a secure backend service. Your local insights below are
+                  still live and update with every transaction.
                 </Text>
               </View>
 

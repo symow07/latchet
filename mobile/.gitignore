@@ -43,3 +43,8 @@ yarn-error.*
 
 # Expo log
 expo.log
+
+# Stray / temp
+.nm_trash_*/
+build.log
+false

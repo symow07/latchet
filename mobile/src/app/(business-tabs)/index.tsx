@@ -11,7 +11,7 @@ import { getExpenses } from '@/lib/expenseApi';
 import { getBusiness } from '@/lib/businessApi';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
-import { detectSubscriptions } from '@/lib/subscriptionDetection';
+import { detectSubscriptions } from '@/lib/business-subscription-detection';
 
 export default function BusinessDashboardTab() {
   const insets = useSafeAreaInsets();

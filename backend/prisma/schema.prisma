@@ -29,6 +29,9 @@ model User {
   submittedExpenses  Expense[] @relation("SubmittedExpenses")
   reviewedExpenses   Expense[] @relation("ReviewedExpenses")
   salaries           Salary[]
+  achievements       Achievement[]
+  pushTokens         PushToken[]
+  plaidItems         PlaidItem[]
 }
 
 model Session {
@@ -188,6 +191,65 @@ model CategoryBudget {
   updatedAt DateTime @updatedAt
 
   @@unique([userId, category])
+}
+
+// Persisted gamification: a badge stays earned even after the underlying
+// transactions change or the app is reinstalled. `badge` is the badge key
+// (e.g. "7-Day Streak"); `bestStreak` tracks the user's all-time logging streak.
+model Achievement {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badge      String
+  earnedAt   DateTime @default(now())
+  bestStreak Int      @default(0)
+
+  @@unique([userId, badge])
+}
+
+// Expo push tokens for delivering bill reminders, streak nudges, and
+// badge-earned alerts. One row per device; token is unique.
+model PushToken {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  platform  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// A linked Plaid Item (one per institution connection). The access token is
+// stored encrypted at rest (AES-256-GCM, key derived from BETTER_AUTH_SECRET).
+// `cursor` is Plaid's /transactions/sync pagination cursor for incremental pulls.
+model PlaidItem {
+  id              String         @id @default(cuid())
+  userId          String
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  itemId          String         @unique
+  accessTokenEnc  String
+  institutionId   String?
+  institutionName String?
+  cursor          String?
+  status          String         @default("active") // active|error|disconnected
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  accounts        PlaidAccount[]
+}
+
+// An account exposed by a Plaid Item, mirrored locally for display + balances.
+model PlaidAccount {
+  id            String    @id @default(cuid())
+  itemId        String
+  item          PlaidItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  plaidAccountId String   @unique
+  name          String
+  type          String    // checking|savings|credit|investment|other
+  mask          String?
+  balance       Float     @default(0)
+  currency      String    @default("USD")
+  isEnabled     Boolean   @default(true)
+  updatedAt     DateTime  @updatedAt
 }
 
 model Business {

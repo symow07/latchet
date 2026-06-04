@@ -1,7 +1,8 @@
-const getBackendUrl = () =>
-  process.env.EXPO_PUBLIC_VIBECODE_BACKEND_URL ||
-  process.env.EXPO_PUBLIC_BACKEND_URL ||
-  'http://localhost:3000';
+const getBackendUrl = (): string => {
+  const url = process.env.EXPO_PUBLIC_BACKEND_URL;
+  if (!url) throw new Error('EXPO_PUBLIC_BACKEND_URL is not configured');
+  return url;
+};
 
 export type BudgetCategory = 'Travel' | 'Software' | 'Meals' | 'Transport' | 'Office' | 'Other';
 

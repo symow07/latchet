@@ -8,5 +8,8 @@ CLAUDE.md
 AGENTS.md
 node_modules/
 
+# Local installers / binaries
+*.dmg
+
 
 

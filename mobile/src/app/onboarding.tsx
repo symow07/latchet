@@ -1,9 +1,10 @@
-import { View, Text, Pressable, ScrollView, TextInput } from 'react-native';
+import { View, Text, Pressable, ScrollView, TextInput, Keyboard } from 'react-native';
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { useMutation } from '@tanstack/react-query';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import {
   ArrowRight,
   ArrowLeft,
@@ -16,7 +17,7 @@ import {
   Check,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
-import { saveOnboardingData } from '@/lib/auth';
+import { saveOnboardingData } from '@/lib/onboarding-storage';
 import { updateSettings } from '@/lib/db';
 import { CURRENCIES, getPopularCurrencies, type Currency } from '@/lib/currencies';
 
@@ -218,6 +219,9 @@ export default function OnboardingScreen() {
                   placeholder="5000"
                   placeholderTextColor="#555"
                   keyboardType="decimal-pad"
+                  returnKeyType="done"
+                  onSubmitEditing={Keyboard.dismiss}
+                  blurOnSubmit
                   className="flex-1 text-white text-xl font-semibold"
                   selectionColor="#a855f7"
                 />
@@ -240,6 +244,9 @@ export default function OnboardingScreen() {
                   placeholder="500"
                   placeholderTextColor="#555"
                   keyboardType="decimal-pad"
+                  returnKeyType="done"
+                  onSubmitEditing={Keyboard.dismiss}
+                  blurOnSubmit
                   className="flex-1 text-white text-xl font-semibold"
                   selectionColor="#a855f7"
                 />
@@ -361,59 +368,67 @@ export default function OnboardingScreen() {
         </View>
       </LinearGradient>
 
-      {/* Content */}
-      <View className="flex-1 px-6 pt-8">
-        {renderStep()}
-      </View>
-
-      {/* Navigation */}
-      <View className="px-6 pb-8" style={{ paddingBottom: insets.bottom + 24 }}>
-        {saveMutation.isError && (
-          <View className="mb-3 px-4 py-3 rounded-xl" style={{ backgroundColor: 'rgba(239,68,68,0.15)', borderWidth: 1, borderColor: 'rgba(239,68,68,0.4)' }}>
-            <Text className="text-red-400 text-sm text-center">Something went wrong. Please try again.</Text>
-          </View>
-        )}
-        <View className="flex-row gap-3">
-          {step > 0 && (
-            <Pressable
-              onPress={prevStep}
-              className="flex-row items-center justify-center px-6 py-4 rounded-2xl"
-              style={{ backgroundColor: 'rgba(255,255,255,0.05)' }}
-            >
-              <ArrowLeft size={20} color="#9ca3af" />
-              <Text className="text-gray-400 font-semibold ml-2">Back</Text>
-            </Pressable>
-          )}
-
-          <Pressable
-            onPress={nextStep}
-            disabled={saveMutation.isPending}
-            className="flex-1 active:scale-98"
-          >
-            <LinearGradient
-              colors={saveMutation.isPending ? ['#374151', '#374151'] : ['#7c3aed', '#a855f7']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={{
-                borderRadius: 16,
-                paddingVertical: 18,
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <Text className="text-white font-bold text-lg mr-2">
-                {step === STEPS.length - 1
-                  ? saveMutation.isPending
-                    ? 'Setting up...'
-                    : 'Get Started'
-                  : 'Continue'}
-              </Text>
-              {!saveMutation.isPending && <ArrowRight size={20} color="white" />}
-            </LinearGradient>
-          </Pressable>
+      <KeyboardAwareScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ flexGrow: 1, justifyContent: 'space-between' }}
+        keyboardShouldPersistTaps="handled"
+        bottomOffset={20}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Content */}
+        <View className="px-6 pt-8">
+          {renderStep()}
         </View>
-      </View>
+
+        {/* Navigation */}
+        <View className="px-6 pb-8" style={{ paddingBottom: insets.bottom + 24, paddingTop: 24 }}>
+          {saveMutation.isError && (
+            <View className="mb-3 px-4 py-3 rounded-xl" style={{ backgroundColor: 'rgba(239,68,68,0.15)', borderWidth: 1, borderColor: 'rgba(239,68,68,0.4)' }}>
+              <Text className="text-red-400 text-sm text-center">Something went wrong. Please try again.</Text>
+            </View>
+          )}
+          <View className="flex-row gap-3">
+            {step > 0 && (
+              <Pressable
+                onPress={prevStep}
+                className="flex-row items-center justify-center px-6 py-4 rounded-2xl"
+                style={{ backgroundColor: 'rgba(255,255,255,0.05)' }}
+              >
+                <ArrowLeft size={20} color="#9ca3af" />
+                <Text className="text-gray-400 font-semibold ml-2">Back</Text>
+              </Pressable>
+            )}
+
+            <Pressable
+              onPress={nextStep}
+              disabled={saveMutation.isPending}
+              className="flex-1 active:scale-98"
+            >
+              <LinearGradient
+                colors={saveMutation.isPending ? ['#374151', '#374151'] : ['#7c3aed', '#a855f7']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={{
+                  borderRadius: 16,
+                  paddingVertical: 18,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Text className="text-white font-bold text-lg mr-2">
+                  {step === STEPS.length - 1
+                    ? saveMutation.isPending
+                      ? 'Setting up...'
+                      : 'Get Started'
+                    : 'Continue'}
+                </Text>
+                {!saveMutation.isPending && <ArrowRight size={20} color="white" />}
+              </LinearGradient>
+            </Pressable>
+          </View>
+        </View>
+      </KeyboardAwareScrollView>
     </View>
   );
 }

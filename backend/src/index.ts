@@ -19,6 +19,10 @@ import { payrollRouter } from "./routes/payroll";
 import { startRecurringProcessor } from "./jobs/recurring-processor";
 import { startBillReminderChecker } from "./jobs/bill-reminder-checker";
 import { debugRouter } from "./routes/debug";
+import { aiRouter } from "./routes/ai";
+import { achievementsRouter } from "./routes/achievements";
+import { pushTokensRouter } from "./routes/push-tokens";
+import { plaidRouter } from "./routes/plaid";
 
 const app = new Hono<{
   Variables: {
@@ -46,25 +50,26 @@ app.use(
 
 app.use("*", logger());
 
-// Auth middleware - populates user/session for all routes.
-// getSession is wrapped with a 5-second timeout: if the DB hangs (e.g. SQLite
-// lock on Railway) we skip setting user/session and continue rather than
-// freezing every request indefinitely.
+// Auth middleware - populates user/session for protected routes.
+// Skipped for /api/auth/* because BetterAuth's own handler resolves the session
+// itself; calling auth.api.getSession() here is redundant DB work and consumes
+// the 5s timeout budget that should be available to auth.handler.
 app.use("*", async (c, next) => {
-  const isAuthPath = c.req.path.startsWith("/api/auth/");
-  if (isAuthPath) {
-    console.log(`[session-mw:start] ${c.req.method} ${c.req.path}`);
+  if (c.req.path.startsWith("/api/auth/")) {
+    c.set("user", null);
+    c.set("session", null);
+    return next();
   }
-  const t0 = Date.now();
 
+  const t0 = Date.now();
   let session: Awaited<ReturnType<typeof auth.api.getSession>>;
   try {
     session = await Promise.race([
       auth.api.getSession({ headers: c.req.raw.headers }),
       new Promise<never>((_, reject) =>
         setTimeout(
-          () => reject(new Error("getSession timeout after 5s")),
-          5_000
+          () => reject(new Error("getSession timeout after 10s")),
+          10_000
         )
       ),
     ]);
@@ -74,28 +79,39 @@ app.use("*", async (c, next) => {
     session = null;
   }
 
-  if (isAuthPath) {
-    console.log(`[session-mw:done] in ${Date.now() - t0}ms hasSession=${session != null}`);
-  }
-
   if (!session) {
     c.set("user", null);
     c.set("session", null);
-    await next();
-    return;
+    return next();
   }
   c.set("user", session.user);
   c.set("session", session.session);
-  await next();
+  return next();
 });
 
-// Auth routes (path-specific rate limiting) — both versioned and unversioned
+// Auth routes (path-specific rate limiting) — both versioned and unversioned.
+// During stabilization, /api/auth/sign-up/email and /api/auth/sign-in/email are
+// exempted from generalAuthRateLimiter because it was producing 429s during
+// manual testing. loginRateLimiter still covers /api/auth/sign-in/* (per-IP
+// brute-force protection); otpRateLimiter still covers /api/auth/email-otp/*.
 app.use("/api/auth/sign-in/*", loginRateLimiter);
 app.use("/api/auth/email-otp/*", otpRateLimiter);
-app.use("/api/auth/*", generalAuthRateLimiter);
+app.use("/api/auth/*", async (c, next) => {
+  const p = c.req.path;
+  if (p === "/api/auth/sign-up/email" || p === "/api/auth/sign-in/email") {
+    return next();
+  }
+  return generalAuthRateLimiter(c, next);
+});
 app.on(["GET", "POST"], "/api/auth/*", async (c) => {
   const t0 = Date.now();
   console.log(`[auth-route:enter] ${c.req.method} ${c.req.path}`);
+  // Headers-only probe. Never read or clone the body — that's the deadlock
+  // that motivated commit e519527.
+  const ct = c.req.header("content-type") ?? "";
+  const cl = c.req.header("content-length") ?? "?";
+  const ip = c.req.header("x-forwarded-for") ?? "unknown";
+  console.log(`[auth-route:headers] ct=${ct} cl=${cl} ip=${ip}`);
   try {
     const response = await Promise.race([
       auth.handler(c.req.raw),
@@ -145,6 +161,10 @@ app.route("/api/v1/business", businessRouter);
 app.route("/api/v1/expenses", expensesRouter);
 app.route("/api/v1/business/budget", budgetRouter);
 app.route("/api/v1/payroll", payrollRouter);
+app.route("/api/v1/ai", aiRouter);
+app.route("/api/v1/achievements", achievementsRouter);
+app.route("/api/v1/push-tokens", pushTokensRouter);
+app.route("/api/v1/plaid", plaidRouter);
 
 // Backward-compatible unversioned routes (alias to v1)
 app.route("/api/sample", sampleRouter);
@@ -159,6 +179,10 @@ app.route("/api/business", businessRouter);
 app.route("/api/expenses", expensesRouter);
 app.route("/api/business/budget", budgetRouter);
 app.route("/api/payroll", payrollRouter);
+app.route("/api/ai", aiRouter);
+app.route("/api/achievements", achievementsRouter);
+app.route("/api/push-tokens", pushTokensRouter);
+app.route("/api/plaid", plaidRouter);
 
 // Start background jobs
 startRecurringProcessor();

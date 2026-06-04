@@ -5,7 +5,9 @@ import {
   Pressable,
   Modal,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
+import * as WebBrowser from 'expo-web-browser';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -33,7 +35,7 @@ import {
   getLinkedBanks,
   getLinkedAccounts,
   SUPPORTED_BANKS,
-  completeBankConnection,
+  createLinkToken,
   disconnectBank,
   toggleAccountSync,
   syncAllTransactions,
@@ -94,14 +96,28 @@ export default function LinkBankScreen() {
     setIsLoading(true);
 
     try {
-      // Simulate OAuth flow completion
-      const result = await completeBankConnection(pendingBankId, 'mock_auth_code');
-
-      if (result.success) {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        await loadData();
-        setViewMode('main');
+      // Real Plaid flow: get a Hosted Link URL from the backend and open the
+      // bank's secure login in a browser. On success Plaid notifies the backend
+      // (SESSION_FINISHED webhook), which exchanges the token and persists the
+      // accounts — so we just refresh from the backend afterwards.
+      const { hostedLinkUrl } = await createLinkToken();
+      if (!hostedLinkUrl) {
+        Alert.alert(
+          'Bank linking unavailable',
+          'Bank linking is not configured on the server yet. Please try again later.'
+        );
+        return;
       }
+
+      await WebBrowser.openAuthSessionAsync(hostedLinkUrl, 'realbudget://callback');
+
+      // The webhook may take a moment to land; refresh now and the user can also
+      // pull-to-refresh / tap Sync if their bank appears a few seconds later.
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      await loadData();
+      setViewMode('main');
+    } catch (e) {
+      Alert.alert('Connection failed', e instanceof Error ? e.message : 'Please try again.');
     } finally {
       setIsLoading(false);
       setPendingBankId(null);

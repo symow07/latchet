@@ -18,7 +18,7 @@ import {
   detectSubscriptions,
   formatNextCharge,
   type DetectedSubscription,
-} from '@/lib/subscriptionDetection';
+} from '@/lib/business-subscription-detection';
 
 // ─── Cancel Guide Modal ─────────────────────────────────────────────────────────
 

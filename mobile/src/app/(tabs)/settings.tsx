@@ -5,13 +5,13 @@ import {
   TextInput,
   Switch,
   Pressable,
-  Share,
   Alert,
 } from 'react-native';
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import { getSettings, updateSettings, getAccounts, getTransactions, resetAllData } from '@/lib/db';
+import { getSettings, updateSettings, getAccounts, resetAllData } from '@/lib/db';
+import { exportTransactionsCSV, exportTransactionsJSON } from '@/lib/export-data';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DollarSign, Wallet, Clock, Eye, Flame, Award, Cloud, Check, ChevronRight, CreditCard, LogOut, Upload, Download, Fingerprint, PieChart, RotateCcw } from 'lucide-react-native';
@@ -41,28 +41,26 @@ export default function SettingsScreen() {
     });
   }, []);
 
-  async function handleExportData() {
+  async function runExport(kind: 'csv' | 'json') {
     try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      const txs = await getTransactions();
-      const header = 'id,date,category,type,amount,isImpulse,note';
-      const rows = txs.map((tx) =>
-        [
-          tx.id,
-          tx.dateISO,
-          tx.category,
-          tx.type,
-          tx.amount.toString(),
-          tx.isImpulse ? '1' : '0',
-          (tx.note ?? '').replace(/,/g, ';'),
-        ].join(',')
-      );
-      const csv = [header, ...rows].join('\n');
-      await Share.share({ message: csv, title: 'Budget Transactions' });
+      const count =
+        kind === 'csv' ? await exportTransactionsCSV() : await exportTransactionsJSON();
+      if (count === 0) {
+        Alert.alert('Nothing to Export', 'You have no transactions yet.');
+      }
     } catch (error) {
       console.error('Failed to export transactions:', error);
-      Alert.alert('Export Failed', 'Could not export transactions to CSV');
+      Alert.alert('Export Failed', `Could not export transactions to ${kind.toUpperCase()}`);
     }
+  }
+
+  function handleExportData() {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    Alert.alert('Export Data', 'Choose a format to share or back up your transactions.', [
+      { text: 'CSV (re-importable)', onPress: () => runExport('csv') },
+      { text: 'JSON (full backup)', onPress: () => runExport('json') },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
   }
 
   async function handleBiometricToggle(val: boolean) {

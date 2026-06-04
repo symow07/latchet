@@ -56,7 +56,7 @@ export default function ImportScreen() {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
       const result = await DocumentPicker.getDocumentAsync({
-        type: ['text/csv', 'text/comma-separated-values', 'application/csv', '*/*'],
+        type: ['text/csv', 'text/comma-separated-values', 'application/csv'],
         copyToCacheDirectory: true,
       });
 
@@ -65,8 +65,52 @@ export default function ImportScreen() {
       const file = result.assets[0];
       if (!file.uri) return;
 
+      // Reject anything that's not a .csv. The picker's MIME filter is advisory
+      // on iOS — users can still pick non-CSV files via "Browse" and we'd then
+      // try to read a binary as text.
+      const name = file.name?.toLowerCase() ?? '';
+      if (!name.endsWith('.csv')) {
+        Alert.alert(
+          'Unsupported File',
+          'Please pick a .csv file. PDFs, images, and other formats aren\'t supported yet.',
+        );
+        return;
+      }
+
+      // iOS sandbox: even with copyToCacheDirectory:true the URI can occasionally
+      // point at a location readAsStringAsync cannot access. Verify the file
+      // exists, and if not, copy explicitly into the app cache before reading.
+      let readUri = file.uri;
+      const info = await FileSystem.getInfoAsync(file.uri).catch(() => null);
+      if (!info?.exists) {
+        try {
+          const cachePath = `${FileSystem.cacheDirectory}budget-import-${Date.now()}.csv`;
+          await FileSystem.copyAsync({ from: file.uri, to: cachePath });
+          readUri = cachePath;
+        } catch (copyErr) {
+          console.error('File copy fallback failed:', copyErr);
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+          Alert.alert(
+            'Can\'t read this file',
+            'iOS couldn\'t open the selected file. Try exporting from your bank again, or save it to Files first.',
+          );
+          return;
+        }
+      }
+
       // Read file content
-      const content = await FileSystem.readAsStringAsync(file.uri);
+      let content: string;
+      try {
+        content = await FileSystem.readAsStringAsync(readUri);
+      } catch (readErr) {
+        console.error('readAsStringAsync failed:', readErr);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        Alert.alert(
+          'Can\'t read this file',
+          'The file is not readable. It may be a binary format (PDF, image) — only plain CSV is supported.',
+        );
+        return;
+      }
 
       if (!content.trim()) {
         Alert.alert('Empty File', 'The selected file appears to be empty.');

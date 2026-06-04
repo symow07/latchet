@@ -31,6 +31,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInUp, FadeInDown, ZoomIn } from 'react-native-reanimated';
 import { addTransaction } from '@/lib/db';
+import { api } from '@/lib/api/api';
 
 type Category = 'Food' | 'Transport' | 'Shopping' | 'Gym' | 'Subscriptions' | 'Other';
 type TransactionType = 'Expense' | 'Income';
@@ -53,68 +54,11 @@ const CATEGORY_COLORS: Record<Category, { color: string; bg: string }> = {
   Other: { color: '#6b7280', bg: 'rgba(107,114,128,0.15)' },
 };
 
+// Routes receipt OCR through the backend AI proxy (POST /api/ai/analyze-receipt)
+// so the OpenAI Vision key stays server-side. The endpoint returns the same
+// ExtractedData shape the review form expects.
 async function analyzeReceiptWithAI(base64Image: string): Promise<ExtractedData> {
-  const apiKey = process.env.EXPO_PUBLIC_VIBECODE_OPENAI_API_KEY;
-  if (!apiKey) throw new Error('OpenAI API key not configured.');
-
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'gpt-4o-mini',
-      messages: [
-        {
-          role: 'user',
-          content: [
-            {
-              type: 'text',
-              text: 'Extract from this receipt: amount (number only), category (one of: Food, Transport, Shopping, Gym, Subscriptions, Other), and a short note (merchant name, max 30 chars). Respond ONLY with JSON: {"amount": 0, "category": "Food", "note": ""}',
-            },
-            {
-              type: 'image_url',
-              image_url: {
-                url: `data:image/jpeg;base64,${base64Image}`,
-              },
-            },
-          ],
-        },
-      ],
-      max_tokens: 100,
-    }),
-  });
-
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error((err as any)?.error?.message ?? `API error: ${response.status}`);
-  }
-
-  const data = await response.json();
-  const content: string = data.choices?.[0]?.message?.content ?? '';
-
-  // Strip markdown code fences if present
-  const jsonStr = content.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
-
-  let parsed: { amount?: unknown; category?: unknown; note?: unknown };
-  try {
-    parsed = JSON.parse(jsonStr);
-  } catch {
-    throw new Error('Could not parse AI response. Please try again.');
-  }
-
-  const amount = typeof parsed.amount === 'number' ? parsed.amount : parseFloat(String(parsed.amount ?? '0'));
-  const category = CATEGORIES.includes(parsed.category as Category)
-    ? (parsed.category as Category)
-    : 'Other';
-  const note = typeof parsed.note === 'string' ? parsed.note.slice(0, 30) : '';
-
-  if (isNaN(amount) || amount <= 0) {
-    throw new Error('Could not detect a valid amount on this receipt.');
-  }
-
-  return { amount, category, note };
+  return api.post<ExtractedData>('/api/ai/analyze-receipt', { image: base64Image });
 }
 
 export default function ReceiptScanScreen() {

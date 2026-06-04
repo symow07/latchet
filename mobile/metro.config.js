@@ -99,9 +99,17 @@ config.resolver = {
       return context.resolveRequest(context, mjsPath, platform);
     }
 
-    // Fix @better-auth/expo incorrectly importing metro-config (dev-time only)
-    // This import shouldn't exist in client code - mock it
-    if (moduleName.includes("@expo/metro-config") || moduleName.includes("async-require")) {
+    // Defensive: mock dev-time metro-config imports if any client code accidentally
+    // pulls them in. Originally this also caught "async-require" in the OR clause,
+    // but @expo/metro-config/build/async-require.js IS the runtime helper Metro
+    // injects for every dynamic `import()` — replacing it with an empty object
+    // produced "TypeError: require(...async-require.js) is not a function (it is
+    // Object)" because the bundle calls the resolved module as a function. The
+    // explicit !async-require exclusion lets the real helper resolve normally.
+    if (
+      moduleName.includes("@expo/metro-config") &&
+      !moduleName.includes("async-require")
+    ) {
       return { type: "empty" };
     }
 

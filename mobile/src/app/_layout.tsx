@@ -3,23 +3,64 @@ import { Stack, useRouter } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useColorScheme } from '@/lib/useColorScheme';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { View, Text, Pressable } from 'react-native';
+import { View, Text, Pressable, ActivityIndicator } from 'react-native';
 import { initializeDatabase } from '@/lib/db';
-import { useSession } from '@/lib/auth/use-session';
+import { useSession, SESSION_QUERY_KEY } from '@/lib/auth/use-session';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { isBiometricAvailable, authenticateWithBiometrics } from '@/lib/biometric';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets, SafeAreaProvider } from 'react-native-safe-area-context';
 import { useAccountTypeStore, type AccountTypeStore } from '@/lib/account-type-store';
+import { registerForPushNotifications, scheduleStreakReminder } from '@/lib/notifications';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
 
+// Hard backstop: native splash must never block the UI for more than 8s,
+// no matter what happens in JS. After 8s the JS UI takes over even if the
+// startup pipeline is still working.
+setTimeout(() => {
+  SplashScreen.hideAsync().catch(() => {});
+  console.log('[startup] SplashScreen.hideAsync called (8s backstop)');
+}, 8000);
+
 const queryClient = new QueryClient();
+
+const DB_INIT_TIMEOUT_MS = 5000;
+
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
+    promise.then(
+      (v) => {
+        clearTimeout(t);
+        resolve(v);
+      },
+      (e) => {
+        clearTimeout(t);
+        reject(e);
+      },
+    );
+  });
+}
+
+function StartupScreen({ stage }: { stage: string }) {
+  return (
+    <View style={{ flex: 1, backgroundColor: '#000', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+      <ActivityIndicator size="large" color="#fbbf24" />
+      <Text style={{ color: '#fff', fontSize: 18, fontWeight: '600', marginTop: 24 }}>
+        Starting Budget…
+      </Text>
+      <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, marginTop: 8 }}>
+        {stage}
+      </Text>
+    </View>
+  );
+}
 
 function LockScreen({ onUnlock }: { onUnlock: () => void }) {
   const insets = useSafeAreaInsets();
@@ -84,17 +125,57 @@ function LockScreen({ onUnlock }: { onUnlock: () => void }) {
 }
 
 function RootLayoutNav({ colorScheme }: { colorScheme: 'light' | 'dark' | null | undefined }) {
-  const { data: session, isLoading: sessionLoading } = useSession();
+  const { data: session, isLoading: sessionLoading, error: sessionError } = useSession();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const loadAccountType = useAccountTypeStore((s: AccountTypeStore) => s.load);
   const accountType = useAccountTypeStore((s: AccountTypeStore) => s.accountType);
   const accountTypeLoaded = useAccountTypeStore((s: AccountTypeStore) => s.loaded);
 
-  // Load accountType from AsyncStorage when session is ready
+  // Manual bail-out only: if useSession surfaces an error, the user can tap
+  // "Continue offline" (below) to set sessionTimedOut=true and reach the public
+  // stack. There is intentionally no auto-trigger — the new useSession config
+  // (10s timeout + 1 retry) needs up to ~21s to complete, so any timed
+  // backstop shorter than that races the retry and produces a fake
+  // logged-out state.
+  const [sessionTimedOut, setSessionTimedOut] = useState(false);
+
   useEffect(() => {
-    if (!sessionLoading && session?.user?.id) {
-      loadAccountType(session.user.id);
-    }
+    console.log('[mobile:gate] state', {
+      sessionLoading,
+      hasUser: !!session?.user,
+      userId: session?.user?.id ?? null,
+      sessionTimedOut,
+      accountTypeLoaded,
+      accountType,
+      error: sessionError?.message ?? null,
+    });
+  }, [sessionLoading, session?.user, sessionError, sessionTimedOut, accountTypeLoaded, accountType]);
+
+  // Load accountType from AsyncStorage when session is ready. Awaited so the
+  // redirect useEffect always runs after the store has hydrated, eliminating
+  // the implicit race window.
+  useEffect(() => {
+    if (sessionLoading || !session?.user?.id) return;
+    let cancelled = false;
+    const userId = session.user.id;
+    (async () => {
+      console.log(`[mobile:gate:loadAccountType] start userId=${userId}`);
+      const t0 = Date.now();
+      try {
+        await loadAccountType(userId);
+      } catch (e) {
+        console.warn(
+          `[mobile:gate:loadAccountType:error] ${e instanceof Error ? e.message : String(e)}`,
+        );
+      }
+      if (!cancelled) {
+        console.log(`[mobile:gate:loadAccountType] done in ${Date.now() - t0}ms`);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [sessionLoading, session?.user?.id, loadAccountType]);
 
   // Redirect based on accountType when user is authenticated
@@ -103,14 +184,57 @@ function RootLayoutNav({ colorScheme }: { colorScheme: 'light' | 'dark' | null |
     if (!accountTypeLoaded) return;
 
     if (!accountType) {
+      console.log('[mobile:gate:redirect] target=/account-type reason=accountType-missing');
       router.replace('/account-type');
     } else if (accountType === 'business') {
+      console.log('[mobile:gate:redirect] target=/(business-tabs) reason=accountType-business');
       router.replace('/(business-tabs)');
+    } else {
+      // personal: default (tabs) route is correct, no redirect needed
+      console.log('[mobile:gate:redirect] target=/(tabs) reason=accountType-personal-default');
     }
-    // personal: default (tabs) route is correct
   }, [sessionLoading, session?.user, accountType, accountTypeLoaded, router]);
 
-  if (sessionLoading) return null;
+  // Register the device for push notifications (bill reminders, badge alerts)
+  // and schedule the daily streak nudge — once per authenticated user.
+  const pushRegisteredFor = useRef<string | null>(null);
+  useEffect(() => {
+    const userId = session?.user?.id;
+    if (!userId || pushRegisteredFor.current === userId) return;
+    pushRegisteredFor.current = userId;
+    registerForPushNotifications().catch(() => {});
+    scheduleStreakReminder().catch(() => {});
+  }, [session?.user?.id]);
+
+  // Surface session-fetch errors with a visible Retry instead of silently
+  // forcing a logged-out state. The 6s sessionTimedOut backstop below remains
+  // as the final escape hatch ("Continue offline" → fall through to public stack).
+  if (!sessionLoading && sessionError && !sessionTimedOut) {
+    return (
+      <View style={{ flex: 1, backgroundColor: '#000', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+        <Text style={{ color: '#ef4444', fontSize: 20, fontWeight: '700', marginBottom: 8 }}>
+          Couldn&apos;t reach the server
+        </Text>
+        <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 14, textAlign: 'center', marginBottom: 24 }}>
+          {sessionError instanceof Error ? sessionError.message : 'Unknown error'}
+        </Text>
+        <Pressable
+          onPress={() => queryClient.invalidateQueries({ queryKey: SESSION_QUERY_KEY })}
+          style={{ paddingHorizontal: 32, paddingVertical: 14, borderRadius: 16, backgroundColor: '#2563eb' }}
+        >
+          <Text style={{ color: '#fff', fontWeight: '600', fontSize: 16 }}>Retry</Text>
+        </Pressable>
+        <Pressable
+          onPress={() => setSessionTimedOut(true)}
+          style={{ marginTop: 12, paddingHorizontal: 32, paddingVertical: 14 }}
+        >
+          <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14 }}>Continue offline</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  if (sessionLoading && !sessionTimedOut) return <StartupScreen stage="Checking session…" />;
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
@@ -153,43 +277,59 @@ export default function RootLayout() {
   const [dbReady, setDbReady] = useState(false);
   const [dbError, setDbError] = useState<string | null>(null);
   const [locked, setLocked] = useState(false);
+  const [stage, setStage] = useState<string>('Booting…');
+
+  useEffect(() => {
+    console.log('[startup] RootLayout mounted');
+  }, []);
 
   const initApp = useCallback(async () => {
     setDbError(null);
+    setStage('Opening database…');
+    console.log('[startup] initializeDatabase start');
     try {
-      await initializeDatabase();
+      await withTimeout(initializeDatabase(), DB_INIT_TIMEOUT_MS, 'initializeDatabase');
+      console.log('[startup] initializeDatabase success');
     } catch (e) {
-      console.error('[DB Init]', e);
+      console.error('[startup] initializeDatabase error', e);
       setDbError(e instanceof Error ? e.message : 'Failed to initialize database');
-      await SplashScreen.hideAsync();
       return;
+    } finally {
+      // Always hide splash once we've reached this branch — error UI or success UI both
+      // need the JS surface visible. Backstop in the module also covers this.
+      SplashScreen.hideAsync().catch(() => {});
+      console.log('[startup] SplashScreen.hideAsync called (after DB init)');
     }
 
-    // Check if biometric lock is enabled
+    // Biometric check — must never hang the app. Bound to 2s.
+    setStage('Checking biometrics…');
+    console.log('[startup] biometric check start');
     try {
-      const val = await AsyncStorage.getItem('@biometric_lock');
+      const val = await withTimeout(AsyncStorage.getItem('@biometric_lock'), 2000, 'AsyncStorage.getItem(@biometric_lock)');
       if (val === 'true') {
-        const available = await isBiometricAvailable();
+        const available = await withTimeout(isBiometricAvailable(), 2000, 'isBiometricAvailable');
         if (available) setLocked(true);
       }
-    } catch {
-      // silently skip if AsyncStorage fails (e.g. web)
+      console.log('[startup] biometric check success');
+    } catch (e) {
+      console.warn('[startup] biometric check error (continuing)', e);
     }
 
+    setStage('Ready');
     setDbReady(true);
-    await SplashScreen.hideAsync();
+    console.log('[startup] dbReady true');
   }, []);
 
   useEffect(() => {
     initApp();
-  }, []);
+  }, [initApp]);
 
   if (dbError) {
     return (
       <SafeAreaProvider>
         <View style={{ flex: 1, backgroundColor: '#000', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
           <Text style={{ color: '#ef4444', fontSize: 20, fontWeight: '700', marginBottom: 12 }}>
-            Database Error
+            Startup Error
           </Text>
           <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 14, textAlign: 'center', marginBottom: 24 }}>
             {dbError}
@@ -205,7 +345,13 @@ export default function RootLayout() {
     );
   }
 
-  if (!dbReady) return null;
+  if (!dbReady) {
+    return (
+      <SafeAreaProvider>
+        <StartupScreen stage={stage} />
+      </SafeAreaProvider>
+    );
+  }
 
   if (locked) {
     return (

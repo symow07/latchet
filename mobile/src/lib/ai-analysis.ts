@@ -1,5 +1,6 @@
 import { format, subMonths, startOfMonth, endOfMonth, subDays, addMonths } from 'date-fns';
 import { calculateHealthScore, getPersonalityDescription, type HealthScoreResult } from './health-score';
+import { api } from './api/api';
 
 export interface Transaction {
   id: string;
@@ -446,35 +447,16 @@ User: ${userMessage}
 Respond as the AI financial advisor:`;
 }
 
+// Routes through the backend AI proxy (POST /api/ai/chat) so the OpenAI key
+// stays server-side and never ships in the mobile bundle. The full prompt is
+// assembled on-device by buildAIPrompt(); the second arg is retained for
+// call-site compatibility but unused.
 export async function getAIResponse(
   prompt: string,
-  apiKey: string
+  _apiKey?: string
 ): Promise<string> {
-  try {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o',
-        messages: [{ role: 'user', content: prompt }],
-        max_tokens: 600,
-      }),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error?.message || 'Failed to get AI response');
-    }
-
-    const data = await response.json();
-    return data.choices?.[0]?.message?.content || 'I apologize, but I was unable to generate a response. Please try again.';
-  } catch (error) {
-    console.error('AI API Error:', error);
-    throw error;
-  }
+  const { response } = await api.post<{ response: string }>('/api/ai/chat', { prompt });
+  return response;
 }
 
 // Quick insights that don't require API call

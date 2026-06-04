@@ -9,8 +9,44 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Mail, Lock, Eye, EyeOff, ArrowRight, User } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
+import * as SecureStore from 'expo-secure-store';
 import { authClient } from '@/lib/auth/auth-client';
 import { useInvalidateSession } from '@/lib/auth/use-session';
+
+// Probe the SecureStore keys expoClient may write under storagePrefix "realbudget".
+// Both delimiters are checked because the prefix-key separator has varied across
+// versions of @better-auth/expo.
+const SECURE_STORE_PROBE_KEYS = [
+  'realbudget.session_token',
+  'realbudget.cookie',
+  'realbudget_session_token',
+  'realbudget_cookie',
+];
+
+function friendlyAuthError(raw: string | null | undefined, fallback: string): string {
+  if (!raw) return fallback;
+  const lower = raw.toLowerCase();
+  if (lower.includes('network') || lower.includes('failed to fetch') || lower.includes('timed out') || lower.includes('aborted')) {
+    return "Couldn't reach the server. Check your connection and try again.";
+  }
+  return raw;
+}
+
+async function probeSecureStore(label: string) {
+  try {
+    const probes = await Promise.all(
+      SECURE_STORE_PROBE_KEYS.map(async (k) => {
+        const v = await SecureStore.getItemAsync(k);
+        return { k, present: v != null, len: v?.length ?? 0 };
+      }),
+    );
+    console.log(`[mobile:signup:store:${label}] ${JSON.stringify(probes)}`);
+  } catch (e) {
+    console.warn(
+      `[mobile:signup:storeProbeFailed:${label}] ${e instanceof Error ? e.message : String(e)}`,
+    );
+  }
+}
 
 export default function SignUpScreen() {
   const router = useRouter();
@@ -36,26 +72,67 @@ export default function SignUpScreen() {
         throw new Error('Passwords do not match');
       }
 
-      const result = await authClient.signUp.email({
-        email: email.trim().toLowerCase(),
-        password,
-        name: name.trim(),
-      });
+      const t0 = Date.now();
+      const normEmail = email.trim().toLowerCase();
+      console.log(
+        `[mobile:signup:pre] ts=${t0} email=${normEmail} nameLen=${name.trim().length} pwdLen=${password.length}`,
+      );
+      await probeSecureStore('pre');
+
+      let result: Awaited<ReturnType<typeof authClient.signUp.email>>;
+      try {
+        result = await authClient.signUp.email({
+          email: normEmail,
+          password,
+          name: name.trim(),
+        });
+      } catch (err) {
+        console.error(
+          `[mobile:signup:throw] ms=${Date.now() - t0} err=${err instanceof Error ? err.message : String(err)} stack=${err instanceof Error ? err.stack : ''}`,
+        );
+        throw err;
+      }
+
+      const ms = Date.now() - t0;
+      const errorKeys = result?.error ? Object.keys(result.error) : [];
+      const dataKeys = result?.data ? Object.keys(result.data) : [];
+      console.log(
+        `[mobile:signup:post] ms=${ms} hasError=${!!result?.error} errorKeys=[${errorKeys.join(',')}] hasData=${!!result?.data} dataKeys=[${dataKeys.join(',')}]`,
+      );
+
+      if (result?.error) {
+        console.warn(
+          `[mobile:signup:errorBody] ${JSON.stringify(result.error)}`,
+        );
+      }
+      if (result?.data) {
+        const shape: Record<string, string> = {};
+        for (const k of dataKeys) {
+          const v = (result.data as Record<string, unknown>)[k];
+          shape[k] = v === null ? 'null' : Array.isArray(v) ? 'array' : typeof v;
+        }
+        console.log(`[mobile:signup:dataShape] ${JSON.stringify(shape)}`);
+      }
+
+      await probeSecureStore('post');
 
       if (result.error) {
-        throw new Error(result.error.message || 'Failed to create account');
+        throw new Error(friendlyAuthError(result.error.message, 'Failed to create account'));
       }
 
       return result.data;
     },
     onSuccess: async () => {
+      console.log('[mobile:signup:onSuccess] invalidating session…');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       await invalidateSession();
+      console.log('[mobile:signup:nav] target=/account-type invalidated=true');
       router.replace('/account-type');
     },
     onError: (err: Error) => {
+      console.warn(`[mobile:signup:onError] ${err.message}`);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      setError(err.message);
+      setError(friendlyAuthError(err.message, 'Failed to create account'));
     },
   });
 

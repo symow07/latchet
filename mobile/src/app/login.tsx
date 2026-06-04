@@ -8,9 +8,42 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Mail, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
+import * as SecureStore from 'expo-secure-store';
 import { authClient } from '@/lib/auth/auth-client';
 import { useInvalidateSession } from '@/lib/auth/use-session';
 import { useAccountTypeStore } from '@/lib/account-type-store';
+
+const SECURE_STORE_PROBE_KEYS = [
+  'realbudget.session_token',
+  'realbudget.cookie',
+  'realbudget_session_token',
+  'realbudget_cookie',
+];
+
+function friendlyAuthError(raw: string | null | undefined, fallback: string): string {
+  if (!raw) return fallback;
+  const lower = raw.toLowerCase();
+  if (lower.includes('network') || lower.includes('failed to fetch') || lower.includes('timed out') || lower.includes('aborted')) {
+    return "Couldn't reach the server. Check your connection and try again.";
+  }
+  return raw;
+}
+
+async function probeSecureStore(label: string) {
+  try {
+    const probes = await Promise.all(
+      SECURE_STORE_PROBE_KEYS.map(async (k) => {
+        const v = await SecureStore.getItemAsync(k);
+        return { k, present: v != null, len: v?.length ?? 0 };
+      }),
+    );
+    console.log(`[mobile:signin:store:${label}] ${JSON.stringify(probes)}`);
+  } catch (e) {
+    console.warn(
+      `[mobile:signin:storeProbeFailed:${label}] ${e instanceof Error ? e.message : String(e)}`,
+    );
+  }
+}
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -33,35 +66,79 @@ export default function LoginScreen() {
     setIsLoading(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-    const result = await authClient.signIn.email({
-      email: email.trim().toLowerCase(),
-      password,
-    });
+    const t0 = Date.now();
+    const normEmail = email.trim().toLowerCase();
+    console.log(
+      `[mobile:signin:pre] ts=${t0} email=${normEmail} pwdLen=${password.length}`,
+    );
+    await probeSecureStore('pre');
+
+    let result: Awaited<ReturnType<typeof authClient.signIn.email>>;
+    try {
+      result = await authClient.signIn.email({ email: normEmail, password });
+    } catch (err) {
+      setIsLoading(false);
+      console.error(
+        `[mobile:signin:throw] ms=${Date.now() - t0} err=${err instanceof Error ? err.message : String(err)} stack=${err instanceof Error ? err.stack : ''}`,
+      );
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      setError(friendlyAuthError(err instanceof Error ? err.message : null, 'Sign-in failed'));
+      return;
+    }
 
     setIsLoading(false);
 
+    const ms = Date.now() - t0;
+    const errorKeys = result?.error ? Object.keys(result.error) : [];
+    const dataKeys = result?.data ? Object.keys(result.data) : [];
+    console.log(
+      `[mobile:signin:post] ms=${ms} hasError=${!!result?.error} errorKeys=[${errorKeys.join(',')}] hasData=${!!result?.data} dataKeys=[${dataKeys.join(',')}]`,
+    );
+    if (result?.error) {
+      console.warn(`[mobile:signin:errorBody] ${JSON.stringify(result.error)}`);
+    }
+    await probeSecureStore('post');
+
     if (result.error) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      setError(result.error.message || 'Invalid email or password');
+      setError(friendlyAuthError(result.error.message, 'Invalid email or password'));
       return;
     }
 
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    console.log('[mobile:signin:onSuccess] invalidating session…');
     await invalidateSession();
 
-    // Load accountType and redirect accordingly
     const userId = result.data?.user?.id;
-    if (userId) {
-      await loadAccountType(userId);
-      const { accountType } = useAccountTypeStore.getState();
-      if (!accountType) {
-        router.replace('/account-type');
-      } else if (accountType === 'business') {
-        router.replace('/(business-tabs)');
-      } else {
-        router.replace('/(tabs)');
-      }
+    if (!userId) {
+      console.warn('[mobile:signin:noUserId] result.data.user.id missing — staying on screen');
+      return;
     }
+
+    console.log(`[mobile:signin:loadAccountType] start userId=${userId}`);
+    const lt0 = Date.now();
+    try {
+      await loadAccountType(userId);
+    } catch (e) {
+      console.warn(
+        `[mobile:signin:loadAccountType:error] ${e instanceof Error ? e.message : String(e)}`,
+      );
+    }
+    const { accountType } = useAccountTypeStore.getState();
+    console.log(
+      `[mobile:signin:loadAccountType] done in ${Date.now() - lt0}ms accountType=${accountType ?? 'null'}`,
+    );
+
+    let target: string;
+    if (!accountType) {
+      target = '/account-type';
+    } else if (accountType === 'business') {
+      target = '/(business-tabs)';
+    } else {
+      target = '/(tabs)';
+    }
+    console.log(`[mobile:signin:nav] target=${target} accountType=${accountType ?? 'null'}`);
+    router.replace(target as never);
   };
 
   return (

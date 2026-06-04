@@ -5,6 +5,65 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { api } from './api/api';
+
+// ── Backend (Plaid) wire types + mappers ─────────────────────────────────────
+interface PlaidAccountDTO {
+  id: string;
+  plaidAccountId: string;
+  name: string;
+  type: string;
+  mask?: string | null;
+  balance: number;
+  currency: string;
+  isEnabled: boolean;
+}
+interface PlaidItemDTO {
+  id: string;
+  institutionName?: string | null;
+  status: string;
+  updatedAt: string;
+  accounts: PlaidAccountDTO[];
+}
+
+function mapAccountType(t: string): LinkedAccount['type'] {
+  if (t === 'credit' || t === 'investment' || t === 'savings') return t;
+  if (t === 'checking') return 'checking';
+  return 'checking';
+}
+
+function itemToBank(item: PlaidItemDTO): LinkedBank {
+  return {
+    id: item.id,
+    institutionName: item.institutionName ?? 'Bank',
+    lastSynced: item.updatedAt,
+    connectionStatus: item.status === 'active' ? 'active' : 'error',
+    accountsCount: item.accounts.length,
+    // Plaid consent typically lasts ~90 days; surface a derived expiry for display.
+    consentExpiresAt: new Date(
+      new Date(item.updatedAt).getTime() + 90 * 24 * 60 * 60 * 1000
+    ).toISOString(),
+  };
+}
+
+function accountToLinked(item: PlaidItemDTO, a: PlaidAccountDTO): LinkedAccount {
+  return {
+    id: a.plaidAccountId,
+    bankId: item.id,
+    name: a.name,
+    type: mapAccountType(a.type),
+    maskedNumber: a.mask ? `****${a.mask}` : '••••',
+    balance: a.balance,
+    currency: a.currency,
+    lastUpdated: item.updatedAt,
+    isEnabled: a.isEnabled,
+  };
+}
+
+async function fetchPlaidItems(): Promise<PlaidItemDTO[]> {
+  const { items } = await api.get<{ items: PlaidItemDTO[] }>('/api/plaid/accounts');
+  return items ?? [];
+}
 
 // Types for linked accounts
 export interface LinkedBank {
@@ -65,23 +124,31 @@ export const SUPPORTED_BANKS = [
   { id: 'td', name: 'TD Bank', logo: '🌿', color: '#34A853' },
 ];
 
-// Get all linked banks
+// Get all linked banks (live from the backend Plaid integration).
 export async function getLinkedBanks(): Promise<LinkedBank[]> {
   try {
-    const data = await AsyncStorage.getItem(LINKED_BANKS_KEY);
-    return data ? JSON.parse(data) : [];
+    const items = await fetchPlaidItems();
+    const banks = items.map(itemToBank);
+    // Cache for offline display.
+    await AsyncStorage.setItem(LINKED_BANKS_KEY, JSON.stringify(banks)).catch(() => {});
+    return banks;
   } catch {
-    return [];
+    // Fall back to the last cached snapshot when offline / unconfigured.
+    const data = await AsyncStorage.getItem(LINKED_BANKS_KEY).catch(() => null);
+    return data ? JSON.parse(data) : [];
   }
 }
 
-// Get all linked accounts
+// Get all linked accounts (live from the backend Plaid integration).
 export async function getLinkedAccounts(): Promise<LinkedAccount[]> {
   try {
-    const data = await AsyncStorage.getItem(LINKED_ACCOUNTS_KEY);
-    return data ? JSON.parse(data) : [];
+    const items = await fetchPlaidItems();
+    const accounts = items.flatMap((item) => item.accounts.map((a) => accountToLinked(item, a)));
+    await AsyncStorage.setItem(LINKED_ACCOUNTS_KEY, JSON.stringify(accounts)).catch(() => {});
+    return accounts;
   } catch {
-    return [];
+    const data = await AsyncStorage.getItem(LINKED_ACCOUNTS_KEY).catch(() => null);
+    return data ? JSON.parse(data) : [];
   }
 }
 
@@ -91,104 +158,44 @@ export async function getAccountsByBank(bankId: string): Promise<LinkedAccount[]
   return accounts.filter(acc => acc.bankId === bankId);
 }
 
-// Simulate OAuth bank connection flow
-export async function initiateBankConnection(
-  bankId: string,
-  _onAuthUrl: (url: string) => void
-): Promise<{ success: boolean; authUrl?: string; error?: string }> {
-  // In production, this would:
-  // 1. Call your backend to initiate OAuth flow with the bank's Open Banking API
-  // 2. Return the authorization URL for the user to authenticate
-  // 3. Handle the callback with auth code
-  // 4. Exchange auth code for access token (stored securely on backend)
-
-  const bank = SUPPORTED_BANKS.find(b => b.id === bankId);
-  if (!bank) {
-    return { success: false, error: 'Bank not supported' };
-  }
-
-  // Simulated OAuth URL (in real app, this comes from your backend)
-  const authUrl = `https://auth.${bankId}.example.com/oauth/authorize?client_id=realbudget&scope=accounts:read,transactions:read&redirect_uri=realbudget://callback`;
-
-  return { success: true, authUrl };
+// Step 1 of the real Plaid flow: ask the backend for a Link token. We use Plaid
+// Hosted Link so the bank login opens in a browser (expo-web-browser) without
+// bundling the native Plaid Link SDK. Completion is delivered to the backend via
+// the SESSION_FINISHED webhook, which exchanges the public_token automatically.
+export async function createLinkToken(): Promise<{
+  linkToken: string;
+  hostedLinkUrl: string | null;
+  expiration: string;
+}> {
+  return api.post('/api/plaid/link-token', {});
 }
 
-// Complete bank connection (called after OAuth callback)
+// Step 2: exchange the public_token from Plaid Link for a stored access token.
+// The backend persists the Item + accounts and runs an initial transaction sync.
 export async function completeBankConnection(
-  bankId: string,
-  _authCode: string
+  publicToken: string
 ): Promise<{ success: boolean; bank?: LinkedBank; accounts?: LinkedAccount[]; error?: string }> {
-  const bank = SUPPORTED_BANKS.find(b => b.id === bankId);
-  if (!bank) {
-    return { success: false, error: 'Bank not found' };
+  try {
+    await api.post('/api/plaid/exchange', { publicToken });
+    // Re-read the canonical state from the backend.
+    const items = await fetchPlaidItems();
+    const newest = items[items.length - 1];
+    return {
+      success: true,
+      bank: newest ? itemToBank(newest) : undefined,
+      accounts: newest ? newest.accounts.map((a) => accountToLinked(newest, a)) : [],
+    };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : 'Connection failed' };
   }
-
-  // Simulate successful connection
-  // In production, your backend would:
-  // 1. Exchange auth code for access token
-  // 2. Store encrypted tokens securely
-  // 3. Fetch account list from bank
-  // 4. Return account info to client
-
-  const newBank: LinkedBank = {
-    id: `bank_${Date.now()}`,
-    institutionName: bank.name,
-    institutionLogo: bank.logo,
-    lastSynced: new Date().toISOString(),
-    connectionStatus: 'active',
-    accountsCount: 2, // Simulated
-    consentExpiresAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(), // 90 days
-  };
-
-  // Simulated accounts
-  const newAccounts: LinkedAccount[] = [
-    {
-      id: `acc_${Date.now()}_1`,
-      bankId: newBank.id,
-      name: `${bank.name} Checking`,
-      type: 'checking',
-      maskedNumber: '****4521',
-      balance: 3245.67,
-      currency: 'USD',
-      lastUpdated: new Date().toISOString(),
-      isEnabled: true,
-    },
-    {
-      id: `acc_${Date.now()}_2`,
-      bankId: newBank.id,
-      name: `${bank.name} Savings`,
-      type: 'savings',
-      maskedNumber: '****8890',
-      balance: 12500.00,
-      currency: 'USD',
-      lastUpdated: new Date().toISOString(),
-      isEnabled: true,
-    },
-  ];
-
-  // Save to storage
-  const existingBanks = await getLinkedBanks();
-  await AsyncStorage.setItem(LINKED_BANKS_KEY, JSON.stringify([...existingBanks, newBank]));
-
-  const existingAccounts = await getLinkedAccounts();
-  await AsyncStorage.setItem(LINKED_ACCOUNTS_KEY, JSON.stringify([...existingAccounts, ...newAccounts]));
-
-  return { success: true, bank: newBank, accounts: newAccounts };
 }
 
-// Disconnect a bank (revoke consent)
+// Disconnect a bank — revokes the Plaid Item on the backend and clears the cache.
 export async function disconnectBank(bankId: string): Promise<boolean> {
   try {
-    // In production, would also call backend to revoke tokens with the bank
-
-    const banks = await getLinkedBanks();
-    const filteredBanks = banks.filter(b => b.id !== bankId);
-    await AsyncStorage.setItem(LINKED_BANKS_KEY, JSON.stringify(filteredBanks));
-
-    const accounts = await getLinkedAccounts();
-    const filteredAccounts = accounts.filter(a => a.bankId !== bankId);
-    await AsyncStorage.setItem(LINKED_ACCOUNTS_KEY, JSON.stringify(filteredAccounts));
-
+    await api.delete(`/api/plaid/items/${bankId}`);
+    await AsyncStorage.removeItem(LINKED_BANKS_KEY).catch(() => {});
+    await AsyncStorage.removeItem(LINKED_ACCOUNTS_KEY).catch(() => {});
     return true;
   } catch {
     return false;
@@ -215,33 +222,21 @@ export async function syncAllTransactions(): Promise<{
   newTransactions: number;
   errors: string[];
 }> {
-  const accounts = await getLinkedAccounts();
-  const enabledAccounts = accounts.filter(acc => acc.isEnabled);
-
-  let newTransactions = 0;
-  const errors: string[] = [];
-
-  for (const account of enabledAccounts) {
-    try {
-      // In production, would call backend to fetch new transactions
-      // Backend would use stored access tokens to call bank API
-
-      // Simulated: would return actual transaction count
-      newTransactions += Math.floor(Math.random() * 5);
-    } catch {
-      errors.push(`Failed to sync ${account.name}`);
-    }
+  try {
+    // Backend pulls new transactions from Plaid for every active Item using the
+    // stored access tokens and upserts them into the user's transactions.
+    const { added, errors } = await api.post<{ added: number; errors: string[] }>(
+      '/api/plaid/transactions/sync',
+      {}
+    );
+    return { success: errors.length === 0, newTransactions: added, errors };
+  } catch (e) {
+    return {
+      success: false,
+      newTransactions: 0,
+      errors: [e instanceof Error ? e.message : 'Sync failed'],
+    };
   }
-
-  // Update last synced time for banks
-  const banks = await getLinkedBanks();
-  const updatedBanks = banks.map(bank => ({
-    ...bank,
-    lastSynced: new Date().toISOString(),
-  }));
-  await AsyncStorage.setItem(LINKED_BANKS_KEY, JSON.stringify(updatedBanks));
-
-  return { success: errors.length === 0, newTransactions, errors };
 }
 
 // Get consent information for a bank

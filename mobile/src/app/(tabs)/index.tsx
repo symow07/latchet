@@ -19,7 +19,9 @@ import {
 import { calculateHealthScore } from '@/lib/health-score';
 import { getUpcomingCharges, monthlySubscriptionTotal } from '@/lib/subscription-detection';
 import { useFocusEffect } from '@react-navigation/native';
-import { useCallback, useState, useRef } from 'react';
+import { useCallback, useState, useRef, useEffect } from 'react';
+import { syncAchievements } from '@/lib/achievementsApi';
+import { presentBadgeEarned } from '@/lib/notifications';
 import { Flame, Zap, TrendingDown, Calendar, Award, Target, AlertTriangle, Sparkles, Wallet, ChevronRight, BarChart3, Heart, Building2, CreditCard } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -94,6 +96,18 @@ export default function DashboardScreen() {
     monthSpent,
     settings?.monthlyBudget ?? 0
   );
+
+  // Persist unlocked badges + streak to the backend so they survive reinstalls,
+  // and fire a local notification for any badge earned for the first time.
+  const lastSyncedRef = useRef<string>('');
+  useEffect(() => {
+    const key = `${streak}|${badges.join(',')}`;
+    if (badges.length === 0 || lastSyncedRef.current === key) return;
+    lastSyncedRef.current = key;
+    syncAchievements(badges, streak)
+      .then((res) => res.newlyEarned.forEach((b) => presentBadgeEarned(b)))
+      .catch(() => {});
+  }, [badges, streak]);
 
   const maxDaily = Math.max(...dailyData.map(d => d.amount), 1);
   const maxSpending = Math.max(100, maxDaily * 1.2);

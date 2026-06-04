@@ -154,6 +154,8 @@ setInterval(() => {
 // which takes 10+ seconds on Railway's shared CPU and hits every request timeout.
 // PBKDF2-SHA256 at 100k iterations meets OWASP minimums and completes in ~100ms.
 async function hashPassword(password: string): Promise<string> {
+  const t0 = Date.now();
+  console.log(`[hash:start] op=hash pwdLen=${password.length}`);
   const salt = crypto.getRandomValues(new Uint8Array(16));
   const saltHex = Array.from(salt, (b) => b.toString(16).padStart(2, "0")).join("");
   const keyMaterial = await crypto.subtle.importKey(
@@ -171,6 +173,7 @@ async function hashPassword(password: string): Promise<string> {
   const keyHex = Array.from(new Uint8Array(bits), (b) =>
     b.toString(16).padStart(2, "0")
   ).join("");
+  console.log(`[hash:done] op=hash ms=${Date.now() - t0}`);
   return `pbkdf2:${saltHex}:${keyHex}`;
 }
 
@@ -181,8 +184,13 @@ async function verifyPassword({
   hash: string;
   password: string;
 }): Promise<boolean> {
+  const t0 = Date.now();
+  console.log(`[hash:start] op=verify pwdLen=${password.length}`);
   const parts = hash.split(":");
-  if (parts[0] !== "pbkdf2" || parts.length !== 3) return false;
+  if (parts[0] !== "pbkdf2" || parts.length !== 3) {
+    console.warn(`[hash:done] op=verify ms=${Date.now() - t0} match=false reason=bad-format`);
+    return false;
+  }
   const saltHex = parts[1]!;
   const keyHex = parts[2]!;
   const salt = new Uint8Array(saltHex.match(/.{2}/g)!.map((b) => parseInt(b, 16)));
@@ -201,11 +209,16 @@ async function verifyPassword({
   const derivedHex = Array.from(new Uint8Array(bits), (b) =>
     b.toString(16).padStart(2, "0")
   ).join("");
-  if (derivedHex.length !== keyHex.length) return false;
+  if (derivedHex.length !== keyHex.length) {
+    console.warn(`[hash:done] op=verify ms=${Date.now() - t0} match=false reason=length-mismatch`);
+    return false;
+  }
   let diff = 0;
   for (let i = 0; i < derivedHex.length; i++)
     diff |= derivedHex.charCodeAt(i) ^ keyHex.charCodeAt(i);
-  return diff === 0;
+  const match = diff === 0;
+  console.log(`[hash:done] op=verify ms=${Date.now() - t0} match=${match}`);
+  return match;
 }
 
 // ── Auth configuration ──────────────────────────────────────────
