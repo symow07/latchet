@@ -16,6 +16,19 @@ const envSchema = z.object({
   PLAID_CLIENT_ID: z.string().optional(),
   PLAID_SECRET: z.string().optional(),
   PLAID_ENV: z.enum(["sandbox", "development", "production"]).optional().default("sandbox"),
+  // Google OAuth credentials for the Gmail-based subscription scanner
+  // (routes/email.ts). Optional so the backend boots without them; the email
+  // routes return 503 until they are set.
+  GOOGLE_CLIENT_ID: z.string().optional(),
+  GOOGLE_CLIENT_SECRET: z.string().optional(),
+  GOOGLE_REDIRECT_URI: z.string().optional(),
+  // Forward-to-inbox subscription detection (routes/email.ts inbound webhook).
+  // INBOUND_EMAIL_DOMAIN is the domain that receives forwarded mail (e.g.
+  // "in.realbudget.app"); per-user addresses are u_<token>@<domain>.
+  // INBOUND_EMAIL_SECRET authenticates the provider's webhook POSTs.
+  // Both optional → the forwarding endpoints 503 until configured.
+  INBOUND_EMAIL_DOMAIN: z.string().optional(),
+  INBOUND_EMAIL_SECRET: z.string().optional(),
 });
 
 function validateEnv() {

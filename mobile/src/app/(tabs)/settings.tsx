@@ -1,6 +1,5 @@
 import {
   View,
-  Text,
   ScrollView,
   TextInput,
   Switch,
@@ -12,15 +11,92 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { getSettings, updateSettings, getAccounts, resetAllData } from '@/lib/db';
 import { exportTransactionsCSV, exportTransactionsJSON } from '@/lib/export-data';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { DollarSign, Wallet, Clock, Eye, Flame, Award, Cloud, Check, ChevronRight, CreditCard, LogOut, Upload, Download, Fingerprint, PieChart, RotateCcw } from 'lucide-react-native';
+import { DollarSign, Wallet, Clock, Eye, Flame, Award, Cloud, Check, ChevronRight, CreditCard, LogOut, Upload, Download, Fingerprint, PieChart, RotateCcw, Bell, Repeat, TrendingUp } from 'lucide-react-native';
 import { authClient } from '@/lib/auth/auth-client';
 import { useInvalidateSession } from '@/lib/auth/use-session';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAccountTypeStore } from '@/lib/account-type-store';
 import { isBiometricAvailable } from '@/lib/biometric';
+import { LinearGradient } from 'expo-linear-gradient';
+import Animated, { FadeInUp } from 'react-native-reanimated';
+import { C, R, glow } from '@/lib/design';
+import { Txt, GlassCard, IconBubble, BubbleButton, ScreenBackground } from '@/components/ui';
+
+function SectionLabel({ children }: { children: string }) {
+  return <Txt weight="bold" size={11} color={C.lilac} style={{ marginBottom: 12, marginLeft: 4, letterSpacing: 1.2 }}>{children}</Txt>;
+}
+
+function NavRow({ icon, color, label, desc, onPress }: { icon: React.ReactNode; color: string; label: string; desc: string; onPress: () => void }) {
+  return (
+    <Pressable onPress={onPress} style={({ pressed }) => ({ opacity: pressed ? 0.75 : 1 })}>
+      <GlassCard padding={14} tint={`${color}14`} border={`${color}2a`}>
+        <View className="flex-row items-center justify-between">
+          <View className="flex-row items-center" style={{ gap: 12, flex: 1 }}>
+            <IconBubble color={color}>{icon}</IconBubble>
+            <View style={{ flex: 1 }}>
+              <Txt weight="semibold" size={15} color={C.text}>{label}</Txt>
+              <Txt size={11} color={C.textFaint} style={{ marginTop: 1 }}>{desc}</Txt>
+            </View>
+          </View>
+          <ChevronRight size={20} color={color} />
+        </View>
+      </GlassCard>
+    </Pressable>
+  );
+}
+
+function MoneyInput({ icon, color, label, hint, value, onChangeText, placeholder, suffix }: {
+  icon: React.ReactNode; color: string; label: string; hint: string; value: string; onChangeText: (t: string) => void; placeholder: string; suffix?: string;
+}) {
+  return (
+    <View style={{ marginBottom: 14 }}>
+      <View className="flex-row items-center mb-2" style={{ gap: 8 }}>
+        {icon}
+        <Txt weight="semibold" size={13} color={C.textDim}>{label}</Txt>
+      </View>
+      <GlassCard padding={12} radius={R.md} tint={`${color}12`} border={`${color}28`}>
+        <View className="flex-row items-center" style={{ gap: 12 }}>
+          <IconBubble color={color} size={40}><DollarSign size={19} color={color} /></IconBubble>
+          <TextInput
+            value={value}
+            onChangeText={onChangeText}
+            placeholder={placeholder}
+            placeholderTextColor={C.textFaint}
+            keyboardType="decimal-pad"
+            style={{ flex: 1, color: C.text, fontSize: 20, fontFamily: 'Quicksand_700Bold', padding: 0 }}
+            selectionColor={color}
+          />
+          {suffix ? <Txt size={16} color={C.textFaint}>{suffix}</Txt> : null}
+        </View>
+      </GlassCard>
+      <Txt size={11} color={C.textFaint} style={{ marginTop: 6, marginLeft: 4 }}>{hint}</Txt>
+    </View>
+  );
+}
+
+function ToggleRow({ icon, color, label, desc, value, onValueChange }: { icon: React.ReactNode; color: string; label: string; desc: string; value: boolean; onValueChange: (v: boolean) => void }) {
+  return (
+    <GlassCard padding={14} tint={`${color}12`} border={`${color}28`}>
+      <View className="flex-row items-center justify-between">
+        <View className="flex-row items-center" style={{ gap: 12, flex: 1 }}>
+          <IconBubble color={color}>{icon}</IconBubble>
+          <View style={{ flex: 1 }}>
+            <Txt weight="semibold" size={15} color={C.text}>{label}</Txt>
+            <Txt size={11} color={C.textFaint} style={{ marginTop: 1 }}>{desc}</Txt>
+          </View>
+        </View>
+        <Switch
+          value={value}
+          onValueChange={onValueChange}
+          trackColor={{ false: C.bgRaise, true: color }}
+          thumbColor={value ? '#fff' : '#6b5f86'}
+        />
+      </View>
+    </GlassCard>
+  );
+}
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -36,18 +112,13 @@ export default function SettingsScreen() {
   const [biometricEnabled, setBiometricEnabled] = useState(false);
 
   useEffect(() => {
-    AsyncStorage.getItem('@biometric_lock').then((val) => {
-      if (val === 'true') setBiometricEnabled(true);
-    });
+    AsyncStorage.getItem('@biometric_lock').then((val) => { if (val === 'true') setBiometricEnabled(true); });
   }, []);
 
   async function runExport(kind: 'csv' | 'json') {
     try {
-      const count =
-        kind === 'csv' ? await exportTransactionsCSV() : await exportTransactionsJSON();
-      if (count === 0) {
-        Alert.alert('Nothing to Export', 'You have no transactions yet.');
-      }
+      const count = kind === 'csv' ? await exportTransactionsCSV() : await exportTransactionsJSON();
+      if (count === 0) Alert.alert('Nothing to Export', 'You have no transactions yet.');
     } catch (error) {
       console.error('Failed to export transactions:', error);
       Alert.alert('Export Failed', `Could not export transactions to ${kind.toUpperCase()}`);
@@ -67,11 +138,7 @@ export default function SettingsScreen() {
     if (val) {
       const available = await isBiometricAvailable();
       if (!available) {
-        Alert.alert(
-          'Biometrics Unavailable',
-          'Your device does not support biometric authentication or none are enrolled. Please set up Face ID / Fingerprint in device settings.',
-          [{ text: 'OK' }]
-        );
+        Alert.alert('Biometrics Unavailable', 'Your device does not support biometric authentication or none are enrolled. Please set up Face ID / Fingerprint in device settings.', [{ text: 'OK' }]);
         return;
       }
     }
@@ -108,430 +175,166 @@ export default function SettingsScreen() {
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     },
-    onError: () => {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-    },
+    onError: () => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error),
   });
 
+  const tools = [
+    { label: 'Bill Reminders', desc: 'Track upcoming bills & due dates', Icon: Bell, color: C.p400, route: '/bill-reminders' },
+    { label: 'Recurring Transactions', desc: 'Auto-create scheduled expenses', Icon: Repeat, color: C.green, route: '/recurring' },
+    { label: 'Net Worth', desc: 'Track assets vs liabilities', Icon: TrendingUp, color: C.sky, route: '/net-worth' },
+    { label: 'Category Budgets', desc: 'Set per-category monthly limits', Icon: PieChart, color: C.rose, route: '/category-budgets' },
+  ];
+
   return (
-    <View className="flex-1" style={{ backgroundColor: '#06060f' }}>
-      <ScrollView
-        className="flex-1"
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 100 }}
-      >
-        {/* Deep Purple Gradient Header */}
-        <LinearGradient
-          colors={['#2e1065', '#4c1d95', '#7c3aed', '#06060f']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={{
-            paddingTop: insets.top + 16,
-            paddingBottom: 24,
-            paddingHorizontal: 20,
-            borderBottomLeftRadius: 36,
-            borderBottomRightRadius: 36,
-          }}
-        >
-          <Text className="text-3xl font-bold text-white mb-1">Settings ⚙️</Text>
-          <Text className="text-purple-200/70">Make it yours — we won't judge! 😄</Text>
-        </LinearGradient>
-
-        {/* Account Management */}
-        <View className="px-4 pt-6">
-          <Text className="text-purple-400/70 text-xs font-bold mb-3 ml-1 tracking-wider">ACCOUNTS 👛</Text>
-          <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/accounts'); }}>
-            <View
-              className="rounded-3xl p-4 flex-row items-center justify-between"
-              style={{ backgroundColor: 'rgba(168,85,247,0.1)', borderWidth: 1, borderColor: 'rgba(168,85,247,0.2)' }}
-            >
-              <View className="flex-row items-center">
-                <View className="w-10 h-10 rounded-2xl bg-purple-500/15 items-center justify-center mr-3">
-                  <CreditCard size={20} color="#c084fc" />
-                </View>
-                <View>
-                  <Text className="text-white font-semibold">Manage Accounts</Text>
-                  <Text className="text-gray-500 text-xs mt-0.5">
-                    {accounts.length} account{accounts.length !== 1 ? 's' : ''} linked
-                  </Text>
-                </View>
-              </View>
-              <ChevronRight size={20} color="#c084fc" />
-            </View>
-          </Pressable>
+    <ScreenBackground>
+      <ScrollView className="flex-1" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
+        {/* ── Header ── */}
+        <View style={{ paddingTop: insets.top + 16, paddingHorizontal: 20 }}>
+          <Txt weight="bold" size={30} color={C.text}>Settings ⚙️</Txt>
+          <Txt weight="medium" size={13} color={C.textDim} style={{ marginTop: 2 }}>Make it yours — we won't judge! 😄</Txt>
         </View>
 
-        {/* Import Transactions */}
-        <View className="px-4 pt-5">
-          <Text className="text-purple-400/70 text-xs font-bold mb-3 ml-1 tracking-wider">IMPORT DATA 📥</Text>
-          <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/import'); }}>
-            <View
-              className="rounded-3xl p-4 flex-row items-center justify-between"
-              style={{ backgroundColor: 'rgba(109,40,217,0.1)', borderWidth: 1, borderColor: 'rgba(109,40,217,0.2)' }}
-            >
-              <View className="flex-row items-center">
-                <View className="w-10 h-10 rounded-2xl bg-violet-500/15 items-center justify-center mr-3">
-                  <Upload size={20} color="#a78bfa" />
-                </View>
-                <View>
-                  <Text className="text-white font-semibold">Import Transactions</Text>
-                  <Text className="text-gray-500 text-xs mt-0.5">Upload CSV from your bank</Text>
-                </View>
-              </View>
-              <ChevronRight size={20} color="#a78bfa" />
-            </View>
-          </Pressable>
-          <Text className="text-gray-700 text-xs mt-2 ml-1">
-            Securely import without sharing credentials 🔒
-          </Text>
-        </View>
+        {/* ── Accounts ── */}
+        <Animated.View entering={FadeInUp.delay(40).springify().damping(16)} style={{ paddingHorizontal: 20, paddingTop: 22 }}>
+          <SectionLabel>ACCOUNTS 👛</SectionLabel>
+          <NavRow icon={<CreditCard size={20} color={C.p400} />} color={C.p400} label="Manage Accounts" desc={`${accounts.length} account${accounts.length !== 1 ? 's' : ''} linked`} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/accounts'); }} />
+        </Animated.View>
 
-        {/* Tools */}
-        <View className="px-4 pt-5">
-          <Text className="text-purple-400/70 text-xs font-bold mb-3 ml-1 tracking-wider">TOOLS 🛠️</Text>
-          <View className="gap-2">
-            {[
-              { label: 'Bill Reminders', desc: 'Track upcoming bills & due dates', icon: 'bell', color: '#c084fc', bg: 'rgba(192,132,252,0.1)', border: 'rgba(192,132,252,0.2)', route: '/bill-reminders' },
-              { label: 'Recurring Transactions', desc: 'Auto-create scheduled expenses', icon: 'refresh', color: '#34d399', bg: 'rgba(52,211,153,0.1)', border: 'rgba(52,211,153,0.2)', route: '/recurring' },
-              { label: 'Net Worth', desc: 'Track assets vs liabilities', icon: 'trending', color: '#60a5fa', bg: 'rgba(96,165,250,0.1)', border: 'rgba(96,165,250,0.2)', route: '/net-worth' },
-              { label: 'Category Budgets', desc: 'Set per-category monthly limits', icon: 'piechart', color: '#f472b6', bg: 'rgba(244,114,182,0.1)', border: 'rgba(244,114,182,0.2)', route: '/category-budgets' },
-            ].map((item) => (
-              <Pressable key={item.route} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push(item.route as any); }} style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}>
-                <View
-                  className="rounded-3xl p-4 flex-row items-center justify-between"
-                  style={{ backgroundColor: item.bg, borderWidth: 1, borderColor: item.border }}
-                >
-                  <View className="flex-row items-center">
-                    <View className="w-10 h-10 rounded-2xl items-center justify-center mr-3" style={{ backgroundColor: `${item.color}18` }}>
-                      {item.icon === 'bell' && <Award size={20} color={item.color} />}
-                      {item.icon === 'refresh' && <Upload size={20} color={item.color} />}
-                      {item.icon === 'trending' && <Wallet size={20} color={item.color} />}
-                      {item.icon === 'piechart' && <PieChart size={20} color={item.color} />}
-                    </View>
-                    <View>
-                      <Text className="text-white font-semibold">{item.label}</Text>
-                      <Text className="text-gray-500 text-xs mt-0.5">{item.desc}</Text>
-                    </View>
-                  </View>
-                  <ChevronRight size={20} color={item.color} />
-                </View>
-              </Pressable>
+        {/* ── Import ── */}
+        <Animated.View entering={FadeInUp.delay(70).springify().damping(16)} style={{ paddingHorizontal: 20, paddingTop: 20 }}>
+          <SectionLabel>IMPORT DATA 📥</SectionLabel>
+          <NavRow icon={<Upload size={20} color={C.lilac} />} color={C.lilac} label="Import Transactions" desc="Upload CSV from your bank 🔒" onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/import'); }} />
+        </Animated.View>
+
+        {/* ── Tools ── */}
+        <Animated.View entering={FadeInUp.delay(100).springify().damping(16)} style={{ paddingHorizontal: 20, paddingTop: 20 }}>
+          <SectionLabel>TOOLS 🛠️</SectionLabel>
+          <View style={{ gap: 10 }}>
+            {tools.map((item) => (
+              <NavRow key={item.route} icon={<item.Icon size={20} color={item.color} />} color={item.color} label={item.label} desc={item.desc} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push(item.route as any); }} />
             ))}
-
-            {/* Export Data */}
-            <Pressable onPress={handleExportData}>
-              <View
-                className="rounded-3xl p-4 flex-row items-center justify-between"
-                style={{ backgroundColor: 'rgba(109,40,217,0.1)', borderWidth: 1, borderColor: 'rgba(109,40,217,0.2)' }}
-              >
-                <View className="flex-row items-center">
-                  <View className="w-10 h-10 rounded-2xl items-center justify-center mr-3" style={{ backgroundColor: 'rgba(109,40,217,0.15)' }}>
-                    <Download size={20} color="#a78bfa" />
-                  </View>
-                  <View>
-                    <Text className="text-white font-semibold">Export Data</Text>
-                    <Text className="text-gray-500 text-xs mt-0.5">Download transactions as CSV</Text>
-                  </View>
-                </View>
-                <ChevronRight size={20} color="#a78bfa" />
-              </View>
-            </Pressable>
+            <NavRow icon={<Download size={20} color={C.lilac} />} color={C.lilac} label="Export Data" desc="Download transactions as CSV/JSON" onPress={handleExportData} />
           </View>
-        </View>
+        </Animated.View>
 
-        {/* Budget Settings */}
-        <View className="px-4 pt-5">
-          <Text className="text-purple-400/70 text-xs font-bold mb-3 ml-1 tracking-wider">YOUR NUMBERS 💰</Text>
+        {/* ── Numbers ── */}
+        <Animated.View entering={FadeInUp.delay(130).springify().damping(16)} style={{ paddingHorizontal: 20, paddingTop: 20 }}>
+          <SectionLabel>YOUR NUMBERS 💰</SectionLabel>
+          <MoneyInput icon={<Wallet size={15} color={C.p400} />} color={C.p400} label="Monthly Budget" hint="Your target monthly spending limit" value={monthlyBudget} onChangeText={setMonthlyBudget} placeholder="5000" />
+          <MoneyInput icon={<Wallet size={15} color={C.green} />} color={C.green} label="Starting Balance" hint="Your initial account balance" value={startingBalance} onChangeText={setStartingBalance} placeholder="0" />
+          <MoneyInput icon={<Clock size={15} color={C.lilac} />} color={C.lilac} label="Hourly Rate" hint="Used to calculate time cost of purchases ⏱️" value={hourlyValue} onChangeText={setHourlyValue} placeholder="0" suffix="/hr" />
+        </Animated.View>
 
-          {/* Monthly Budget */}
-          <View className="mb-3">
-            <View className="flex-row items-center mb-2">
-              <Wallet size={16} color="#c084fc" />
-              <Text className="text-purple-300/80 text-sm ml-2">Monthly Budget</Text>
-            </View>
-            <View
-              className="flex-row items-center rounded-3xl px-4 py-4"
-              style={{ backgroundColor: 'rgba(168,85,247,0.08)', borderWidth: 1, borderColor: 'rgba(168,85,247,0.18)' }}
-            >
-              <View className="w-10 h-10 rounded-2xl bg-purple-500/15 items-center justify-center mr-3">
-                <DollarSign size={20} color="#c084fc" />
-              </View>
-              <TextInput
-                value={monthlyBudget}
-                onChangeText={setMonthlyBudget}
-                placeholder="5000"
-                placeholderTextColor="#374151"
-                keyboardType="decimal-pad"
-                className="flex-1 text-white text-xl font-semibold bg-transparent"
-                selectionColor="#c084fc"
-              />
-            </View>
-            <Text className="text-gray-700 text-xs mt-1.5 ml-1">Your target monthly spending limit</Text>
+        {/* ── Preferences ── */}
+        <Animated.View entering={FadeInUp.delay(160).springify().damping(16)} style={{ paddingHorizontal: 20, paddingTop: 20 }}>
+          <SectionLabel>PREFERENCES 🎛️</SectionLabel>
+          <View style={{ gap: 12 }}>
+            <ToggleRow icon={<Eye size={20} color={C.lilac} />} color={C.lilac} label="Show Time Cost ⏱️" desc="See purchases in work hours" value={showTimeCost} onValueChange={(val) => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setShowTimeCost(val); }} />
+            <ToggleRow icon={<Fingerprint size={20} color={C.p400} />} color={C.p400} label="Biometric Lock 🔒" desc="Require Face ID / Fingerprint on open" value={biometricEnabled} onValueChange={handleBiometricToggle} />
           </View>
+        </Animated.View>
 
-          {/* Starting Balance */}
-          <View className="mb-3">
-            <View className="flex-row items-center mb-2">
-              <Wallet size={16} color="#34d399" />
-              <Text className="text-emerald-300/80 text-sm ml-2">Starting Balance</Text>
-            </View>
-            <View
-              className="flex-row items-center rounded-3xl px-4 py-4"
-              style={{ backgroundColor: 'rgba(52,211,153,0.07)', borderWidth: 1, borderColor: 'rgba(52,211,153,0.15)' }}
-            >
-              <View className="w-10 h-10 rounded-2xl bg-emerald-500/15 items-center justify-center mr-3">
-                <DollarSign size={20} color="#34d399" />
-              </View>
-              <TextInput
-                value={startingBalance}
-                onChangeText={setStartingBalance}
-                placeholder="0"
-                placeholderTextColor="#374151"
-                keyboardType="decimal-pad"
-                className="flex-1 text-white text-xl font-semibold bg-transparent"
-                selectionColor="#34d399"
-              />
-            </View>
-            <Text className="text-gray-700 text-xs mt-1.5 ml-1">Your initial account balance</Text>
-          </View>
-
-          {/* Hourly Value */}
-          <View className="mb-3">
-            <View className="flex-row items-center mb-2">
-              <Clock size={16} color="#a78bfa" />
-              <Text className="text-violet-300/80 text-sm ml-2">Hourly Rate</Text>
-            </View>
-            <View
-              className="flex-row items-center rounded-3xl px-4 py-4"
-              style={{ backgroundColor: 'rgba(139,92,246,0.08)', borderWidth: 1, borderColor: 'rgba(139,92,246,0.18)' }}
-            >
-              <View className="w-10 h-10 rounded-2xl bg-violet-500/15 items-center justify-center mr-3">
-                <Clock size={20} color="#a78bfa" />
-              </View>
-              <TextInput
-                value={hourlyValue}
-                onChangeText={setHourlyValue}
-                placeholder="0"
-                placeholderTextColor="#374151"
-                keyboardType="decimal-pad"
-                className="flex-1 text-white text-xl font-semibold bg-transparent"
-                selectionColor="#a78bfa"
-              />
-              <Text className="text-gray-500 text-lg">/hr</Text>
-            </View>
-            <Text className="text-gray-700 text-xs mt-1.5 ml-1">Used to calculate time cost of purchases ⏱️</Text>
-          </View>
-        </View>
-
-        {/* Toggles */}
-        <View className="px-4 pt-5">
-          <Text className="text-purple-400/70 text-xs font-bold mb-3 ml-1 tracking-wider">PREFERENCES 🎛️</Text>
-
-          <View
-            className="rounded-3xl p-4 flex-row justify-between items-center mb-3"
-            style={{ backgroundColor: 'rgba(109,40,217,0.1)', borderWidth: 1, borderColor: 'rgba(109,40,217,0.2)' }}
-          >
-            <View className="flex-row items-center flex-1">
-              <View className="w-10 h-10 rounded-2xl bg-violet-500/15 items-center justify-center mr-3">
-                <Eye size={20} color="#a78bfa" />
-              </View>
-              <View className="flex-1">
-                <Text className="text-white font-semibold">Show Time Cost ⏱️</Text>
-                <Text className="text-gray-500 text-xs mt-0.5">See purchases in work hours</Text>
-              </View>
-            </View>
-            <Switch
-              value={showTimeCost}
-              onValueChange={(val) => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                setShowTimeCost(val);
-              }}
-              trackColor={{ false: '#1e1b2e', true: '#a78bfa' }}
-              thumbColor={showTimeCost ? '#fff' : '#4b5563'}
-            />
-          </View>
-
-          <View
-            className="rounded-3xl p-4 flex-row justify-between items-center"
-            style={{ backgroundColor: 'rgba(168,85,247,0.08)', borderWidth: 1, borderColor: 'rgba(168,85,247,0.18)' }}
-          >
-            <View className="flex-row items-center flex-1">
-              <View className="w-10 h-10 rounded-2xl bg-purple-500/15 items-center justify-center mr-3">
-                <Fingerprint size={20} color="#c084fc" />
-              </View>
-              <View className="flex-1">
-                <Text className="text-white font-semibold">Biometric Lock 🔒</Text>
-                <Text className="text-gray-500 text-xs mt-0.5">Require Face ID / Fingerprint on open</Text>
-              </View>
-            </View>
-            <Switch
-              value={biometricEnabled}
-              onValueChange={handleBiometricToggle}
-              trackColor={{ false: '#1e1b2e', true: '#c084fc' }}
-              thumbColor={biometricEnabled ? '#fff' : '#4b5563'}
-            />
-          </View>
-        </View>
-
-        {/* Time Cost Preview */}
+        {/* ── Time cost preview ── */}
         {hourlyValue && parseFloat(hourlyValue) > 0 && showTimeCost && (
-          <View className="px-4 pt-5">
-            <View
-              className="rounded-3xl p-4"
-              style={{ backgroundColor: 'rgba(109,40,217,0.1)', borderWidth: 1, borderColor: 'rgba(109,40,217,0.22)' }}
-            >
-              <Text className="text-purple-300/70 text-xs mb-1">Example 💡</Text>
-              <Text className="text-white text-sm">
-                $50 purchase = <Text className="text-purple-400 font-bold">{Math.round((50 / parseFloat(hourlyValue)) * 60)} minutes</Text> of work
-              </Text>
-            </View>
+          <View style={{ paddingHorizontal: 20, paddingTop: 18 }}>
+            <GlassCard tint={`${C.p700}16`} border={`${C.p700}2e`}>
+              <Txt size={11} color={C.textDim} style={{ marginBottom: 3 }}>Example 💡</Txt>
+              <Txt size={14} color={C.text}>$50 purchase = <Txt weight="bold" size={14} color={C.p400}>{Math.round((50 / parseFloat(hourlyValue)) * 60)} minutes</Txt> of work</Txt>
+            </GlassCard>
           </View>
         )}
 
-        {/* Save Button */}
-        <View className="px-4 pt-8">
-          <Pressable onPress={() => mutation.mutate()} disabled={mutation.isPending} className="active:scale-98">
-            <LinearGradient
-              colors={saved ? ['#34d399', '#059669'] : mutation.isPending ? ['#1e1b2e', '#1e1b2e'] : ['#6d28d9', '#a855f7']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={{
-                borderRadius: 20,
-                paddingVertical: 18,
-                alignItems: 'center',
-                flexDirection: 'row',
-                justifyContent: 'center',
-              }}
-            >
-              {saved && <Check size={20} color="white" style={{ marginRight: 8 }} />}
-              <Text className="text-white font-bold text-lg">
-                {saved ? 'Saved! 🎉' : mutation.isPending ? 'Saving...' : 'Save! ✨'}
-              </Text>
+        {/* ── Save ── */}
+        <View style={{ paddingHorizontal: 20, paddingTop: 26 }}>
+          {saved ? (
+            <LinearGradient colors={[C.green, '#059669']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={[{ borderRadius: R.md, paddingVertical: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }, glow(C.green, 0.4, 18)]}>
+              <Check size={20} color="#fff" />
+              <Txt weight="bold" size={16} color="#fff">Saved! 🎉</Txt>
             </LinearGradient>
-          </Pressable>
+          ) : (
+            <BubbleButton label={mutation.isPending ? 'Saving…' : 'Save! ✨'} onPress={() => mutation.mutate()} disabled={mutation.isPending} />
+          )}
         </View>
 
-        {/* Features Info */}
-        <View className="px-4 pt-8">
-          <Text className="text-purple-400/70 text-xs font-bold mb-4 ml-1 tracking-wider">FEATURES ✨</Text>
-          <View className="gap-3">
-            <View
-              className="rounded-3xl p-4 flex-row items-center"
-              style={{ backgroundColor: 'rgba(109,40,217,0.1)', borderWidth: 1, borderColor: 'rgba(109,40,217,0.18)' }}
-            >
-              <View className="w-12 h-12 rounded-2xl bg-violet-500/15 items-center justify-center mr-4">
-                <Flame size={24} color="#a78bfa" />
-              </View>
-              <View className="flex-1">
-                <Text className="text-white font-semibold">Logging Streak 🔥</Text>
-                <Text className="text-gray-500 text-xs mt-0.5">Build streaks by logging transactions daily</Text>
-              </View>
-            </View>
-
-            <View
-              className="rounded-3xl p-4 flex-row items-center"
-              style={{ backgroundColor: 'rgba(168,85,247,0.08)', borderWidth: 1, borderColor: 'rgba(168,85,247,0.18)' }}
-            >
-              <View className="w-12 h-12 rounded-2xl bg-purple-500/15 items-center justify-center mr-4">
-                <Award size={24} color="#c084fc" />
-              </View>
-              <View className="flex-1">
-                <Text className="text-white font-semibold">Achievement Badges 🏆</Text>
-                <Text className="text-gray-500 text-xs mt-0.5">Unlock badges for good financial habits</Text>
-              </View>
-            </View>
-
-            <View
-              className="rounded-3xl p-4 flex-row items-center"
-              style={{ backgroundColor: 'rgba(91,33,182,0.1)', borderWidth: 1, borderColor: 'rgba(91,33,182,0.2)' }}
-            >
-              <View className="w-12 h-12 rounded-2xl bg-violet-600/15 items-center justify-center mr-4">
-                <Cloud size={24} color="#8b5cf6" />
-              </View>
-              <View className="flex-1">
-                <Text className="text-white font-semibold">Cloud Synced ☁️</Text>
-                <Text className="text-gray-500 text-xs mt-0.5">Data backed up securely to the cloud</Text>
-              </View>
-            </View>
+        {/* ── Features ── */}
+        <View style={{ paddingHorizontal: 20, paddingTop: 28 }}>
+          <SectionLabel>FEATURES ✨</SectionLabel>
+          <View style={{ gap: 12 }}>
+            {[
+              { Icon: Flame, color: C.lilac, label: 'Logging Streak 🔥', desc: 'Build streaks by logging transactions daily' },
+              { Icon: Award, color: C.p400, label: 'Achievement Badges 🏆', desc: 'Unlock badges for good financial habits' },
+              { Icon: Cloud, color: C.p600, label: 'Cloud Synced ☁️', desc: 'Data backed up securely to the cloud' },
+            ].map((f) => (
+              <GlassCard key={f.label} padding={14} tint={`${f.color}12`} border={`${f.color}24`}>
+                <View className="flex-row items-center" style={{ gap: 14 }}>
+                  <IconBubble color={f.color} size={48} radius={18}><f.Icon size={23} color={f.color} /></IconBubble>
+                  <View style={{ flex: 1 }}>
+                    <Txt weight="semibold" size={15} color={C.text}>{f.label}</Txt>
+                    <Txt size={11} color={C.textFaint} style={{ marginTop: 1 }}>{f.desc}</Txt>
+                  </View>
+                </View>
+              </GlassCard>
+            ))}
           </View>
         </View>
 
-        {/* Version */}
-        <View className="px-4 pt-8 pb-2">
-          <Text className="text-gray-700 text-xs text-center">Budget v1.0.0 — made with care 💜</Text>
+        {/* ── Version ── */}
+        <View style={{ paddingHorizontal: 20, paddingTop: 24 }}>
+          <Txt size={11} color={C.textFaint} style={{ textAlign: 'center' }}>Budget v1.0.0 — made with care 💜</Txt>
         </View>
 
-        {/* Danger Zone */}
-        <View className="px-4 pt-4">
-          <Text className="text-gray-600 text-xs font-bold mb-3 ml-1 tracking-wider">CAREFUL ZONE ⚠️</Text>
+        {/* ── Danger zone ── */}
+        <View style={{ paddingHorizontal: 20, paddingTop: 18 }}>
+          <SectionLabel>CAREFUL ZONE ⚠️</SectionLabel>
           <Pressable
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-              Alert.alert(
-                'Reset All Activity',
-                'This will permanently delete all your transactions, accounts, and reset your settings to zero. This cannot be undone.',
-                [
-                  { text: 'Cancel', style: 'cancel' },
-                  {
-                    text: 'Reset Everything',
-                    style: 'destructive',
-                    onPress: async () => {
-                      try {
-                        await resetAllData();
-                        setMonthlyBudget('0');
-                        setStartingBalance('0');
-                        setHourlyValue('0');
-                        setShowTimeCost(false);
-                        queryClient.invalidateQueries({ queryKey: ['transactions'] });
-                        queryClient.invalidateQueries({ queryKey: ['settings'] });
-                        queryClient.invalidateQueries({ queryKey: ['accounts'] });
-                        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                        Alert.alert('Done', 'All your activity has been reset to zero.');
-                      } catch (e) {
-                        console.error('[Reset] error:', e);
-                        Alert.alert('Error', 'Reset is only available on the mobile app, not in the browser preview.');
-                      }
-                    },
+              Alert.alert('Reset All Activity', 'This will permanently delete all your transactions, accounts, and reset your settings to zero. This cannot be undone.', [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Reset Everything', style: 'destructive',
+                  onPress: async () => {
+                    try {
+                      await resetAllData();
+                      setMonthlyBudget('0'); setStartingBalance('0'); setHourlyValue('0'); setShowTimeCost(false);
+                      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+                      queryClient.invalidateQueries({ queryKey: ['settings'] });
+                      queryClient.invalidateQueries({ queryKey: ['accounts'] });
+                      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                      Alert.alert('Done', 'All your activity has been reset to zero.');
+                    } catch (e) {
+                      console.error('[Reset] error:', e);
+                      Alert.alert('Error', 'Reset is only available on the mobile app, not in the browser preview.');
+                    }
                   },
-                ]
-              );
+                },
+              ]);
             }}
           >
-            <View
-              className="rounded-3xl p-4 flex-row items-center"
-              style={{ backgroundColor: 'rgba(239, 68, 68, 0.06)', borderWidth: 1, borderColor: 'rgba(239, 68, 68, 0.15)' }}
-            >
-              <View className="w-10 h-10 rounded-2xl bg-red-500/10 items-center justify-center mr-3">
-                <RotateCcw size={20} color="#ef4444" />
+            <GlassCard padding={14} tint="rgba(239,68,68,0.07)" border="rgba(239,68,68,0.18)">
+              <View className="flex-row items-center" style={{ gap: 12 }}>
+                <IconBubble color="#ef4444"><RotateCcw size={20} color="#ef4444" /></IconBubble>
+                <View style={{ flex: 1 }}>
+                  <Txt weight="semibold" size={15} color="#f87171">Reset All Activity</Txt>
+                  <Txt size={11} color="rgba(248,113,113,0.6)" style={{ marginTop: 1 }}>Delete all transactions & reset to zero</Txt>
+                </View>
               </View>
-              <View className="flex-1">
-                <Text className="text-red-400 font-semibold">Reset All Activity</Text>
-                <Text className="text-red-400/50 text-xs mt-0.5">Delete all transactions & reset to zero</Text>
-              </View>
-            </View>
+            </GlassCard>
           </Pressable>
         </View>
 
-        {/* Logout Button */}
-        <View className="px-4 pt-3 pb-8">
-          <Pressable
-            onPress={async () => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-              resetAccountType();
-              await authClient.signOut();
-              await invalidateSession();
-            }}
-          >
-            <View
-              className="rounded-3xl p-4 flex-row items-center justify-center"
-              style={{ backgroundColor: 'rgba(239, 68, 68, 0.07)', borderWidth: 1, borderColor: 'rgba(239, 68, 68, 0.13)' }}
-            >
-              <LogOut size={20} color="#ef4444" />
-              <Text className="text-red-400 font-semibold ml-2">Log Out</Text>
-            </View>
+        {/* ── Logout ── */}
+        <View style={{ paddingHorizontal: 20, paddingTop: 12 }}>
+          <Pressable onPress={async () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); resetAccountType(); await authClient.signOut(); await invalidateSession(); }}>
+            <GlassCard padding={14} tint="rgba(239,68,68,0.07)" border="rgba(239,68,68,0.16)">
+              <View className="flex-row items-center justify-center" style={{ gap: 8 }}>
+                <LogOut size={20} color="#ef4444" />
+                <Txt weight="semibold" size={15} color="#f87171">Log Out</Txt>
+              </View>
+            </GlassCard>
           </Pressable>
         </View>
       </ScrollView>
-    </View>
+    </ScreenBackground>
   );
 }

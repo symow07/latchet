@@ -25,6 +25,7 @@ import Animated, { FadeInUp, FadeInDown } from 'react-native-reanimated';
 import { format, parseISO, differenceInDays } from 'date-fns';
 
 import { getSubscriptions, type Subscription } from '@/lib/db';
+import { EmailScanCard } from '@/components/EmailScanCard';
 import {
   scanAndSaveSubscriptions,
   monthlySubscriptionTotal,
@@ -384,6 +385,9 @@ export default function SubscriptionsScreen() {
         contentContainerStyle={{ paddingTop: 20, paddingBottom: 40 }}
         showsVerticalScrollIndicator={false}
       >
+        {/* Email scanner — find subscriptions from receipt emails */}
+        <EmailScanCard accent="#a855f7" />
+
         {isLoading ? (
           <>
             <SkeletonCard />

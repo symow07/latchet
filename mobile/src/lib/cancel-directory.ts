@@ -4,6 +4,9 @@ export interface CancelDirectoryEntry {
   cancelUrl: string;
   steps: string[];
   category: string;
+  // When the subscription is billed through a platform store, the user must
+  // cancel in that store's native subscriptions screen rather than a web page.
+  native?: 'apple' | 'google';
 }
 
 export const CANCEL_DIRECTORY: CancelDirectoryEntry[] = [
@@ -43,18 +46,20 @@ export const CANCEL_DIRECTORY: CancelDirectoryEntry[] = [
       'Tap "Cancel Subscription"',
     ],
     category: 'Apple',
+    native: 'apple',
   },
   {
     keywords: ['google', 'youtube', 'youtube premium', 'google one', 'google play'],
     displayName: 'Google / YouTube',
-    cancelUrl: 'https://myaccount.google.com/payments-and-subscriptions',
+    cancelUrl: 'https://play.google.com/store/account/subscriptions',
     steps: [
-      'Go to myaccount.google.com',
-      'Tap "Payments & subscriptions"',
-      'Tap "Manage subscriptions"',
-      'Find the subscription and tap "Cancel"',
+      'Open the Google Play Store app',
+      'Tap your profile → Payments & subscriptions → Subscriptions',
+      'Select the subscription you want to cancel',
+      'Tap "Cancel subscription"',
     ],
     category: 'Google',
+    native: 'google',
   },
   {
     keywords: ['amazon', 'amazon prime', 'prime video', 'audible', 'kindle unlimited'],
@@ -251,4 +256,25 @@ export function findCancelEntry(normalizedMerchant: string): CancelDirectoryEntr
       entry.keywords.some(kw => lower.includes(kw) || kw.includes(lower))
     ) ?? null
   );
+}
+
+// Native subscription-management deep links. `itms-apps://` jumps straight to
+// the iOS Settings → Subscriptions screen (the only place Apple-billed
+// subscriptions can be canceled).
+const APPLE_SUBSCRIPTIONS_DEEP_LINK = 'itms-apps://apps.apple.com/account/subscriptions';
+const GOOGLE_SUBSCRIPTIONS_URL = 'https://play.google.com/store/account/subscriptions';
+
+/**
+ * Resolve the best one-tap cancel destination for an entry. For store-billed
+ * subscriptions this is the native subscriptions screen; otherwise it's the
+ * merchant's exact web cancel page.
+ */
+export function getCancelLink(entry: CancelDirectoryEntry): { url: string; label: string } {
+  if (entry.native === 'apple') {
+    return { url: APPLE_SUBSCRIPTIONS_DEEP_LINK, label: 'Cancel in Settings' };
+  }
+  if (entry.native === 'google') {
+    return { url: GOOGLE_SUBSCRIPTIONS_URL, label: 'Cancel in Google Play' };
+  }
+  return { url: entry.cancelUrl, label: `Cancel ${entry.displayName}` };
 }

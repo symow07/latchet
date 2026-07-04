@@ -78,6 +78,7 @@ async function performInit(): Promise<SQLite.SQLiteDatabase> {
       status TEXT NOT NULL DEFAULT 'possible',
       cancelUrl TEXT,
       cancelNotes TEXT,
+      source TEXT DEFAULT 'transaction',
       createdAt TEXT NOT NULL,
       updatedAt TEXT NOT NULL
     );
@@ -109,6 +110,18 @@ async function performInit(): Promise<SQLite.SQLiteDatabase> {
   } catch (e) {
     // Column may already exist, ignore error
     console.log('Migration check:', e);
+  }
+
+  // Migration: add `source` column to subscriptions ('transaction' | 'email')
+  // so email-detected subscriptions can be distinguished from transaction ones.
+  try {
+    const subInfo = await db.getAllAsync('PRAGMA table_info(subscriptions)');
+    const hasSource = (subInfo as { name: string }[]).some(col => col.name === 'source');
+    if (!hasSource) {
+      await db.execAsync("ALTER TABLE subscriptions ADD COLUMN source TEXT DEFAULT 'transaction'");
+    }
+  } catch (e) {
+    console.log('Subscriptions source migration:', e);
   }
 
   // Create index for accountId after ensuring column exists
@@ -152,6 +165,7 @@ async function performInit(): Promise<SQLite.SQLiteDatabase> {
       status TEXT NOT NULL DEFAULT 'possible',
       cancelUrl TEXT,
       cancelNotes TEXT,
+      source TEXT DEFAULT 'transaction',
       createdAt TEXT NOT NULL,
       updatedAt TEXT NOT NULL
     );
@@ -545,6 +559,7 @@ export interface Subscription {
   status: 'confirmed' | 'possible' | 'canceled';
   cancelUrl: string | null;
   cancelNotes: string | null;
+  source: 'transaction' | 'email';
   createdAt: string;
   updatedAt: string;
 }
@@ -574,8 +589,8 @@ export async function upsertSubscription(sub: Omit<Subscription, 'createdAt' | '
   const database = await getDatabase();
   const now = new Date().toISOString();
   await database.runAsync(
-    `INSERT INTO subscriptions (id, merchantDisplay, merchantNormalized, cadence, typicalAmount, currency, confidenceScore, lastChargedAt, nextExpectedAt, status, cancelUrl, cancelNotes, createdAt, updatedAt)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `INSERT INTO subscriptions (id, merchantDisplay, merchantNormalized, cadence, typicalAmount, currency, confidenceScore, lastChargedAt, nextExpectedAt, status, cancelUrl, cancelNotes, source, createdAt, updatedAt)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(id) DO UPDATE SET
        merchantDisplay = excluded.merchantDisplay,
        merchantNormalized = excluded.merchantNormalized,
@@ -587,10 +602,11 @@ export async function upsertSubscription(sub: Omit<Subscription, 'createdAt' | '
        status = excluded.status,
        cancelUrl = excluded.cancelUrl,
        cancelNotes = excluded.cancelNotes,
+       source = excluded.source,
        updatedAt = excluded.updatedAt`,
     [sub.id, sub.merchantDisplay, sub.merchantNormalized, sub.cadence, sub.typicalAmount, sub.currency,
      sub.confidenceScore, sub.lastChargedAt, sub.nextExpectedAt, sub.status,
-     sub.cancelUrl, sub.cancelNotes, sub.createdAt ?? now, now]
+     sub.cancelUrl, sub.cancelNotes, sub.source ?? 'transaction', sub.createdAt ?? now, now]
   );
 }
 

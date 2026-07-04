@@ -1,6 +1,5 @@
 import {
   View,
-  Text,
   Pressable,
   ScrollView,
   TextInput,
@@ -16,6 +15,9 @@ import { Calendar, Clock, Zap, DollarSign, Tag, FileText, ArrowDownCircle, Arrow
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
+import Animated, { FadeInUp } from 'react-native-reanimated';
+import { C, R, glow } from '@/lib/design';
+import { Txt, GlassCard, IconBubble, BubbleButton, ScreenBackground } from '@/components/ui';
 
 const getAccountIcon = (type: string) => {
   switch (type) {
@@ -29,13 +31,22 @@ const getAccountIcon = (type: string) => {
 };
 
 const CATEGORIES = [
-  { name: 'Food', icon: '🍔', color: '#fb923c', bg: 'rgba(251,146,60,0.15)', border: 'rgba(251,146,60,0.35)' },
-  { name: 'Gym', icon: '💪', color: '#34d399', bg: 'rgba(52,211,153,0.15)', border: 'rgba(52,211,153,0.35)' },
-  { name: 'Transport', icon: '🚗', color: '#60a5fa', bg: 'rgba(96,165,250,0.15)', border: 'rgba(96,165,250,0.35)' },
-  { name: 'Shopping', icon: '🛍️', color: '#f472b6', bg: 'rgba(244,114,182,0.15)', border: 'rgba(244,114,182,0.35)' },
-  { name: 'Subscriptions', icon: '📱', color: '#c084fc', bg: 'rgba(192,132,252,0.15)', border: 'rgba(192,132,252,0.35)' },
-  { name: 'Other', icon: '📦', color: '#94a3b8', bg: 'rgba(148,163,184,0.15)', border: 'rgba(148,163,184,0.35)' },
+  { name: 'Food', icon: '🍔', color: '#fb923c' },
+  { name: 'Gym', icon: '💪', color: '#34d399' },
+  { name: 'Transport', icon: '🚗', color: '#60a5fa' },
+  { name: 'Shopping', icon: '🛍️', color: '#f472b6' },
+  { name: 'Subscriptions', icon: '📱', color: C.p400 },
+  { name: 'Other', icon: '📦', color: '#94a3b8' },
 ];
+
+function FieldLabel({ icon, label }: { icon: React.ReactNode; label: string }) {
+  return (
+    <View className="flex-row items-center mb-3" style={{ gap: 8 }}>
+      {icon}
+      <Txt weight="semibold" size={12} color={C.textDim}>{label}</Txt>
+    </View>
+  );
+}
 
 export default function AddTransactionScreen() {
   const router = useRouter();
@@ -50,15 +61,8 @@ export default function AddTransactionScreen() {
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
   const [showAccountPicker, setShowAccountPicker] = useState(false);
 
-  const { data: settings } = useQuery({
-    queryKey: ['settings'],
-    queryFn: getSettings,
-  });
-
-  const { data: accounts = [] } = useQuery({
-    queryKey: ['accounts'],
-    queryFn: getAccounts,
-  });
+  const { data: settings } = useQuery({ queryKey: ['settings'], queryFn: getSettings });
+  const { data: accounts = [] } = useQuery({ queryKey: ['accounts'], queryFn: getAccounts });
 
   const queryClient = useQueryClient();
 
@@ -72,7 +76,6 @@ export default function AddTransactionScreen() {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
         throw new Error('Invalid amount');
       }
-
       await addTransaction({
         amount: parseFloat(amount),
         category,
@@ -85,13 +88,8 @@ export default function AddTransactionScreen() {
       });
     },
     onMutate: async () => {
-      // Cancel outgoing refetches so they don't overwrite our optimistic update
       await queryClient.cancelQueries({ queryKey: ['transactions'] });
-
-      // Snapshot previous state for rollback
       const previousTransactions = queryClient.getQueryData(['transactions']);
-
-      // Optimistically add the new transaction to the cache
       const optimisticTx = {
         id: `temp_${Date.now()}`,
         amount: parseFloat(amount || '0'),
@@ -104,15 +102,12 @@ export default function AddTransactionScreen() {
         currency: settings?.currency || 'USD',
         createdAt: new Date().toISOString(),
       };
-
       queryClient.setQueryData(['transactions'], (old: any[] | undefined) =>
         old ? [optimisticTx, ...old] : [optimisticTx]
       );
-
       return { previousTransactions };
     },
     onError: (_error, _vars, context) => {
-      // Rollback on failure
       if (context?.previousTransactions) {
         queryClient.setQueryData(['transactions'], context.previousTransactions);
       }
@@ -123,16 +118,13 @@ export default function AddTransactionScreen() {
       router.back();
     },
     onSettled: () => {
-      // Always refetch to get the real server data
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
       queryClient.invalidateQueries({ queryKey: ['accounts'] });
     },
   });
 
   const handleDateChange = (event: any, selectedDate?: Date) => {
-    if (selectedDate) {
-      setDate(selectedDate);
-    }
+    if (selectedDate) setDate(selectedDate);
     setShowDatePicker(false);
   };
 
@@ -149,170 +141,108 @@ export default function AddTransactionScreen() {
   const canSubmit = !mutation.isPending && !!amount && parseFloat(amount) > 0;
 
   return (
-    <View className="flex-1" style={{ backgroundColor: '#06060f' }}>
+    <ScreenBackground>
       <ScrollView
         className="flex-1"
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 100 }}
+        contentContainerStyle={{ paddingBottom: 130 }}
+        keyboardShouldPersistTaps="handled"
       >
-        {/* Deep Purple Gradient Header */}
-        <LinearGradient
-          colors={['#2e1065', '#4c1d95', '#7c3aed', '#06060f']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={{
-            paddingTop: insets.top + 16,
-            paddingBottom: 32,
-            paddingHorizontal: 20,
-            borderBottomLeftRadius: 36,
-            borderBottomRightRadius: 36,
-          }}
-        >
-          <Text className="text-3xl font-bold text-white mb-1">Add Transaction</Text>
-          <Text className="text-purple-200/70">Let's track that spending! 📝</Text>
+        {/* ── Header + amount ── */}
+        <View style={{ paddingTop: insets.top + 16, paddingHorizontal: 20 }}>
+          <Txt weight="bold" size={30} color={C.text}>Add Transaction</Txt>
+          <Txt weight="medium" size={13} color={C.textDim} style={{ marginTop: 2 }}>Let's track that spending! 📝</Txt>
 
-          {/* Amount Input Card */}
-          <View
-            className="mt-6 rounded-3xl p-6 overflow-hidden"
-            style={{ backgroundColor: 'rgba(255,255,255,0.1)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)' }}
-          >
-            <View className="flex-row items-center mb-3">
-              <DollarSign size={16} color="rgba(255,255,255,0.7)" />
-              <Text className="text-purple-200/70 text-sm ml-1">How much? 💸</Text>
-            </View>
-            <View className="flex-row items-baseline">
-              <Text className="text-5xl font-bold text-white">$</Text>
-              <TextInput
-                value={amount}
-                onChangeText={setAmount}
-                placeholder="0.00"
-                placeholderTextColor="rgba(255,255,255,0.3)"
-                keyboardType="decimal-pad"
-                className="flex-1 ml-2 text-6xl font-bold text-white bg-transparent"
-                selectionColor="#c084fc"
-              />
-            </View>
-          </View>
-        </LinearGradient>
+          <Animated.View entering={FadeInUp.delay(40).springify().damping(16)}>
+            <LinearGradient
+              colors={[C.p700, C.p600, C.p800]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={[{ borderRadius: R.xl, padding: 22, marginTop: 18, overflow: 'hidden' }, glow(C.p600, 0.4, 24)]}
+            >
+              <View style={{ position: 'absolute', top: -50, right: -40, width: 160, height: 160, borderRadius: 80, backgroundColor: 'rgba(255,255,255,0.10)' }} />
+              <View className="flex-row items-center mb-2" style={{ gap: 6 }}>
+                <DollarSign size={15} color="rgba(255,255,255,0.75)" />
+                <Txt weight="semibold" size={13} color="rgba(255,255,255,0.8)">How much? 💸</Txt>
+              </View>
+              <View className="flex-row items-center">
+                <Txt weight="bold" size={40} color="#fff">$</Txt>
+                <TextInput
+                  value={amount}
+                  onChangeText={setAmount}
+                  placeholder="0.00"
+                  placeholderTextColor="rgba(255,255,255,0.35)"
+                  keyboardType="decimal-pad"
+                  style={{ flex: 1, marginLeft: 8, fontSize: 52, fontFamily: 'Quicksand_700Bold', color: '#fff', padding: 0 }}
+                  selectionColor={C.p300}
+                />
+              </View>
+            </LinearGradient>
+          </Animated.View>
+        </View>
 
-        {/* Type Selection */}
-        <View className="px-4 pt-6">
-          <View className="flex-row items-center mb-3">
-            <Tag size={16} color="#6b7280" />
-            <Text className="text-gray-400 text-sm ml-2">Transaction Type</Text>
-          </View>
-          <View className="flex-row gap-3">
-            <Pressable onPress={() => handleTypeChange('Expense')} className="flex-1">
-              <View
-                className="py-4 px-4 rounded-2xl flex-row items-center justify-center"
-                style={{
-                  backgroundColor: type === 'Expense' ? 'rgba(251, 113, 133, 0.18)' : 'rgba(255,255,255,0.04)',
-                  borderWidth: 1.5,
-                  borderColor: type === 'Expense' ? 'rgba(251, 113, 133, 0.5)' : 'transparent',
-                }}
-              >
-                <ArrowDownCircle size={20} color={type === 'Expense' ? '#fb7185' : '#4b5563'} />
-                <Text className="ml-2 font-bold" style={{ color: type === 'Expense' ? '#fb7185' : '#4b5563' }}>
-                  Expense
-                </Text>
-              </View>
-            </Pressable>
-            <Pressable onPress={() => handleTypeChange('Income')} className="flex-1">
-              <View
-                className="py-4 px-4 rounded-2xl flex-row items-center justify-center"
-                style={{
-                  backgroundColor: type === 'Income' ? 'rgba(52, 211, 153, 0.15)' : 'rgba(255,255,255,0.04)',
-                  borderWidth: 1.5,
-                  borderColor: type === 'Income' ? 'rgba(52, 211, 153, 0.5)' : 'transparent',
-                }}
-              >
-                <ArrowUpCircle size={20} color={type === 'Income' ? '#34d399' : '#4b5563'} />
-                <Text className="ml-2 font-bold" style={{ color: type === 'Income' ? '#34d399' : '#4b5563' }}>
-                  Income
-                </Text>
-              </View>
-            </Pressable>
+        {/* ── Type ── */}
+        <View style={{ paddingHorizontal: 20, paddingTop: 22 }}>
+          <FieldLabel icon={<Tag size={15} color={C.textFaint} />} label="Transaction Type" />
+          <View className="flex-row" style={{ gap: 12 }}>
+            {([
+              { t: 'Expense' as const, Icon: ArrowDownCircle, color: C.rose },
+              { t: 'Income' as const, Icon: ArrowUpCircle, color: C.green },
+            ]).map(({ t, Icon, color }) => {
+              const active = type === t;
+              return (
+                <Pressable key={t} onPress={() => handleTypeChange(t)} style={{ flex: 1 }}>
+                  <View style={{ paddingVertical: 16, borderRadius: R.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: active ? `${color}24` : C.glass, borderWidth: 1.5, borderColor: active ? `${color}77` : 'transparent' }}>
+                    <Icon size={20} color={active ? color : C.textFaint} />
+                    <Txt weight="bold" size={15} color={active ? color : C.textFaint}>{t}</Txt>
+                  </View>
+                </Pressable>
+              );
+            })}
           </View>
         </View>
 
-        {/* Account Selection */}
+        {/* ── Account ── */}
         {accounts.length > 0 && (
-          <View className="px-4 pt-6">
-            <View className="flex-row items-center mb-3">
-              <Wallet size={16} color="#6b7280" />
-              <Text className="text-gray-400 text-sm ml-2">Account</Text>
-            </View>
-            <Pressable
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                setShowAccountPicker(!showAccountPicker);
-              }}
-            >
-              <View
-                className="rounded-2xl p-4 flex-row items-center justify-between"
-                style={{ backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)' }}
-              >
-                {selectedAccount ? (
-                  <View className="flex-row items-center">
-                    {(() => {
-                      const Icon = getAccountIcon(selectedAccount.type);
-                      return (
-                        <View
-                          className="w-10 h-10 rounded-xl items-center justify-center mr-3"
-                          style={{ backgroundColor: `${selectedAccount.color}20` }}
-                        >
-                          <Icon size={20} color={selectedAccount.color} />
-                        </View>
-                      );
-                    })()}
-                    <View>
-                      <Text className="text-white font-semibold">{selectedAccount.name}</Text>
-                      <Text className="text-gray-500 text-xs capitalize">{selectedAccount.type}</Text>
+          <View style={{ paddingHorizontal: 20, paddingTop: 22 }}>
+            <FieldLabel icon={<Wallet size={15} color={C.textFaint} />} label="Account" />
+            <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setShowAccountPicker(!showAccountPicker); }}>
+              <GlassCard padding={14} radius={R.md}>
+                <View className="flex-row items-center justify-between">
+                  {selectedAccount ? (
+                    <View className="flex-row items-center" style={{ gap: 12 }}>
+                      {(() => { const Icon = getAccountIcon(selectedAccount.type); return (
+                        <IconBubble color={selectedAccount.color} size={40}><Icon size={19} color={selectedAccount.color} /></IconBubble>
+                      ); })()}
+                      <View>
+                        <Txt weight="semibold" size={14} color={C.text}>{selectedAccount.name}</Txt>
+                        <Txt size={11} color={C.textFaint} style={{ textTransform: 'capitalize' }}>{selectedAccount.type}</Txt>
+                      </View>
                     </View>
-                  </View>
-                ) : (
-                  <Text className="text-gray-500">Select an account</Text>
-                )}
-                <ChevronDown size={20} color="#6b7280" />
-              </View>
+                  ) : <Txt color={C.textFaint}>Select an account</Txt>}
+                  <ChevronDown size={20} color={C.textFaint} />
+                </View>
+              </GlassCard>
             </Pressable>
 
             {showAccountPicker && (
-              <View className="mt-2">
+              <View style={{ marginTop: 8, gap: 8 }}>
                 {accounts.map((account) => {
                   const Icon = getAccountIcon(account.type);
                   const isSelected = account.id === currentAccountId;
                   return (
-                    <Pressable
-                      key={account.id}
-                      onPress={() => {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        setSelectedAccountId(account.id);
-                        setShowAccountPicker(false);
-                      }}
-                      className="mb-2"
-                    >
-                      <View
-                        className="rounded-xl p-3 flex-row items-center justify-between"
-                        style={{
-                          backgroundColor: isSelected ? 'rgba(168, 85, 247, 0.15)' : 'rgba(255,255,255,0.03)',
-                        }}
-                      >
-                        <View className="flex-row items-center">
-                          <View
-                            className="w-8 h-8 rounded-lg items-center justify-center mr-3"
-                            style={{ backgroundColor: `${account.color}20` }}
-                          >
-                            <Icon size={16} color={account.color} />
-                          </View>
+                    <Pressable key={account.id} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSelectedAccountId(account.id); setShowAccountPicker(false); }}>
+                      <View style={{ borderRadius: R.sm, padding: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: isSelected ? `${C.p500}22` : C.glass, borderWidth: 1, borderColor: isSelected ? `${C.p500}44` : 'transparent' }}>
+                        <View className="flex-row items-center" style={{ gap: 12 }}>
+                          <IconBubble color={account.color} size={34} radius={12}><Icon size={16} color={account.color} /></IconBubble>
                           <View>
-                            <Text className="text-white text-sm">{account.name}</Text>
-                            <Text className="text-gray-500 text-xs">{settings?.currencySymbol}{account.balance.toFixed(2)}</Text>
+                            <Txt size={13} color={C.text}>{account.name}</Txt>
+                            <Txt size={11} color={C.textFaint}>{settings?.currencySymbol}{account.balance.toFixed(2)}</Txt>
                           </View>
                         </View>
                         {isSelected && (
-                          <View className="w-5 h-5 rounded-full bg-purple-500 items-center justify-center">
-                            <Text className="text-white text-xs">✓</Text>
+                          <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: C.p500, alignItems: 'center', justifyContent: 'center' }}>
+                            <Txt size={11} color="#fff">✓</Txt>
                           </View>
                         )}
                       </View>
@@ -324,29 +254,17 @@ export default function AddTransactionScreen() {
           </View>
         )}
 
-        {/* Category Selection */}
-        <View className="px-4 pt-6">
-          <View className="flex-row items-center mb-3">
-            <Tag size={16} color="#6b7280" />
-            <Text className="text-gray-400 text-sm ml-2">Category</Text>
-          </View>
-          <View className="flex-row flex-wrap gap-2">
+        {/* ── Category ── */}
+        <View style={{ paddingHorizontal: 20, paddingTop: 22 }}>
+          <FieldLabel icon={<Tag size={15} color={C.textFaint} />} label="Category" />
+          <View className="flex-row flex-wrap" style={{ gap: 10 }}>
             {CATEGORIES.map(cat => {
               const isSelected = category === cat.name;
               return (
                 <Pressable key={cat.name} onPress={() => handleCategoryChange(cat.name)}>
-                  <View
-                    className="py-3 px-4 rounded-2xl flex-row items-center"
-                    style={{
-                      backgroundColor: isSelected ? cat.bg : 'rgba(255,255,255,0.04)',
-                      borderWidth: 1.5,
-                      borderColor: isSelected ? cat.border : 'transparent',
-                    }}
-                  >
-                    <Text className="mr-2">{cat.icon}</Text>
-                    <Text className="font-semibold" style={{ color: isSelected ? cat.color : '#4b5563' }}>
-                      {cat.name}
-                    </Text>
+                  <View style={{ paddingVertical: 12, paddingHorizontal: 16, borderRadius: R.pill, flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: isSelected ? `${cat.color}26` : C.glass, borderWidth: 1.5, borderColor: isSelected ? `${cat.color}77` : 'transparent' }}>
+                    <Txt size={14}>{cat.icon}</Txt>
+                    <Txt weight="semibold" size={13} color={isSelected ? cat.color : C.textFaint}>{cat.name}</Txt>
                   </View>
                 </Pressable>
               );
@@ -354,127 +272,82 @@ export default function AddTransactionScreen() {
           </View>
         </View>
 
-        {/* Date Selection */}
-        <View className="px-4 pt-6">
-          <View className="flex-row items-center mb-3">
-            <Calendar size={16} color="#6b7280" />
-            <Text className="text-gray-400 text-sm ml-2">Date</Text>
-          </View>
+        {/* ── Date ── */}
+        <View style={{ paddingHorizontal: 20, paddingTop: 22 }}>
+          <FieldLabel icon={<Calendar size={15} color={C.textFaint} />} label="Date" />
           <Pressable onPress={() => setShowDatePicker(true)}>
-            <View
-              className="rounded-2xl p-4 flex-row items-center"
-              style={{ backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)' }}
-            >
-              <View className="w-10 h-10 rounded-xl bg-purple-500/15 items-center justify-center mr-3">
-                <Calendar size={20} color="#a855f7" />
+            <GlassCard padding={14} radius={R.md}>
+              <View className="flex-row items-center" style={{ gap: 12 }}>
+                <IconBubble color={C.p500} size={40}><Calendar size={19} color={C.p400} /></IconBubble>
+                <Txt weight="semibold" size={16} color={C.text}>{format(date, 'MMMM d, yyyy')}</Txt>
               </View>
-              <Text className="text-white font-semibold text-lg">
-                {format(date, 'MMMM d, yyyy')}
-              </Text>
-            </View>
+            </GlassCard>
           </Pressable>
           {showDatePicker && (
-            <DateTimePicker
-              value={date}
-              mode="date"
-              display="spinner"
-              onChange={handleDateChange}
-              maximumDate={new Date()}
-            />
+            <DateTimePicker value={date} mode="date" display="spinner" onChange={handleDateChange} maximumDate={new Date()} />
           )}
         </View>
 
-        {/* Impulse Toggle */}
-        <View className="px-4 pt-6">
-          <View
-            className="rounded-2xl p-4 flex-row justify-between items-center"
-            style={{
-              backgroundColor: isImpulse ? 'rgba(244,114,182,0.1)' : 'rgba(255,255,255,0.04)',
-              borderWidth: 1,
-              borderColor: isImpulse ? 'rgba(244,114,182,0.3)' : 'rgba(255,255,255,0.07)',
-            }}
-          >
-            <View className="flex-row items-center flex-1">
-              <View className="w-10 h-10 rounded-xl bg-pink-500/15 items-center justify-center mr-3">
-                <Zap size={20} color="#f472b6" />
+        {/* ── Impulse ── */}
+        <View style={{ paddingHorizontal: 20, paddingTop: 22 }}>
+          <GlassCard padding={14} radius={R.md} tint={isImpulse ? `${C.rose}16` : C.glass} border={isImpulse ? `${C.rose}3a` : C.glassBorder}>
+            <View className="flex-row items-center justify-between">
+              <View className="flex-row items-center flex-1" style={{ gap: 12 }}>
+                <IconBubble color={C.rose} size={40}><Zap size={19} color={C.rose} /></IconBubble>
+                <View className="flex-1">
+                  <Txt weight="semibold" size={14} color={C.text}>Impulse Purchase ⚡</Txt>
+                  <Txt size={11} color={C.textFaint} style={{ marginTop: 1 }}>Unplanned or emotional buy</Txt>
+                </View>
               </View>
-              <View className="flex-1">
-                <Text className="text-white font-semibold">Impulse Purchase ⚡</Text>
-                <Text className="text-gray-500 text-xs mt-0.5">Unplanned or emotional buy</Text>
-              </View>
+              <Switch
+                value={isImpulse}
+                onValueChange={(val) => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setIsImpulse(val); }}
+                trackColor={{ false: C.bgRaise, true: C.rose }}
+                thumbColor={isImpulse ? '#fff' : '#6b5f86'}
+              />
             </View>
-            <Switch
-              value={isImpulse}
-              onValueChange={(val) => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                setIsImpulse(val);
-              }}
-              trackColor={{ false: '#1e1b2e', true: '#f472b6' }}
-              thumbColor={isImpulse ? '#fff' : '#4b5563'}
-            />
-          </View>
+          </GlassCard>
         </View>
 
-        {/* Note Input */}
-        <View className="px-4 pt-6">
-          <View className="flex-row items-center mb-3">
-            <FileText size={16} color="#6b7280" />
-            <Text className="text-gray-400 text-sm ml-2">Note (optional)</Text>
-          </View>
+        {/* ── Note ── */}
+        <View style={{ paddingHorizontal: 20, paddingTop: 22 }}>
+          <FieldLabel icon={<FileText size={15} color={C.textFaint} />} label="Note (optional)" />
           <TextInput
             value={note}
             onChangeText={setNote}
             placeholder="What did you spend on? 🤔"
-            placeholderTextColor="#374151"
+            placeholderTextColor={C.textFaint}
             multiline
             numberOfLines={3}
-            className="text-white rounded-2xl p-4 text-base"
-            style={{ backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)' }}
-            selectionColor="#a855f7"
+            style={{ color: C.text, borderRadius: R.md, padding: 16, fontSize: 15, fontFamily: 'Quicksand_500Medium', minHeight: 88, textAlignVertical: 'top', backgroundColor: C.glass, borderWidth: 1, borderColor: C.glassBorder }}
+            selectionColor={C.p500}
           />
         </View>
 
-        {/* Time Cost Info */}
+        {/* ── Time cost ── */}
         {!!settings?.showTimeCost && settings?.hourlyValue > 0 && amount && parseFloat(amount) > 0 && (
-          <View className="px-4 pt-6">
-            <View
-              className="rounded-2xl p-4 flex-row items-center"
-              style={{ backgroundColor: 'rgba(168, 85, 247, 0.1)', borderWidth: 1, borderColor: 'rgba(168, 85, 247, 0.2)' }}
-            >
-              <View className="w-10 h-10 rounded-xl bg-purple-500/15 items-center justify-center mr-3">
-                <Clock size={20} color="#a855f7" />
+          <View style={{ paddingHorizontal: 20, paddingTop: 22 }}>
+            <GlassCard padding={14} radius={R.md} tint={`${C.p500}14`} border={`${C.p500}2e`}>
+              <View className="flex-row items-center" style={{ gap: 12 }}>
+                <IconBubble color={C.p500} size={40}><Clock size={19} color={C.p400} /></IconBubble>
+                <View>
+                  <Txt size={11} color={C.textFaint}>Time Cost ⏱️</Txt>
+                  <Txt weight="bold" size={17} color={C.p400}>{Math.round((parseFloat(amount) / settings.hourlyValue) * 60)} minutes of work</Txt>
+                </View>
               </View>
-              <View>
-                <Text className="text-gray-400 text-xs">Time Cost ⏱️</Text>
-                <Text className="text-lg font-bold text-purple-400">
-                  {Math.round((parseFloat(amount) / settings.hourlyValue) * 60)} minutes of work
-                </Text>
-              </View>
-            </View>
+            </GlassCard>
           </View>
         )}
 
-        {/* Add Button */}
-        <View className="px-4 pt-8">
-          <Pressable onPress={() => mutation.mutate()} disabled={!canSubmit} className="active:scale-98">
-            <LinearGradient
-              colors={!canSubmit ? ['#1e1b2e', '#1e1b2e'] : ['#6d28d9', '#a855f7']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={{
-                borderRadius: 20,
-                paddingVertical: 18,
-                alignItems: 'center',
-                opacity: !canSubmit ? 0.5 : 1,
-              }}
-            >
-              <Text className="text-white font-bold text-lg">
-                {mutation.isPending ? 'Logging...' : 'Log it! 🎉'}
-              </Text>
-            </LinearGradient>
-          </Pressable>
+        {/* ── Submit ── */}
+        <View style={{ paddingHorizontal: 20, paddingTop: 28 }}>
+          <BubbleButton
+            label={mutation.isPending ? 'Logging…' : 'Log it! 🎉'}
+            onPress={() => mutation.mutate()}
+            disabled={!canSubmit}
+          />
         </View>
       </ScrollView>
-    </View>
+    </ScreenBackground>
   );
 }

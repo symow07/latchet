@@ -23,6 +23,7 @@ import { aiRouter } from "./routes/ai";
 import { achievementsRouter } from "./routes/achievements";
 import { pushTokensRouter } from "./routes/push-tokens";
 import { plaidRouter } from "./routes/plaid";
+import { emailRouter } from "./routes/email";
 
 const app = new Hono<{
   Variables: {
@@ -165,6 +166,7 @@ app.route("/api/v1/ai", aiRouter);
 app.route("/api/v1/achievements", achievementsRouter);
 app.route("/api/v1/push-tokens", pushTokensRouter);
 app.route("/api/v1/plaid", plaidRouter);
+app.route("/api/v1/email", emailRouter);
 
 // Backward-compatible unversioned routes (alias to v1)
 app.route("/api/sample", sampleRouter);
@@ -183,6 +185,7 @@ app.route("/api/ai", aiRouter);
 app.route("/api/achievements", achievementsRouter);
 app.route("/api/push-tokens", pushTokensRouter);
 app.route("/api/plaid", plaidRouter);
+app.route("/api/email", emailRouter);
 
 // Start background jobs
 startRecurringProcessor();

@@ -1,6 +1,5 @@
 import {
   View,
-  Text,
   TextInput,
   ScrollView,
   Pressable,
@@ -24,6 +23,8 @@ import {
   getQuickInsights,
   type SpendingAnalysis,
 } from '@/lib/ai-analysis';
+import { C, R, glow } from '@/lib/design';
+import { Txt, GlassCard, IconBubble, ScreenBackground } from '@/components/ui';
 
 interface Message {
   id: string;
@@ -33,10 +34,10 @@ interface Message {
 }
 
 const SUGGESTED_PROMPTS = [
-  { icon: TrendingUp, text: "How am I doing this month?", color: '#a855f7' },
-  { icon: PiggyBank, text: "How can I save more money?", color: '#22c55e' },
-  { icon: AlertCircle, text: "Where am I overspending?", color: '#f59e0b' },
-  { icon: Lightbulb, text: "Give me personalized tips", color: '#3b82f6' },
+  { icon: TrendingUp, text: 'How am I doing this month?', color: C.p400 },
+  { icon: PiggyBank, text: 'How can I save more money?', color: C.green },
+  { icon: AlertCircle, text: 'Where am I overspending?', color: C.amber },
+  { icon: Lightbulb, text: 'Give me personalized tips', color: C.sky },
 ];
 
 export default function AdvisorTab() {
@@ -46,22 +47,13 @@ export default function AdvisorTab() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [analysis, setAnalysis] = useState<SpendingAnalysis | null>(null);
 
-  const { data: transactions = [] } = useQuery({
-    queryKey: ['transactions'],
-    queryFn: getTransactions,
-  });
+  const { data: transactions = [] } = useQuery({ queryKey: ['transactions'], queryFn: getTransactions });
+  const { data: settings } = useQuery({ queryKey: ['settings'], queryFn: getSettings });
 
-  const { data: settings } = useQuery({
-    queryKey: ['settings'],
-    queryFn: getSettings,
-  });
-
-  // Analyze spending when data loads - use length and settings id to avoid re-renders
   const transactionsLength = transactions.length;
   useEffect(() => {
     if (transactionsLength > 0 && settings) {
-      const spendingAnalysis = analyzeSpending(transactions, settings);
-      setAnalysis(spendingAnalysis);
+      setAnalysis(analyzeSpending(transactions, settings));
     }
   }, [transactions, settings, transactionsLength]);
 
@@ -69,35 +61,16 @@ export default function AdvisorTab() {
 
   const sendMessageMutation = useMutation({
     mutationFn: async (userMessage: string) => {
-      // TODO: route via backend AI proxy — never expose API keys in mobile bundle.
-      // The local prompt builder still runs so the architecture is ready for a
-      // proxied call; getAIResponse currently throws a friendly unavailable error.
-      const conversationHistory = messages.map(m => ({
-        role: m.role,
-        content: m.content,
-      }));
+      const conversationHistory = messages.map(m => ({ role: m.role, content: m.content }));
       const prompt = buildAIPrompt(analysis, settings ?? null, userMessage, conversationHistory);
-      const response = await getAIResponse(prompt, '');
-      return response;
+      return getAIResponse(prompt, '');
     },
     onSuccess: (response) => {
-      const assistantMessage: Message = {
-        id: `msg_${Date.now()}`,
-        role: 'assistant',
-        content: response,
-        timestamp: new Date(),
-      };
-      setMessages(prev => [...prev, assistantMessage]);
+      setMessages(prev => [...prev, { id: `msg_${Date.now()}`, role: 'assistant', content: response, timestamp: new Date() }]);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     },
     onError: (error) => {
-      const errorMessage: Message = {
-        id: `msg_${Date.now()}`,
-        role: 'assistant',
-        content: `I'm sorry, I encountered an issue: ${error instanceof Error ? error.message : 'Please try again later.'}`,
-        timestamp: new Date(),
-      };
-      setMessages(prev => [...prev, errorMessage]);
+      setMessages(prev => [...prev, { id: `msg_${Date.now()}`, role: 'assistant', content: `I'm sorry, I encountered an issue: ${error instanceof Error ? error.message : 'Please try again later.'}`, timestamp: new Date() }]);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     },
   });
@@ -105,17 +78,8 @@ export default function AdvisorTab() {
   const handleSend = () => {
     const trimmedInput = inputText.trim();
     if (!trimmedInput || sendMessageMutation.isPending) return;
-
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-
-    const userMessage: Message = {
-      id: `msg_${Date.now()}`,
-      role: 'user',
-      content: trimmedInput,
-      timestamp: new Date(),
-    };
-
-    setMessages(prev => [...prev, userMessage]);
+    setMessages(prev => [...prev, { id: `msg_${Date.now()}`, role: 'user', content: trimmedInput, timestamp: new Date() }]);
     setInputText('');
     sendMessageMutation.mutate(trimmedInput);
   };
@@ -127,37 +91,26 @@ export default function AdvisorTab() {
 
   useEffect(() => {
     if (messages.length > 0) {
-      setTimeout(() => {
-        scrollViewRef.current?.scrollToEnd({ animated: true });
-      }, 100);
+      setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 100);
     }
   }, [messages]);
 
+  const canSend = inputText.trim() && !sendMessageMutation.isPending;
+
   return (
-    <View className="flex-1" style={{ backgroundColor: '#06060f' }}>
-      {/* Header */}
-      <LinearGradient
-        colors={['#2e1065', '#4c1d95', '#7c3aed', '#06060f']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={{
-          paddingTop: insets.top + 8,
-          paddingBottom: 24,
-          paddingHorizontal: 16,
-          borderBottomLeftRadius: 36,
-          borderBottomRightRadius: 36,
-        }}
-      >
-        <View className="flex-row items-center justify-center">
-          <View className="flex-row items-center">
-            <View className="w-8 h-8 rounded-full bg-white/20 items-center justify-center mr-2">
-              <Bot size={18} color="white" />
-            </View>
-            <Text className="text-white text-lg font-bold">AI Advisor</Text>
+    <ScreenBackground>
+      {/* ── Header ── */}
+      <View style={{ paddingTop: insets.top + 12, paddingBottom: 6, paddingHorizontal: 20, alignItems: 'center' }}>
+        <View className="flex-row items-center" style={{ gap: 10 }}>
+          <LinearGradient colors={[C.p600, C.p400]} style={[{ width: 38, height: 38, borderRadius: 14, alignItems: 'center', justifyContent: 'center' }, glow(C.p500, 0.45, 12)]}>
+            <Bot size={20} color="#fff" />
+          </LinearGradient>
+          <View>
+            <Txt weight="bold" size={19} color={C.text}>AI Advisor</Txt>
+            <Txt size={11} color={C.textDim}>Your personal finance assistant</Txt>
           </View>
         </View>
-        <Text className="text-white/70 text-xs mt-1 text-center">Your personal finance assistant</Text>
-      </LinearGradient>
+      </View>
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -166,83 +119,53 @@ export default function AdvisorTab() {
       >
         <ScrollView
           ref={scrollViewRef}
-          className="flex-1 px-4"
+          className="flex-1"
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingVertical: 16, paddingBottom: 16 }}
+          contentContainerStyle={{ paddingVertical: 12, paddingHorizontal: 20, paddingBottom: 16 }}
         >
-          {/* Welcome message when no messages */}
+          {/* Welcome */}
           {messages.length === 0 && (
             <Animated.View entering={FadeInDown.duration(400)}>
-              {/* AI Welcome Card */}
-              <View
-                className="rounded-2xl p-5 mb-4"
-                style={{ backgroundColor: 'rgba(168, 85, 247, 0.1)', borderWidth: 1, borderColor: 'rgba(168, 85, 247, 0.2)' }}
-              >
-                <View className="flex-row items-center mb-3">
-                  <View className="w-12 h-12 rounded-2xl bg-purple-500/20 items-center justify-center mr-3">
-                    <Sparkles size={24} color="#a855f7" />
-                  </View>
+              <GlassCard tint={`${C.p500}14`} border={`${C.p500}2e`} radius={R.lg} style={{ marginBottom: 16 }}>
+                <View className="flex-row items-center mb-3" style={{ gap: 12 }}>
+                  <IconBubble color={C.p500} size={48} radius={18}><Sparkles size={23} color={C.p400} /></IconBubble>
                   <View className="flex-1">
-                    <Text className="text-white font-bold text-lg">Welcome!</Text>
-                    <Text className="text-gray-400 text-sm">I've analyzed your spending</Text>
+                    <Txt weight="bold" size={18} color={C.text}>Welcome! 👋</Txt>
+                    <Txt size={13} color={C.textDim}>I've analyzed your spending</Txt>
                   </View>
                 </View>
-                <Text className="text-gray-300 text-sm leading-5">
+                <Txt size={13} color={C.textDim} style={{ lineHeight: 20 }}>
                   Ask me anything about your finances. I can help you understand spending patterns,
-                  identify savings opportunities, and give personalized advice based on your actual data.
-                </Text>
-              </View>
+                  spot savings opportunities, and give advice based on your actual data.
+                </Txt>
+              </GlassCard>
 
-              {/* Temporarily unavailable notice */}
-              <View
-                className="rounded-2xl p-4 mb-4"
-                style={{ backgroundColor: 'rgba(245, 158, 11, 0.1)', borderWidth: 1, borderColor: 'rgba(245, 158, 11, 0.25)' }}
-              >
-                <Text className="text-amber-400 font-semibold text-sm mb-1">AI chat is temporarily unavailable</Text>
-                <Text className="text-gray-400 text-xs leading-4">
-                  We&apos;re moving the advisor to a secure backend service. Your local insights below are
-                  still live and update with every transaction.
-                </Text>
-              </View>
-
-              {/* Quick Insights */}
               {quickInsights.length > 0 && (
-                <View className="mb-4">
-                  <Text className="text-gray-400 text-xs font-semibold mb-3 ml-1">QUICK INSIGHTS</Text>
-                  {quickInsights.map((insight, idx) => (
-                    <Animated.View
-                      key={idx}
-                      entering={FadeInUp.delay(100 * idx).duration(300)}
-                      className="rounded-xl p-3 mb-2"
-                      style={{ backgroundColor: 'rgba(255,255,255,0.05)' }}
-                    >
-                      <Text className="text-gray-200 text-sm">{insight}</Text>
-                    </Animated.View>
-                  ))}
+                <View style={{ marginBottom: 16 }}>
+                  <Txt weight="bold" size={11} color={C.textFaint} style={{ marginBottom: 10, marginLeft: 2, letterSpacing: 1 }}>QUICK INSIGHTS</Txt>
+                  <View style={{ gap: 8 }}>
+                    {quickInsights.map((insight, idx) => (
+                      <Animated.View key={idx} entering={FadeInUp.delay(100 * idx).duration(300)}>
+                        <GlassCard padding={14} radius={R.md}>
+                          <Txt size={13} color={C.text} style={{ lineHeight: 19 }}>{insight}</Txt>
+                        </GlassCard>
+                      </Animated.View>
+                    ))}
+                  </View>
                 </View>
               )}
 
-              {/* Suggested Prompts */}
-              <Text className="text-gray-400 text-xs font-semibold mb-3 ml-1">TRY ASKING</Text>
-              <View className="gap-2">
+              <Txt weight="bold" size={11} color={C.textFaint} style={{ marginBottom: 10, marginLeft: 2, letterSpacing: 1 }}>TRY ASKING</Txt>
+              <View style={{ gap: 10 }}>
                 {SUGGESTED_PROMPTS.map((prompt, idx) => (
                   <Animated.View key={idx} entering={FadeInUp.delay(200 + 100 * idx).duration(300)}>
-                    <Pressable
-                      onPress={() => handleSuggestedPrompt(prompt.text)}
-                      className="active:scale-98"
-                    >
-                      <View
-                        className="rounded-xl p-4 flex-row items-center"
-                        style={{ backgroundColor: 'rgba(255,255,255,0.05)' }}
-                      >
-                        <View
-                          className="w-10 h-10 rounded-xl items-center justify-center mr-3"
-                          style={{ backgroundColor: `${prompt.color}20` }}
-                        >
-                          <prompt.icon size={20} color={prompt.color} />
+                    <Pressable onPress={() => handleSuggestedPrompt(prompt.text)}>
+                      <GlassCard padding={14} radius={R.md}>
+                        <View className="flex-row items-center" style={{ gap: 12 }}>
+                          <IconBubble color={prompt.color} size={40}><prompt.icon size={19} color={prompt.color} /></IconBubble>
+                          <Txt weight="medium" size={14} color={C.text} style={{ flex: 1 }}>{prompt.text}</Txt>
                         </View>
-                        <Text className="text-white flex-1">{prompt.text}</Text>
-                      </View>
+                      </GlassCard>
                     </Pressable>
                   </Animated.View>
                 ))}
@@ -251,104 +174,79 @@ export default function AdvisorTab() {
           )}
 
           {/* Messages */}
-          {messages.map((message, idx) => (
-            <Animated.View
-              key={message.id}
-              entering={FadeInUp.duration(300)}
-              className={`mb-4 ${message.role === 'user' ? 'items-end' : 'items-start'}`}
-            >
-              <View
-                className={`max-w-[85%] rounded-2xl p-4 ${
-                  message.role === 'user'
-                    ? 'bg-purple-600'
-                    : 'bg-gray-800/80'
-                }`}
-              >
-                <View className="flex-row items-center mb-2">
-                  <View
-                    className={`w-6 h-6 rounded-full items-center justify-center mr-2 ${
-                      message.role === 'user' ? 'bg-white/20' : 'bg-purple-500/30'
-                    }`}
+          {messages.map((message) => {
+            const isUser = message.role === 'user';
+            return (
+              <Animated.View key={message.id} entering={FadeInUp.duration(300)} style={{ marginBottom: 14, alignItems: isUser ? 'flex-end' : 'flex-start' }}>
+                {isUser ? (
+                  <LinearGradient
+                    colors={[C.p600, C.p500]}
+                    style={[{ maxWidth: '86%', borderRadius: R.lg, borderBottomRightRadius: 8, padding: 14 }, glow(C.p500, 0.3, 14)]}
                   >
-                    {message.role === 'user' ? (
-                      <User size={14} color="white" />
-                    ) : (
-                      <Bot size={14} color="#a855f7" />
-                    )}
-                  </View>
-                  <Text className={`text-xs ${message.role === 'user' ? 'text-white/70' : 'text-gray-400'}`}>
-                    {message.role === 'user' ? 'You' : 'AI Advisor'}
-                  </Text>
-                </View>
-                <Text
-                  className={`text-sm leading-5 ${
-                    message.role === 'user' ? 'text-white' : 'text-gray-200'
-                  }`}
-                >
-                  {message.content}
-                </Text>
-              </View>
-            </Animated.View>
-          ))}
+                    <View className="flex-row items-center mb-2" style={{ gap: 6 }}>
+                      <View style={{ width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.2)' }}>
+                        <User size={13} color="#fff" />
+                      </View>
+                      <Txt size={11} color="rgba(255,255,255,0.75)">You</Txt>
+                    </View>
+                    <Txt size={14} color="#fff" style={{ lineHeight: 20 }}>{message.content}</Txt>
+                  </LinearGradient>
+                ) : (
+                  <GlassCard padding={14} radius={R.lg} style={{ maxWidth: '86%', borderBottomLeftRadius: 8 }} tint={C.glassStrong}>
+                    <View className="flex-row items-center mb-2" style={{ gap: 6 }}>
+                      <View style={{ width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: `${C.p500}33` }}>
+                        <Bot size={13} color={C.p400} />
+                      </View>
+                      <Txt size={11} color={C.textDim}>AI Advisor</Txt>
+                    </View>
+                    <Txt size={14} color={C.text} style={{ lineHeight: 20 }}>{message.content}</Txt>
+                  </GlassCard>
+                )}
+              </Animated.View>
+            );
+          })}
 
-          {/* Loading indicator */}
+          {/* Loading */}
           {sendMessageMutation.isPending && (
-            <Animated.View
-              entering={FadeInUp.duration(300)}
-              className="items-start mb-4"
-            >
-              <View className="bg-gray-800/80 rounded-2xl p-4 flex-row items-center">
-                <ActivityIndicator size="small" color="#a855f7" />
-                <Text className="text-gray-400 text-sm ml-3">Analyzing your finances...</Text>
-              </View>
+            <Animated.View entering={FadeInUp.duration(300)} style={{ alignItems: 'flex-start', marginBottom: 14 }}>
+              <GlassCard padding={14} radius={R.lg} tint={C.glassStrong}>
+                <View className="flex-row items-center" style={{ gap: 10 }}>
+                  <ActivityIndicator size="small" color={C.p400} />
+                  <Txt size={13} color={C.textDim}>Analyzing your finances…</Txt>
+                </View>
+              </GlassCard>
             </Animated.View>
           )}
         </ScrollView>
 
-        {/* Input Area */}
-        <View
-          className="px-4 py-3 border-t border-gray-800/50"
-        >
-          <View className="flex-row items-end gap-3">
-            <View
-              className="flex-1 rounded-2xl px-4 py-3 min-h-[48px]"
-              style={{ backgroundColor: 'rgba(255,255,255,0.08)' }}
-            >
+        {/* ── Input ── */}
+        <View style={{ paddingHorizontal: 20, paddingTop: 10, paddingBottom: 28 }}>
+          <View className="flex-row items-end" style={{ gap: 10 }}>
+            <View style={{ flex: 1, borderRadius: R.lg, paddingHorizontal: 16, paddingVertical: 12, minHeight: 50, backgroundColor: C.glassStrong, borderWidth: 1, borderColor: C.glassBorder }}>
               <TextInput
                 value={inputText}
                 onChangeText={setInputText}
-                placeholder="Ask about your finances..."
-                placeholderTextColor="#6b7280"
+                placeholder="Ask about your finances…"
+                placeholderTextColor={C.textFaint}
                 multiline
                 maxLength={500}
-                className="text-white text-base"
-                style={{ maxHeight: 100 }}
+                style={{ color: C.text, fontSize: 15, fontFamily: 'Quicksand_500Medium', maxHeight: 100 }}
                 editable={!sendMessageMutation.isPending}
                 onSubmitEditing={handleSend}
                 returnKeyType="send"
               />
             </View>
-            <Pressable
-              onPress={handleSend}
-              disabled={!inputText.trim() || sendMessageMutation.isPending}
-              className="active:scale-95"
-            >
+            <Pressable onPress={handleSend} disabled={!canSend}>
               <LinearGradient
-                colors={inputText.trim() && !sendMessageMutation.isPending ? ['#7c3aed', '#a855f7'] : ['#374151', '#374151']}
-                style={{
-                  width: 48,
-                  height: 48,
-                  borderRadius: 16,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
+                colors={canSend ? [C.p600, C.p400] : ['#2a2138', '#2a2138']}
+                style={[{ width: 50, height: 50, borderRadius: 18, alignItems: 'center', justifyContent: 'center' }, canSend ? glow(C.p500, 0.5, 14) : null]}
               >
-                <Send size={20} color="white" />
+                <Send size={20} color={canSend ? '#fff' : C.textFaint} />
               </LinearGradient>
             </Pressable>
           </View>
         </View>
       </KeyboardAvoidingView>
-    </View>
+    </ScreenBackground>
   );
 }

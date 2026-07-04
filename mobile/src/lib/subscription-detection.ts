@@ -198,6 +198,7 @@ export async function scanAndSaveSubscriptions(): Promise<number> {
         status,
         cancelUrl: null,
         cancelNotes: null,
+        source: 'transaction',
       });
 
       // Save occurrences

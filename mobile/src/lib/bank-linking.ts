@@ -203,13 +203,12 @@ export async function disconnectBank(bankId: string): Promise<boolean> {
 }
 
 // Toggle account sync
+// Enable/disable syncing for a single linked account. Persists to the backend
+// (PlaidAccount.isEnabled); disabled accounts are skipped by the next sync.
+// `accountId` is the Plaid account id used as LinkedAccount.id.
 export async function toggleAccountSync(accountId: string, enabled: boolean): Promise<boolean> {
   try {
-    const accounts = await getLinkedAccounts();
-    const updatedAccounts = accounts.map(acc =>
-      acc.id === accountId ? { ...acc, isEnabled: enabled } : acc
-    );
-    await AsyncStorage.setItem(LINKED_ACCOUNTS_KEY, JSON.stringify(updatedAccounts));
+    await api.patch(`/api/plaid/accounts/${accountId}`, { isEnabled: enabled });
     return true;
   } catch {
     return false;

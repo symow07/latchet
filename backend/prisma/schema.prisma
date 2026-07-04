@@ -32,6 +32,8 @@ model User {
   achievements       Achievement[]
   pushTokens         PushToken[]
   plaidItems         PlaidItem[]
+  emailConnections   EmailConnection[]
+  inboxEmails        InboxEmail[]
 }
 
 model Session {
@@ -250,6 +252,51 @@ model PlaidAccount {
   currency      String    @default("USD")
   isEnabled     Boolean   @default(true)
   updatedAt     DateTime  @updatedAt
+}
+
+// A connected email inbox (Gmail today; provider-agnostic for Outlook/IMAP
+// later). The OAuth refresh token is stored encrypted at rest (AES-256-GCM via
+// lib/crypto.ts, key derived from BETTER_AUTH_SECRET) — same pattern as PlaidItem.
+model EmailConnection {
+  id              String    @id @default(cuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider        String    @default("gmail") // "gmail" (OAuth) | "forwarding" | future "outlook"
+  email           String // the connected/owning inbox address
+  refreshTokenEnc String? // OAuth refresh token (gmail); null for forwarding connections
+  // Forwarding ("inbox inside Budget"): a unique token forms the user's private
+  // inbound address  u_<inboundToken>@<INBOUND_EMAIL_DOMAIN>.  forwardingVerified
+  // flips true once we receive Gmail's forwarding-confirmation email.
+  inboundToken       String?  @unique
+  forwardingVerified Boolean  @default(false)
+  status          String    @default("active") // active | revoked
+  lastScanAt      DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([userId, email])
+}
+
+// One parsed billing/receipt email received at a user's private inbound address.
+// The raw email is parsed (OpenAI) into subscription fields and discarded; we
+// keep only the extracted summary. The mobile app pulls these and merges them
+// into the local subscription store + spending.
+model InboxEmail {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fromAddr    String
+  subject     String
+  merchant    String?
+  amount      Float?
+  currency    String   @default("USD")
+  cadence     String   @default("unknown") // weekly | monthly | yearly | unknown
+  chargedISO  String? // YYYY-MM-DD best-effort charge date
+  isSubscription Boolean @default(false)
+  status      String   @default("parsed") // parsed | imported | ignored
+  receivedAt  DateTime @default(now())
+
+  @@index([userId, receivedAt])
 }
 
 model Business {

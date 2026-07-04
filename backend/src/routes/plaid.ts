@@ -197,6 +197,27 @@ router.get("/accounts", async (c) => {
   return c.json({ items });
 });
 
+const toggleSchema = z.object({ isEnabled: z.boolean() });
+
+// Enable/disable syncing for a single account. Disabled accounts are skipped by
+// /transactions/sync. Ownership is enforced via the parent Item's userId.
+router.patch("/accounts/:id", zValidator("json", toggleSchema), async (c) => {
+  const user = c.get("user")!;
+  const plaidAccountId = c.req.param("id");
+  const { isEnabled } = c.req.valid("json");
+
+  const account = await prisma.plaidAccount.findUnique({
+    where: { plaidAccountId },
+    include: { item: true },
+  });
+  if (!account || account.item.userId !== user.id) {
+    return c.json({ error: "Not found" }, 404);
+  }
+
+  await prisma.plaidAccount.update({ where: { plaidAccountId }, data: { isEnabled } });
+  return c.json({ success: true });
+});
+
 router.post("/transactions/sync", async (c) => {
   const user = c.get("user")!;
   const items = await prisma.plaidItem.findMany({ where: { userId: user.id, status: "active" } });
@@ -271,6 +292,13 @@ async function syncItemTransactions(itemRowId: string): Promise<number> {
   if (!item) return 0;
   const accessToken = decryptSecret(item.accessTokenEnc);
 
+  // Accounts the user has disabled syncing for — their transactions are skipped.
+  const disabled = new Set(
+    (await prisma.plaidAccount.findMany({ where: { itemId: item.id, isEnabled: false } })).map(
+      (a) => a.plaidAccountId
+    )
+  );
+
   let cursor = item.cursor ?? undefined;
   let added = 0;
   let hasMore = true;
@@ -283,6 +311,7 @@ async function syncItemTransactions(itemRowId: string): Promise<number> {
     }>("/transactions/sync", { access_token: accessToken, cursor });
 
     for (const t of page.added) {
+      if (disabled.has(t.account_id)) continue;
       // Plaid: positive amount = money out (expense), negative = money in.
       const isExpense = t.amount >= 0;
       await prisma.transaction.upsert({

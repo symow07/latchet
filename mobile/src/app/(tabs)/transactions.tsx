@@ -1,6 +1,5 @@
 import {
   View,
-  Text,
   Pressable,
   ScrollView,
   Alert,
@@ -13,9 +12,11 @@ import { getTransactions, deleteTransaction, getSettings } from '@/lib/db';
 import { formatCurrency, formatTimeCost, calculateTimeCost } from '@/lib/calculations';
 import { Trash2, Filter, Zap, Clock } from 'lucide-react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
+import Animated, { FadeInUp } from 'react-native-reanimated';
+import { C, R } from '@/lib/design';
+import { Txt, GlassCard, Pill, ScreenBackground } from '@/components/ui';
 
 interface Transaction {
   id: string;
@@ -29,22 +30,13 @@ interface Transaction {
 }
 
 const CATEGORY_ICONS: Record<string, string> = {
-  Food: '🍔',
-  Gym: '💪',
-  Transport: '🚗',
-  Shopping: '🛍️',
-  Subscriptions: '📱',
-  Other: '📦',
+  Food: '🍔', Gym: '💪', Transport: '🚗', Shopping: '🛍️', Subscriptions: '📱', Other: '📦',
 };
 
-const CATEGORY_COLORS: Record<string, { text: string; bg: string; border: string }> = {
-  Food: { text: '#fb923c', bg: 'rgba(251,146,60,0.12)', border: 'rgba(251,146,60,0.3)' },
-  Gym: { text: '#34d399', bg: 'rgba(52,211,153,0.12)', border: 'rgba(52,211,153,0.3)' },
-  Transport: { text: '#60a5fa', bg: 'rgba(96,165,250,0.12)', border: 'rgba(96,165,250,0.3)' },
-  Shopping: { text: '#f472b6', bg: 'rgba(244,114,182,0.12)', border: 'rgba(244,114,182,0.3)' },
-  Subscriptions: { text: '#c084fc', bg: 'rgba(192,132,252,0.12)', border: 'rgba(192,132,252,0.3)' },
-  Other: { text: '#94a3b8', bg: 'rgba(148,163,184,0.12)', border: 'rgba(148,163,184,0.3)' },
+const CATEGORY_COLORS: Record<string, string> = {
+  Food: '#fb923c', Gym: '#34d399', Transport: '#60a5fa', Shopping: '#f472b6', Subscriptions: C.p400, Other: '#94a3b8',
 };
+const catColor = (c: string) => CATEGORY_COLORS[c] ?? CATEGORY_COLORS.Other;
 
 export default function TransactionsScreen() {
   const insets = useSafeAreaInsets();
@@ -60,23 +52,13 @@ export default function TransactionsScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      if (hasMounted.current) {
-        setRefreshKey(prev => prev + 1);
-      } else {
-        hasMounted.current = true;
-      }
+      if (hasMounted.current) setRefreshKey(prev => prev + 1);
+      else hasMounted.current = true;
     }, [])
   );
 
-  const { data: transactions = [] } = useQuery({
-    queryKey: ['transactions', refreshKey],
-    queryFn: getTransactions,
-  });
-
-  const { data: settings } = useQuery({
-    queryKey: ['settings', refreshKey],
-    queryFn: getSettings,
-  });
+  const { data: transactions = [] } = useQuery({ queryKey: ['transactions', refreshKey], queryFn: getTransactions });
+  const { data: settings } = useQuery({ queryKey: ['settings', refreshKey], queryFn: getSettings });
 
   const deleteMutation = useMutation({
     mutationFn: deleteTransaction,
@@ -91,11 +73,7 @@ export default function TransactionsScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     Alert.alert('Delete Transaction', 'Are you sure?', [
       { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: () => deleteMutation.mutate(id),
-      },
+      { text: 'Delete', style: 'destructive', onPress: () => deleteMutation.mutate(id) },
     ]);
   };
 
@@ -124,244 +102,145 @@ export default function TransactionsScreen() {
 
   const categories = Array.from(new Set(transactions.map(tx => tx.category))).sort();
 
-  const handleStartDateChange = (event: any, selectedDate?: Date) => {
-    if (selectedDate) setStartDate(selectedDate);
-    setShowStartPicker(false);
-  };
-
-  const handleEndDateChange = (event: any, selectedDate?: Date) => {
-    if (selectedDate) setEndDate(selectedDate);
-    setShowEndPicker(false);
-  };
+  const handleStartDateChange = (event: any, selectedDate?: Date) => { if (selectedDate) setStartDate(selectedDate); setShowStartPicker(false); };
+  const handleEndDateChange = (event: any, selectedDate?: Date) => { if (selectedDate) setEndDate(selectedDate); setShowEndPicker(false); };
 
   return (
-    <View className="flex-1" style={{ backgroundColor: '#06060f' }}>
+    <ScreenBackground>
       <ScrollView
         className="flex-1"
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 100 }}
+        contentContainerStyle={{ paddingBottom: 120 }}
       >
-        {/* Deep Purple Gradient Header */}
-        <LinearGradient
-          colors={['#2e1065', '#4c1d95', '#6d28d9', '#06060f']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={{
-            paddingTop: insets.top + 16,
-            paddingBottom: 24,
-            paddingHorizontal: 20,
-            borderBottomLeftRadius: 36,
-            borderBottomRightRadius: 36,
-          }}
-        >
-          <Text className="text-3xl font-bold text-white mb-1">History 📖</Text>
-          <Text className="text-purple-200/70">
+        {/* ── Header ── */}
+        <View style={{ paddingTop: insets.top + 16, paddingHorizontal: 20 }}>
+          <Txt weight="bold" size={30} color={C.text}>History 📖</Txt>
+          <Txt weight="medium" size={13} color={C.textDim} style={{ marginTop: 2 }}>
             {filtered.length > 0 ? `${filtered.length} records found ✨` : 'No records yet — start tracking!'}
-          </Text>
+          </Txt>
 
-          {/* Date Range Filter */}
-          <View className="flex-row gap-3 mt-5">
-            <Pressable onPress={() => setShowStartPicker(true)} className="flex-1">
-              <View
-                className="rounded-2xl p-3"
-                style={{ backgroundColor: 'rgba(255,255,255,0.1)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)' }}
-              >
-                <Text className="text-purple-200/60 text-xs mb-1">From 📅</Text>
-                <Text className="text-white font-semibold">{format(startDate, 'MMM d, yyyy')}</Text>
-              </View>
-            </Pressable>
-            <Pressable onPress={() => setShowEndPicker(true)} className="flex-1">
-              <View
-                className="rounded-2xl p-3"
-                style={{ backgroundColor: 'rgba(255,255,255,0.1)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)' }}
-              >
-                <Text className="text-purple-200/60 text-xs mb-1">To 📅</Text>
-                <Text className="text-white font-semibold">{format(endDate, 'MMM d, yyyy')}</Text>
-              </View>
-            </Pressable>
+          {/* Date range */}
+          <View className="flex-row" style={{ gap: 12, marginTop: 16 }}>
+            {([
+              { label: 'From 📅', val: startDate, onPress: () => setShowStartPicker(true) },
+              { label: 'To 📅', val: endDate, onPress: () => setShowEndPicker(true) },
+            ]).map((d, i) => (
+              <Pressable key={i} onPress={d.onPress} style={{ flex: 1 }}>
+                <GlassCard padding={12} radius={R.md} tint={`${C.p500}14`} border={`${C.p500}2e`}>
+                  <Txt size={11} color={C.textFaint} style={{ marginBottom: 2 }}>{d.label}</Txt>
+                  <Txt weight="semibold" size={14} color={C.text}>{format(d.val, 'MMM d, yyyy')}</Txt>
+                </GlassCard>
+              </Pressable>
+            ))}
           </View>
-        </LinearGradient>
+        </View>
 
-        {showStartPicker && (
-          <DateTimePicker value={startDate} mode="date" display="spinner" onChange={handleStartDateChange} />
-        )}
-        {showEndPicker && (
-          <DateTimePicker value={endDate} mode="date" display="spinner" onChange={handleEndDateChange} />
-        )}
+        {showStartPicker && <DateTimePicker value={startDate} mode="date" display="spinner" onChange={handleStartDateChange} />}
+        {showEndPicker && <DateTimePicker value={endDate} mode="date" display="spinner" onChange={handleEndDateChange} />}
 
-        {/* Filters */}
-        <View className="px-4 pt-4">
-          <View className="flex-row items-center mb-3">
-            <Filter size={14} color="#a855f7" />
-            <Text className="text-purple-300/80 text-xs ml-2">Filter by category</Text>
+        {/* ── Filters ── */}
+        <View style={{ paddingHorizontal: 20, paddingTop: 18 }}>
+          <View className="flex-row items-center mb-3" style={{ gap: 8 }}>
+            <Filter size={14} color={C.p400} />
+            <Txt weight="semibold" size={12} color={C.p300}>Filter by category</Txt>
           </View>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} className="mb-3">
-            <Pressable
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                setFilterCategory(null);
-              }}
-            >
-              <View
-                className="py-2.5 px-4 rounded-2xl mr-2"
-                style={{
-                  backgroundColor: filterCategory === null ? 'rgba(168, 85, 247, 0.25)' : 'rgba(255,255,255,0.04)',
-                  borderWidth: 1.5,
-                  borderColor: filterCategory === null ? 'rgba(168, 85, 247, 0.55)' : 'transparent',
-                }}
-              >
-                <Text className="font-semibold" style={{ color: filterCategory === null ? '#c084fc' : '#4b5563' }}>
-                  All ✨
-                </Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, marginBottom: 12 }} contentContainerStyle={{ gap: 8 }}>
+            <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setFilterCategory(null); }}>
+              <View style={{ paddingVertical: 10, paddingHorizontal: 16, borderRadius: R.pill, backgroundColor: filterCategory === null ? `${C.p500}2a` : C.glass, borderWidth: 1.5, borderColor: filterCategory === null ? `${C.p500}88` : 'transparent' }}>
+                <Txt weight="semibold" size={13} color={filterCategory === null ? C.p400 : C.textFaint}>All ✨</Txt>
               </View>
             </Pressable>
             {categories.map(cat => {
-              const catStyle = CATEGORY_COLORS[cat] || CATEGORY_COLORS['Other'];
+              const color = catColor(cat);
               const isSelected = filterCategory === cat;
               return (
-                <Pressable
-                  key={cat}
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    setFilterCategory(cat);
-                  }}
-                >
-                  <View
-                    className="py-2.5 px-4 rounded-2xl mr-2 flex-row items-center"
-                    style={{
-                      backgroundColor: isSelected ? catStyle.bg : 'rgba(255,255,255,0.04)',
-                      borderWidth: 1.5,
-                      borderColor: isSelected ? catStyle.border : 'transparent',
-                    }}
-                  >
-                    <Text style={{ marginRight: 6 }}>{CATEGORY_ICONS[cat] || '📦'}</Text>
-                    <Text className="font-semibold" style={{ color: isSelected ? catStyle.text : '#4b5563' }}>
-                      {cat}
-                    </Text>
+                <Pressable key={cat} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setFilterCategory(cat); }}>
+                  <View style={{ paddingVertical: 10, paddingHorizontal: 16, borderRadius: R.pill, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: isSelected ? `${color}22` : C.glass, borderWidth: 1.5, borderColor: isSelected ? `${color}77` : 'transparent' }}>
+                    <Txt size={13}>{CATEGORY_ICONS[cat] || '📦'}</Txt>
+                    <Txt weight="semibold" size={13} color={isSelected ? color : C.textFaint}>{cat}</Txt>
                   </View>
                 </Pressable>
               );
             })}
           </ScrollView>
 
-          <Pressable
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              setFilterImpulseOnly(!filterImpulseOnly);
-            }}
-          >
-            <View
-              className="py-3 px-4 rounded-2xl flex-row items-center"
-              style={{
-                backgroundColor: filterImpulseOnly ? 'rgba(244, 114, 182, 0.12)' : 'rgba(255,255,255,0.04)',
-                borderWidth: 1.5,
-                borderColor: filterImpulseOnly ? 'rgba(244, 114, 182, 0.4)' : 'transparent',
-              }}
-            >
-              <Zap size={16} color={filterImpulseOnly ? '#f472b6' : '#4b5563'} />
-              <Text className="ml-2 font-medium" style={{ color: filterImpulseOnly ? '#f472b6' : '#4b5563' }}>
+          <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setFilterImpulseOnly(!filterImpulseOnly); }}>
+            <View style={{ paddingVertical: 13, paddingHorizontal: 16, borderRadius: R.md, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: filterImpulseOnly ? `${C.rose}16` : C.glass, borderWidth: 1.5, borderColor: filterImpulseOnly ? `${C.rose}55` : 'transparent' }}>
+              <Zap size={16} color={filterImpulseOnly ? C.rose : C.textFaint} />
+              <Txt weight="semibold" size={13} color={filterImpulseOnly ? C.rose : C.textFaint}>
                 {filterImpulseOnly ? 'Showing impulse only ⚡' : 'Show impulse only'}
-              </Text>
+              </Txt>
             </View>
           </Pressable>
         </View>
 
-        {/* Transactions List */}
+        {/* ── List ── */}
         {groupedArray.length === 0 ? (
-          <View className="flex-1 items-center justify-center py-20">
-            <View
-              className="w-20 h-20 rounded-3xl items-center justify-center mb-4"
-              style={{ backgroundColor: 'rgba(109,40,217,0.15)' }}
-            >
-              <Text className="text-4xl">📭</Text>
+          <View className="items-center justify-center" style={{ paddingVertical: 70 }}>
+            <View style={{ width: 84, height: 84, borderRadius: 28, alignItems: 'center', justifyContent: 'center', marginBottom: 16, backgroundColor: `${C.p700}26` }}>
+              <Txt size={40}>📭</Txt>
             </View>
-            <Text className="text-white text-lg font-semibold mb-2">Nothing here yet!</Text>
-            <Text className="text-gray-500 text-sm text-center px-8">
+            <Txt weight="bold" size={18} color={C.text} style={{ marginBottom: 6 }}>Nothing here yet!</Txt>
+            <Txt size={13} color={C.textFaint} style={{ textAlign: 'center', paddingHorizontal: 40 }}>
               Try adjusting your filters, or add your first transaction 👆
-            </Text>
+            </Txt>
           </View>
         ) : (
-          <View className="px-4 pt-4">
-            {groupedArray.map(group => (
-              <View key={group.date} className="mb-6">
+          <View style={{ paddingHorizontal: 20, paddingTop: 16 }}>
+            {groupedArray.map((group, gi) => (
+              <Animated.View key={group.date} entering={FadeInUp.delay(Math.min(gi * 40, 240)).springify().damping(16)} style={{ marginBottom: 22 }}>
                 <View className="flex-row justify-between items-center mb-3">
-                  <Text className="text-gray-300 text-sm font-semibold">
-                    {format(parseISO(group.date), 'EEEE, MMMM d')}
-                  </Text>
-                  <View
-                    className="px-3 py-1 rounded-2xl"
-                    style={{
-                      backgroundColor: group.total < 0 ? 'rgba(251, 113, 133, 0.12)' : 'rgba(52, 211, 153, 0.12)',
-                      borderWidth: 1,
-                      borderColor: group.total < 0 ? 'rgba(251, 113, 133, 0.25)' : 'rgba(52, 211, 153, 0.25)',
-                    }}
-                  >
-                    <Text className="text-sm font-bold" style={{ color: group.total < 0 ? '#fb7185' : '#34d399' }}>
-                      {group.total < 0 ? '−' : '+'}{formatCurrency(Math.abs(group.total))}
-                    </Text>
-                  </View>
+                  <Txt weight="semibold" size={13} color={C.textDim}>{format(parseISO(group.date), 'EEEE, MMMM d')}</Txt>
+                  <Pill
+                    label={`${group.total < 0 ? '−' : '+'}${formatCurrency(Math.abs(group.total))}`}
+                    color={group.total < 0 ? C.rose : C.green}
+                  />
                 </View>
 
-                {group.transactions.map(tx => {
-                  const catStyle = CATEGORY_COLORS[tx.category] || CATEGORY_COLORS['Other'];
-                  return (
-                    <View
-                      key={tx.id}
-                      className="rounded-3xl p-4 mb-2 flex-row items-center"
-                      style={{
-                        backgroundColor: 'rgba(255,255,255,0.04)',
-                        borderWidth: 1,
-                        borderColor: 'rgba(255,255,255,0.06)',
-                      }}
-                    >
-                      <View
-                        className="w-12 h-12 rounded-2xl items-center justify-center mr-3"
-                        style={{ backgroundColor: catStyle.bg }}
-                      >
-                        <Text className="text-xl">{CATEGORY_ICONS[tx.category] || '📦'}</Text>
-                      </View>
+                <View style={{ gap: 8 }}>
+                  {group.transactions.map(tx => {
+                    const color = catColor(tx.category);
+                    return (
+                      <GlassCard key={tx.id} padding={14} radius={R.lg}>
+                        <View className="flex-row items-center">
+                          <View style={{ width: 48, height: 48, borderRadius: 18, alignItems: 'center', justifyContent: 'center', marginRight: 12, backgroundColor: `${color}1f`, borderWidth: 1, borderColor: `${color}33` }}>
+                            <Txt size={20}>{CATEGORY_ICONS[tx.category] || '📦'}</Txt>
+                          </View>
 
-                      <View className="flex-1">
-                        <View className="flex-row items-center flex-wrap gap-1">
-                          <Text className="text-white font-semibold">{tx.category}</Text>
-                          {tx.isImpulse ? (
-                            <View className="bg-pink-500/15 border border-pink-500/25 rounded-full px-2 py-0.5">
-                              <Text className="text-pink-400 text-xs font-semibold">⚡ Impulse</Text>
+                          <View className="flex-1">
+                            <View className="flex-row items-center flex-wrap" style={{ gap: 6 }}>
+                              <Txt weight="semibold" size={15} color={C.text}>{tx.category}</Txt>
+                              {tx.isImpulse ? <Pill label="⚡ Impulse" color={C.rose} /> : null}
                             </View>
-                          ) : null}
-                        </View>
-                        {tx.note && <Text className="text-gray-500 text-sm mt-0.5">{tx.note}</Text>}
-                        {!!settings?.showTimeCost && settings?.hourlyValue > 0 && tx.type === 'Expense' && (
-                          <View className="flex-row items-center mt-1">
-                            <Clock size={12} color="#4b5563" />
-                            <Text className="text-gray-600 text-xs ml-1">
-                              {formatTimeCost(calculateTimeCost(tx.amount, settings.hourlyValue))}
-                            </Text>
+                            {tx.note ? <Txt size={13} color={C.textFaint} style={{ marginTop: 2 }}>{tx.note}</Txt> : null}
+                            {!!settings?.showTimeCost && settings?.hourlyValue > 0 && tx.type === 'Expense' && (
+                              <View className="flex-row items-center" style={{ gap: 4, marginTop: 3 }}>
+                                <Clock size={12} color={C.textFaint} />
+                                <Txt size={11} color={C.textFaint}>{formatTimeCost(calculateTimeCost(tx.amount, settings.hourlyValue))}</Txt>
+                              </View>
+                            )}
                           </View>
-                        )}
-                      </View>
 
-                      <View className="items-end">
-                        <Text
-                          className="text-lg font-bold"
-                          style={{ color: tx.type === 'Expense' ? '#fb7185' : '#34d399' }}
-                        >
-                          {tx.type === 'Expense' ? '−' : '+'}${tx.amount.toFixed(2)}
-                        </Text>
-                        <Pressable onPress={() => handleDelete(tx.id)} className="mt-2 active:opacity-50">
-                          <View className="rounded-xl p-1.5" style={{ backgroundColor: 'rgba(239,68,68,0.08)' }}>
-                            <Trash2 size={14} color="#ef4444" />
+                          <View className="items-end">
+                            <Txt weight="bold" size={17} color={tx.type === 'Expense' ? C.rose : C.green}>
+                              {tx.type === 'Expense' ? '−' : '+'}${tx.amount.toFixed(2)}
+                            </Txt>
+                            <Pressable onPress={() => handleDelete(tx.id)} style={{ marginTop: 6 }}>
+                              <View style={{ borderRadius: 12, padding: 6, backgroundColor: 'rgba(239,68,68,0.1)' }}>
+                                <Trash2 size={14} color="#ef4444" />
+                              </View>
+                            </Pressable>
                           </View>
-                        </Pressable>
-                      </View>
-                    </View>
-                  );
-                })}
-              </View>
+                        </View>
+                      </GlassCard>
+                    );
+                  })}
+                </View>
+              </Animated.View>
             ))}
           </View>
         )}
       </ScrollView>
-    </View>
+    </ScreenBackground>
   );
 }

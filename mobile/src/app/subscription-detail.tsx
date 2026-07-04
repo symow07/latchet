@@ -48,7 +48,7 @@ import {
   type Subscription,
   type SubscriptionOccurrence,
 } from '@/lib/db';
-import { findCancelEntry } from '@/lib/cancel-directory';
+import { findCancelEntry, getCancelLink } from '@/lib/cancel-directory';
 import { formatCurrency } from '@/lib/calculations';
 
 function cadenceLabel(cadence: Subscription['cadence']): string {
@@ -228,6 +228,31 @@ export default function SubscriptionDetailScreen() {
     }
   }
 
+  // One-tap cancel: jump straight to the exact place the subscription can be
+  // canceled (native iOS/Google subscriptions screen, or the merchant's web
+  // cancel page). Falls back to the how-to sheet when we don't know the service.
+  async function handleCancelNow() {
+    if (!subscription) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    if (!cancelEntry) {
+      openSheet();
+      return;
+    }
+    const { url } = getCancelLink(cancelEntry);
+    try {
+      const supported = await Linking.canOpenURL(url);
+      await Linking.openURL(supported ? url : cancelEntry.cancelUrl);
+    } catch {
+      try {
+        await Linking.openURL(cancelEntry.cancelUrl);
+      } catch {
+        openSheet();
+      }
+    }
+  }
+
+  const cancelLink = cancelEntry ? getCancelLink(cancelEntry) : null;
+
   function openSheet() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     overlayOpacity.value = withTiming(1, { duration: 220 });
@@ -374,6 +399,32 @@ export default function SubscriptionDetailScreen() {
 
           {/* Action buttons */}
           <Animated.View entering={FadeInUp.delay(100).springify()} className="mx-4 mb-6 gap-3">
+            {/* Primary one-tap cancel — jumps to the exact cancel destination */}
+            {subscription.status !== 'canceled' && (
+              <Pressable
+                onPress={handleCancelNow}
+                style={({ pressed }) => ({
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 10,
+                  paddingVertical: 16,
+                  borderRadius: 16,
+                  backgroundColor: pressed ? '#dc2626' : '#ef4444',
+                })}
+              >
+                <ExternalLink size={18} color="white" />
+                <Text className="font-bold text-base text-white">
+                  {cancelLink ? cancelLink.label : 'Cancel Subscription'}
+                </Text>
+              </Pressable>
+            )}
+            {subscription.status !== 'canceled' && cancelEntry && (
+              <Text className="text-center text-xs -mt-1 mb-1" style={{ color: '#6b7280' }}>
+                Opens {cancelEntry.native === 'apple' ? 'your iPhone Subscriptions settings' : `the ${cancelEntry.displayName} cancel page`} directly
+              </Text>
+            )}
+
             {subscription.status === 'possible' && (
               <Pressable
                 onPress={() => handleStatusChange('confirmed')}
@@ -674,6 +725,38 @@ export default function SubscriptionDetailScreen() {
                     <Globe size={16} color="#a855f7" />
                     <Text className="font-semibold text-sm" style={{ color: '#a855f7' }}>
                       Search how to cancel {subscription.merchantDisplay}
+                    </Text>
+                  </Pressable>
+
+                  {/* Draft a cancellation email the user can send to the merchant */}
+                  <Pressable
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      const subj = encodeURIComponent(
+                        `Cancel my ${subscription.merchantDisplay} subscription`
+                      );
+                      const body = encodeURIComponent(
+                        `Hello,\n\nI would like to cancel my ${subscription.merchantDisplay} subscription` +
+                          ` effective immediately and stop all future charges. Please confirm the cancellation` +
+                          ` in writing.\n\nThank you.`
+                      );
+                      Linking.openURL(`mailto:?subject=${subj}&body=${body}`);
+                    }}
+                    style={({ pressed }) => ({
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 8,
+                      paddingVertical: 14,
+                      borderRadius: 14,
+                      backgroundColor: pressed ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.05)',
+                      borderWidth: 1,
+                      borderColor: 'rgba(255,255,255,0.12)',
+                    })}
+                  >
+                    <ExternalLink size={16} color="#9ca3af" />
+                    <Text className="font-semibold text-sm" style={{ color: '#9ca3af' }}>
+                      Draft cancellation email
                     </Text>
                   </Pressable>
                 </View>

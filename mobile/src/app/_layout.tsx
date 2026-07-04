@@ -16,6 +16,14 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets, SafeAreaProvider } from 'react-native-safe-area-context';
 import { useAccountTypeStore, type AccountTypeStore } from '@/lib/account-type-store';
 import { registerForPushNotifications, scheduleStreakReminder } from '@/lib/notifications';
+import {
+  useFonts,
+  Quicksand_400Regular,
+  Quicksand_500Medium,
+  Quicksand_600SemiBold,
+  Quicksand_700Bold,
+} from '@expo-google-fonts/quicksand';
+import { patchDefaultFont } from '@/lib/design';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -254,6 +262,7 @@ function RootLayoutNav({ colorScheme }: { colorScheme: 'light' | 'dark' | null |
           <Stack.Screen name="category-budgets" options={{ headerShown: false }} />
           <Stack.Screen name="subscriptions" options={{ headerShown: false }} />
           <Stack.Screen name="subscription-detail" options={{ headerShown: false }} />
+          <Stack.Screen name="email-inbox" options={{ headerShown: false }} />
           <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
           {/* Account type & business navigation */}
           <Stack.Screen name="account-type" options={{ headerShown: false }} />
@@ -278,6 +287,18 @@ export default function RootLayout() {
   const [dbError, setDbError] = useState<string | null>(null);
   const [locked, setLocked] = useState(false);
   const [stage, setStage] = useState<string>('Booting…');
+
+  const [fontsLoaded] = useFonts({
+    Quicksand_400Regular,
+    Quicksand_500Medium,
+    Quicksand_600SemiBold,
+    Quicksand_700Bold,
+  });
+
+  // Once Quicksand is available, make it the app-wide default font.
+  useEffect(() => {
+    if (fontsLoaded) patchDefaultFont();
+  }, [fontsLoaded]);
 
   useEffect(() => {
     console.log('[startup] RootLayout mounted');
@@ -345,7 +366,7 @@ export default function RootLayout() {
     );
   }
 
-  if (!dbReady) {
+  if (!dbReady || !fontsLoaded) {
     return (
       <SafeAreaProvider>
         <StartupScreen stage={stage} />

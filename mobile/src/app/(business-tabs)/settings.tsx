@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, Pressable } from 'react-native';
+import { View, ScrollView, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
@@ -9,27 +9,29 @@ import * as Haptics from 'expo-haptics';
 import { authClient } from '@/lib/auth/auth-client';
 import { useInvalidateSession, useSession } from '@/lib/auth/use-session';
 import { useAccountTypeStore } from '@/lib/account-type-store';
+import { B, R, glow } from '@/lib/design';
+import { Txt, GlassCard, IconBubble, Pill, BizBackground } from '@/components/ui';
 
 const SECTIONS = [
   {
     title: 'Business',
     items: [
-      { icon: Building2, label: 'Company Profile',    sub: 'Name, logo, address',      color: '#60a5fa' },
-      { icon: FileText,  label: 'Tax Settings',       sub: 'VAT, tax ID, fiscal year',  color: '#34d399' },
-      { icon: Globe,     label: 'Currency & Region',  sub: 'USD · United States',       color: '#fbbf24' },
+      { icon: Building2, label: 'Company Profile', sub: 'Name, logo, address', color: B.accent },
+      { icon: FileText, label: 'Tax Settings', sub: 'VAT, tax ID, fiscal year', color: B.teal },
+      { icon: Globe, label: 'Currency & Region', sub: 'USD · United States', color: B.amber },
     ],
   },
   {
     title: 'Preferences',
     items: [
-      { icon: Bell,      label: 'Notifications',  sub: 'Alerts and reminders',   color: '#a78bfa' },
-      { icon: Shield,    label: 'Security',       sub: 'Password, 2FA',          color: '#f87171' },
+      { icon: Bell, label: 'Notifications', sub: 'Alerts and reminders', color: '#a78bfa' },
+      { icon: Shield, label: 'Security', sub: 'Password, 2FA', color: B.red },
     ],
   },
   {
     title: 'Support',
     items: [
-      { icon: HelpCircle, label: 'Help & Feedback', sub: 'Get support or report an issue', color: '#9ca3af' },
+      { icon: HelpCircle, label: 'Help & Feedback', sub: 'Get support or report an issue', color: B.textDim },
     ],
   },
 ];
@@ -48,116 +50,49 @@ export default function BusinessSettingsScreen() {
   };
 
   return (
-    <View className="flex-1 bg-[#060d18]" style={{ paddingTop: insets.top }}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
-
+    <BizBackground style={{ paddingTop: insets.top }}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 110 }}>
         {/* Header */}
-        <View className="px-5 pt-4 pb-6">
-          <Text style={{ color: '#60a5fa', fontSize: 12, fontWeight: '700', letterSpacing: 1.5 }}>
-            BUSINESS
-          </Text>
-          <Text className="text-white font-bold" style={{ fontSize: 24, marginTop: 2 }}>
-            Settings
-          </Text>
+        <View style={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 18 }}>
+          <Txt weight="bold" size={12} color={B.accent} style={{ letterSpacing: 1.6 }}>BUSINESS</Txt>
+          <Txt weight="bold" size={25} color={B.text} style={{ marginTop: 2 }}>Settings</Txt>
         </View>
 
         {/* Profile card */}
-        <View className="mx-5 mb-6">
-          <LinearGradient
-            colors={['#0c1f3d', '#0f2d58']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={{
-              borderRadius: 22,
-              padding: 18,
-              borderWidth: 1,
-              borderColor: 'rgba(96,165,250,0.2)',
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: 14,
-            }}
-          >
-            <View
-              style={{
-                width: 54, height: 54, borderRadius: 18,
-                backgroundColor: 'rgba(96,165,250,0.2)',
-                borderWidth: 1.5, borderColor: 'rgba(96,165,250,0.35)',
-                alignItems: 'center', justifyContent: 'center',
-              }}
-            >
-              <Briefcase size={24} color="#60a5fa" />
+        <View style={{ marginHorizontal: 20, marginBottom: 22 }}>
+          <LinearGradient colors={[B.slate800, '#16365f']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[{ borderRadius: R.lg, padding: 18, borderWidth: 1, borderColor: `${B.accent}30`, flexDirection: 'row', alignItems: 'center', gap: 14 }, glow(B.accentDeep, 0.25, 18)]}>
+            <View style={{ width: 54, height: 54, borderRadius: 18, backgroundColor: `${B.accent}2e`, borderWidth: 1.5, borderColor: `${B.accent}55`, alignItems: 'center', justifyContent: 'center' }}>
+              <Briefcase size={24} color={B.accent} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={{ color: '#ffffff', fontSize: 16, fontWeight: '700' }}>
-                {session?.user?.name ?? 'Business Account'}
-              </Text>
-              <Text style={{ color: '#4b5563', fontSize: 13, marginTop: 2 }}>
-                {session?.user?.email ?? ''}
-              </Text>
-              <View
-                style={{
-                  marginTop: 6,
-                  alignSelf: 'flex-start',
-                  paddingHorizontal: 8, paddingVertical: 3,
-                  borderRadius: 8,
-                  backgroundColor: 'rgba(96,165,250,0.15)',
-                }}
-              >
-                <Text style={{ color: '#60a5fa', fontSize: 11, fontWeight: '700' }}>BUSINESS</Text>
+              <Txt weight="bold" size={16} color="#fff">{session?.user?.name ?? 'Business Account'}</Txt>
+              <Txt size={13} color={B.textFaint} style={{ marginTop: 2 }}>{session?.user?.email ?? ''}</Txt>
+              <View style={{ marginTop: 6, alignSelf: 'flex-start' }}>
+                <Pill label="BUSINESS" color={B.accent} />
               </View>
             </View>
           </LinearGradient>
         </View>
 
-        {/* Settings sections */}
+        {/* Sections */}
         {SECTIONS.map((section) => (
-          <View key={section.title} className="px-5 mb-5">
-            <Text style={{ color: '#374151', fontSize: 11, fontWeight: '700', letterSpacing: 1.5, marginBottom: 8 }}>
-              {section.title.toUpperCase()}
-            </Text>
-            <View
-              style={{
-                backgroundColor: 'rgba(255,255,255,0.04)',
-                borderRadius: 18,
-                borderWidth: 1,
-                borderColor: 'rgba(255,255,255,0.06)',
-                overflow: 'hidden',
-              }}
-            >
-              {section.items.map((item, idx) => {
+          <View key={section.title} style={{ paddingHorizontal: 20, marginBottom: 18 }}>
+            <Txt weight="bold" size={11} color={B.textFaint} style={{ letterSpacing: 1.4, marginBottom: 10 }}>{section.title.toUpperCase()}</Txt>
+            <View style={{ gap: 10 }}>
+              {section.items.map((item) => {
                 const Icon = item.icon;
                 return (
-                  <Pressable
-                    key={item.label}
-                    style={({ pressed }) => ({
-                      opacity: pressed ? 0.7 : 1,
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      paddingHorizontal: 16,
-                      paddingVertical: 14,
-                      borderTopWidth: idx > 0 ? 1 : 0,
-                      borderTopColor: 'rgba(255,255,255,0.04)',
-                    })}
-                  >
-                    <View
-                      style={{
-                        width: 38, height: 38, borderRadius: 12,
-                        backgroundColor: `${item.color}18`,
-                        alignItems: 'center', justifyContent: 'center',
-                        marginRight: 13,
-                      }}
-                    >
-                      <Icon size={17} color={item.color} />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ color: '#d1d5db', fontSize: 15, fontWeight: '500' }}>
-                        {item.label}
-                      </Text>
-                      <Text style={{ color: '#374151', fontSize: 12, marginTop: 1 }}>
-                        {item.sub}
-                      </Text>
-                    </View>
-                    <ChevronRight size={16} color="#1f2937" />
+                  <Pressable key={item.label} style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}>
+                    <GlassCard padding={14} radius={R.md}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <IconBubble color={item.color} size={38} radius={12} style={{ marginRight: 13 }}><Icon size={17} color={item.color} /></IconBubble>
+                        <View style={{ flex: 1 }}>
+                          <Txt weight="semibold" size={15} color={B.text}>{item.label}</Txt>
+                          <Txt size={12} color={B.textFaint} style={{ marginTop: 1 }}>{item.sub}</Txt>
+                        </View>
+                        <ChevronRight size={16} color={B.textFaint} />
+                      </View>
+                    </GlassCard>
                   </Pressable>
                 );
               })}
@@ -166,30 +101,17 @@ export default function BusinessSettingsScreen() {
         ))}
 
         {/* Logout */}
-        <View className="px-5 pt-2">
-          <Pressable
-            onPress={handleLogout}
-            style={({ pressed }) => ({
-              opacity: pressed ? 0.7 : 1,
-              backgroundColor: 'rgba(239,68,68,0.07)',
-              borderRadius: 18,
-              padding: 16,
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'center',
-              borderWidth: 1,
-              borderColor: 'rgba(239,68,68,0.13)',
-              gap: 8,
-            })}
-          >
-            <LogOut size={17} color="#ef4444" />
-            <Text style={{ color: '#ef4444', fontWeight: '700', fontSize: 15 }}>
-              Sign Out
-            </Text>
+        <View style={{ paddingHorizontal: 20, paddingTop: 4 }}>
+          <Pressable onPress={handleLogout} style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}>
+            <GlassCard padding={16} radius={R.md} tint={`${B.red}12`} border={`${B.red}28`}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                <LogOut size={17} color={B.red} />
+                <Txt weight="bold" size={15} color={B.red}>Sign Out</Txt>
+              </View>
+            </GlassCard>
           </Pressable>
         </View>
-
       </ScrollView>
-    </View>
+    </BizBackground>
   );
 }
