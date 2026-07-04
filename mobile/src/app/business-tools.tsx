@@ -200,7 +200,7 @@ export default function BusinessToolsScreen() {
         </View>
 
         {/* Email scanner */}
-        <EmailScanCard accent={B.accent} onScanned={() => refetchEmail()} />
+        <EmailScanCard accent={B.accent} />
 
         {isLoading ? (
           <View style={{ alignItems: 'center', paddingVertical: 80 }}><ActivityIndicator color={B.accent} size="large" /></View>

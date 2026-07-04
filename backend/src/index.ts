@@ -4,6 +4,7 @@ import { cors } from "hono/cors";
 import "./env";
 import { logger } from "hono/logger";
 import { auth, loginRateLimiter, otpRateLimiter, generalAuthRateLimiter } from "./auth";
+import { debugLog } from "./lib/log";
 import { transactionsRouter } from "./routes/transactions";
 import { accountsRouter } from "./routes/accounts";
 import { settingsRouter } from "./routes/settings";
@@ -106,13 +107,13 @@ app.use("/api/auth/*", async (c, next) => {
 });
 app.on(["GET", "POST"], "/api/auth/*", async (c) => {
   const t0 = Date.now();
-  console.log(`[auth-route:enter] ${c.req.method} ${c.req.path}`);
+  debugLog(`[auth-route:enter] ${c.req.method} ${c.req.path}`);
   // Headers-only probe. Never read or clone the body — that's the deadlock
   // that motivated commit e519527.
   const ct = c.req.header("content-type") ?? "";
   const cl = c.req.header("content-length") ?? "?";
   const ip = c.req.header("x-forwarded-for") ?? "unknown";
-  console.log(`[auth-route:headers] ct=${ct} cl=${cl} ip=${ip}`);
+  debugLog(`[auth-route:headers] ct=${ct} cl=${cl} ip=${ip}`);
   try {
     const response = await Promise.race([
       auth.handler(c.req.raw),
@@ -123,7 +124,7 @@ app.on(["GET", "POST"], "/api/auth/*", async (c) => {
         )
       ),
     ]);
-    console.log(`[auth-route:done] ${c.req.method} ${c.req.path} in ${Date.now() - t0}ms status=${response.status}`);
+    debugLog(`[auth-route:done] ${c.req.method} ${c.req.path} in ${Date.now() - t0}ms status=${response.status}`);
     return response;
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -135,10 +136,11 @@ app.on(["GET", "POST"], "/api/auth/*", async (c) => {
 // Health check
 app.get("/health", (c) => c.json({ status: "ok" }));
 
-// Diagnostic — only mounted in non-production OR when explicitly enabled.
-// In production behind Railway we still want it reachable to localize the
-// signup hang, so leave it unconditionally mounted but unguessable-named.
-app.route("/api/debug", debugRouter);
+// Diagnostic routes — never mounted in production (they expose internals from
+// the signup-hang investigation). Set DEBUG_ROUTES=true to re-enable temporarily.
+if (process.env.NODE_ENV !== "production" || process.env.DEBUG_ROUTES === "true") {
+  app.route("/api/debug", debugRouter);
+}
 
 // Current user (versioned + backward-compatible)
 const meHandler = (c: any) => {

@@ -1,3 +1,4 @@
+import { ScreenBackground } from '@/components/ui';
 import { View, Text, Pressable, ActivityIndicator } from 'react-native';
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
@@ -84,7 +85,7 @@ export default function AccountTypeScreen() {
   }
 
   return (
-    <View className="flex-1 bg-[#08080f]" style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}>
+    <ScreenBackground style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}>
       {/* Header */}
       <View className="px-6 pt-8 pb-6">
         <Text style={{ color: '#a855f7', fontSize: 13, fontWeight: '700', letterSpacing: 2, marginBottom: 10 }}>
@@ -174,7 +175,7 @@ export default function AccountTypeScreen() {
           <LinearGradient
             colors={
               !selected
-                ? ['#1f1f2e', '#1f1f2e']
+                ? ['#1a1130', '#1a1130']
                 : selected === 'personal'
                   ? ['#7c3aed', '#a855f7']
                   : ['#1d4ed8', '#3b82f6']
@@ -209,6 +210,6 @@ export default function AccountTypeScreen() {
           </LinearGradient>
         </Pressable>
       </View>
-    </View>
+    </ScreenBackground>
   );
 }

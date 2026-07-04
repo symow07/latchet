@@ -4,6 +4,8 @@ import { prisma } from "../prisma";
 import { auth } from "../auth";
 import { env } from "../env";
 import { encryptSecret, decryptSecret } from "../lib/crypto";
+import { allowUsage, allowUsageTiered } from "../lib/usage-limit";
+import { parseInboundToken, isGmailForwardConfirm, extractConfirmationCode } from "../lib/inbound-email";
 import { GmailProvider } from "../lib/email-providers/gmail";
 import type { RawEmail } from "../lib/email-providers/types";
 
@@ -142,17 +144,15 @@ router.post("/inbound", async (c) => {
   const text = String(body.text ?? body.bodyText ?? body.html ?? "");
 
   // Route to the owning user via the token in the recipient address.
-  const token = to.match(/u_([a-z0-9]+)@/i)?.[1];
+  const token = parseInboundToken(to);
   if (!token) return c.json({ received: true }); // unroutable — ack to stop retries
   const conn = await prisma.emailConnection.findUnique({ where: { inboundToken: token } });
   if (!conn) return c.json({ received: true });
 
   // Gmail's forwarding-confirmation email → capture the numeric code for the app
   // to display (the user enters it back in Gmail's settings to finish setup).
-  const isGmailConfirm =
-    /forwarding-noreply@google\.com/i.test(from) || /forwarding confirmation/i.test(subject);
-  if (isGmailConfirm) {
-    const code = `${subject} ${text}`.match(/\b(\d{6,12})\b/)?.[1] ?? null;
+  if (isGmailForwardConfirm(from, subject)) {
+    const code = extractConfirmationCode(subject, text);
     await prisma.inboxEmail.create({
       data: { userId: conn.userId, fromAddr: from, subject, merchant: code, status: "confirmation", isSubscription: false },
     });
@@ -165,7 +165,11 @@ router.post("/inbound", async (c) => {
     data: { forwardingVerified: true, lastScanAt: new Date() },
   });
 
-  const parsed = env.OPENAI_API_KEY ? await parseInboundEmail(subject, from, text).catch(() => null) : null;
+  // Spend cap: at most 60 OpenAI parses per user per day (a mail-bomb of
+  // forwards should not become an OpenAI bill). Over-cap emails are still
+  // stored, just unparsed — a later /scan can pick them up.
+  const mayParse = env.OPENAI_API_KEY && allowUsage("inbound-parse", conn.userId, 60, 24 * 60 * 60 * 1000);
+  const parsed = mayParse ? await parseInboundEmail(subject, from, text).catch(() => null) : null;
   await prisma.inboxEmail.create({
     data: {
       userId: conn.userId,
@@ -295,6 +299,10 @@ router.post("/scan", async (c) => {
   if (!googleConfigured()) return c.json({ error: "Gmail connect is not configured on this server." }, 503);
   if (!env.OPENAI_API_KEY) {
     return c.json({ error: "AI extraction is not configured on this server." }, 503);
+  }
+  // Each scan is a Gmail sweep + one large OpenAI call — cap it.
+  if (!allowUsageTiered("email-scan", user.id, { burstMax: 3, burstWindowMs: 5 * 60_000, dailyMax: 12 })) {
+    return c.json({ error: "Scan limit reached. Please try again later." }, 429);
   }
   const conn = await prisma.emailConnection.findFirst({
     where: { userId: user.id, provider: "gmail", status: "active" },

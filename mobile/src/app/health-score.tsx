@@ -87,7 +87,7 @@ export default function HealthScoreScreen() {
 
   if (!healthScore || !settings) {
     return (
-      <View className="flex-1 bg-[#0d0d0f] items-center justify-center">
+      <View className="flex-1 bg-[#0c0716] items-center justify-center">
         <Text className="text-gray-400">Loading...</Text>
       </View>
     );
@@ -143,7 +143,7 @@ export default function HealthScoreScreen() {
   const TrendIcon = healthScore.trend === 'up' ? TrendingUp : healthScore.trend === 'down' ? TrendingDown : Minus;
 
   return (
-    <View className="flex-1 bg-[#0d0d0f]">
+    <View className="flex-1 bg-[#0c0716]">
       {/* Header */}
       <LinearGradient
         colors={[healthScore.gradeColor, adjustColor(healthScore.gradeColor, -30)]}

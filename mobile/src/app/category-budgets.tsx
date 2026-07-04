@@ -337,7 +337,7 @@ export default function CategoryBudgetsScreen() {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#0d0d0f' }}>
+    <View style={{ flex: 1, backgroundColor: '#0c0716' }}>
       {/* Header */}
       <LinearGradient
         colors={['#4c1d95', '#7c3aed', '#a855f7', '#1e1b2e']}

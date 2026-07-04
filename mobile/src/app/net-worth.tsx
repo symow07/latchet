@@ -337,7 +337,7 @@ function AddModal({ visible, onClose, onSubmit, isSubmitting }: AddModalProps) {
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
-      <View style={{ flex: 1, backgroundColor: '#0d0d0f' }}>
+      <View style={{ flex: 1, backgroundColor: '#0c0716' }}>
         {/* Modal header */}
         <View
           style={{ paddingTop: insets.top + 8, paddingHorizontal: 16, paddingBottom: 12 }}
@@ -649,7 +649,7 @@ export default function NetWorthScreen() {
   });
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#0d0d0f' }}>
+    <View style={{ flex: 1, backgroundColor: '#0c0716' }}>
       {/* ── Header gradient ── */}
       <LinearGradient
         colors={

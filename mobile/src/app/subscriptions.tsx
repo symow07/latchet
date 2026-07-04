@@ -26,6 +26,7 @@ import { format, parseISO, differenceInDays } from 'date-fns';
 
 import { getSubscriptions, type Subscription } from '@/lib/db';
 import { EmailScanCard } from '@/components/EmailScanCard';
+import { ScreenBackground } from '@/components/ui';
 import {
   scanAndSaveSubscriptions,
   monthlySubscriptionTotal,
@@ -284,7 +285,7 @@ export default function SubscriptionsScreen() {
   }
 
   return (
-    <View className="flex-1" style={{ backgroundColor: '#0d0d0f' }}>
+    <ScreenBackground>
       {/* Header */}
       <LinearGradient
         colors={['#7c3aed', '#a855f7', '#c084fc', '#1e1b2e']}
@@ -472,6 +473,6 @@ export default function SubscriptionsScreen() {
           </Animated.View>
         )}
       </ScrollView>
-    </View>
+    </ScreenBackground>
   );
 }

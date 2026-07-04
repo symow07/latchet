@@ -570,7 +570,7 @@ export default function LinkBankScreen() {
         animationType="slide"
       >
         <View className="flex-1 justify-end bg-black/60">
-          <View className="bg-[#1a1a1c] rounded-t-3xl p-6" style={{ paddingBottom: insets.bottom + 20 }}>
+          <View className="bg-[#150d24] rounded-t-3xl p-6" style={{ paddingBottom: insets.bottom + 20 }}>
             <View className="items-center mb-6">
               <View
                 className="w-16 h-16 rounded-2xl items-center justify-center mb-4"
@@ -651,7 +651,7 @@ export default function LinkBankScreen() {
   };
 
   return (
-    <View className="flex-1 bg-[#0d0d0f]">
+    <View className="flex-1 bg-[#0c0716]">
       {/* Header */}
       <LinearGradient
         colors={['#3b82f6', '#2563eb', '#1d4ed8']}

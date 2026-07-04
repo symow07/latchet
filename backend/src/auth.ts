@@ -4,6 +4,7 @@ import { prismaAdapter } from "better-auth/adapters/prisma";
 import { emailOTP, bearer } from "better-auth/plugins";
 import { prisma } from "./prisma";
 import { env } from "./env";
+import { debugLog } from "./lib/log";
 import type { Context, Next } from "hono";
 
 // ── Rate limiter (per-IP + per-identifier, with lockout) ────────
@@ -155,7 +156,7 @@ setInterval(() => {
 // PBKDF2-SHA256 at 100k iterations meets OWASP minimums and completes in ~100ms.
 async function hashPassword(password: string): Promise<string> {
   const t0 = Date.now();
-  console.log(`[hash:start] op=hash pwdLen=${password.length}`);
+  debugLog(`[hash:start] op=hash pwdLen=${password.length}`);
   const salt = crypto.getRandomValues(new Uint8Array(16));
   const saltHex = Array.from(salt, (b) => b.toString(16).padStart(2, "0")).join("");
   const keyMaterial = await crypto.subtle.importKey(
@@ -173,7 +174,7 @@ async function hashPassword(password: string): Promise<string> {
   const keyHex = Array.from(new Uint8Array(bits), (b) =>
     b.toString(16).padStart(2, "0")
   ).join("");
-  console.log(`[hash:done] op=hash ms=${Date.now() - t0}`);
+  debugLog(`[hash:done] op=hash ms=${Date.now() - t0}`);
   return `pbkdf2:${saltHex}:${keyHex}`;
 }
 
@@ -185,7 +186,7 @@ async function verifyPassword({
   password: string;
 }): Promise<boolean> {
   const t0 = Date.now();
-  console.log(`[hash:start] op=verify pwdLen=${password.length}`);
+  debugLog(`[hash:start] op=verify pwdLen=${password.length}`);
   const parts = hash.split(":");
   if (parts[0] !== "pbkdf2" || parts.length !== 3) {
     console.warn(`[hash:done] op=verify ms=${Date.now() - t0} match=false reason=bad-format`);
@@ -217,7 +218,7 @@ async function verifyPassword({
   for (let i = 0; i < derivedHex.length; i++)
     diff |= derivedHex.charCodeAt(i) ^ keyHex.charCodeAt(i);
   const match = diff === 0;
-  console.log(`[hash:done] op=verify ms=${Date.now() - t0} match=${match}`);
+  debugLog(`[hash:done] op=verify ms=${Date.now() - t0} match=${match}`);
   return match;
 }
 
@@ -243,7 +244,7 @@ export const auth = betterAuth({
       create: {
         before: async (user) => {
           const u = user as { email?: string };
-          console.log(`[hook:user-create:before] email=${u.email}`);
+          debugLog(`[hook:user-create:before] email=${u.email}`);
           return { data: user };
         },
       },
@@ -252,7 +253,7 @@ export const auth = betterAuth({
       create: {
         before: async (session) => {
           const s = session as { userId?: string };
-          console.log(`[hook:session-create:before] userId=${s.userId}`);
+          debugLog(`[hook:session-create:before] userId=${s.userId}`);
           return { data: session };
         },
       },
@@ -261,7 +262,7 @@ export const auth = betterAuth({
       create: {
         before: async (verification) => {
           const v = verification as { identifier?: string };
-          console.log(`[hook:verification-create:before] identifier=${v.identifier}`);
+          debugLog(`[hook:verification-create:before] identifier=${v.identifier}`);
           return { data: verification };
         },
       },
@@ -286,19 +287,19 @@ export const auth = betterAuth({
       expiresIn: 300, // 5 minutes
       async sendVerificationOTP({ email, otp, type }) {
         const smtpUrl = env.SMTP_SERVICE_URL;
-        console.log(`[otp:start] type=${type} email=${email}`);
+        debugLog(`[otp:start] type=${type} email=${email}`);
 
         // Hard 5-second timeout — without this the fetch hangs forever when
         // the SMTP service is unreachable, freezing the entire signup request.
         const controller = new AbortController();
         const timeout = setTimeout(() => {
-          console.log(`[otp:timeout] AbortController fired for ${email}`);
+          debugLog(`[otp:timeout] AbortController fired for ${email}`);
           controller.abort();
         }, 5_000);
 
         let response: Response;
         try {
-          console.log(`[otp:before-fetch] url=${smtpUrl} email=${email}`);
+          debugLog(`[otp:before-fetch] url=${smtpUrl} email=${email}`);
           response = await fetch(smtpUrl, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -310,7 +311,7 @@ export const auth = betterAuth({
             }),
             signal: controller.signal,
           });
-          console.log(`[otp:after-fetch] status=${response.status} email=${email}`);
+          debugLog(`[otp:after-fetch] status=${response.status} email=${email}`);
         } catch (err) {
           // AbortError means we hit the 5-second deadline; any other error is a
           // network-level failure (DNS, TCP reset, etc.). Log the reason so it's
@@ -320,7 +321,7 @@ export const auth = betterAuth({
           throw new Error("Failed to send verification code");
         } finally {
           clearTimeout(timeout);
-          console.log(`[otp:finally] cleanup done for ${email}`);
+          debugLog(`[otp:finally] cleanup done for ${email}`);
         }
 
         if (!response.ok) {
@@ -332,7 +333,7 @@ export const auth = betterAuth({
           throw new Error("Failed to send verification code");
         }
 
-        console.log(`[otp:success] OTP sent for ${email} type=${type}`);
+        debugLog(`[otp:success] OTP sent for ${email} type=${type}`);
       },
     }),
   ],

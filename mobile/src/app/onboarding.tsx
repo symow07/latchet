@@ -1,3 +1,4 @@
+import { ScreenBackground } from '@/components/ui';
 import { View, Text, Pressable, ScrollView, TextInput, Keyboard } from 'react-native';
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
@@ -342,7 +343,7 @@ export default function OnboardingScreen() {
   };
 
   return (
-    <View className="flex-1 bg-[#0d0d0f]">
+    <ScreenBackground>
       {/* Header */}
       <LinearGradient
         colors={['#7c3aed', '#a855f7', '#c084fc', '#1e1b2e']}
@@ -429,6 +430,6 @@ export default function OnboardingScreen() {
           </View>
         </View>
       </KeyboardAwareScrollView>
-    </View>
+    </ScreenBackground>
   );
 }

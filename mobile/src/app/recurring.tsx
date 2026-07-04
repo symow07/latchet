@@ -221,7 +221,7 @@ function RecurringCard({
     <Animated.View entering={FadeInUp.delay(index * 55).duration(340)}>
       <View
         style={{
-          backgroundColor: '#18181b',
+          backgroundColor: '#150d24',
           borderRadius: 18,
           marginBottom: 10,
           overflow: 'hidden',
@@ -482,7 +482,7 @@ function AddRecurringModal({
             <Animated.View
               entering={FadeInDown.duration(280)}
               style={{
-                backgroundColor: '#111113',
+                backgroundColor: '#150d24',
                 borderTopLeftRadius: 28,
                 borderTopRightRadius: 28,
                 padding: 24,
@@ -650,7 +650,7 @@ function AddRecurringModal({
               {showCategoryPicker && (
                 <View
                   style={{
-                    backgroundColor: '#1a1a1e',
+                    backgroundColor: '#150d24',
                     borderRadius: 12,
                     marginBottom: 14,
                     overflow: 'hidden',
@@ -723,7 +723,7 @@ function AddRecurringModal({
               {showFrequencyPicker && (
                 <View
                   style={{
-                    backgroundColor: '#1a1a1e',
+                    backgroundColor: '#150d24',
                     borderRadius: 12,
                     marginBottom: 22,
                     overflow: 'hidden',
@@ -911,7 +911,7 @@ export default function RecurringScreen() {
   // ── Render ───────────────────────────────────────────────────────────────
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#0d0d0f' }}>
+    <View style={{ flex: 1, backgroundColor: '#0c0716' }}>
       {/* ── Gradient Header ── */}
       <LinearGradient
         colors={['#052e16', '#14532d', '#16a34a']}

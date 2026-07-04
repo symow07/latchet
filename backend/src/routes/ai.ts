@@ -3,6 +3,7 @@ import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { auth } from "../auth";
 import { env } from "../env";
+import { allowUsageTiered } from "../lib/usage-limit";
 
 /**
  * AI proxy routes. The mobile app used to call OpenAI directly with a public
@@ -24,12 +25,16 @@ const router = new Hono<{
   };
 }>();
 
-// Auth guard for all AI routes
+// Auth guard + per-user spend cap for all AI routes
 router.use("*", async (c, next) => {
   const user = c.get("user");
   if (!user) return c.json({ error: "Unauthorized" }, 401);
   if (!env.OPENAI_API_KEY) {
     return c.json({ error: "AI features are not configured on this server." }, 503);
+  }
+  // Cap OpenAI spend per user: 20 requests / 5 min, 200 / day.
+  if (!allowUsageTiered("ai", user.id, { burstMax: 20, burstWindowMs: 5 * 60_000, dailyMax: 200 })) {
+    return c.json({ error: "AI usage limit reached. Please try again later." }, 429);
   }
   await next();
 });

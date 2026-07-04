@@ -25,6 +25,12 @@ import {
 } from '@expo-google-fonts/quicksand';
 import { patchDefaultFont } from '@/lib/design';
 
+// Silence verbose console.log in release builds (startup/gate/api tracing stays
+// available in dev via expo.log). warn/error still surface for crash reporting.
+if (!__DEV__) {
+  console.log = () => {};
+}
+
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
 

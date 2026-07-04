@@ -1,3 +1,4 @@
+import { ScreenBackground } from '@/components/ui';
 import {
   View, Text, TextInput, Pressable,
   KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator,
@@ -137,7 +138,7 @@ export default function SignUpScreen() {
   });
 
   return (
-    <View className="flex-1 bg-[#0a0a0f]">
+    <ScreenBackground>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         className="flex-1"
@@ -306,6 +307,6 @@ export default function SignUpScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </View>
+    </ScreenBackground>
   );
 }

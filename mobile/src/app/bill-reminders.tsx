@@ -199,7 +199,7 @@ function BillCard({
     <Animated.View entering={FadeInUp.delay(index * 60).duration(350)}>
       <View
         style={{
-          backgroundColor: '#18181b',
+          backgroundColor: '#150d24',
           borderRadius: 16,
           marginBottom: 10,
           overflow: 'hidden',
@@ -399,7 +399,7 @@ function AddBillModal({
             <Animated.View
               entering={FadeInDown.duration(300)}
               style={{
-                backgroundColor: '#111113',
+                backgroundColor: '#150d24',
                 borderTopLeftRadius: 24,
                 borderTopRightRadius: 24,
                 padding: 24,
@@ -567,7 +567,7 @@ function AddBillModal({
               {showCategoryPicker && (
                 <View
                   style={{
-                    backgroundColor: '#1a1a1e',
+                    backgroundColor: '#150d24',
                     borderRadius: 12,
                     marginBottom: 16,
                     overflow: 'hidden',
@@ -747,7 +747,7 @@ export default function BillRemindersScreen() {
   // ── Render ───────────────────────────────────────────────────────────────
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#0d0d0f' }}>
+    <View style={{ flex: 1, backgroundColor: '#0c0716' }}>
       {/* ── Header gradient ── */}
       <LinearGradient
         colors={['#4c1d95', '#7c3aed', '#a855f7']}

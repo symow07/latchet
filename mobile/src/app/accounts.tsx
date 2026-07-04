@@ -150,7 +150,7 @@ export default function AccountsScreen() {
   };
 
   return (
-    <View className="flex-1 bg-[#0d0d0f]">
+    <View className="flex-1 bg-[#0c0716]">
       {/* Header */}
       <LinearGradient
         colors={['#7c3aed', '#a855f7', '#c084fc', '#1e1b2e']}
@@ -269,7 +269,7 @@ export default function AccountsScreen() {
           setEditingAccount(null);
         }}
       >
-        <View className="flex-1 bg-[#0d0d0f]">
+        <View className="flex-1 bg-[#0c0716]">
           <View
             className="flex-row items-center justify-between px-5 py-4 border-b border-gray-800"
             style={{ paddingTop: 16 }}

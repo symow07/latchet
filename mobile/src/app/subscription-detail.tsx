@@ -50,6 +50,8 @@ import {
 } from '@/lib/db';
 import { findCancelEntry, getCancelLink } from '@/lib/cancel-directory';
 import { formatCurrency } from '@/lib/calculations';
+import { C } from '@/lib/design';
+import { ScreenBackground } from '@/components/ui';
 
 function cadenceLabel(cadence: Subscription['cadence']): string {
   switch (cadence) {
@@ -272,7 +274,7 @@ export default function SubscriptionDetailScreen() {
     return (
       <View
         className="flex-1 items-center justify-center"
-        style={{ backgroundColor: '#0d0d0f' }}
+        style={{ backgroundColor: C.bg }}
       >
         <ActivityIndicator size="large" color="#a855f7" />
       </View>
@@ -283,7 +285,7 @@ export default function SubscriptionDetailScreen() {
     return (
       <View
         className="flex-1 items-center justify-center px-8"
-        style={{ backgroundColor: '#0d0d0f' }}
+        style={{ backgroundColor: C.bg }}
       >
         <Text className="text-white text-lg font-bold mb-2">Not Found</Text>
         <Text className="text-center text-sm" style={{ color: '#9ca3af' }}>
@@ -303,7 +305,7 @@ export default function SubscriptionDetailScreen() {
     : '—';
 
   return (
-    <View className="flex-1" style={{ backgroundColor: '#0d0d0f' }}>
+    <ScreenBackground>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         className="flex-1"
@@ -806,6 +808,6 @@ export default function SubscriptionDetailScreen() {
           </Animated.View>
         </>
       )}
-    </View>
+    </ScreenBackground>
   );
 }

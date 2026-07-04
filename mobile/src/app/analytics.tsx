@@ -73,7 +73,7 @@ export default function AnalyticsScreen() {
   ];
 
   return (
-    <View className="flex-1 bg-[#0d0d0f]">
+    <View className="flex-1 bg-[#0c0716]">
       {/* Header */}
       <LinearGradient
         colors={['#f59e0b', '#d97706', '#b45309']}

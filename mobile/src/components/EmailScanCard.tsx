@@ -13,7 +13,7 @@ import { getEmailStatus, type EmailStatus } from '@/lib/emailSubscriptionApi';
  * both the purple personal subscriptions screen and the navy business tools
  * screen, so it styles with the passed `accent` and plain Quicksand text.
  */
-export function EmailScanCard({ accent = '#a855f7' }: { accent?: string; onScanned?: () => void }) {
+export function EmailScanCard({ accent = '#a855f7' }: { accent?: string }) {
   const router = useRouter();
 
   const { data: status, isLoading } = useQuery<EmailStatus>({

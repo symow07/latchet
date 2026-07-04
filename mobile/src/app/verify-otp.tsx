@@ -1,3 +1,4 @@
+import { ScreenBackground } from '@/components/ui';
 import { View, Text, TextInput, Pressable, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
 import { useState, useRef } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -96,7 +97,7 @@ export default function VerifyOTPScreen() {
   };
 
   return (
-    <View className="flex-1 bg-[#0d0d0f]">
+    <ScreenBackground>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         className="flex-1"
@@ -180,6 +181,6 @@ export default function VerifyOTPScreen() {
           </View>
         </View>
       </KeyboardAvoidingView>
-    </View>
+    </ScreenBackground>
   );
 }

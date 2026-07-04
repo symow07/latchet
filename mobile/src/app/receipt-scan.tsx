@@ -176,7 +176,7 @@ export default function ReceiptScanScreen() {
   });
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#0d0d0f' }}>
+    <View style={{ flex: 1, backgroundColor: '#0c0716' }}>
       {/* Header */}
       <LinearGradient
         colors={['#6d28d9', '#7c3aed', '#a855f7']}
@@ -872,7 +872,7 @@ export default function ReceiptScanScreen() {
             paddingHorizontal: 16,
             paddingTop: 14,
             paddingBottom: Math.max(insets.bottom, 18),
-            backgroundColor: '#0d0d0f',
+            backgroundColor: '#0c0716',
             borderTopWidth: 1,
             borderTopColor: 'rgba(255,255,255,0.07)',
           }}

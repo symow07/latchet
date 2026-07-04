@@ -203,7 +203,7 @@ export default function ImportScreen() {
   const formatCurrency = (amount: number) => `$${amount.toFixed(2)}`;
 
   return (
-    <View className="flex-1 bg-[#0d0d0f]">
+    <View className="flex-1 bg-[#0c0716]">
       {/* Header */}
       <LinearGradient
         colors={['#3b82f6', '#2563eb', '#1d4ed8']}
@@ -516,7 +516,7 @@ export default function ImportScreen() {
           className="absolute bottom-0 left-0 right-0 px-4 pt-4 pb-2 border-t border-gray-800"
           style={{
             paddingBottom: Math.max(insets.bottom, 16),
-            backgroundColor: '#0d0d0f',
+            backgroundColor: '#0c0716',
           }}
         >
           <Pressable
