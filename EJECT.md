@@ -51,18 +51,39 @@ npx expo start         # scan the QR with Expo Go, or press i / a for a simulato
 ```
 Set `EXPO_PUBLIC_BACKEND_URL` in `mobile/.env` to wherever your backend runs.
 
-### Building for the App Store / Play Store
-The app is now a standard Expo project, so use **EAS Build** (no Vibecode
-"Submit" flow needed):
+### Building & running on a real device with EAS
+`eas.json` is already configured with three profiles (`development`, `preview`,
+`production`), each pre-pointed at your backend URL. iOS permission strings
+(camera, photos, Face ID, notifications) are wired via config plugins in
+`app.json`, so builds won't crash on those features.
+
+**One-time setup** — links the project to *your* Expo account and writes the
+`extra.eas.projectId` into `app.json`:
 ```bash
 npm i -g eas-cli
 eas login
-eas build:configure
-eas build --platform ios      # or android
-eas submit --platform ios
+eas init            # creates the EAS project + projectId
+```
+
+**Run on your phone** (installable build, no cable needed):
+```bash
+eas build --profile preview --platform ios       # or android
+# EAS emails you a QR/link; open it on the phone to install.
+```
+For a hot-reloading dev build (needs the dev client, already a dependency):
+```bash
+eas build --profile development --platform ios
+npx expo start --dev-client
+```
+
+**Store submission:**
+```bash
+eas build --profile production --platform ios     # or android
+eas submit --profile production --platform ios
 ```
 `com.realbudget.app` is your permanent bundle identifier — register it in Apple
-Developer / Google Play Console and in RevenueCat if you use purchases.
+Developer / Google Play Console (and in RevenueCat if you use purchases; add your
+`EXPO_PUBLIC_REVENUECAT_*` keys to the `env` blocks in `eas.json`).
 
 ## Note on the custom scheme
 `realbudget://` is the deep-link scheme (used by the auth session and the
