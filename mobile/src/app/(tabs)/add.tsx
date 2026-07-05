@@ -4,20 +4,22 @@ import {
   ScrollView,
   TextInput,
   Switch,
+  Modal,
 } from 'react-native';
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { addTransaction, getSettings, getAccounts } from '@/lib/db';
-import { Calendar, Clock, Zap, DollarSign, Tag, FileText, ArrowDownCircle, ArrowUpCircle, Wallet, ChevronDown, Building2, PiggyBank, CreditCard, TrendingUp, MoreHorizontal } from 'lucide-react-native';
+import { addTransaction, getSettings, getAccounts, addCustomCategory } from '@/lib/db';
+import { Calendar, Clock, Zap, DollarSign, Tag, FileText, ArrowDownCircle, ArrowUpCircle, Wallet, ChevronDown, Building2, PiggyBank, CreditCard, TrendingUp, MoreHorizontal, Plus, X } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { C, R, glow } from '@/lib/design';
 import { Txt, GlassCard, IconBubble, BubbleButton, ScreenBackground } from '@/components/ui';
+import { getCategories, DEFAULT_CATEGORIES, CATEGORY_EMOJIS, CATEGORY_COLORS } from '@/lib/categories';
 
 const getAccountIcon = (type: string) => {
   switch (type) {
@@ -29,15 +31,6 @@ const getAccountIcon = (type: string) => {
     default: return MoreHorizontal;
   }
 };
-
-const CATEGORIES = [
-  { name: 'Food', icon: '🍔', color: '#fb923c' },
-  { name: 'Gym', icon: '💪', color: '#34d399' },
-  { name: 'Transport', icon: '🚗', color: '#60a5fa' },
-  { name: 'Shopping', icon: '🛍️', color: '#f472b6' },
-  { name: 'Subscriptions', icon: '📱', color: C.p400 },
-  { name: 'Other', icon: '📦', color: '#94a3b8' },
-];
 
 function FieldLabel({ icon, label }: { icon: React.ReactNode; label: string }) {
   return (
@@ -63,8 +56,26 @@ export default function AddTransactionScreen() {
 
   const { data: settings } = useQuery({ queryKey: ['settings'], queryFn: getSettings });
   const { data: accounts = [] } = useQuery({ queryKey: ['accounts'], queryFn: getAccounts });
+  const { data: categories = DEFAULT_CATEGORIES } = useQuery({ queryKey: ['categories'], queryFn: getCategories });
 
   const queryClient = useQueryClient();
+
+  // Create-category modal
+  const [showCatModal, setShowCatModal] = useState(false);
+  const [newCatName, setNewCatName] = useState('');
+  const [newCatEmoji, setNewCatEmoji] = useState(CATEGORY_EMOJIS[0]);
+  const [newCatColor, setNewCatColor] = useState(CATEGORY_COLORS[0]);
+
+  async function handleCreateCategory() {
+    const name = newCatName.trim();
+    if (!name) return;
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    await addCustomCategory({ name, icon: newCatEmoji, color: newCatColor });
+    await queryClient.invalidateQueries({ queryKey: ['categories'] });
+    setCategory(name);
+    setNewCatName('');
+    setShowCatModal(false);
+  }
 
   const defaultAccount = accounts.find(a => a.isDefault === 1);
   const currentAccountId = selectedAccountId || defaultAccount?.id;
@@ -258,7 +269,7 @@ export default function AddTransactionScreen() {
         <View style={{ paddingHorizontal: 20, paddingTop: 22 }}>
           <FieldLabel icon={<Tag size={15} color={C.textFaint} />} label="Category" />
           <View className="flex-row flex-wrap" style={{ gap: 10 }}>
-            {CATEGORIES.map(cat => {
+            {categories.map(cat => {
               const isSelected = category === cat.name;
               return (
                 <Pressable key={cat.name} onPress={() => handleCategoryChange(cat.name)}>
@@ -269,8 +280,65 @@ export default function AddTransactionScreen() {
                 </Pressable>
               );
             })}
+            {/* Add a personalized category */}
+            <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setShowCatModal(true); }}>
+              <View style={{ paddingVertical: 12, paddingHorizontal: 16, borderRadius: R.pill, flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1.5, borderColor: `${C.p500}55`, borderStyle: 'dashed' }}>
+                <Plus size={15} color={C.p400} />
+                <Txt weight="semibold" size={13} color={C.p400}>New</Txt>
+              </View>
+            </Pressable>
           </View>
         </View>
+
+        {/* ── Create-category modal ── */}
+        <Modal visible={showCatModal} transparent animationType="fade" onRequestClose={() => setShowCatModal(false)}>
+          <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', paddingHorizontal: 24 }} onPress={() => setShowCatModal(false)}>
+            <Pressable onPress={() => {}} style={{ backgroundColor: C.bgRaise, borderRadius: R.xl, padding: 22, borderWidth: 1, borderColor: C.glassBorder }}>
+              <View className="flex-row items-center justify-between" style={{ marginBottom: 18 }}>
+                <Txt weight="bold" size={19} color={C.text}>New Category</Txt>
+                <Pressable onPress={() => setShowCatModal(false)} hitSlop={10}><X size={22} color={C.textFaint} /></Pressable>
+              </View>
+
+              {/* Live preview */}
+              <View style={{ alignSelf: 'flex-start', paddingVertical: 12, paddingHorizontal: 16, borderRadius: R.pill, flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: `${newCatColor}26`, borderWidth: 1.5, borderColor: `${newCatColor}77`, marginBottom: 18 }}>
+                <Txt size={16}>{newCatEmoji}</Txt>
+                <Txt weight="semibold" size={14} color={newCatColor}>{newCatName.trim() || 'Category name'}</Txt>
+              </View>
+
+              <TextInput
+                value={newCatName}
+                onChangeText={setNewCatName}
+                placeholder="e.g. Coffee, Rent, Travel…"
+                placeholderTextColor={C.textFaint}
+                maxLength={20}
+                style={{ color: C.text, fontSize: 16, fontFamily: 'PlusJakartaSans_600SemiBold', backgroundColor: C.glass, borderRadius: R.md, paddingHorizontal: 16, paddingVertical: 14, borderWidth: 1, borderColor: C.glassBorder, marginBottom: 16 }}
+                selectionColor={C.p500}
+              />
+
+              <Txt weight="semibold" size={12} color={C.textDim} style={{ marginBottom: 8 }}>Icon</Txt>
+              <View className="flex-row flex-wrap" style={{ gap: 8, marginBottom: 16 }}>
+                {CATEGORY_EMOJIS.map(e => (
+                  <Pressable key={e} onPress={() => setNewCatEmoji(e)}>
+                    <View style={{ width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: newCatEmoji === e ? `${C.p500}30` : C.glass, borderWidth: 1.5, borderColor: newCatEmoji === e ? C.p400 : 'transparent' }}>
+                      <Txt size={18}>{e}</Txt>
+                    </View>
+                  </Pressable>
+                ))}
+              </View>
+
+              <Txt weight="semibold" size={12} color={C.textDim} style={{ marginBottom: 8 }}>Color</Txt>
+              <View className="flex-row flex-wrap" style={{ gap: 10, marginBottom: 22 }}>
+                {CATEGORY_COLORS.map(col => (
+                  <Pressable key={col} onPress={() => setNewCatColor(col)}>
+                    <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: col, borderWidth: 3, borderColor: newCatColor === col ? '#fff' : 'transparent' }} />
+                  </Pressable>
+                ))}
+              </View>
+
+              <BubbleButton label="Create Category" onPress={handleCreateCategory} disabled={!newCatName.trim()} />
+            </Pressable>
+          </Pressable>
+        </Modal>
 
         {/* ── Date ── */}
         <View style={{ paddingHorizontal: 20, paddingTop: 22 }}>

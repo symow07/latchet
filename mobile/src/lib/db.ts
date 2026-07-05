@@ -95,6 +95,13 @@ async function performInit(): Promise<SQLite.SQLiteDatabase> {
 
     CREATE INDEX IF NOT EXISTS idx_subscriptions_status ON subscriptions(status);
     CREATE INDEX IF NOT EXISTS idx_sub_occurrences_sub ON subscription_occurrences(subscriptionId);
+
+    CREATE TABLE IF NOT EXISTS custom_categories (
+      name TEXT PRIMARY KEY,
+      icon TEXT NOT NULL DEFAULT '🏷️',
+      color TEXT NOT NULL DEFAULT '#94a3b8',
+      createdAt TEXT NOT NULL
+    );
   `);
 
   // Migration: Add accountId column if it doesn't exist (for older databases)
@@ -647,6 +654,34 @@ export async function clearSubscriptions(): Promise<void> {
   const database = await getDatabase();
   await database.runAsync(`DELETE FROM subscription_occurrences`);
   await database.runAsync(`DELETE FROM subscriptions`);
+}
+
+// Custom (user-created) categories
+export interface CustomCategory {
+  name: string;
+  icon: string;
+  color: string;
+  createdAt: string;
+}
+
+export async function getCustomCategories(): Promise<CustomCategory[]> {
+  const database = await getDatabase();
+  return (await database.getAllAsync(
+    `SELECT * FROM custom_categories ORDER BY createdAt ASC`
+  )) as CustomCategory[];
+}
+
+export async function addCustomCategory(cat: { name: string; icon: string; color: string }): Promise<void> {
+  const database = await getDatabase();
+  await database.runAsync(
+    `INSERT OR REPLACE INTO custom_categories (name, icon, color, createdAt) VALUES (?, ?, ?, ?)`,
+    [cat.name.trim(), cat.icon, cat.color, new Date().toISOString()]
+  );
+}
+
+export async function deleteCustomCategory(name: string): Promise<void> {
+  const database = await getDatabase();
+  await database.runAsync(`DELETE FROM custom_categories WHERE name = ?`, [name]);
 }
 
 // Seeding function for demo data

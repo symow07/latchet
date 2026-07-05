@@ -9,6 +9,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, parseISO, startOfMonth, endOfMonth } from 'date-fns';
 import { getTransactions, deleteTransaction, getSettings } from '@/lib/db';
+import { getCategories, categoryMeta, DEFAULT_CATEGORIES } from '@/lib/categories';
 import { formatCurrency, formatTimeCost, calculateTimeCost } from '@/lib/calculations';
 import { Trash2, Filter, Zap, Clock } from 'lucide-react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -29,14 +30,6 @@ interface Transaction {
   createdAt: string;
 }
 
-const CATEGORY_ICONS: Record<string, string> = {
-  Food: '🍔', Gym: '💪', Transport: '🚗', Shopping: '🛍️', Subscriptions: '📱', Other: '📦',
-};
-
-const CATEGORY_COLORS: Record<string, string> = {
-  Food: '#fb923c', Gym: '#34d399', Transport: '#60a5fa', Shopping: '#f472b6', Subscriptions: C.p400, Other: '#94a3b8',
-};
-const catColor = (c: string) => CATEGORY_COLORS[c] ?? CATEGORY_COLORS.Other;
 
 export default function TransactionsScreen() {
   const insets = useSafeAreaInsets();
@@ -59,6 +52,8 @@ export default function TransactionsScreen() {
 
   const { data: transactions = [] } = useQuery({ queryKey: ['transactions', refreshKey], queryFn: getTransactions });
   const { data: settings } = useQuery({ queryKey: ['settings', refreshKey], queryFn: getSettings });
+  const { data: allCategories = DEFAULT_CATEGORIES } = useQuery({ queryKey: ['categories'], queryFn: getCategories });
+  const meta = (name: string) => categoryMeta(name, allCategories);
 
   const deleteMutation = useMutation({
     mutationFn: deleteTransaction,
@@ -151,12 +146,12 @@ export default function TransactionsScreen() {
               </View>
             </Pressable>
             {categories.map(cat => {
-              const color = catColor(cat);
+              const color = meta(cat).color;
               const isSelected = filterCategory === cat;
               return (
                 <Pressable key={cat} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setFilterCategory(cat); }}>
                   <View style={{ paddingVertical: 10, paddingHorizontal: 16, borderRadius: R.pill, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: isSelected ? `${color}22` : C.glass, borderWidth: 1.5, borderColor: isSelected ? `${color}77` : 'transparent' }}>
-                    <Txt size={13}>{CATEGORY_ICONS[cat] || '📦'}</Txt>
+                    <Txt size={13}>{meta(cat).icon}</Txt>
                     <Txt weight="semibold" size={13} color={isSelected ? color : C.textFaint}>{cat}</Txt>
                   </View>
                 </Pressable>
@@ -199,12 +194,12 @@ export default function TransactionsScreen() {
 
                 <View style={{ gap: 8 }}>
                   {group.transactions.map(tx => {
-                    const color = catColor(tx.category);
+                    const color = meta(tx.category).color;
                     return (
                       <GlassCard key={tx.id} padding={14} radius={R.lg}>
                         <View className="flex-row items-center">
                           <View style={{ width: 48, height: 48, borderRadius: 18, alignItems: 'center', justifyContent: 'center', marginRight: 12, backgroundColor: `${color}1f`, borderWidth: 1, borderColor: `${color}33` }}>
-                            <Txt size={20}>{CATEGORY_ICONS[tx.category] || '📦'}</Txt>
+                            <Txt size={20}>{meta(tx.category).icon}</Txt>
                           </View>
 
                           <View className="flex-1">
