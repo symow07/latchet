@@ -1,18 +1,18 @@
 {
   "expo": {
-    "name": "vibecode",
-    "slug": "vibecode",
-    "scheme": "vibecode",
+    "name": "Budget",
+    "slug": "budget",
+    "scheme": "realbudget",
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": false,
     "ios": {
-      "bundleIdentifier": "com.vibecodeapp.budget",
+      "bundleIdentifier": "com.realbudget.app",
       "supportsTablet": true
     },
     "android": {
-      "package": "com.vibecodeapp.budget",
+      "package": "com.realbudget.app",
       "edgeToEdgeEnabled": true
     },
     "plugins": ["expo-router"],

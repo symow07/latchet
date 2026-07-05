@@ -5,6 +5,7 @@ import { emailOTP, bearer } from "better-auth/plugins";
 import { prisma } from "./prisma";
 import { env } from "./env";
 import { debugLog } from "./lib/log";
+import { sendOtpEmail } from "./lib/email-otp";
 import type { Context, Next } from "hono";
 
 // ── Rate limiter (per-IP + per-identifier, with lockout) ────────
@@ -268,16 +269,17 @@ export const auth = betterAuth({
       },
     },
   },
+  // The mobile app's custom scheme + Expo dev + localhost are always trusted.
+  // Add production web origins via TRUSTED_ORIGINS (comma-separated).
   trustedOrigins: [
-    "vibecode://*/*",
+    "realbudget://*/*",
     "exp://*/*",
     "http://localhost:*",
     "http://127.0.0.1:*",
-    "https://*.dev.vibecode.run",
-    "https://*.vibecode.run",
-    "https://*.vibecodeapp.com",
-    "https://*.vibecode.dev",
-    "https://vibecode.dev",
+    ...(env.TRUSTED_ORIGINS ?? "")
+      .split(",")
+      .map((o) => o.trim())
+      .filter(Boolean),
   ],
   plugins: [
     expo(),
@@ -286,54 +288,17 @@ export const auth = betterAuth({
       otpLength: 6,
       expiresIn: 300, // 5 minutes
       async sendVerificationOTP({ email, otp, type }) {
-        const smtpUrl = env.SMTP_SERVICE_URL;
         debugLog(`[otp:start] type=${type} email=${email}`);
-
-        // Hard 5-second timeout — without this the fetch hangs forever when
-        // the SMTP service is unreachable, freezing the entire signup request.
-        const controller = new AbortController();
-        const timeout = setTimeout(() => {
-          debugLog(`[otp:timeout] AbortController fired for ${email}`);
-          controller.abort();
-        }, 5_000);
-
-        let response: Response;
         try {
-          debugLog(`[otp:before-fetch] url=${smtpUrl} email=${email}`);
-          response = await fetch(smtpUrl, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              to: email,
-              code: String(otp),
-              fromName: "Real Budget",
-              lang: "en",
-            }),
-            signal: controller.signal,
-          });
-          debugLog(`[otp:after-fetch] status=${response.status} email=${email}`);
+          // Provider-agnostic sender (Resend / generic webhook / dev console).
+          // Enforces its own 5s timeout and non-2xx handling — never hangs.
+          await sendOtpEmail({ email, otp, type });
+          debugLog(`[otp:success] OTP sent for ${email} type=${type}`);
         } catch (err) {
-          // AbortError means we hit the 5-second deadline; any other error is a
-          // network-level failure (DNS, TCP reset, etc.). Log the reason so it's
-          // debuggable, then surface a clean error to the caller — never hang.
           const reason = err instanceof Error ? err.message : String(err);
-          console.error(`[otp:catch] OTP send failed for ${email} (type=${type}): ${reason}`);
-          throw new Error("Failed to send verification code");
-        } finally {
-          clearTimeout(timeout);
-          debugLog(`[otp:finally] cleanup done for ${email}`);
-        }
-
-        if (!response.ok) {
-          // Never leak OTP value or upstream response details to the client,
-          // but log status so on-call can triage without guessing.
-          console.error(
-            `[otp:http-error] status=${response.status} email=${email} type=${type}`
-          );
+          console.error(`[otp:error] OTP send failed for ${email} (type=${type}): ${reason}`);
           throw new Error("Failed to send verification code");
         }
-
-        debugLog(`[otp:success] OTP sent for ${email} type=${type}`);
       },
     }),
   ],

@@ -4,11 +4,11 @@
  * This module provides a centralized RevenueCat SDK wrapper that gracefully handles
  * missing configuration. The app will work fine whether or not RevenueCat is configured.
  *
- * Environment Variables:
- * - EXPO_PUBLIC_VIBECODE_REVENUECAT_TEST_KEY: Used in development/test builds (both platforms)
- * - EXPO_PUBLIC_VIBECODE_REVENUECAT_APPLE_KEY: Used in production builds (iOS)
- * - EXPO_PUBLIC_VIBECODE_REVENUECAT_GOOGLE_KEY: Used in production builds (Android)
- * These are automatically injected into the workspace by the Vibecode service once the user sets up RevenueCat in the Payments tab.
+ * Environment Variables (set these to your own RevenueCat API keys):
+ * - EXPO_PUBLIC_REVENUECAT_TEST_KEY: Used in development/test builds (both platforms)
+ * - EXPO_PUBLIC_REVENUECAT_APPLE_KEY: Used in production builds (iOS)
+ * - EXPO_PUBLIC_REVENUECAT_GOOGLE_KEY: Used in production builds (Android)
+ * RevenueCat is optional — the app runs fine without any of these set.
  *
  * Platform Support:
  * - iOS/Android: Fully supported via app stores
@@ -30,10 +30,10 @@ import Purchases, {
 // Check if running on web
 const isWeb = Platform.OS === "web";
 
-// Check for environment keys
-const testKey = process.env.EXPO_PUBLIC_VIBECODE_REVENUECAT_TEST_KEY;
-const appleKey = process.env.EXPO_PUBLIC_VIBECODE_REVENUECAT_APPLE_KEY;
-const googleKey = process.env.EXPO_PUBLIC_VIBECODE_REVENUECAT_GOOGLE_KEY;
+// Check for environment keys (optional — the app runs fine without them).
+const testKey = process.env.EXPO_PUBLIC_REVENUECAT_TEST_KEY;
+const appleKey = process.env.EXPO_PUBLIC_REVENUECAT_APPLE_KEY;
+const googleKey = process.env.EXPO_PUBLIC_REVENUECAT_GOOGLE_KEY;
 
 // Use __DEV__ and Platform to determine which key to use
 const getApiKey = (): string | undefined => {

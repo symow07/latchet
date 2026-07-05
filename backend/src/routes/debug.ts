@@ -123,22 +123,26 @@ debugRouter.get("/signup-prereq", async (c) => {
 
   // SMTP reachability — HEAD is cheap and most services accept it; if not,
   // even a 405 proves the host is up. Connection error vs timeout is the
-  // signal we want.
-  checks.push(
-    await timed("smtp.reachability", async () => {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), CHECK_TIMEOUT_MS - 200);
-      try {
-        const res = await fetch(env.SMTP_SERVICE_URL, {
-          method: "HEAD",
-          signal: controller.signal,
-        });
-        return { status: res.status };
-      } finally {
-        clearTimeout(timer);
-      }
-    }),
-  );
+  // signal we want. Skipped when no webhook URL is configured (e.g. using
+  // Resend or the dev console sender instead).
+  const smtpUrl = env.SMTP_SERVICE_URL;
+  if (smtpUrl) {
+    checks.push(
+      await timed("smtp.reachability", async () => {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), CHECK_TIMEOUT_MS - 200);
+        try {
+          const res = await fetch(smtpUrl, {
+            method: "HEAD",
+            signal: controller.signal,
+          });
+          return { status: res.status };
+        } finally {
+          clearTimeout(timer);
+        }
+      }),
+    );
+  }
 
   const overallMs = Date.now() - overallT0;
   const allOk = checks.every((c) => c.ok);

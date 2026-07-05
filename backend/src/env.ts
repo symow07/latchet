@@ -6,7 +6,15 @@ const envSchema = z.object({
   BACKEND_URL: z.url("BACKEND_URL must be a valid URL").default("http://localhost:3000"),
   DATABASE_URL: z.string().default("file:./prisma/dev.db"),
   BETTER_AUTH_SECRET: z.string().min(1, "BETTER_AUTH_SECRET is required"),
-  SMTP_SERVICE_URL: z.url("SMTP_SERVICE_URL must be a valid URL").default("https://smtp.vibecodeapp.com/v1/send/otp"),
+  // OTP email delivery (lib/email-otp.ts). Set RESEND_API_KEY (recommended) or
+  // point SMTP_SERVICE_URL at your own relay. In dev, with neither set, the OTP
+  // is logged to the console so signup still works.
+  RESEND_API_KEY: z.string().optional(),
+  EMAIL_FROM: z.string().optional(), // e.g. "Budget <noreply@yourdomain.com>"
+  SMTP_SERVICE_URL: z.url("SMTP_SERVICE_URL must be a valid URL").optional(),
+  // Comma-separated production origins trusted for auth cookies / CORS.
+  TRUSTED_ORIGINS: z.string().optional(),
+  CORS_ORIGINS: z.string().optional(),
   // Server-side OpenAI key powering the AI advisor + receipt OCR proxy (routes/ai.ts).
   // Optional at boot so a missing key degrades only the AI features (503) instead of
   // crashing the whole backend, including auth.

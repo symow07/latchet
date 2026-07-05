@@ -1,7 +1,6 @@
-import "@vibecodeapp/proxy"; // DO NOT REMOVE OTHERWISE VIBECODE PROXY WILL NOT WORK
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import "./env";
+import { env } from "./env";
 import { logger } from "hono/logger";
 import { auth, loginRateLimiter, otpRateLimiter, generalAuthRateLimiter } from "./auth";
 import { debugLog } from "./lib/log";
@@ -33,19 +32,26 @@ const app = new Hono<{
   };
 }>();
 
-// CORS middleware
+// CORS middleware. Local dev origins are always allowed; add your production
+// web origins via the CORS_ORIGINS env var (comma-separated exact origins).
 const allowed = [
   /^http:\/\/localhost(:\d+)?$/,
   /^http:\/\/127\.0\.0\.1(:\d+)?$/,
-  /^https:\/\/[a-z0-9-]+\.dev\.vibecode\.run$/,
-  /^https:\/\/[a-z0-9-]+\.vibecode\.run$/,
-  /^https:\/\/[a-z0-9-]+\.vibecodeapp\.com$/,
 ];
+const extraOrigins = (env.CORS_ORIGINS ?? "")
+  .split(",")
+  .map((o) => o.trim())
+  .filter(Boolean);
 
 app.use(
   "*",
   cors({
-    origin: (origin) => (origin && allowed.some((re) => re.test(origin)) ? origin : null),
+    origin: (origin) => {
+      if (!origin) return null;
+      if (allowed.some((re) => re.test(origin))) return origin;
+      if (extraOrigins.includes(origin)) return origin;
+      return null;
+    },
     credentials: true,
   })
 );

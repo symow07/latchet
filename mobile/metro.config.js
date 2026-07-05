@@ -1,9 +1,10 @@
 // metro.config.js
-// NOTE TO AI: Do note change this file unless you are 110% sure you know what you are doing. It will likely break the app.
+// Standalone Expo + NativeWind + SVG configuration (no platform SDK).
+// SVG imports are handled by react-native-svg-transformer; `.svg` is moved from
+// assetExts to sourceExts in the resolver below.
 
 const { getDefaultConfig } = require("expo/metro-config");
 const { withNativeWind } = require("nativewind/metro");
-const { withVibecodeMetro } = require("@vibecodeapp/sdk/metro");
 const path = require("path");
 const fs = require("fs");
 
@@ -29,9 +30,11 @@ config.resolver.useWatchman = false;
 // Configure asset and source extensions.
 const { assetExts, sourceExts } = config.resolver;
 
-// SVG transformer is configured by withVibecodeMetro
+// Transform .svg files into React components (replaces the platform SDK's
+// bundled transformer). react-native-svg-transformer is a direct dependency.
 config.transformer = {
   ...config.transformer,
+  babelTransformerPath: require.resolve("react-native-svg-transformer"),
   getTransformOptions: async () => ({
     transform: {
       experimentalImportSupport: false,
@@ -134,4 +137,4 @@ config.resolver = {
 };
 
 // Integrate NativeWind with the Metro configuration.
-module.exports = withNativeWind(withVibecodeMetro(config), { input: "./global.css" });
+module.exports = withNativeWind(config, { input: "./global.css" });

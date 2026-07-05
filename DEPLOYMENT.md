@@ -38,8 +38,8 @@ Mobile: `EXPO_PUBLIC_BACKEND_URL` must point at the production backend.
   questionnaire). Until approved, keep `PLAID_ENV=sandbox`.
 - **App Store privacy** — declare data collection (financial data, email
   content, contact info) in App Store Connect; host `PRIVACY.md` at a public
-  URL and link it. Submission itself goes through Vibecode's "Submit to App
-  Store" flow.
+  URL and link it. Build & submit with EAS: `eas build --platform ios` then
+  `eas submit` (see `EJECT.md` for the standalone build setup).
 
 ## 4. Single-instance constraints (documented, acceptable at launch)
 
