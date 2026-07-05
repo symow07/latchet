@@ -59,8 +59,15 @@ export default function HealthScoreScreen() {
   });
 
   useEffect(() => {
-    if (transactions.length > 0 && settings) {
-      const score = calculateHealthScore(transactions, settings);
+    // Compute as soon as settings load — a brand-new user with zero transactions
+    // should still get a (low) score, not an infinite "Loading…".
+    if (settings) {
+      let score: HealthScoreResult;
+      try {
+        score = calculateHealthScore(transactions, settings);
+      } catch {
+        return;
+      }
       setHealthScore(score);
 
       // Animate score counting up

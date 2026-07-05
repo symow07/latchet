@@ -223,11 +223,34 @@ export function getUnlockedBadges(
   return badges;
 }
 
+// The user's chosen currency, applied app-wide. Updated whenever settings load
+// (see getSettings in db.ts) so all formatCurrency call sites stay in sync
+// without threading the symbol through every component.
+let activeSymbol = '$';
+let activeCurrency = 'USD';
+
+export function setActiveCurrency(code?: string | null, symbol?: string | null): void {
+  if (code) activeCurrency = code;
+  if (symbol) activeSymbol = symbol;
+}
+
 export function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-  }).format(amount);
+  const abs = Math.abs(amount);
+  // Proper locale currency formatting; fall back to symbol + grouped number
+  // (Hermes Intl can be inconsistent for some currency codes).
+  try {
+    const formatted = new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: activeCurrency,
+      currencyDisplay: 'narrowSymbol',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(abs);
+    return amount < 0 ? `-${formatted}` : formatted;
+  } catch {
+    const n = abs.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return `${amount < 0 ? '-' : ''}${activeSymbol}${n}`;
+  }
 }
 
 export function formatTimeCost(costInMinutes: number): string {

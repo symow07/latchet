@@ -1,5 +1,5 @@
 import { ScreenBackground } from '@/components/ui';
-import { View, Text, Pressable, ActivityIndicator } from 'react-native';
+import { View, Text, Pressable, ActivityIndicator, ScrollView } from 'react-native';
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -100,7 +100,11 @@ export default function AccountTypeScreen() {
       </View>
 
       {/* Cards */}
-      <View className="flex-1 px-5 gap-4">
+      <ScrollView
+        className="flex-1"
+        contentContainerStyle={{ paddingHorizontal: 20, gap: 16, paddingBottom: 12 }}
+        showsVerticalScrollIndicator={false}
+      >
         {ACCOUNT_TYPES.map((type) => {
           const isSelected = selected === type.id;
           const animStyle = type.id === 'personal' ? personalStyle : businessStyle;
@@ -163,7 +167,7 @@ export default function AccountTypeScreen() {
             </Animated.View>
           );
         })}
-      </View>
+      </ScrollView>
 
       {/* Continue Button */}
       <View className="px-6 pt-4 pb-2">

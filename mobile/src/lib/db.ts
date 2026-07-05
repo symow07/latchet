@@ -1,4 +1,5 @@
 import * as SQLite from 'expo-sqlite';
+import { setActiveCurrency } from './calculations';
 
 const DB_NAME = 'real_budget.db';
 
@@ -486,8 +487,10 @@ export async function getSettings(): Promise<Settings> {
   const database = await getDatabase();
   const settings = await database.getFirstAsync(
     'SELECT * FROM settings WHERE id = 1'
-  );
-  return settings as Settings;
+  ) as Settings;
+  // Keep app-wide currency formatting in sync with the user's choice.
+  if (settings) setActiveCurrency(settings.currency, settings.currencySymbol);
+  return settings;
 }
 
 export async function updateSettings(settings: Partial<Settings>) {

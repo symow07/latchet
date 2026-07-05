@@ -267,10 +267,20 @@ export function ScreenBackground({ children, style }: { children?: React.ReactNo
         end={{ x: 0, y: 1 }}
         style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
       />
-      {/* floating blobs */}
-      <Blob color={C.p600} size={300} top={-90} left={-70} opacity={0.4} />
-      <Blob color={C.p400} size={240} top={120} left={240} opacity={0.22} />
-      <Blob color={C.p800} size={360} top={520} left={-120} opacity={0.3} />
+      {/* Purple atmosphere via static gradient washes — no per-frame shadow
+          rasterization (large shadowRadius blobs caused scroll jank on device). */}
+      <LinearGradient
+        colors={[`${C.p600}3a`, 'transparent']}
+        start={{ x: 0.15, y: 0 }}
+        end={{ x: 0.85, y: 0.45 }}
+        style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 380 }}
+      />
+      <LinearGradient
+        colors={['transparent', `${C.p800}26`]}
+        start={{ x: 0.5, y: 0.5 }}
+        end={{ x: 0.5, y: 1 }}
+        style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 420 }}
+      />
       {children}
     </View>
   );
@@ -302,37 +312,3 @@ export function BizBackground({ children, style }: { children?: React.ReactNode;
   );
 }
 
-function Blob({
-  color,
-  size,
-  top,
-  left,
-  opacity,
-}: {
-  color: string;
-  size: number;
-  top: number;
-  left: number;
-  opacity: number;
-}) {
-  return (
-    <View
-      pointerEvents="none"
-      style={{
-        position: 'absolute',
-        top,
-        left,
-        width: size,
-        height: size,
-        borderRadius: size / 2,
-        backgroundColor: color,
-        opacity,
-        // big soft shadow fakes a blurred glow cheaply on both platforms
-        shadowColor: color,
-        shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 0.9,
-        shadowRadius: 80,
-      }}
-    />
-  );
-}
