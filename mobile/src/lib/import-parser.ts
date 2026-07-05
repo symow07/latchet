@@ -105,22 +105,24 @@ export function parseCSV(csvContent: string): ParsedTransaction[] {
   const lines = csvContent.trim().split('\n');
   if (lines.length < 2) return [];
 
-  // Parse header row
+  // Parse header row (deaccented + lowercased so French headers like "Libellé",
+  // "Débit", "Crédit", "Montant" on Moroccan/European statements match too).
   const headerLine = lines[0];
-  const headers = parseCSVLine(headerLine).map(h => h.toLowerCase().trim());
+  const headers = parseCSVLine(headerLine).map(h => deaccent(h.toLowerCase()).trim());
 
   // Find column indices
   const dateIdx = headers.findIndex(h =>
-    h.includes('date') || h.includes('posted') || h.includes('transaction date')
+    h.includes('date') || h.includes('posted')
   );
   const descIdx = headers.findIndex(h =>
-    h.includes('description') || h.includes('memo') || h.includes('merchant') || h.includes('payee')
+    h.includes('description') || h.includes('memo') || h.includes('merchant') ||
+    h.includes('payee') || h.includes('libelle') || h.includes('motif') || h.includes('operation')
   );
   const amountIdx = headers.findIndex(h =>
-    h.includes('amount') || h.includes('debit') || h.includes('credit')
+    h.includes('amount') || h.includes('debit') || h.includes('credit') || h.includes('montant')
   );
-  const debitIdx = headers.findIndex(h => h.includes('debit') || h.includes('withdrawal'));
-  const creditIdx = headers.findIndex(h => h.includes('credit') || h.includes('deposit'));
+  const debitIdx = headers.findIndex(h => h.includes('debit') || h.includes('withdrawal') || h.includes('retrait'));
+  const creditIdx = headers.findIndex(h => h.includes('credit') || h.includes('deposit') || h.includes('versement'));
 
   if (dateIdx === -1 || (amountIdx === -1 && debitIdx === -1)) {
     throw new Error('Could not identify required columns (date, amount)');
@@ -191,6 +193,75 @@ export function parseCSV(csvContent: string): ParsedTransaction[] {
   return transactions;
 }
 
+// ── Alipay / WeChat Pay bill import ──────────────────────────────────────────
+// Both apps let the user export their transaction bill (账单) as a CSV. Those
+// files have ~10-25 metadata rows before the real header, Chinese column names,
+// and a 收/支 (income/expense) column. We locate the header row, map columns by
+// their Chinese names, and normalize into ParsedTransaction. Files must be UTF-8
+// (WeChat exports UTF-8; for Alipay choose the UTF-8 / email export).
+
+export type ImportSource = 'bank' | 'alipay' | 'wechat';
+
+/** Route file content to the right parser based on the source the user picked. */
+export function parseStatement(content: string, source: ImportSource): ParsedTransaction[] {
+  if (source === 'alipay') return parseChineseBill(content, 'alipay');
+  if (source === 'wechat') return parseChineseBill(content, 'wechat');
+  return parseCSV(content);
+}
+
+function parseChineseBill(content: string, kind: 'alipay' | 'wechat'): ParsedTransaction[] {
+  const lines = content.split(/\r?\n/);
+
+  // The header row is the first line that names both a time and an amount column.
+  const headerIdx = lines.findIndex(
+    (l) => /交易(创建)?时间/.test(l) && /金额/.test(l),
+  );
+  if (headerIdx === -1) return [];
+
+  const headers = parseCSVLine(lines[headerIdx]).map((h) => h.trim());
+  const col = (...keys: string[]) => headers.findIndex((h) => keys.some((k) => h.includes(k)));
+
+  const dateI = col('交易创建时间', '交易时间', '付款时间');
+  const amtI = col('金额');
+  const typeI = col('收/支', '收支');
+  const descI = col('商品说明', '商品名称', '商品', '交易对方', '对方');
+
+  if (dateI === -1 || amtI === -1) return [];
+
+  const out: ParsedTransaction[] = [];
+  for (let i = headerIdx + 1; i < lines.length; i++) {
+    const raw = lines[i];
+    if (!raw || !raw.trim()) continue;
+    const v = parseCSVLine(raw).map((x) => x.trim());
+    if (v.length <= amtI) continue;
+
+    // 收/支: 收入 → Income, 支出 → Expense; skip neutral rows (不计收支, "/", 其他).
+    const flag = typeI >= 0 ? v[typeI] : '';
+    if (flag && !/收入|支出/.test(flag)) continue;
+    const type: 'Expense' | 'Income' = /收入/.test(flag) ? 'Income' : 'Expense';
+
+    const amount = Math.abs(parseAmount(v[amtI]));
+    if (!amount) continue;
+
+    const dateISO = parseDate(v[dateI]);
+    if (!dateISO) continue;
+
+    const description = (descI >= 0 ? v[descI] : '').trim() || (kind === 'alipay' ? '支付宝' : '微信支付');
+
+    out.push({
+      id: `${kind}_${Date.now()}_${i}`,
+      date: dateISO,
+      description,
+      amount,
+      type,
+      suggestedCategory: autoCategorize(description),
+      originalData: {},
+      isImpulse: detectImpulse(description, amount),
+    });
+  }
+  return out;
+}
+
 // Parse a CSV line handling quoted values
 function parseCSVLine(line: string): string[] {
   const values: string[] = [];
@@ -222,19 +293,29 @@ function parseCSVLine(line: string): string[] {
   return values;
 }
 
-// Parse amount string to number
+// Parse amount string to number. Handles $ £ € ¥ ￥ (CNY), the Chinese 元
+// suffix, thousands separators, a leading + sign, and (parentheses) negatives.
 function parseAmount(amountStr: string): number {
   if (!amountStr) return 0;
 
-  // Remove currency symbols, commas, and whitespace
-  const cleaned = amountStr.replace(/[$£€,\s]/g, '').trim();
+  const cleaned = amountStr
+    .replace(/[$£€¥￥元\s+]/g, '')
+    // French/Moroccan statements can use space as thousands sep + comma decimal.
+    .replace(/ /g, '')
+    .replace(/,(?=\d{3}\b)/g, '') // comma thousands sep
+    .replace(/,(\d{1,2})$/, '.$1') // comma decimal → dot
+    .trim();
 
-  // Handle parentheses for negative numbers
   if (cleaned.startsWith('(') && cleaned.endsWith(')')) {
     return -parseFloat(cleaned.slice(1, -1)) || 0;
   }
 
   return parseFloat(cleaned) || 0;
+}
+
+// Strip diacritics so French headers (Libellé, Débit, Crédit) match.
+function deaccent(s: string): string {
+  return s.normalize('NFD').replace(/[̀-ͯ]/g, '');
 }
 
 // Parse various date formats

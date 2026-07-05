@@ -28,12 +28,13 @@ import * as Haptics from 'expo-haptics';
 import Animated, { FadeInUp, FadeInDown } from 'react-native-reanimated';
 
 import {
-  parseCSV,
+  parseStatement,
   generateImportPreview,
   CATEGORIES,
   type ParsedTransaction,
   type ImportPreview,
   type Category,
+  type ImportSource,
 } from '@/lib/import-parser';
 import { addTransaction, getTransactions } from '@/lib/db';
 
@@ -51,7 +52,7 @@ export default function ImportScreen() {
   const [importing, setImporting] = useState(false);
   const [importedCount, setImportedCount] = useState(0);
 
-  const pickFile = useCallback(async () => {
+  const pickFile = useCallback(async (source: ImportSource = 'bank') => {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
@@ -117,13 +118,17 @@ export default function ImportScreen() {
         return;
       }
 
-      // Parse CSV
-      const parsedTransactions = parseCSV(content);
+      // Parse based on the chosen source (bank CSV, Alipay bill, WeChat bill).
+      const parsedTransactions = parseStatement(content, source);
 
       if (parsedTransactions.length === 0) {
         Alert.alert(
           'No Transactions Found',
-          'Could not parse any transactions from this file. Please ensure it\'s a valid CSV with date and amount columns.'
+          source === 'alipay' || source === 'wechat'
+            ? 'Could not read this bill. Make sure you exported it as a UTF-8 CSV from ' +
+              (source === 'alipay' ? 'Alipay (支付宝账单)' : 'WeChat Pay (微信账单)') +
+              ' — the Chinese column headers must be intact.'
+            : "Could not parse any transactions. Ensure it's a valid CSV with date and amount columns."
         );
         return;
       }
@@ -262,48 +267,34 @@ export default function ImportScreen() {
         {/* Upload Step */}
         {step === 'upload' && (
           <Animated.View entering={FadeInUp.delay(200).duration(400)} className="px-4 pt-6">
-            <Pressable onPress={pickFile} className="active:scale-98">
-              <View
-                className="rounded-3xl p-8 items-center border-2 border-dashed"
-                style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)', borderColor: 'rgba(59, 130, 246, 0.3)' }}
-              >
-                <View className="w-20 h-20 rounded-3xl bg-blue-500/20 items-center justify-center mb-4">
-                  <Upload size={36} color="#3b82f6" />
-                </View>
-                <Text className="text-white text-lg font-bold mb-2">Select CSV File</Text>
-                <Text className="text-gray-400 text-sm text-center mb-4">
-                  Upload a transaction export from your bank
-                </Text>
-                <View className="bg-blue-600 rounded-xl px-6 py-3">
-                  <Text className="text-white font-semibold">Browse Files</Text>
-                </View>
-              </View>
-            </Pressable>
-
-            {/* Instructions */}
-            <View className="mt-6">
-              <Text className="text-gray-400 text-xs font-semibold mb-3 ml-1">HOW TO EXPORT FROM YOUR BANK</Text>
-              <View className="gap-3">
-                {[
-                  'Log into your bank\'s website or app',
-                  'Go to Transactions or Account History',
-                  'Look for "Export" or "Download" option',
-                  'Select CSV format and date range',
-                  'Upload the downloaded file here',
-                ].map((instruction, idx) => (
+            <Text className="text-gray-400 text-xs font-semibold mb-3 ml-1">CHOOSE A SOURCE</Text>
+            <View className="gap-3">
+              {([
+                { source: 'bank' as ImportSource, emoji: '🏦', title: 'Bank statement', sub: 'CIH, Attijariwafa, or any bank — export a CSV', color: '#3b82f6' },
+                { source: 'alipay' as ImportSource, emoji: '💙', title: 'Alipay 支付宝', sub: 'Export your bill: Me → 账单 → export (UTF-8 CSV)', color: '#1677ff' },
+                { source: 'wechat' as ImportSource, emoji: '💚', title: 'WeChat Pay 微信', sub: 'Me → Wallet → 账单 → 下载账单 (emailed CSV)', color: '#22c55e' },
+              ]).map((s) => (
+                <Pressable key={s.source} onPress={() => pickFile(s.source)}>
                   <View
-                    key={idx}
-                    className="rounded-xl p-3 flex-row items-center"
-                    style={{ backgroundColor: 'rgba(255,255,255,0.05)' }}
+                    className="rounded-2xl p-4 flex-row items-center"
+                    style={{ backgroundColor: `${s.color}14`, borderWidth: 1, borderColor: `${s.color}33` }}
                   >
-                    <View className="w-6 h-6 rounded-full bg-blue-500/20 items-center justify-center mr-3">
-                      <Text className="text-blue-400 text-xs font-bold">{idx + 1}</Text>
+                    <View style={{ width: 48, height: 48, borderRadius: 16, backgroundColor: `${s.color}22`, alignItems: 'center', justifyContent: 'center', marginRight: 14 }}>
+                      <Text style={{ fontSize: 24 }}>{s.emoji}</Text>
                     </View>
-                    <Text className="text-gray-300 text-sm flex-1">{instruction}</Text>
+                    <View className="flex-1">
+                      <Text className="text-white font-bold" style={{ fontSize: 15 }}>{s.title}</Text>
+                      <Text className="text-gray-400 text-xs mt-0.5">{s.sub}</Text>
+                    </View>
+                    <Upload size={18} color={s.color} />
                   </View>
-                ))}
-              </View>
+                </Pressable>
+              ))}
             </View>
+
+            <Text className="text-gray-500 text-xs mt-4 ml-1 leading-4">
+              Alipay & WeChat Pay have no way to connect directly — this imports the bill you export from each app. For your bank, export a CSV statement from online banking.
+            </Text>
 
             {/* Supported Formats */}
             <View className="mt-6">
