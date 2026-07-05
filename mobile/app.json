@@ -52,7 +52,8 @@
           "photosPermission": "Allow Budget to access your photos.",
           "savePhotosPermission": "Allow Budget to save receipts to your photos."
         }
-      ]
+      ],
+      "./plugins/withFmtConstevalFix"
     ],
     "experiments": {
       "typedRoutes": true
