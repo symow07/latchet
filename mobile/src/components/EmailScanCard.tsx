@@ -11,7 +11,7 @@ import { getEmailStatus, type EmailStatus } from '@/lib/emailSubscriptionApi';
  * Entry card for the "inbox inside Budget" subscription finder. Tapping it opens
  * the guided forwarding setup + detected-invoice list (`/email-inbox`). Reused by
  * both the purple personal subscriptions screen and the navy business tools
- * screen, so it styles with the passed `accent` and plain Quicksand text.
+ * screen, so it styles with the passed `accent` and plain Plus Jakarta Sans text.
  */
 export function EmailScanCard({ accent = '#a855f7' }: { accent?: string }) {
   const router = useRouter();
@@ -51,12 +51,12 @@ export function EmailScanCard({ accent = '#a855f7' }: { accent?: string }) {
               {count > 0 ? <Inbox size={22} color={accent} /> : <Mail size={22} color={accent} />}
             </View>
             <View className="flex-1">
-              <Text style={{ color: '#f6f2ff', fontFamily: 'Quicksand_700Bold', fontSize: 15 }}>
+              <Text style={{ color: '#f6f2ff', fontFamily: 'PlusJakartaSans_700Bold', fontSize: 15 }}>
                 Find subscriptions in your email
               </Text>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 2 }}>
                 {verified && <CheckCircle2 size={12} color="#22c55e" />}
-                <Text style={{ color: '#9ca3af', fontFamily: 'Quicksand_500Medium', fontSize: 12, flex: 1 }} numberOfLines={1}>
+                <Text style={{ color: '#9ca3af', fontFamily: 'PlusJakartaSans_500Medium', fontSize: 12, flex: 1 }} numberOfLines={1}>
                   {subtitle}
                 </Text>
               </View>

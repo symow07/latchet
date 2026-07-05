@@ -18,11 +18,11 @@ import { useAccountTypeStore, type AccountTypeStore } from '@/lib/account-type-s
 import { registerForPushNotifications, scheduleStreakReminder } from '@/lib/notifications';
 import {
   useFonts,
-  Quicksand_400Regular,
-  Quicksand_500Medium,
-  Quicksand_600SemiBold,
-  Quicksand_700Bold,
-} from '@expo-google-fonts/quicksand';
+  PlusJakartaSans_400Regular,
+  PlusJakartaSans_500Medium,
+  PlusJakartaSans_600SemiBold,
+  PlusJakartaSans_700Bold,
+} from '@expo-google-fonts/plus-jakarta-sans';
 import { patchDefaultFont } from '@/lib/design';
 
 // Silence verbose console.log in release builds (startup/gate/api tracing stays
@@ -295,13 +295,13 @@ export default function RootLayout() {
   const [stage, setStage] = useState<string>('Booting…');
 
   const [fontsLoaded] = useFonts({
-    Quicksand_400Regular,
-    Quicksand_500Medium,
-    Quicksand_600SemiBold,
-    Quicksand_700Bold,
+    PlusJakartaSans_400Regular,
+    PlusJakartaSans_500Medium,
+    PlusJakartaSans_600SemiBold,
+    PlusJakartaSans_700Bold,
   });
 
-  // Once Quicksand is available, make it the app-wide default font.
+  // Once the font is available, make it the app-wide default font.
   useEffect(() => {
     if (fontsLoaded) patchDefaultFont();
   }, [fontsLoaded]);

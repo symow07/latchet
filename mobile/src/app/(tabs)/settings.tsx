@@ -65,7 +65,7 @@ function MoneyInput({ icon, color, label, hint, value, onChangeText, placeholder
             placeholder={placeholder}
             placeholderTextColor={C.textFaint}
             keyboardType="decimal-pad"
-            style={{ flex: 1, color: C.text, fontSize: 20, fontFamily: 'Quicksand_700Bold', padding: 0 }}
+            style={{ flex: 1, color: C.text, fontSize: 20, fontFamily: 'PlusJakartaSans_700Bold', padding: 0 }}
             selectionColor={color}
           />
           {suffix ? <Txt size={16} color={C.textFaint}>{suffix}</Txt> : null}

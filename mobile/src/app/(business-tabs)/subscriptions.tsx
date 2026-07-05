@@ -117,13 +117,13 @@ function AddSalaryModal({ visible, onClose, members, existingUserIds }: { visibl
             )}
 
             <FieldLabel>JOB TITLE (OPTIONAL)</FieldLabel>
-            <TextInput value={title} onChangeText={setTitle} placeholder="e.g. Software Engineer" placeholderTextColor={B.textFaint} style={{ color: B.text, fontSize: 15, fontFamily: 'Quicksand_500Medium', backgroundColor: B.glass, borderRadius: R.md, paddingHorizontal: 16, paddingVertical: 14, borderWidth: 1, borderColor: B.glassBorder, marginBottom: 14 }} selectionColor={B.accent} />
+            <TextInput value={title} onChangeText={setTitle} placeholder="e.g. Software Engineer" placeholderTextColor={B.textFaint} style={{ color: B.text, fontSize: 15, fontFamily: 'PlusJakartaSans_500Medium', backgroundColor: B.glass, borderRadius: R.md, paddingHorizontal: 16, paddingVertical: 14, borderWidth: 1, borderColor: B.glassBorder, marginBottom: 14 }} selectionColor={B.accent} />
 
             <FieldLabel>MONTHLY SALARY</FieldLabel>
             <GlassCard padding={0} radius={R.md} border={`${B.accent}33`} style={{ marginBottom: 22 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14 }}>
                 <Txt weight="bold" size={20} color={B.accent} style={{ marginRight: 8 }}>$</Txt>
-                <TextInput value={amount} onChangeText={v => { setAmount(v); setErr(''); }} placeholder="0.00" placeholderTextColor={B.textFaint} keyboardType="decimal-pad" style={{ flex: 1, color: B.text, fontSize: 24, fontFamily: 'Quicksand_700Bold', padding: 0 }} selectionColor={B.accent} />
+                <TextInput value={amount} onChangeText={v => { setAmount(v); setErr(''); }} placeholder="0.00" placeholderTextColor={B.textFaint} keyboardType="decimal-pad" style={{ flex: 1, color: B.text, fontSize: 24, fontFamily: 'PlusJakartaSans_700Bold', padding: 0 }} selectionColor={B.accent} />
               </View>
             </GlassCard>
 

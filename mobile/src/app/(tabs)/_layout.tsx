@@ -95,7 +95,7 @@ export default function TabLayout() {
         },
         tabBarLabelStyle: {
           fontSize: 11,
-          fontFamily: 'Quicksand_600SemiBold',
+          fontFamily: 'PlusJakartaSans_600SemiBold',
           marginTop: 2,
         },
       }}>

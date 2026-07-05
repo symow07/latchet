@@ -211,9 +211,9 @@ export default function HealthScoreScreen() {
             </Svg>
 
             {/* Score in center */}
-            <View className="absolute inset-0 items-center justify-center">
-              <Text className="text-white text-5xl font-bold">{displayScore}</Text>
-              <Text className="text-white/80 text-lg font-medium">Grade: {healthScore.grade}</Text>
+            <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={{ color: '#fff', fontSize: 52, fontWeight: '800', textAlign: 'center' }}>{displayScore}</Text>
+              <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 18, fontWeight: '500', textAlign: 'center', marginTop: 2 }}>Grade: {healthScore.grade}</Text>
             </View>
           </View>
 
@@ -238,6 +238,18 @@ export default function HealthScoreScreen() {
         contentContainerStyle={{ paddingBottom: 100 }}
         style={{ marginTop: -20 }}
       >
+        {/* Estimated-data notice — the score needs real history to be meaningful */}
+        {transactions.length < 5 && (
+          <View className="px-4 mb-4">
+            <View style={{ backgroundColor: 'rgba(251,191,36,0.1)', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: 'rgba(251,191,36,0.25)', flexDirection: 'row', gap: 10 }}>
+              <Text style={{ fontSize: 16 }}>ℹ️</Text>
+              <Text style={{ color: '#fcd34d', fontSize: 13, lineHeight: 19, flex: 1 }}>
+                This is an <Text style={{ fontWeight: '700' }}>estimate</Text> — you have {transactions.length} transaction{transactions.length === 1 ? '' : 's'} so far. Log a few weeks of spending and income for a score that actually reflects your habits.
+              </Text>
+            </View>
+          </View>
+        )}
+
         {/* Personality Card */}
         <Animated.View entering={FadeInUp.delay(200).duration(400)} className="px-4 mb-4">
           <View

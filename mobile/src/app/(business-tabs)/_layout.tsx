@@ -61,7 +61,7 @@ export default function BusinessTabLayout() {
           paddingBottom: 24,
           elevation: 0,
         },
-        tabBarLabelStyle: { fontSize: 10, fontFamily: 'Quicksand_600SemiBold', marginTop: 2 },
+        tabBarLabelStyle: { fontSize: 10, fontFamily: 'PlusJakartaSans_600SemiBold', marginTop: 2 },
       }}
     >
       <Tabs.Screen name="index" options={{ title: 'Dashboard', tabBarIcon: ({ color, focused }) => <TabIcon name="dashboard" color={color} focused={focused} /> }} />

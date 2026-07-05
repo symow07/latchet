@@ -2,7 +2,7 @@ import { Text as RNText } from 'react-native';
 
 /**
  * Shared design language for the "modern & clean bubbly" redesign.
- * Purple-forward, generous radii, frosted glass, Quicksand typography.
+ * Purple-forward, generous radii, frosted glass, Plus Jakarta Sans typography.
  */
 
 // ── Palette ──────────────────────────────────────────────────────────────────
@@ -75,12 +75,12 @@ export const B = {
   glassBorder: 'rgba(120,150,210,0.16)',
 };
 
-// ── Typography (Quicksand) ──────────────────────────────────────────────────
+// ── Typography (Plus Jakarta Sans) ──────────────────────────────────────────────────
 export const F = {
-  regular: 'Quicksand_400Regular',
-  medium: 'Quicksand_500Medium',
-  semibold: 'Quicksand_600SemiBold',
-  bold: 'Quicksand_700Bold',
+  regular: 'PlusJakartaSans_400Regular',
+  medium: 'PlusJakartaSans_500Medium',
+  semibold: 'PlusJakartaSans_600SemiBold',
+  bold: 'PlusJakartaSans_700Bold',
 };
 
 // ── Radii ────────────────────────────────────────────────────────────────────
@@ -104,7 +104,7 @@ export function glow(color: string = C.p500, opacity = 0.45, radius = 22) {
 }
 
 /**
- * Make every plain <Text> render in Quicksand by default so the whole app — even
+ * Make every plain <Text> render in Plus Jakarta Sans by default so the whole app — even
  * screens we don't individually restyle — inherits the new typography. Screens
  * that need specific weights use the <Txt> component or an explicit fontFamily.
  * Called once at startup after the fonts are loaded.

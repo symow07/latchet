@@ -173,7 +173,7 @@ export default function AddTransactionScreen() {
                   placeholder="0.00"
                   placeholderTextColor="rgba(255,255,255,0.35)"
                   keyboardType="decimal-pad"
-                  style={{ flex: 1, marginLeft: 8, fontSize: 52, fontFamily: 'Quicksand_700Bold', color: '#fff', padding: 0 }}
+                  style={{ flex: 1, marginLeft: 8, fontSize: 52, fontFamily: 'PlusJakartaSans_700Bold', color: '#fff', padding: 0 }}
                   selectionColor={C.p300}
                 />
               </View>
@@ -319,7 +319,7 @@ export default function AddTransactionScreen() {
             placeholderTextColor={C.textFaint}
             multiline
             numberOfLines={3}
-            style={{ color: C.text, borderRadius: R.md, padding: 16, fontSize: 15, fontFamily: 'Quicksand_500Medium', minHeight: 88, textAlignVertical: 'top', backgroundColor: C.glass, borderWidth: 1, borderColor: C.glassBorder }}
+            style={{ color: C.text, borderRadius: R.md, padding: 16, fontSize: 15, fontFamily: 'PlusJakartaSans_500Medium', minHeight: 88, textAlignVertical: 'top', backgroundColor: C.glass, borderWidth: 1, borderColor: C.glassBorder }}
             selectionColor={C.p500}
           />
         </View>

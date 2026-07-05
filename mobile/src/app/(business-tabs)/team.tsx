@@ -98,7 +98,7 @@ function JoinModal({ visible, onClose, onJoined }: { visible: boolean; onClose: 
             <Txt size={13} color={B.red} style={{ textAlign: 'center' }}>{err}</Txt>
           </GlassCard>
         )}
-        <TextInput value={code} onChangeText={t => { setCode(t.toUpperCase()); setErr(''); }} placeholder="ABC123" placeholderTextColor={B.textFaint} autoCapitalize="characters" maxLength={6} style={{ backgroundColor: B.glass, borderRadius: R.md, paddingHorizontal: 16, paddingVertical: 16, color: B.accent, fontSize: 28, fontFamily: 'Quicksand_700Bold', letterSpacing: 10, textAlign: 'center', borderWidth: 1, borderColor: `${B.accent}33`, marginBottom: 20 }} selectionColor={B.accent} />
+        <TextInput value={code} onChangeText={t => { setCode(t.toUpperCase()); setErr(''); }} placeholder="ABC123" placeholderTextColor={B.textFaint} autoCapitalize="characters" maxLength={6} style={{ backgroundColor: B.glass, borderRadius: R.md, paddingHorizontal: 16, paddingVertical: 16, color: B.accent, fontSize: 28, fontFamily: 'PlusJakartaSans_700Bold', letterSpacing: 10, textAlign: 'center', borderWidth: 1, borderColor: `${B.accent}33`, marginBottom: 20 }} selectionColor={B.accent} />
         <BubbleButton label={joinMut.isPending ? 'Joining…' : 'Join Business'} onPress={() => joinMut.mutate()} disabled={joinMut.isPending} radius={R.md} colors={[B.accentDeep, B.accent]} glowColor={B.accent} />
       </View>
     </Modal>

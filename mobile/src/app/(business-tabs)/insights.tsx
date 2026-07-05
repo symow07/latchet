@@ -90,7 +90,7 @@ function EditBudgetModal({ visible, onClose, currentData }: { visible: boolean; 
             <GlassCard padding={0} radius={R.md} border={`${B.accent}33`} style={{ marginBottom: 22 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14 }}>
                 <Txt weight="bold" size={20} color={B.accent} style={{ marginRight: 8 }}>$</Txt>
-                <TextInput value={total} onChangeText={setTotal} placeholder="0" placeholderTextColor={B.textFaint} keyboardType="decimal-pad" style={{ flex: 1, color: B.text, fontSize: 24, fontFamily: 'Quicksand_700Bold', padding: 0 }} selectionColor={B.accent} />
+                <TextInput value={total} onChangeText={setTotal} placeholder="0" placeholderTextColor={B.textFaint} keyboardType="decimal-pad" style={{ flex: 1, color: B.text, fontSize: 24, fontFamily: 'PlusJakartaSans_700Bold', padding: 0 }} selectionColor={B.accent} />
               </View>
             </GlassCard>
 
@@ -105,7 +105,7 @@ function EditBudgetModal({ visible, onClose, currentData }: { visible: boolean; 
                       <Txt size={14} color={B.textDim} style={{ flex: 1 }}>{cat.label}</Txt>
                       <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: B.glass, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 7, borderWidth: 1, borderColor: B.glassBorder, minWidth: 90 }}>
                         <Txt size={14} color={B.textFaint} style={{ marginRight: 4 }}>$</Txt>
-                        <TextInput value={catVals[cat.key] ?? ''} onChangeText={v => setCatVals(prev => ({ ...prev, [cat.key]: v }))} placeholder="—" placeholderTextColor={B.textFaint} keyboardType="decimal-pad" style={{ color: B.text, fontSize: 15, fontFamily: 'Quicksand_600SemiBold', minWidth: 55, padding: 0 }} selectionColor={cat.color} />
+                        <TextInput value={catVals[cat.key] ?? ''} onChangeText={v => setCatVals(prev => ({ ...prev, [cat.key]: v }))} placeholder="—" placeholderTextColor={B.textFaint} keyboardType="decimal-pad" style={{ color: B.text, fontSize: 15, fontFamily: 'PlusJakartaSans_600SemiBold', minWidth: 55, padding: 0 }} selectionColor={cat.color} />
                       </View>
                     </View>
                   </GlassCard>

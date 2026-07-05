@@ -115,7 +115,7 @@ function SubmitModal({ visible, onClose, onDone }: { visible: boolean; onClose: 
             <GlassCard padding={0} radius={R.md} style={{ marginBottom: 14 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14 }}>
                 <Txt weight="bold" size={20} color={B.accent} style={{ marginRight: 8 }}>$</Txt>
-                <TextInput value={amount} onChangeText={t => { setAmount(t); setErr(''); }} placeholder="0.00" placeholderTextColor={B.textFaint} keyboardType="decimal-pad" style={{ flex: 1, color: B.text, fontSize: 24, fontFamily: 'Quicksand_700Bold', padding: 0 }} selectionColor={B.accent} />
+                <TextInput value={amount} onChangeText={t => { setAmount(t); setErr(''); }} placeholder="0.00" placeholderTextColor={B.textFaint} keyboardType="decimal-pad" style={{ flex: 1, color: B.text, fontSize: 24, fontFamily: 'PlusJakartaSans_700Bold', padding: 0 }} selectionColor={B.accent} />
               </View>
             </GlassCard>
 
@@ -145,7 +145,7 @@ function SubmitModal({ visible, onClose, onDone }: { visible: boolean; onClose: 
             )}
 
             <FieldLabel>DESCRIPTION</FieldLabel>
-            <TextInput value={desc} onChangeText={t => { setDesc(t); setErr(''); }} placeholder="What was this for?" placeholderTextColor={B.textFaint} multiline numberOfLines={3} style={{ color: B.text, fontSize: 15, fontFamily: 'Quicksand_500Medium', backgroundColor: B.glass, borderRadius: R.md, padding: 14, borderWidth: 1, borderColor: B.glassBorder, textAlignVertical: 'top', minHeight: 80, marginBottom: 14 }} selectionColor={B.accent} />
+            <TextInput value={desc} onChangeText={t => { setDesc(t); setErr(''); }} placeholder="What was this for?" placeholderTextColor={B.textFaint} multiline numberOfLines={3} style={{ color: B.text, fontSize: 15, fontFamily: 'PlusJakartaSans_500Medium', backgroundColor: B.glass, borderRadius: R.md, padding: 14, borderWidth: 1, borderColor: B.glassBorder, textAlignVertical: 'top', minHeight: 80, marginBottom: 14 }} selectionColor={B.accent} />
 
             <FieldLabel>RECEIPT (OPTIONAL)</FieldLabel>
             {imageUri ? (

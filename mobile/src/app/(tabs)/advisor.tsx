@@ -230,7 +230,7 @@ export default function AdvisorTab() {
                 placeholderTextColor={C.textFaint}
                 multiline
                 maxLength={500}
-                style={{ color: C.text, fontSize: 15, fontFamily: 'Quicksand_500Medium', maxHeight: 100 }}
+                style={{ color: C.text, fontSize: 15, fontFamily: 'PlusJakartaSans_500Medium', maxHeight: 100 }}
                 editable={!sendMessageMutation.isPending}
                 onSubmitEditing={handleSend}
                 returnKeyType="send"
