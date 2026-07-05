@@ -9,25 +9,42 @@
     "newArchEnabled": false,
     "ios": {
       "bundleIdentifier": "com.realbudget.app",
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "com.realbudget.app",
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.USE_FINGERPRINT",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ]
     },
     "plugins": [
       "expo-router",
       [
         "expo-camera",
-        { "cameraPermission": "Allow Budget to use the camera to scan receipts." }
+        {
+          "cameraPermission": "Allow Budget to use the camera to scan receipts."
+        }
       ],
       [
         "expo-image-picker",
-        { "photosPermission": "Allow Budget to access your photos to attach receipts to expenses." }
+        {
+          "photosPermission": "Allow Budget to access your photos to attach receipts to expenses."
+        }
       ],
       [
         "expo-local-authentication",
-        { "faceIDPermission": "Allow Budget to use Face ID to unlock the app." }
+        {
+          "faceIDPermission": "Allow Budget to use Face ID to unlock the app."
+        }
       ],
       [
         "expo-media-library",
@@ -40,6 +57,13 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "97dd0e8e-7c1e-4253-818c-703d222403b8"
+      }
+    },
+    "owner": "symow"
   }
 }
