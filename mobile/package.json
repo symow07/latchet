@@ -9,7 +9,8 @@
     "web": "DARK_MODE=class expo start --web",
     "lint": "expo lint",
     "typecheck": "tsc --noEmit",
-    "test": "bun test src"
+    "test": "bun test src",
+    "test:tz": "TZ=Asia/Shanghai bun test src && TZ=America/Los_Angeles bun test src && TZ=UTC bun test src"
   },
   "dependencies": {
     "@babel/plugin-proposal-export-namespace-from": "^7.18.9",

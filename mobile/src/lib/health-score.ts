@@ -1,3 +1,11 @@
+import {
+  isInCurrentMonth,
+  isWithinLastDays,
+  daysAgoISO,
+  dayOfMonth,
+  daysInMonth,
+  isBetween,
+} from './dates';
 /**
  * Financial Health Score System
  * Calculates a dynamic score (0-100) based on multiple financial factors
@@ -59,14 +67,7 @@ function calculateSavingsRateScore(
   transactions: Transaction[],
   settings: Settings
 ): { score: number; value: number } {
-  const now = new Date();
-  const currentMonth = now.getMonth();
-  const currentYear = now.getFullYear();
-
-  const monthlyTransactions = transactions.filter(tx => {
-    const txDate = new Date(tx.dateISO);
-    return txDate.getMonth() === currentMonth && txDate.getFullYear() === currentYear;
-  });
+  const monthlyTransactions = transactions.filter(tx => isInCurrentMonth(tx.dateISO));
 
   const monthlyIncome = monthlyTransactions
     .filter(tx => tx.type === 'Income')
@@ -99,23 +100,12 @@ function calculateBudgetDisciplineScore(
     return { score: 12, value: 50 }; // Neutral if no budget set
   }
 
-  const now = new Date();
-  const currentMonth = now.getMonth();
-  const currentYear = now.getFullYear();
-
   const monthlyExpenses = transactions
-    .filter(tx => {
-      const txDate = new Date(tx.dateISO);
-      return tx.type === 'Expense' &&
-        txDate.getMonth() === currentMonth &&
-        txDate.getFullYear() === currentYear;
-    })
+    .filter(tx => tx.type === 'Expense' && isInCurrentMonth(tx.dateISO))
     .reduce((sum, tx) => sum + tx.amount, 0);
 
   const budgetUsedPercent = (monthlyExpenses / settings.monthlyBudget) * 100;
-  const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-  const dayOfMonth = now.getDate();
-  const expectedUsage = (dayOfMonth / daysInMonth) * 100;
+  const expectedUsage = (dayOfMonth() / daysInMonth()) * 100;
 
   // Calculate how well they're tracking to budget
   const discipline = Math.max(0, 100 - Math.abs(budgetUsedPercent - expectedUsage));
@@ -134,14 +124,11 @@ function calculateBudgetDisciplineScore(
 function calculateSpendingConsistencyScore(
   transactions: Transaction[]
 ): { score: number; value: number } {
-  const now = new Date();
   const last30Days: number[] = [];
 
   // Get daily spending for last 30 days
   for (let i = 0; i < 30; i++) {
-    const date = new Date(now);
-    date.setDate(date.getDate() - i);
-    const dateStr = date.toISOString().split('T')[0];
+    const dateStr = daysAgoISO(i);
 
     const daySpending = transactions
       .filter(tx => tx.dateISO === dateStr && tx.type === 'Expense')
@@ -183,14 +170,7 @@ function calculateGoalProgressScore(
     return { score: 8, value: 50 }; // Neutral if no goal set
   }
 
-  const now = new Date();
-  const currentMonth = now.getMonth();
-  const currentYear = now.getFullYear();
-
-  const monthlyTransactions = transactions.filter(tx => {
-    const txDate = new Date(tx.dateISO);
-    return txDate.getMonth() === currentMonth && txDate.getFullYear() === currentYear;
-  });
+  const monthlyTransactions = transactions.filter(tx => isInCurrentMonth(tx.dateISO));
 
   const monthlyIncome = monthlyTransactions
     .filter(tx => tx.type === 'Income')
@@ -217,14 +197,9 @@ function calculateGoalProgressScore(
 function calculateImpulseControlScore(
   transactions: Transaction[]
 ): { score: number; value: number } {
-  const now = new Date();
-  const thirtyDaysAgo = new Date(now);
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-  const recentTransactions = transactions.filter(tx => {
-    const txDate = new Date(tx.dateISO);
-    return tx.type === 'Expense' && txDate >= thirtyDaysAgo;
-  });
+  const recentTransactions = transactions.filter(
+    tx => tx.type === 'Expense' && isWithinLastDays(tx.dateISO, 30)
+  );
 
   if (recentTransactions.length === 0) {
     return { score: 8, value: 50 }; // Neutral if no data
@@ -249,21 +224,14 @@ function calculateTrend(
   transactions: Transaction[],
   settings: Settings
 ): { trend: 'up' | 'down' | 'stable'; trendValue: number } {
-  const now = new Date();
-  const oneWeekAgo = new Date(now);
-  oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-  const twoWeeksAgo = new Date(now);
-  twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
+  const oneWeekAgo = daysAgoISO(6);
+  const twoWeeksAgo = daysAgoISO(13);
 
-  const thisWeekTx = transactions.filter(tx => {
-    const txDate = new Date(tx.dateISO);
-    return txDate >= oneWeekAgo;
-  });
+  const thisWeekTx = transactions.filter(tx => tx.dateISO >= oneWeekAgo);
 
-  const lastWeekTx = transactions.filter(tx => {
-    const txDate = new Date(tx.dateISO);
-    return txDate >= twoWeeksAgo && txDate < oneWeekAgo;
-  });
+  const lastWeekTx = transactions.filter(tx =>
+    isBetween(tx.dateISO, twoWeeksAgo, daysAgoISO(7))
+  );
 
   const thisWeekSpending = thisWeekTx
     .filter(tx => tx.type === 'Expense')

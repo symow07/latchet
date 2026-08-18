@@ -1,4 +1,5 @@
 import { differenceInDays, addDays, addMonths, addWeeks, addYears } from 'date-fns';
+import { todayISO, daysAheadISO, isBetween } from './dates';
 import {
   getTransactions,
   getSubscriptions,
@@ -225,14 +226,15 @@ export function getUpcomingCharges(
   subscriptions: Subscription[],
   withinDays: number = 30
 ): Subscription[] {
-  const today = new Date();
-  const cutoff = addDays(today, withinDays);
+  // Compare as YYYY-MM-DD strings. Parsing nextExpectedAt with `new Date()`
+  // gives UTC midnight while `new Date()` for today carries the local wall
+  // clock, so east of UTC a charge due *today* tested as already past and
+  // vanished from the list part-way through the morning.
+  const today = todayISO();
+  const cutoff = daysAheadISO(withinDays);
   return subscriptions
     .filter(s => s.status !== 'canceled' && s.nextExpectedAt)
-    .filter(s => {
-      const next = new Date(s.nextExpectedAt!);
-      return next >= today && next <= cutoff;
-    })
+    .filter(s => isBetween(s.nextExpectedAt!.slice(0, 10), today, cutoff))
     .sort((a, b) => (a.nextExpectedAt ?? '').localeCompare(b.nextExpectedAt ?? ''));
 }
 
