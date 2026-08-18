@@ -7,6 +7,7 @@ import { env } from "../env";
 import { encryptSecret, decryptSecret } from "../lib/crypto";
 import { mapAccountType, mapCategory } from "../lib/plaid-mappers";
 import { verifyPlaidWebhook, type PlaidJwk } from "../lib/plaid-webhook";
+import { countryCodesForCurrency, parseEnabledCountries } from "../lib/plaid-countries";
 
 /**
  * Real bank linking via Plaid (replaces the former simulated mock). Uses the
@@ -162,13 +163,25 @@ router.use("*", async (c, next) => {
 
 router.post("/link-token", async (c) => {
   const user = c.get("user")!;
+  // Show the institutions of the country the user actually banks in, bounded
+  // by what this Plaid account is enabled for. Hardcoding ["US"] meant every
+  // non-US user was offered US banks only.
+  const settings = await prisma.userSettings.findUnique({
+    where: { userId: user.id },
+    select: { currency: true },
+  });
+  const countryCodes = countryCodesForCurrency(
+    settings?.currency,
+    parseEnabledCountries(env.PLAID_COUNTRY_CODES)
+  );
+
   const data = await plaid<{ link_token: string; expiration: string; hosted_link_url?: string }>(
     "/link/token/create",
     {
       user: { client_user_id: user.id },
       client_name: "Real Budget",
       products: ["transactions"],
-      country_codes: ["US"],
+      country_codes: countryCodes,
       language: "en",
       webhook: `${env.BACKEND_URL}/api/plaid/webhook`,
       // Hosted Link lets the app open bank login in a browser (expo-web-browser)
@@ -317,29 +330,70 @@ async function refreshItemAccounts(itemRowId: string): Promise<void> {
   }>("/accounts/get", { access_token: decryptSecret(item.accessTokenEnc) });
 
   for (const a of data.accounts) {
+    const type = mapAccountType(a.type, a.subtype);
+    const balance = a.balances.current ?? 0;
+    const currency = a.balances.iso_currency_code ?? "USD";
+
+    const existing = await prisma.plaidAccount.findUnique({
+      where: { plaidAccountId: a.account_id },
+      select: { bankAccountId: true },
+    });
+
+    // Mirror into a local BankAccount so synced transactions have somewhere to
+    // land. Deterministic id keeps this idempotent across re-syncs.
+    const bankAccountId = existing?.bankAccountId ?? `acc_plaid_${a.account_id}`;
+    await prisma.bankAccount.upsert({
+      where: { id: bankAccountId },
+      create: {
+        id: bankAccountId,
+        userId: item.userId,
+        name: a.mask ? `${a.name} ••${a.mask}` : a.name,
+        type,
+        balance,
+        currency,
+      },
+      update: {
+        name: a.mask ? `${a.name} ••${a.mask}` : a.name,
+        type,
+        // Plaid is authoritative for a linked account's balance.
+        balance,
+        currency,
+      },
+    });
+
     await prisma.plaidAccount.upsert({
       where: { plaidAccountId: a.account_id },
       create: {
         itemId: item.id,
         plaidAccountId: a.account_id,
         name: a.name,
-        type: mapAccountType(a.type, a.subtype),
+        type,
         mask: a.mask,
-        balance: a.balances.current ?? 0,
-        currency: a.balances.iso_currency_code ?? "USD",
+        balance,
+        currency,
+        bankAccountId,
       },
       update: {
         name: a.name,
-        balance: a.balances.current ?? 0,
-        currency: a.balances.iso_currency_code ?? "USD",
+        balance,
+        currency,
+        bankAccountId,
       },
     });
   }
 }
 
 /**
- * Incrementally pull transactions for an Item via /transactions/sync and upsert
- * them into the user's Transactions. Returns the number of added transactions.
+ * Upper bound on /transactions/sync pages per run. Plaid returns up to 500
+ * transactions per page, so this covers 50,000 in one pass; anything larger
+ * resumes on the next run from the saved cursor rather than holding the single
+ * SQLite writer open indefinitely.
+ */
+const MAX_SYNC_PAGES = 100;
+
+/**
+ * Incrementally pull transactions for an Item via /transactions/sync and apply
+ * them to the user's Transactions. Returns the number of added transactions.
  */
 async function syncItemTransactions(itemRowId: string): Promise<number> {
   const item = await prisma.plaidItem.findUnique({ where: { id: itemRowId } });
@@ -353,40 +407,87 @@ async function syncItemTransactions(itemRowId: string): Promise<number> {
     )
   );
 
+  // Which local BankAccount each Plaid account maps to, so synced rows carry
+  // an accountId and actually move a balance.
+  const bankAccountByPlaidId = new Map(
+    (
+      await prisma.plaidAccount.findMany({
+        where: { itemId: item.id },
+        select: { plaidAccountId: true, bankAccountId: true },
+      })
+    ).map((a) => [a.plaidAccountId, a.bankAccountId])
+  );
+
+  const fields = (t: any) => ({
+    accountId: bankAccountByPlaidId.get(t.account_id) ?? null,
+    amount: Math.abs(t.amount),
+    category: mapCategory(t.category),
+    // Plaid: positive amount = money out (expense), negative = money in.
+    type: t.amount >= 0 ? "Expense" : "Income",
+    note: t.name ?? t.merchant_name ?? "",
+    dateISO: t.date,
+    currency: t.iso_currency_code ?? "USD",
+  });
+
   let cursor = item.cursor ?? undefined;
   let added = 0;
   let hasMore = true;
+  let pages = 0;
 
-  while (hasMore) {
+  while (hasMore && pages < MAX_SYNC_PAGES) {
     const page = await plaid<{
       added: Array<any>;
+      modified: Array<any>;
+      removed: Array<{ transaction_id: string }>;
       next_cursor: string;
       has_more: boolean;
     }>("/transactions/sync", { access_token: accessToken, cursor });
+    pages++;
 
-    for (const t of page.added) {
+    for (const t of page.added ?? []) {
       if (disabled.has(t.account_id)) continue;
-      // Plaid: positive amount = money out (expense), negative = money in.
-      const isExpense = t.amount >= 0;
       await prisma.transaction.upsert({
         where: { id: `plaid_${t.transaction_id}` },
-        create: {
-          id: `plaid_${t.transaction_id}`,
-          userId: item.userId,
-          amount: Math.abs(t.amount),
-          category: mapCategory(t.category),
-          type: isExpense ? "Expense" : "Income",
-          note: t.name ?? t.merchant_name ?? "",
-          dateISO: t.date,
-          currency: t.iso_currency_code ?? "USD",
-        },
+        create: { id: `plaid_${t.transaction_id}`, userId: item.userId, ...fields(t) },
         update: {},
       });
       added++;
     }
 
+    // Pending charges post at a different amount, get recategorised, or shift
+    // date. Ignoring these left the local copy frozen at the pending values and
+    // the balance permanently wrong.
+    for (const t of page.modified ?? []) {
+      if (disabled.has(t.account_id)) continue;
+      await prisma.transaction
+        .update({
+          where: { id: `plaid_${t.transaction_id}` },
+          data: fields(t),
+        })
+        // A modification for a row we never stored (disabled at the time, or
+        // synced before this code existed) is not an error.
+        .catch(() => {});
+    }
+
+    // Cancelled or reversed transactions. Leaving them behind meant the user's
+    // balance never recovered from a charge that never happened.
+    const removedIds = (page.removed ?? []).map((r) => `plaid_${r.transaction_id}`);
+    if (removedIds.length > 0) {
+      await prisma.transaction.deleteMany({
+        where: { id: { in: removedIds }, userId: item.userId },
+      });
+    }
+
     cursor = page.next_cursor;
     hasMore = page.has_more;
+  }
+
+  if (hasMore) {
+    // Stop rather than hold the single SQLite writer for an unbounded run. The
+    // cursor is saved, so the next sync picks up exactly where this left off.
+    console.warn(
+      `[plaid:sync] item ${item.id} hit the ${MAX_SYNC_PAGES}-page cap; resuming next run`
+    );
   }
 
   await prisma.plaidItem.update({

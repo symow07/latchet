@@ -24,6 +24,11 @@ const envSchema = z.object({
   PLAID_CLIENT_ID: z.string().optional(),
   PLAID_SECRET: z.string().optional(),
   PLAID_ENV: z.enum(["sandbox", "development", "production"]).optional().default("sandbox"),
+  // Countries this Plaid account is actually enabled for, comma-separated ISO
+  // codes (e.g. "US,CA,GB,FR"). The Link flow narrows this by the user's own
+  // currency; requesting a country the account is not enabled for errors, so
+  // this is the operator's declaration of what is available.
+  PLAID_COUNTRY_CODES: z.string().optional().default("US"),
   // Google OAuth credentials for the Gmail-based subscription scanner
   // (routes/email.ts). Optional so the backend boots without them; the email
   // routes return 503 until they are set.

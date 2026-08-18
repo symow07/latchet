@@ -256,6 +256,10 @@ model PlaidAccount {
   balance       Float     @default(0)
   currency      String    @default("USD")
   isEnabled     Boolean   @default(true)
+  // The local BankAccount this Plaid account is mirrored into. Bank-synced
+  // transactions are booked against it, so they affect a balance and can be
+  // filtered by account like any hand-entered row.
+  bankAccountId String?
   updatedAt     DateTime  @updatedAt
 }
 
