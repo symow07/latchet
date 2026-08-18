@@ -9,6 +9,7 @@ import {
   calculateBalance,
   calculateAverageDailySpend,
   calculateSurvivalDays,
+  hasEnoughHistory,
   calculateImpulsePercentage,
   calculateDisciplineGrade,
   getDailySpendingData,
@@ -97,7 +98,12 @@ export default function DashboardScreen() {
   const monthSpent = calculateMonthSpent(transactions);
   const balance = calculateBalance(settings?.startingBalance ?? 0, transactions);
   const avgDailySpend = calculateAverageDailySpend(transactions);
-  const survivalDays = calculateSurvivalDays(balance, avgDailySpend);
+  // Below a week of history one purchase dominates the average, so the runway
+  // figure would be noise dressed up as a number.
+  const enoughHistory = hasEnoughHistory(transactions);
+  const survivalDays = enoughHistory
+    ? calculateSurvivalDays(balance, avgDailySpend)
+    : null;
   const impulsePercent = calculateImpulsePercentage(transactions);
   const disciplineGrade = calculateDisciplineGrade(settings?.monthlyBudget ?? 0, monthSpent);
   const dailyData = getDailySpendingData(transactions);
@@ -211,8 +217,12 @@ export default function DashboardScreen() {
                     <Calendar size={19} color="#fff" />
                   </IconBubble>
                   <View>
-                    <Txt size={11} color="rgba(255,255,255,0.65)">Survival</Txt>
-                    <Txt weight="bold" size={19} color="#fff">{survivalDays === 999 ? '∞' : survivalDays} days</Txt>
+                    <Txt size={11} color="rgba(255,255,255,0.65)">
+                      {enoughHistory ? 'Survival' : 'Survival (need a week)'}
+                    </Txt>
+                    <Txt weight="bold" size={19} color="#fff">
+                      {survivalDays === null ? '—' : `${survivalDays} days`}
+                    </Txt>
                   </View>
                 </View>
                 <View className="items-end">

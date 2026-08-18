@@ -1,6 +1,7 @@
 import { format, subMonths, startOfMonth, endOfMonth, subDays, addMonths } from 'date-fns';
 import { calculateHealthScore, getPersonalityDescription, type HealthScoreResult } from './health-score';
 import { api } from './api/api';
+import { hasEnoughHistory, projectMonthlyExpenses } from './calculations';
 
 export interface Transaction {
   id: string;
@@ -48,7 +49,8 @@ export interface SpendingAnalysis {
   underspendingCategories: string[];
   spendingSpikes: { date: string; amount: number; category: string }[];
   averageDailySpend: number;
-  projectedMonthEndBalance: number;
+  /** null until there is enough history to extrapolate from. */
+  projectedMonthEndBalance: number | null;
   impulseSpendingTotal: number;
   impulsePercentage: number;
   savingsRate: number;
@@ -62,9 +64,11 @@ export interface SpendingAnalysis {
   healthScore: HealthScoreResult;
   savingsForecast: SavingsForecast[];
   categoryBudgetSuggestions: CategoryBudgetSuggestion[];
+  /** True once the data supports extrapolation (see MIN_HISTORY_DAYS). */
+  hasEnoughHistory: boolean;
   longTermProjection: {
-    sixMonthBalance: number;
-    oneYearBalance: number;
+    sixMonthBalance: number | null;
+    oneYearBalance: number | null;
     savingsGoalReachDate: string | null;
   };
 }
@@ -201,7 +205,17 @@ export function analyzeSpending(
     return tx.type === 'Income' ? bal + tx.amount : bal - tx.amount;
   }, Number(settings.startingBalance) || 0);
 
-  const projectedMonthEndBalance = currentBalance - projectedAdditionalSpending;
+  // A month-end figure needs a credible daily rate behind it.
+  const enoughHistory = hasEnoughHistory(transactions);
+
+  // Income was ignored entirely, so a user paid mid-month saw a projection
+  // that assumed their salary would simply never arrive.
+  const expectedRemainingIncome =
+    monthlyIncomeSafe > 0 ? Math.max(0, monthlyIncomeSafe - currentMonthIncome) : 0;
+
+  const projectedMonthEndBalance = enoughHistory
+    ? currentBalance - projectedAdditionalSpending + expectedRemainingIncome
+    : null;
 
   // Top expense categories
   const sortedCategories = Object.entries(currentMonthByCategory)
@@ -262,20 +276,47 @@ export function analyzeSpending(
   const healthScore = calculateHealthScore(transactions, settings);
 
   // Generate savings forecast (6 months)
-  const safeDayOfMonth = Math.max(1, dayOfMonth); // Prevent division by zero
-  const monthlyNetSavings = (monthlyIncomeSafe || currentMonthIncome) - (currentMonthExpenses / safeDayOfMonth * 30);
-  const savingsForecast: SavingsForecast[] = [];
-  let runningBalance = currentBalance;
+  //
+  // The old formula was currentMonthExpenses / dayOfMonth * 30. On the 1st that
+  // turns a single $200 purchase into $6,000/month, and every downstream number
+  // — the 6-month forecast, the 1-year balance, the text handed to the advisor —
+  // described a crisis that did not exist.
+  //
+  // Now: extrapolate only with enough history, divide by days actually elapsed,
+  // and lean on last month's actuals until the current month has filled out.
+  const safeDayOfMonth = Math.max(1, dayOfMonth);
+  const previousMonthExpenses = previousMonthTxs
+    .filter(tx => tx.type === 'Expense')
+    .reduce((sum, tx) => sum + tx.amount, 0);
 
-  for (let i = 1; i <= 6; i++) {
-    const forecastMonth = addMonths(today, i);
-    runningBalance += monthlyNetSavings;
-    savingsForecast.push({
-      month: format(forecastMonth, 'MMM yyyy'),
-      projectedSavings: monthlyNetSavings,
-      projectedBalance: runningBalance,
-      confidence: i <= 2 ? 'high' : i <= 4 ? 'medium' : 'low',
+  let monthlyNetSavings: number | null = null;
+  if (enoughHistory) {
+    const projectedMonthlyExpenses = projectMonthlyExpenses({
+      currentMonthExpenses,
+      dayOfMonth: safeDayOfMonth,
+      daysInMonth,
+      previousMonthExpenses,
     });
+    monthlyNetSavings =
+      (monthlyIncomeSafe || currentMonthIncome) - projectedMonthlyExpenses;
+  }
+
+  const savingsForecast: SavingsForecast[] = [];
+  if (monthlyNetSavings !== null) {
+    let runningBalance = currentBalance;
+    for (let i = 1; i <= 6; i++) {
+      const forecastMonth = addMonths(today, i);
+      runningBalance += monthlyNetSavings;
+      savingsForecast.push({
+        month: format(forecastMonth, 'MMM yyyy'),
+        projectedSavings: monthlyNetSavings,
+        projectedBalance: runningBalance,
+        // Early in the month the current-month component is still thin, so cap
+        // confidence rather than claiming "high" on three days of data.
+        confidence:
+          safeDayOfMonth < 14 ? (i <= 2 ? 'medium' : 'low') : i <= 2 ? 'high' : i <= 4 ? 'medium' : 'low',
+      });
+    }
   }
 
   // Generate category budget suggestions
@@ -304,12 +345,14 @@ export function analyzeSpending(
   }).filter(s => s.potentialSavings > 0);
 
   // Long term projections
-  const sixMonthBalance = currentBalance + (monthlyNetSavings * 6);
-  const oneYearBalance = currentBalance + (monthlyNetSavings * 12);
+  const sixMonthBalance =
+    monthlyNetSavings !== null ? currentBalance + monthlyNetSavings * 6 : null;
+  const oneYearBalance =
+    monthlyNetSavings !== null ? currentBalance + monthlyNetSavings * 12 : null;
 
   let savingsGoalReachDate: string | null = null;
   const savingsGoalSafe = Number(settings.savingsGoal) || 0;
-  if (savingsGoalSafe > 0 && monthlyNetSavings > 0) {
+  if (savingsGoalSafe > 0 && monthlyNetSavings !== null && monthlyNetSavings > 0) {
     const monthsToGoal = Math.ceil(savingsGoalSafe / monthlyNetSavings);
     if (monthsToGoal <= 24) {
       savingsGoalReachDate = format(addMonths(today, monthsToGoal), 'MMMM yyyy');
@@ -324,6 +367,7 @@ export function analyzeSpending(
     spendingSpikes,
     averageDailySpend: avgDaily,
     projectedMonthEndBalance,
+    hasEnoughHistory: enoughHistory,
     impulseSpendingTotal,
     impulsePercentage,
     savingsRate,
@@ -397,7 +441,7 @@ ${personality.description}
 CURRENT SPENDING ANALYSIS:
 - Budget Usage: ${analysis.budgetUsagePercentage.toFixed(1)}% of monthly budget used
 - Average Daily Spend: ${currencySymbol}${analysis.averageDailySpend.toFixed(2)}
-- Projected Month-End Balance: ${currencySymbol}${analysis.projectedMonthEndBalance.toFixed(2)}
+${analysis.projectedMonthEndBalance !== null ? `- Projected Month-End Balance: ${currencySymbol}${analysis.projectedMonthEndBalance.toFixed(2)}` : '- Projected Month-End Balance: not enough history yet — do not estimate one'}
 - Savings Rate: ${analysis.savingsRate.toFixed(1)}%
 - Impulse Purchases: ${analysis.impulsePercentage.toFixed(1)}% of spending (${currencySymbol}${analysis.impulseSpendingTotal.toFixed(2)} total)
 - Week-over-Week Change: ${analysis.weekOverWeekChange > 0 ? '+' : ''}${analysis.weekOverWeekChange.toFixed(1)}%
@@ -409,10 +453,11 @@ ${analysis.topExpenseCategories.map(c => `- ${c.category}: ${currencySymbol}${c.
 ${analysis.overspendingCategories.length > 0 ? `OVERSPENDING CATEGORIES (vs last month): ${analysis.overspendingCategories.join(', ')}` : ''}
 ${analysis.underspendingCategories.length > 0 ? `IMPROVED CATEGORIES (vs last month): ${analysis.underspendingCategories.join(', ')}` : ''}
 
-LONG-TERM PROJECTIONS:
+${analysis.hasEnoughHistory && analysis.longTermProjection.sixMonthBalance !== null && analysis.longTermProjection.oneYearBalance !== null ? `LONG-TERM PROJECTIONS:
 - 6-Month Balance Projection: ${currencySymbol}${analysis.longTermProjection.sixMonthBalance.toFixed(2)}
 - 1-Year Balance Projection: ${currencySymbol}${analysis.longTermProjection.oneYearBalance.toFixed(2)}
-${analysis.longTermProjection.savingsGoalReachDate ? `- Savings Goal Target Date: ${analysis.longTermProjection.savingsGoalReachDate}` : ''}
+${analysis.longTermProjection.savingsGoalReachDate ? `- Savings Goal Target Date: ${analysis.longTermProjection.savingsGoalReachDate}` : ''}` : `LONG-TERM PROJECTIONS:
+- Unavailable: fewer than a week of spending history. Do not invent projections or describe a trend; say plainly that there is not enough data yet.`}
 
 ${analysis.categoryBudgetSuggestions.length > 0 ? `BUDGET OPTIMIZATION SUGGESTIONS:
 ${analysis.categoryBudgetSuggestions.map(s => `- ${s.category}: Reduce from ${currencySymbol}${s.currentSpending.toFixed(2)} to ${currencySymbol}${s.suggestedBudget.toFixed(2)} (save ${currencySymbol}${s.potentialSavings.toFixed(2)})`).join('\n')}` : ''}

@@ -1,4 +1,5 @@
 import { format, startOfDay, subDays, startOfMonth, endOfMonth } from 'date-fns';
+import { todayISO, daysAgoISO, daysBetween } from './dates';
 
 export interface DailySpending {
   date: string;
@@ -78,6 +79,42 @@ export function calculateBalance(
   return startingBalance + income - expenses;
 }
 
+/**
+ * Minimum days of history before a daily run-rate means anything.
+ *
+ * Below this, one purchase dominates the average and every figure derived from
+ * it — survival days, month-end projection, six-month forecast — is noise
+ * presented as fact.
+ */
+export const MIN_HISTORY_DAYS = 7;
+
+/**
+ * How many days of history the data actually covers, capped at `window`.
+ *
+ * Dividing by a constant 30 regardless of how long the account has existed was
+ * the bug: a two-day-old account with $60 of spending reported $2/day, and
+ * survival days then claimed roughly two years of runway.
+ */
+export function getHistorySpanDays(transactions: Transaction[], window = 30): number {
+  const today = todayISO();
+  const windowStart = daysAgoISO(window - 1);
+
+  let earliest: string | null = null;
+  for (const tx of transactions) {
+    if (tx.dateISO > today) continue;
+    if (earliest === null || tx.dateISO < earliest) earliest = tx.dateISO;
+  }
+  if (earliest === null) return 0;
+
+  const from = earliest > windowStart ? earliest : windowStart;
+  return Math.min(window, daysBetween(from, today) + 1);
+}
+
+/** True once there is enough history to extrapolate from. */
+export function hasEnoughHistory(transactions: Transaction[]): boolean {
+  return getHistorySpanDays(transactions) >= MIN_HISTORY_DAYS;
+}
+
 export function calculateAverageDailySpend(transactions: Transaction[]): number {
   const { start, end } = getDateRange(30);
   const filtered = transactions.filter(
@@ -87,16 +124,50 @@ export function calculateAverageDailySpend(transactions: Transaction[]): number 
   if (filtered.length === 0) return 0;
 
   const total = filtered.reduce((sum, tx) => sum + tx.amount, 0);
-  const days = 30; // Past 30 days
+  // Divide by the days actually observed, not a flat 30.
+  const days = Math.max(1, getHistorySpanDays(transactions, 30));
 
   return total / days;
 }
 
+/**
+ * Project a full month's expenses from a partial month.
+ *
+ * Naively scaling the month to date (`spent / dayOfMonth * daysInMonth`) is
+ * violently unstable early on — on the 1st, a single $200 purchase implies
+ * $6,000 for the month. Weight the current month by how much of it has actually
+ * happened and let last month's actual carry the rest, until two weeks in when
+ * the current month can stand alone.
+ */
+export function projectMonthlyExpenses(params: {
+  currentMonthExpenses: number;
+  dayOfMonth: number;
+  daysInMonth: number;
+  previousMonthExpenses: number;
+}): number {
+  const { currentMonthExpenses, daysInMonth, previousMonthExpenses } = params;
+  const day = Math.max(1, params.dayOfMonth);
+
+  const runRate = (currentMonthExpenses / day) * daysInMonth;
+  if (previousMonthExpenses <= 0) return runRate;
+
+  const currentWeight = Math.min(1, day / 14);
+  return runRate * currentWeight + previousMonthExpenses * (1 - currentWeight);
+}
+
+/**
+ * Days of runway at the current burn rate, or null when the number would be
+ * meaningless — no spending at all, or not enough history to have a rate.
+ *
+ * Previously returned Infinity for the no-spending case, which the dashboard
+ * tested for with `=== 999` and therefore rendered literally as "Infinity days".
+ */
 export function calculateSurvivalDays(
   currentBalance: number,
   averageDailySpend: number
-): number {
-  if (averageDailySpend === 0) return Infinity;
+): number | null {
+  if (!isFinite(averageDailySpend) || averageDailySpend <= 0) return null;
+  if (currentBalance <= 0) return 0;
   return Math.floor(currentBalance / averageDailySpend);
 }
 
