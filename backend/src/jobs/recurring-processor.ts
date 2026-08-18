@@ -1,30 +1,5 @@
 import { prisma } from "../prisma";
-
-function computeNextDate(currentDate: string, frequency: string): string {
-  const d = new Date(currentDate + "T00:00:00Z");
-
-  switch (frequency) {
-    case "daily":
-      d.setUTCDate(d.getUTCDate() + 1);
-      break;
-    case "weekly":
-      d.setUTCDate(d.getUTCDate() + 7);
-      break;
-    case "biweekly":
-      d.setUTCDate(d.getUTCDate() + 14);
-      break;
-    case "monthly":
-      d.setUTCMonth(d.getUTCMonth() + 1);
-      break;
-    case "yearly":
-      d.setUTCFullYear(d.getUTCFullYear() + 1);
-      break;
-    default:
-      d.setUTCMonth(d.getUTCMonth() + 1);
-  }
-
-  return d.toISOString().split("T")[0]!;
-}
+import { computeNextDate, anchorDayOf } from "../lib/recurrence";
 
 async function processRecurring() {
   const today = new Date().toISOString().split("T")[0]!;
@@ -63,7 +38,13 @@ async function processRecurring() {
           where: { id: rec.id },
           data: {
             lastCreated: today,
-            nextDate: computeNextDate(rec.nextDate, rec.frequency),
+            // Anchor on the series' start date: clamping to February must not
+            // permanently shorten every month that follows.
+            nextDate: computeNextDate(
+              rec.nextDate,
+              rec.frequency,
+              anchorDayOf(rec.startDate)
+            ),
           },
         }),
       ]);

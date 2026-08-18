@@ -1,19 +1,8 @@
 import { prisma } from "../prisma";
 import { sendPushToUser } from "../lib/expo-push";
+import { advanceMonth } from "../lib/recurrence";
 
-export function advanceMonth(dateStr: string, dueDay: number): string {
-  const d = new Date(dateStr + "T00:00:00Z");
-  // Compute the target year/month directly. Using setUTCMonth(+1) on a 31st
-  // would overflow a short month (Jan 31 → "Feb 31" → Mar 3) and skip the
-  // month entirely, so we never mutate the day before clamping.
-  const nextMonthIndex = d.getUTCMonth() + 1;
-  const targetYear = d.getUTCFullYear() + Math.floor(nextMonthIndex / 12);
-  const targetMonth = nextMonthIndex % 12;
-  // Clamp dueDay to the last day of the target month (e.g., 31 → 28 for Feb).
-  const lastDay = new Date(Date.UTC(targetYear, targetMonth + 1, 0)).getUTCDate();
-  const day = Math.min(dueDay, lastDay);
-  return new Date(Date.UTC(targetYear, targetMonth, day)).toISOString().split("T")[0]!;
-}
+export { advanceMonth };
 
 /** Midnight UTC of a YYYY-MM-DD date string. */
 export function startOfDayUTC(dateStr: string): Date {
