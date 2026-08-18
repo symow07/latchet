@@ -29,14 +29,18 @@ import Animated, { FadeInUp, FadeInDown } from 'react-native-reanimated';
 
 import {
   parseStatement,
+  detectCsvFormat,
   generateImportPreview,
   CATEGORIES,
   type ParsedTransaction,
   type ImportPreview,
   type Category,
   type ImportSource,
+  type CsvFormat,
+  type DateConvention,
+  type SignConvention,
 } from '@/lib/import-parser';
-import { addTransaction, getTransactions } from '@/lib/db';
+import { addTransaction, getTransactions, getSettings } from '@/lib/db';
 
 type ImportStep = 'upload' | 'preview' | 'success';
 
@@ -51,6 +55,12 @@ export default function ImportScreen() {
   const [expandedTx, setExpandedTx] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
   const [importedCount, setImportedCount] = useState(0);
+
+  // Kept so the preview can be re-parsed when the user corrects a convention
+  // the detector guessed wrong.
+  const [rawContent, setRawContent] = useState<string>('');
+  const [rawSource, setRawSource] = useState<ImportSource>('bank');
+  const [format, setFormat] = useState<CsvFormat | null>(null);
 
   const pickFile = useCallback(async (source: ImportSource = 'bank') => {
     try {
@@ -118,8 +128,20 @@ export default function ImportScreen() {
         return;
       }
 
+      // Most of the world writes the day first; only default to month-first
+      // for users actually on USD. Detection overrides this whenever the file
+      // proves its own ordering (any day past the 12th).
+      const settings = await getSettings().catch(() => null);
+      const fallbackDate: DateConvention =
+        settings?.currency === 'USD' ? 'mdy' : 'dmy';
+
+      const detected =
+        source === 'bank'
+          ? detectCsvFormat(content, fallbackDate)
+          : null;
+
       // Parse based on the chosen source (bank CSV, Alipay bill, WeChat bill).
-      const parsedTransactions = parseStatement(content, source);
+      const parsedTransactions = parseStatement(content, source, detected ?? {});
 
       if (parsedTransactions.length === 0) {
         Alert.alert(
@@ -143,6 +165,9 @@ export default function ImportScreen() {
       const importPreview = generateImportPreview(parsedTransactions, existingKeys);
       setPreview(importPreview);
       setTransactions(importPreview.transactions);
+      setRawContent(content);
+      setRawSource(source);
+      setFormat(detected);
       setStep('preview');
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -152,6 +177,32 @@ export default function ImportScreen() {
       Alert.alert('Error', 'Failed to read the file. Please try again.');
     }
   }, []);
+
+  /**
+   * Re-run the parse with a corrected convention. Detection is good but cannot
+   * be certain — a file whose every day is 12 or lower gives no evidence of its
+   * ordering, and an all-positive amount column gives none of its direction.
+   */
+  const applyFormat = useCallback(
+    async (patch: Partial<CsvFormat>) => {
+      if (!rawContent || !format) return;
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+      const next = { ...format, ...patch };
+      const reparsed = parseStatement(rawContent, rawSource, next);
+
+      const existingTxs = await getTransactions();
+      const existingKeys = new Set(
+        existingTxs.map(tx => `${tx.dateISO}_${tx.amount}_${tx.note?.substring(0, 20) || ''}`)
+      );
+      const importPreview = generateImportPreview(reparsed, existingKeys);
+
+      setFormat(next);
+      setPreview(importPreview);
+      setTransactions(importPreview.transactions);
+    },
+    [rawContent, rawSource, format]
+  );
 
   const updateTransactionCategory = (txId: string, category: Category) => {
     setTransactions(prev =>
@@ -349,6 +400,81 @@ export default function ImportScreen() {
                 )}
               </View>
             </View>
+
+            {/* Format controls — only for bank CSVs, whose conventions are
+                inferred. Alipay/WeChat exports have a fixed, known shape. */}
+            {format && rawSource === 'bank' && (
+              <View className="px-4 mb-4">
+                <View
+                  className="rounded-2xl p-4"
+                  style={{ backgroundColor: 'rgba(255,255,255,0.05)' }}
+                >
+                  <Text className="text-gray-400 text-xs mb-1">FILE FORMAT</Text>
+                  <Text className="text-gray-500 text-xs mb-3 leading-4">
+                    {format.dateAmbiguous || format.signAmbiguous
+                      ? 'We had to guess part of this. Check the dates and amounts below look right.'
+                      : 'Detected from your file. Change these if anything looks wrong.'}
+                  </Text>
+
+                  <Text className="text-gray-400 text-xs mb-2">Date order</Text>
+                  <View className="flex-row mb-4" style={{ gap: 8 }}>
+                    {([
+                      { value: 'dmy' as DateConvention, label: 'Day first', hint: '31/12/2026' },
+                      { value: 'mdy' as DateConvention, label: 'Month first', hint: '12/31/2026' },
+                    ]).map(opt => {
+                      const active = format.date === opt.value;
+                      return (
+                        <Pressable
+                          key={opt.value}
+                          onPress={() => applyFormat({ date: opt.value })}
+                          className="flex-1 rounded-xl px-3 py-2"
+                          style={{
+                            backgroundColor: active ? 'rgba(59,130,246,0.2)' : 'rgba(255,255,255,0.05)',
+                            borderWidth: active ? 1 : 0,
+                            borderColor: '#3b82f6',
+                          }}
+                        >
+                          <Text className={active ? 'text-white font-semibold' : 'text-gray-400'}>
+                            {opt.label}
+                          </Text>
+                          <Text className="text-gray-500 text-xs mt-0.5">{opt.hint}</Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+
+                  <Text className="text-gray-400 text-xs mb-2">Amounts are</Text>
+                  <View className="flex-row" style={{ gap: 8 }}>
+                    {([
+                      { value: 'signed' as SignConvention, label: 'Signed', hint: '− is spending' },
+                      { value: 'all-expense' as SignConvention, label: 'All spending', hint: 'every row out' },
+                      { value: 'all-income' as SignConvention, label: 'All income', hint: 'every row in' },
+                    ]).map(opt => {
+                      const active = format.sign === opt.value;
+                      return (
+                        <Pressable
+                          key={opt.value}
+                          onPress={() => applyFormat({ sign: opt.value })}
+                          className="flex-1 rounded-xl px-3 py-2"
+                          style={{
+                            backgroundColor: active ? 'rgba(59,130,246,0.2)' : 'rgba(255,255,255,0.05)',
+                            borderWidth: active ? 1 : 0,
+                            borderColor: '#3b82f6',
+                          }}
+                        >
+                          <Text
+                            className={active ? 'text-white font-semibold text-xs' : 'text-gray-400 text-xs'}
+                          >
+                            {opt.label}
+                          </Text>
+                          <Text className="text-gray-500 text-xs mt-0.5">{opt.hint}</Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </View>
+              </View>
+            )}
 
             {/* Transaction List */}
             <View className="px-4">
