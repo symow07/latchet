@@ -14,7 +14,13 @@ const settingsSchema = z.object({
   monthlyIncome: z.number().min(0).max(10_000_000).optional().default(0),
   savingsGoal: z.number().min(0).max(10_000_000).optional().default(0),
   spendingStyle: z.enum(["frugal", "moderate", "generous"]).optional().default("moderate"),
-  primaryGoal: z.enum(["track", "save", "invest", "debt"]).optional().default("track"),
+  // Must match the options onboarding actually offers (mobile/src/app/onboarding.tsx).
+  // The backend previously accepted "invest"/"debt", so two of the four goals a
+  // user could tap were rejected with a 400 the moment settings synced.
+  primaryGoal: z
+    .enum(["save", "track", "reduce_debt", "budget"])
+    .optional()
+    .default("track"),
 });
 
 const router = new Hono<{

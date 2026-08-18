@@ -4,15 +4,13 @@ import { z } from "zod";
 import { prisma } from "../prisma";
 import { auth } from "../auth";
 
-const TRANSACTION_CATEGORIES = [
-  "Food", "Gym", "Transport", "Shopping", "Subscriptions",
-  "Entertainment", "Health", "Education", "Bills", "Salary",
-  "Investment", "Other",
-] as const;
-
 const transactionSchema = z.object({
   amount: z.number().positive().max(1_000_000),
-  category: z.enum(TRANSACTION_CATEGORIES),
+  // Free-form, not an enum: users can create their own categories (see
+  // mobile/src/lib/categories.ts) and Transaction.category is a plain String
+  // in the schema. An enum here silently dropped every custom-category row
+  // during bulk sync, because /sync skips whatever fails to parse.
+  category: z.string().min(1).max(50),
   type: z.enum(["Expense", "Income"]),
   isImpulse: z.boolean().optional().default(false),
   note: z.string().max(500).optional().nullable(),

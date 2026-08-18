@@ -6,6 +6,29 @@ const DB_NAME = 'real_budget.db';
 let db: SQLite.SQLiteDatabase | null = null;
 let initPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 
+type MutationListener = () => void;
+const mutationListeners = new Set<MutationListener>();
+
+/**
+ * Subscribe to local writes originating from the user (not from sync).
+ * Returns an unsubscribe function. Used by cloud-sync to schedule a debounced
+ * push; kept as a callback so this module never imports the network layer.
+ */
+export function onLocalMutation(listener: MutationListener): () => void {
+  mutationListeners.add(listener);
+  return () => mutationListeners.delete(listener);
+}
+
+function notifyLocalMutation(): void {
+  for (const listener of mutationListeners) {
+    try {
+      listener();
+    } catch {
+      // A subscriber must never be able to fail a local write.
+    }
+  }
+}
+
 export async function initializeDatabase(): Promise<SQLite.SQLiteDatabase> {
   if (db) return db;
   if (initPromise) return initPromise;
@@ -55,6 +78,7 @@ async function performInit(): Promise<SQLite.SQLiteDatabase> {
       name TEXT NOT NULL,
       type TEXT NOT NULL,
       balance REAL DEFAULT 0,
+      openingBalance REAL DEFAULT 0,
       currency TEXT DEFAULT 'USD',
       color TEXT DEFAULT '#a855f7',
       icon TEXT DEFAULT 'wallet',
@@ -158,6 +182,28 @@ async function performInit(): Promise<SQLite.SQLiteDatabase> {
     await db.runAsync(`INSERT INTO migrations (key) VALUES ('v2_clear_seed')`);
   }
 
+  // Migration v4: `balance` becomes a derived value — openingBalance plus the
+  // net of every transaction on the account. Previously balance was only ever
+  // mutated incrementally, so any missed or double-applied adjustment (notably
+  // the cloud-sync duplicate bug) drifted permanently with no way to recover.
+  // Back-derive openingBalance from the current balance so existing users see
+  // no change, then recompute from the ledger on every bulk write.
+  try {
+    const accInfo = await db.getAllAsync('PRAGMA table_info(accounts)');
+    const hasOpening = (accInfo as { name: string }[]).some(col => col.name === 'openingBalance');
+    if (!hasOpening) {
+      await db.execAsync('ALTER TABLE accounts ADD COLUMN openingBalance REAL DEFAULT 0');
+      await db.runAsync(`
+        UPDATE accounts SET openingBalance = balance - COALESCE((
+          SELECT SUM(CASE WHEN t.type = 'Income' THEN t.amount ELSE -t.amount END)
+          FROM transactions t WHERE t.accountId = accounts.id
+        ), 0)
+      `);
+    }
+  } catch (e) {
+    console.log('Opening balance migration:', e);
+  }
+
   // Migration v3: add subscriptions tables
   try {
     await db.execAsync(`CREATE TABLE IF NOT EXISTS subscriptions (
@@ -220,7 +266,10 @@ export interface Account {
   id: string;
   name: string;
   type: 'cash' | 'checking' | 'savings' | 'credit' | 'investment' | 'other';
+  /** Derived: openingBalance + net of all transactions on this account. */
   balance: number;
+  /** The account's balance before any recorded transaction. */
+  openingBalance: number;
   currency: string;
   color: string;
   icon: string;
@@ -228,7 +277,7 @@ export interface Account {
   createdAt: string;
 }
 
-export async function createAccount(account: {
+export interface AccountInput {
   name: string;
   type: string;
   balance: number;
@@ -236,27 +285,47 @@ export async function createAccount(account: {
   color: string;
   icon: string;
   isDefault?: boolean;
-}): Promise<string> {
-  const database = await getDatabase();
+  /** Defaults to `balance` — a brand-new account has no transactions yet. */
+  openingBalance?: number;
+  createdAt?: string;
+}
+
+export async function createAccount(account: AccountInput): Promise<string> {
   const id = `acc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  await createAccountWithId(id, account);
+  notifyLocalMutation();
+  return id;
+}
+
+/**
+ * Create an account under a caller-supplied id.
+ *
+ * Cloud sync must preserve the server's id: `createAccount` mints its own,
+ * which meant a pulled account was never recognised as already-present and was
+ * re-created on every single login.
+ */
+export async function createAccountWithId(
+  id: string,
+  account: AccountInput
+): Promise<void> {
+  const database = await getDatabase();
 
   await database.runAsync(
-    `INSERT INTO accounts (id, name, type, balance, currency, color, icon, isDefault, createdAt)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT OR REPLACE INTO accounts (id, name, type, balance, openingBalance, currency, color, icon, isDefault, createdAt)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       id,
       account.name,
       account.type,
       account.balance,
+      account.openingBalance ?? account.balance,
       account.currency,
       account.color,
       account.icon,
       account.isDefault ? 1 : 0,
-      new Date().toISOString(),
+      account.createdAt ?? new Date().toISOString(),
     ]
   );
-
-  return id;
 }
 
 export async function getAccounts(): Promise<Account[]> {
@@ -281,24 +350,64 @@ export async function updateAccount(id: string, account: Partial<Account>): Prom
   const current = await getAccountById(id);
   if (!current) return;
 
+  const nextBalance = account.balance ?? current.balance;
+
+  // A caller setting `balance` is asserting "this account is now worth X".
+  // Rebase openingBalance off the existing ledger so the next recompute
+  // reproduces X rather than reverting the edit.
+  let nextOpening = account.openingBalance ?? current.openingBalance;
+  if (account.balance !== undefined && account.openingBalance === undefined) {
+    nextOpening = nextBalance - (await getAccountLedgerNet(id));
+  }
+
   await database.runAsync(
-    `UPDATE accounts SET name = ?, type = ?, balance = ?, currency = ?, color = ?, icon = ?
+    `UPDATE accounts SET name = ?, type = ?, balance = ?, openingBalance = ?, currency = ?, color = ?, icon = ?
      WHERE id = ?`,
     [
       account.name ?? current.name,
       account.type ?? current.type,
-      account.balance ?? current.balance,
+      nextBalance,
+      nextOpening,
       account.currency ?? current.currency,
       account.color ?? current.color,
       account.icon ?? current.icon,
       id,
     ]
   );
+  notifyLocalMutation();
+}
+
+/** Net effect of every transaction booked to an account (income − expense). */
+export async function getAccountLedgerNet(accountId: string): Promise<number> {
+  const database = await getDatabase();
+  const row = (await database.getFirstAsync(
+    `SELECT COALESCE(SUM(CASE WHEN type = 'Income' THEN amount ELSE -amount END), 0) AS net
+     FROM transactions WHERE accountId = ?`,
+    [accountId]
+  )) as { net: number } | null;
+  return row?.net ?? 0;
+}
+
+/**
+ * Recompute every account balance from openingBalance + its ledger.
+ *
+ * Cheaper and far safer than incremental adjustment after a bulk write: it is
+ * idempotent, so a sync that runs twice cannot double-count.
+ */
+export async function recomputeAccountBalances(): Promise<void> {
+  const database = await getDatabase();
+  await database.runAsync(`
+    UPDATE accounts SET balance = openingBalance + COALESCE((
+      SELECT SUM(CASE WHEN t.type = 'Income' THEN t.amount ELSE -t.amount END)
+      FROM transactions t WHERE t.accountId = accounts.id
+    ), 0)
+  `);
 }
 
 export async function deleteAccount(id: string): Promise<void> {
   const database = await getDatabase();
   await database.runAsync('DELETE FROM accounts WHERE id = ?', [id]);
+  notifyLocalMutation();
 }
 
 export async function updateAccountBalance(id: string, amount: number, type: 'add' | 'subtract'): Promise<void> {
@@ -311,7 +420,7 @@ export async function updateAccountBalance(id: string, amount: number, type: 'ad
 }
 
 // Transaction operations
-export async function addTransaction(transaction: {
+export interface TransactionInput {
   amount: number;
   category: string;
   type: 'Expense' | 'Income';
@@ -320,9 +429,15 @@ export async function addTransaction(transaction: {
   dateISO: string;
   accountId?: string;
   currency?: string;
-}) {
+  createdAt?: string;
+}
+
+async function insertTransactionRow(
+  id: string,
+  transaction: TransactionInput,
+  opts: { adjustBalance: boolean; replace?: boolean }
+): Promise<void> {
   const database = await getDatabase();
-  const id = `tx_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
   // Get default account if none specified
   let accountId = transaction.accountId;
@@ -334,7 +449,7 @@ export async function addTransaction(transaction: {
   }
 
   await database.runAsync(
-    `INSERT INTO transactions (id, amount, category, type, isImpulse, note, dateISO, createdAt, accountId, currency)
+    `INSERT ${opts.replace ? 'OR REPLACE ' : ''}INTO transactions (id, amount, category, type, isImpulse, note, dateISO, createdAt, accountId, currency)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       id,
@@ -344,22 +459,44 @@ export async function addTransaction(transaction: {
       transaction.isImpulse ? 1 : 0,
       transaction.note || null,
       transaction.dateISO,
-      new Date().toISOString(),
+      transaction.createdAt ?? new Date().toISOString(),
       accountId || null,
       transaction.currency || 'USD',
     ]
   );
 
-  // Update account balance
-  if (accountId) {
+  if (opts.adjustBalance && accountId) {
     await updateAccountBalance(
       accountId,
       transaction.amount,
       transaction.type === 'Income' ? 'add' : 'subtract'
     );
   }
+}
 
+export async function addTransaction(transaction: TransactionInput) {
+  const id = `tx_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  await insertTransactionRow(id, transaction, { adjustBalance: true });
+  notifyLocalMutation();
   return id;
+}
+
+/**
+ * Insert a transaction under a caller-supplied id, without touching any
+ * balance.
+ *
+ * Used by cloud sync, which must preserve the server's id (otherwise every
+ * pull re-inserts the same rows) and must not re-apply balance deltas — the
+ * caller runs `recomputeAccountBalances()` once when the pull completes.
+ */
+export async function addTransactionWithId(
+  id: string,
+  transaction: TransactionInput
+): Promise<void> {
+  await insertTransactionRow(id, transaction, {
+    adjustBalance: false,
+    replace: true,
+  });
 }
 
 export async function getTransactions() {
@@ -441,6 +578,7 @@ export async function deleteTransaction(id: string) {
   }
 
   await database.runAsync('DELETE FROM transactions WHERE id = ?', [id]);
+  notifyLocalMutation();
 }
 
 export async function updateTransaction(
@@ -473,6 +611,11 @@ export async function updateTransaction(
       id,
     ]
   );
+
+  // Editing an amount, type or account changes what the ledger implies; the
+  // incremental path never accounted for this, so recompute instead.
+  await recomputeAccountBalances();
+  notifyLocalMutation();
 }
 
 // Settings operations
@@ -531,6 +674,7 @@ export async function updateSettings(settings: Partial<Settings>) {
       settings.primaryGoal ?? current?.primaryGoal ?? 'track',
     ]
   );
+  notifyLocalMutation();
 }
 
 // Reset all user data — wipes transactions, accounts, and resets settings to zero

@@ -9,6 +9,7 @@ import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { View, Text, Pressable, ActivityIndicator } from 'react-native';
 import { initializeDatabase } from '@/lib/db';
+import { startCloudSync } from '@/lib/cloud-sync';
 import { useSession, SESSION_QUERY_KEY } from '@/lib/auth/use-session';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { isBiometricAvailable, authenticateWithBiometrics } from '@/lib/biometric';
@@ -350,6 +351,13 @@ export default function RootLayout() {
   useEffect(() => {
     initApp();
   }, [initApp]);
+
+  // Back up local writes to the cloud. Registered once the database is open so
+  // the debounced push never races initialization.
+  useEffect(() => {
+    if (!dbReady) return;
+    return startCloudSync();
+  }, [dbReady]);
 
   if (dbError) {
     return (

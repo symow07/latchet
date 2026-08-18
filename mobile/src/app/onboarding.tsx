@@ -20,6 +20,7 @@ import {
 import * as Haptics from 'expo-haptics';
 import { saveOnboardingData } from '@/lib/onboarding-storage';
 import { updateSettings } from '@/lib/db';
+import { scheduleCloudPush } from '@/lib/cloud-sync';
 import { CURRENCIES, getPopularCurrencies, type Currency } from '@/lib/currencies';
 
 const STEPS = ['currency', 'income', 'goal', 'style'] as const;
@@ -87,6 +88,8 @@ export default function OnboardingScreen() {
     },
     onSuccess: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      // First upload of the account's settings and any starter data.
+      scheduleCloudPush(0);
       router.replace('/(tabs)');
     },
     onError: (error) => {
