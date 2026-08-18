@@ -28,11 +28,13 @@ import { pushTokensRouter } from "./routes/push-tokens";
 import { plaidRouter } from "./routes/plaid";
 import { ratesRouter } from "./routes/rates";
 import { emailRouter } from "./routes/email";
+import { installErrorHandlers } from "./lib/http-errors";
 
 const app = new Hono<{
   Variables: {
     user: typeof auth.$Infer.Session.user | null;
     session: typeof auth.$Infer.Session.session | null;
+    requestId: string;
   };
 }>();
 
@@ -61,6 +63,10 @@ app.use(
 );
 
 app.use("*", logger());
+
+// Request-id tagging, Prisma/Zod error mapping and a JSON 404. Registered here
+// so the id middleware runs ahead of every route.
+installErrorHandlers(app, { isProduction: env.NODE_ENV === "production" });
 
 // Auth middleware - populates user/session for protected routes.
 // Skipped for /api/auth/* because BetterAuth's own handler resolves the session
