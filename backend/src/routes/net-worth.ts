@@ -1,6 +1,18 @@
 import { Hono } from "hono";
+import { zValidator } from "@hono/zod-validator";
+import { z } from "zod";
 import { prisma } from "../prisma";
 import { auth } from "../auth";
+import { isoDate, signedMoney, money } from "../lib/schemas";
+
+const netWorthSchema = z.object({
+  date: isoDate,
+  // Required, not optional: `body.assets - body.liabilities` on a missing field
+  // produced NaN and stored it permanently.
+  assets: money,
+  liabilities: money,
+  breakdown: z.record(z.string(), signedMoney).optional(),
+});
 
 const router = new Hono<{
   Variables: {
@@ -21,11 +33,11 @@ router.get("/", async (c) => {
   return c.json(entries);
 });
 
-router.post("/", async (c) => {
+router.post("/", zValidator("json", netWorthSchema), async (c) => {
   const user = c.get("user");
   if (!user) return c.json({ error: "Unauthorized" }, 401);
 
-  const body = await c.req.json();
+  const body = c.req.valid("json");
   const entry = await prisma.netWorthEntry.create({
     data: {
       id: `nw_${Date.now()}_${Math.random().toString(36).slice(2)}`,

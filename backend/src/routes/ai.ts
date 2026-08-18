@@ -79,9 +79,15 @@ router.post("/chat", zValidator("json", chatSchema), async (c) => {
   }
 });
 
+// ~10 MB of decoded image. Base64 inflates by 4/3, so cap the encoded string
+// accordingly — unbounded, a single request could exhaust memory before the
+// OpenAI call was ever made.
+const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+const MAX_IMAGE_BASE64_CHARS = Math.ceil(MAX_IMAGE_BYTES * 1.37);
+
 const receiptSchema = z.object({
   // Raw base64 (no data: prefix) as produced by expo-image-picker base64 option.
-  image: z.string().min(1),
+  image: z.string().min(1).max(MAX_IMAGE_BASE64_CHARS),
 });
 
 router.post("/analyze-receipt", zValidator("json", receiptSchema), async (c) => {

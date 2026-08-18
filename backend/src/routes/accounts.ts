@@ -3,6 +3,7 @@ import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { prisma } from "../prisma";
 import { auth } from "../auth";
+import { MAX_SYNC_ROWS } from "../lib/schemas";
 
 const accountSchema = z.object({
   id: z.string().optional(),
@@ -57,10 +58,10 @@ router.post("/", zValidator("json", accountSchema), async (c) => {
   return c.json(account, 201);
 });
 
-router.put("/:id", async (c) => {
+router.put("/:id", zValidator("json", accountSchema.partial()), async (c) => {
   const user = c.get("user")!;
   const id = c.req.param("id");
-  const body = await c.req.json();
+  const body = c.req.valid("json");
 
   const account = await prisma.bankAccount.update({
     where: { id, userId: user.id },
@@ -90,27 +91,43 @@ router.post("/sync", async (c) => {
   const { accounts } = body;
 
   if (!Array.isArray(accounts)) return c.json({ error: "Invalid payload" }, 400);
-
-  interface AccountInput {
-    id: string;
-    name: string;
-    type: string;
-    balance?: number;
-    currency?: string;
-    color?: string;
-    icon?: string;
-    isDefault?: boolean;
-    createdAt?: string | number;
+  if (accounts.length > MAX_SYNC_ROWS) {
+    return c.json(
+      {
+        error: `Too many accounts in one request (max ${MAX_SYNC_ROWS})`,
+        code: "payload_too_large",
+      },
+      413
+    );
   }
 
-  // Pre-validate ownership for all accounts
-  const validated: Array<AccountInput & { _exists: boolean }> = [];
-  for (const acc of accounts as AccountInput[]) {
-    if (!acc.id || !acc.name || !acc.type) continue;
-    const existing = await prisma.bankAccount.findUnique({ where: { id: acc.id } });
-    if (existing && existing.userId !== user.id) continue;
-    validated.push({ ...acc, _exists: !!existing });
-  }
+  const syncSchema = accountSchema.extend({
+    id: z.string().min(1),
+    createdAt: z.union([z.string(), z.number()]).optional(),
+  });
+
+  // One batched ownership lookup instead of a findUnique per row in a serial
+  // loop — see the note in transactions.ts/sync.
+  const parsed = accounts
+    .map((raw) => syncSchema.safeParse(raw))
+    .filter((r) => r.success)
+    .map((r) => r.data);
+
+  const owners = new Map(
+    (
+      await prisma.bankAccount.findMany({
+        where: { id: { in: parsed.map((a) => a.id) } },
+        select: { id: true, userId: true },
+      })
+    ).map((a) => [a.id, a.userId])
+  );
+
+  const validated = parsed
+    .filter((acc) => {
+      const owner = owners.get(acc.id);
+      return owner === undefined || owner === user.id;
+    })
+    .map((acc) => ({ ...acc, _exists: owners.has(acc.id) }));
 
   // Execute all upserts atomically
   await prisma.$transaction(

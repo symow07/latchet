@@ -1,6 +1,15 @@
 import { Hono } from "hono";
+import { zValidator } from "@hono/zod-validator";
+import { z } from "zod";
 import { prisma } from "../prisma";
 import { auth } from "../auth";
+import { categoryName, money } from "../lib/schemas";
+
+const categoryBudgetSchema = z.object({
+  category: categoryName,
+  amount: money,
+  period: z.enum(["weekly", "monthly", "yearly"]).optional().default("monthly"),
+});
 
 const router = new Hono<{
   Variables: {
@@ -19,11 +28,11 @@ router.get("/", async (c) => {
   return c.json(budgets);
 });
 
-router.post("/", async (c) => {
+router.post("/", zValidator("json", categoryBudgetSchema), async (c) => {
   const user = c.get("user");
   if (!user) return c.json({ error: "Unauthorized" }, 401);
 
-  const body = await c.req.json();
+  const body = c.req.valid("json");
   const budget = await prisma.categoryBudget.upsert({
     where: { userId_category: { userId: user.id, category: body.category } },
     create: {
@@ -31,11 +40,11 @@ router.post("/", async (c) => {
       userId: user.id,
       category: body.category,
       amount: body.amount,
-      period: body.period || "monthly",
+      period: body.period,
     },
     update: {
       amount: body.amount,
-      period: body.period || "monthly",
+      period: body.period,
     },
   });
   return c.json(budget);

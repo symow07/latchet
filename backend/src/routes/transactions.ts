@@ -3,6 +3,7 @@ import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { prisma } from "../prisma";
 import { auth } from "../auth";
+import { MAX_SYNC_ROWS } from "../lib/schemas";
 
 const transactionSchema = z.object({
   amount: z.number().positive().max(1_000_000),
@@ -111,22 +112,45 @@ router.post("/sync", async (c) => {
   const { transactions } = body;
 
   if (!Array.isArray(transactions)) return c.json({ error: "Invalid payload" }, 400);
+  if (transactions.length > MAX_SYNC_ROWS) {
+    return c.json(
+      {
+        error: `Too many transactions in one request (max ${MAX_SYNC_ROWS})`,
+        code: "payload_too_large",
+      },
+      413
+    );
+  }
 
   const syncSchema = transactionSchema.extend({
     id: z.string().min(1),
     createdAt: z.union([z.string(), z.number()]).optional(),
   });
 
-  // Pre-validate all rows and filter out any that fail schema or ownership check
-  const validated: Array<(typeof syncSchema)["_output"] & { _exists: boolean }> = [];
-  for (const raw of transactions) {
-    const parsed = syncSchema.safeParse(raw);
-    if (!parsed.success) continue;
-    const tx = parsed.data;
-    const existing = await prisma.transaction.findUnique({ where: { id: tx.id } });
-    if (existing && existing.userId !== user.id) continue; // ownership violation — skip
-    validated.push({ ...tx, _exists: !!existing });
-  }
+  // Parse first, then resolve ownership for the whole batch in one query.
+  // This previously ran a findUnique per row in a serial loop, so 1,000 rows
+  // meant 1,000 sequential round-trips against the single SQLite connection,
+  // blocking every other request for the duration.
+  const parsed = transactions
+    .map((raw) => syncSchema.safeParse(raw))
+    .filter((r) => r.success)
+    .map((r) => r.data);
+
+  const owners = new Map(
+    (
+      await prisma.transaction.findMany({
+        where: { id: { in: parsed.map((t) => t.id) } },
+        select: { id: true, userId: true },
+      })
+    ).map((t) => [t.id, t.userId])
+  );
+
+  const validated = parsed
+    .filter((tx) => {
+      const owner = owners.get(tx.id);
+      return owner === undefined || owner === user.id; // skip ownership violations
+    })
+    .map((tx) => ({ ...tx, _exists: owners.has(tx.id) }));
 
   // Execute all upserts atomically
   await prisma.$transaction(

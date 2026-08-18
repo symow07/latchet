@@ -40,6 +40,21 @@ let isPulling = false;
  */
 const bool = (v: unknown): boolean => v === true || v === 1;
 
+/**
+ * Rows per sync request. The server rejects anything over 1,000 (it would mean
+ * a very long single write against one SQLite connection), so a user with more
+ * history than that has to be uploaded in batches — otherwise their sync fails
+ * outright at exactly the point they have the most to lose.
+ */
+const SYNC_CHUNK_SIZE = 500;
+
+function chunk<T>(items: T[], size: number): T[][] {
+  if (items.length === 0) return [];
+  const out: T[][] = [];
+  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
+  return out;
+}
+
 /** Push all local data to the cloud (best-effort; local stays authoritative) */
 export async function pushLocalDataToCloud(): Promise<SyncResult> {
   try {
@@ -49,21 +64,24 @@ export async function pushLocalDataToCloud(): Promise<SyncResult> {
       getSettings(),
     ]);
 
-    await Promise.all([
-      api.post('/api/transactions/sync', {
-        transactions: transactions.map((t) => ({
-          ...t,
-          isImpulse: bool(t.isImpulse),
-        })),
-      }),
-      api.post('/api/accounts/sync', {
-        accounts: accounts.map((a) => ({ ...a, isDefault: bool(a.isDefault) })),
-      }),
-      api.put('/api/settings', {
-        ...settings,
-        showTimeCost: bool(settings?.showTimeCost),
-      }),
-    ]);
+    // Sequential rather than parallel: the server has a single SQLite writer,
+    // so firing every chunk at once only queues them behind each other anyway.
+    for (const batch of chunk(transactions, SYNC_CHUNK_SIZE)) {
+      await api.post('/api/transactions/sync', {
+        transactions: batch.map((t) => ({ ...t, isImpulse: bool(t.isImpulse) })),
+      });
+    }
+
+    for (const batch of chunk(accounts, SYNC_CHUNK_SIZE)) {
+      await api.post('/api/accounts/sync', {
+        accounts: batch.map((a) => ({ ...a, isDefault: bool(a.isDefault) })),
+      });
+    }
+
+    await api.put('/api/settings', {
+      ...settings,
+      showTimeCost: bool(settings?.showTimeCost),
+    });
 
     return { success: true };
   } catch (e) {

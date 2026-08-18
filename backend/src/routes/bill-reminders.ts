@@ -1,6 +1,23 @@
 import { Hono } from "hono";
+import { zValidator } from "@hono/zod-validator";
+import { z } from "zod";
 import { prisma } from "../prisma";
 import { auth } from "../auth";
+import { categoryName, isoDate, money } from "../lib/schemas";
+
+const billReminderSchema = z.object({
+  name: z.string().min(1).max(100),
+  amount: money,
+  dueDay: z.number().int().min(1).max(31),
+  category: categoryName.optional().default("Other"),
+  isRecurring: z.boolean().optional().default(true),
+  nextDueDate: isoDate,
+});
+
+// Every field optional on update, but each still validated when present.
+const billReminderUpdateSchema = billReminderSchema.partial().extend({
+  isPaid: z.boolean().optional(),
+});
 
 const router = new Hono<{
   Variables: {
@@ -20,11 +37,11 @@ router.get("/", async (c) => {
   return c.json(reminders);
 });
 
-router.post("/", async (c) => {
+router.post("/", zValidator("json", billReminderSchema), async (c) => {
   const user = c.get("user");
   if (!user) return c.json({ error: "Unauthorized" }, 401);
 
-  const body = await c.req.json();
+  const body = c.req.valid("json");
   const reminder = await prisma.billReminder.create({
     data: {
       id: `bill_${Date.now()}_${Math.random().toString(36).slice(2)}`,
@@ -32,8 +49,8 @@ router.post("/", async (c) => {
       name: body.name,
       amount: body.amount,
       dueDay: body.dueDay,
-      category: body.category || "Other",
-      isRecurring: body.isRecurring !== false,
+      category: body.category,
+      isRecurring: body.isRecurring,
       isPaid: false,
       nextDueDate: body.nextDueDate,
     },
@@ -41,12 +58,12 @@ router.post("/", async (c) => {
   return c.json(reminder, 201);
 });
 
-router.put("/:id", async (c) => {
+router.put("/:id", zValidator("json", billReminderUpdateSchema), async (c) => {
   const user = c.get("user");
   if (!user) return c.json({ error: "Unauthorized" }, 401);
 
   const id = c.req.param("id");
-  const body = await c.req.json();
+  const body = c.req.valid("json");
 
   const reminder = await prisma.billReminder.update({
     where: { id, userId: user.id },
@@ -57,8 +74,12 @@ router.put("/:id", async (c) => {
       category: body.category,
       isRecurring: body.isRecurring,
       isPaid: body.isPaid,
-      paidAt: body.isPaid ? new Date() : null,
+      // Only touch paidAt when isPaid is actually part of this request;
+      // otherwise an unrelated edit silently cleared the payment timestamp.
+      ...(body.isPaid !== undefined ? { paidAt: body.isPaid ? new Date() : null } : {}),
       nextDueDate: body.nextDueDate,
+      // Re-arm the notifier when a bill is moved to a new due date.
+      ...(body.nextDueDate !== undefined ? { lastNotifiedAt: null } : {}),
     },
   });
   return c.json(reminder);
