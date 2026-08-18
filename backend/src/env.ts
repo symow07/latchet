@@ -29,6 +29,13 @@ const envSchema = z.object({
   // currency; requesting a country the account is not enabled for errors, so
   // this is the operator's declaration of what is available.
   PLAID_COUNTRY_CODES: z.string().optional().default("US"),
+  // Exchange-rate provider for GET /api/v1/rates. Default is open.er-api.com,
+  // which needs no key and covers 160+ currencies including MAD and CNY. Point
+  // this at a paid provider (with the key in the URL) for better SLAs.
+  EXCHANGE_RATES_URL: z
+    .url("EXCHANGE_RATES_URL must be a valid URL")
+    .optional()
+    .default("https://open.er-api.com/v6/latest/USD"),
   // Google OAuth credentials for the Gmail-based subscription scanner
   // (routes/email.ts). Optional so the backend boots without them; the email
   // routes return 503 until they are set.

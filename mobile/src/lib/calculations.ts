@@ -310,7 +310,10 @@ export function formatCurrency(amount: number): string {
   // Proper locale currency formatting; fall back to symbol + grouped number
   // (Hermes Intl can be inconsistent for some currency codes).
   try {
-    const formatted = new Intl.NumberFormat('en-US', {
+    // undefined = the device's own locale. Hardcoding 'en-US' gave every
+    // non-US user US grouping and symbol placement — "€1,234.56" where they
+    // expect "1.234,56 €".
+    const formatted = new Intl.NumberFormat(undefined, {
       style: 'currency',
       currency: activeCurrency,
       currencyDisplay: 'narrowSymbol',
@@ -319,7 +322,7 @@ export function formatCurrency(amount: number): string {
     }).format(abs);
     return amount < 0 ? `-${formatted}` : formatted;
   } catch {
-    const n = abs.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const n = abs.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     return `${amount < 0 ? '-' : ''}${activeSymbol}${n}`;
   }
 }

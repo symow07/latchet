@@ -1,6 +1,13 @@
-// Currency data with symbols and exchange rates
-// Exchange rates are relative to USD (1 USD = X currency)
-// These are approximate rates - in production, fetch from an API
+// Currency data with symbols and exchange rates.
+//
+// The `rate` values below are a BUNDLED SNAPSHOT, not live data — they are the
+// offline fallback used before the first successful fetch of /api/rates and
+// whenever the device is offline. They date from early 2024 and several are
+// badly wrong by now (TRY and ARS especially), which is exactly why anything
+// doing arithmetic must prefer the live table when one is available.
+//
+// See lib/rates.ts for fetching, caching and staleness.
+export const BUNDLED_RATES_AS_OF = '2024-02-01';
 
 export interface Currency {
   code: string;
@@ -106,15 +113,44 @@ export function getCurrencyByCode(code: string): Currency | undefined {
   return CURRENCIES.find(c => c.code === code);
 }
 
-export function convertCurrency(amount: number, fromCode: string, toCode: string): number {
-  const fromCurrency = getCurrencyByCode(fromCode);
-  const toCurrency = getCurrencyByCode(toCode);
+/**
+ * Live USD-based rates, installed by lib/rates.ts once fetched. Held here (the
+ * same pattern as setActiveCurrency in calculations.ts) so convertCurrency can
+ * stay synchronous and currencies.ts need not import the network layer.
+ */
+let activeRates: Record<string, number> | null = null;
+let activeRatesAsOf: string = BUNDLED_RATES_AS_OF;
 
-  if (!fromCurrency || !toCurrency) return amount;
+export function setActiveRates(rates: Record<string, number>, asOf: string): void {
+  activeRates = rates;
+  activeRatesAsOf = asOf;
+}
+
+/** Date the rates in use were published. Show this beside any converted figure. */
+export function getRatesAsOf(): string {
+  return activeRatesAsOf;
+}
+
+/** True while still relying on the stale table compiled into the app. */
+export function isUsingBundledRates(): boolean {
+  return activeRates === null;
+}
+
+function rateFor(code: string): number | undefined {
+  const live = activeRates?.[code.toUpperCase()];
+  if (typeof live === 'number' && live > 0) return live;
+  return getCurrencyByCode(code)?.rate;
+}
+
+export function convertCurrency(amount: number, fromCode: string, toCode: string): number {
+  const fromRate = rateFor(fromCode);
+  const toRate = rateFor(toCode);
+
+  if (!fromRate || !toRate) return amount;
 
   // Convert to USD first, then to target currency
-  const amountInUSD = amount / fromCurrency.rate;
-  return amountInUSD * toCurrency.rate;
+  const amountInUSD = amount / fromRate;
+  return amountInUSD * toRate;
 }
 
 export function formatCurrencyAmount(amount: number, currencyCode: string): string {

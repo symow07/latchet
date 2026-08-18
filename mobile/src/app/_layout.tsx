@@ -10,6 +10,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { View, Text, Pressable, ActivityIndicator } from 'react-native';
 import { initializeDatabase } from '@/lib/db';
 import { startCloudSync } from '@/lib/cloud-sync';
+import { loadRates } from '@/lib/rates';
 import { useSession, SESSION_QUERY_KEY } from '@/lib/auth/use-session';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { isBiometricAvailable, authenticateWithBiometrics } from '@/lib/biometric';
@@ -356,6 +357,8 @@ export default function RootLayout() {
   // the debounced push never races initialization.
   useEffect(() => {
     if (!dbReady) return;
+    // Best-effort: conversions fall back to the cached or bundled table.
+    loadRates().catch(() => {});
     return startCloudSync();
   }, [dbReady]);
 
