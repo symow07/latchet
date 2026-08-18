@@ -141,6 +141,11 @@ model BillReminder {
   isPaid      Boolean   @default(false)
   paidAt      DateTime?
   nextDueDate String    // YYYY-MM-DD
+  // Last push sent for the *current* nextDueDate. Guards the 5-minute checker
+  // against re-notifying a bill that has already fired for this due date —
+  // non-recurring bills never advance nextDueDate, so without this they match
+  // the due query on every tick forever.
+  lastNotifiedAt DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
