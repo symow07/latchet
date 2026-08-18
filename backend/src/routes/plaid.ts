@@ -6,6 +6,7 @@ import { auth } from "../auth";
 import { env } from "../env";
 import { encryptSecret, decryptSecret } from "../lib/crypto";
 import { mapAccountType, mapCategory } from "../lib/plaid-mappers";
+import { verifyPlaidWebhook, type PlaidJwk } from "../lib/plaid-webhook";
 
 /**
  * Real bank linking via Plaid (replaces the former simulated mock). Uses the
@@ -57,6 +58,32 @@ async function plaid<T = any>(path: string, body: Record<string, unknown>): Prom
 // right account. Process-local (single-instance) — fine for this deployment.
 const pendingLinkSessions = new Map<string, string>();
 
+// Webhook verification keys, cached by key_id. A given key_id always maps to
+// the same key, so this only ever grows by the handful of keys Plaid rotates
+// through — and it keeps a burst of webhooks from becoming a burst of
+// /webhook_verification_key/get calls.
+const verificationKeys = new Map<string, PlaidJwk>();
+
+async function getVerificationKey(keyId: string): Promise<PlaidJwk | null> {
+  const cached = verificationKeys.get(keyId);
+  if (cached) return cached;
+  try {
+    const res = await plaid<{ key: PlaidJwk }>("/webhook_verification_key/get", {
+      key_id: keyId,
+    });
+    if (!res?.key) return null;
+    // Never cache a key Plaid has already retired.
+    if (!res.key.expired_at) verificationKeys.set(keyId, res.key);
+    return res.key;
+  } catch (e) {
+    console.warn(
+      "[plaid:webhook] key fetch failed:",
+      e instanceof Error ? e.message : e
+    );
+    return null;
+  }
+}
+
 const router = new Hono<{
   Variables: {
     user: typeof auth.$Infer.Session.user | null;
@@ -65,9 +92,36 @@ const router = new Hono<{
 }>();
 
 // Webhook is unauthenticated (Plaid calls it server-to-server); register it
-// before the auth guard so it is not blocked.
+// before the auth guard so it is not blocked. Authenticity comes from Plaid's
+// ES256 signature instead — without it anyone could POST a
+// SYNC_UPDATES_AVAILABLE body and drive unbounded /transactions/sync runs
+// against our Plaid quota and our single SQLite writer.
 router.post("/webhook", async (c) => {
-  const body = await c.req.json().catch(() => ({}));
+  if (!plaidConfigured()) {
+    // No credentials means no way to fetch verification keys, so nothing here
+    // could be trusted anyway.
+    return c.json({ error: "Bank linking is not configured on this server." }, 503);
+  }
+
+  // The signature covers the exact bytes, so hash the raw text — re-serializing
+  // parsed JSON would not reproduce the same digest.
+  const rawBody = await c.req.text();
+  const verification = await verifyPlaidWebhook(
+    c.req.header("Plaid-Verification"),
+    rawBody,
+    { getKey: getVerificationKey }
+  );
+  if (!verification.ok) {
+    console.warn(`[plaid:webhook] rejected: ${verification.reason}`);
+    return c.json({ error: "Invalid webhook signature" }, 401);
+  }
+
+  let body: any = {};
+  try {
+    body = JSON.parse(rawBody);
+  } catch {
+    return c.json({ error: "Malformed body" }, 400);
+  }
   const webhookType = body?.webhook_type as string | undefined;
   const webhookCode = body?.webhook_code as string | undefined;
 
