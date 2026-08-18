@@ -2,7 +2,10 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { env } from "./env";
 import { logger } from "hono/logger";
-import { auth, loginRateLimiter, otpRateLimiter, generalAuthRateLimiter } from "./auth";
+import { auth, loginRateLimiter, otpRateLimiter, generalAuthRateLimiter,
+  signupBurstRateLimiter,
+  signupDailyRateLimiter,
+} from "./auth";
 import { debugLog } from "./lib/log";
 import { transactionsRouter } from "./routes/transactions";
 import { accountsRouter } from "./routes/accounts";
@@ -98,19 +101,18 @@ app.use("*", async (c, next) => {
 });
 
 // Auth routes (path-specific rate limiting) — both versioned and unversioned.
-// During stabilization, /api/auth/sign-up/email and /api/auth/sign-in/email are
-// exempted from generalAuthRateLimiter because it was producing 429s during
-// manual testing. loginRateLimiter still covers /api/auth/sign-in/* (per-IP
-// brute-force protection); otpRateLimiter still covers /api/auth/email-otp/*.
+//
+// sign-up and sign-in were previously exempted from generalAuthRateLimiter, a
+// stabilization measure from the signup-hang investigation that was never
+// reverted. The hang's actual cause was body-cloning inside extractIdentifier
+// (see auth.ts) and is long gone — these limiters read headers only, so the
+// exemption bought nothing and left account creation, and the Resend OTP send
+// it triggers, completely unmetered.
+app.use("/api/auth/sign-up/*", signupBurstRateLimiter);
+app.use("/api/auth/sign-up/*", signupDailyRateLimiter);
 app.use("/api/auth/sign-in/*", loginRateLimiter);
 app.use("/api/auth/email-otp/*", otpRateLimiter);
-app.use("/api/auth/*", async (c, next) => {
-  const p = c.req.path;
-  if (p === "/api/auth/sign-up/email" || p === "/api/auth/sign-in/email") {
-    return next();
-  }
-  return generalAuthRateLimiter(c, next);
-});
+app.use("/api/auth/*", generalAuthRateLimiter);
 app.on(["GET", "POST"], "/api/auth/*", async (c) => {
   const t0 = Date.now();
   debugLog(`[auth-route:enter] ${c.req.method} ${c.req.path}`);

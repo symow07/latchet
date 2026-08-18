@@ -82,6 +82,14 @@ function applyLockout(key: string, store: Map<string, RateLimitRecord>, threshol
 }
 
 export function createRateLimiter(opts: {
+  /**
+   * Namespace for this limiter's counters. Without it every limiter shared a
+   * single record per IP, so whichever one fired first decided the window for
+   * all of them and their budgets cancelled each other out. Lockouts are
+   * namespaced too, so tripping the sign-up limit cannot lock a legitimate
+   * user out of sign-in from the same (often NAT-shared) address.
+   */
+  scope: string;
   ipMax: number;
   ipWindowMs: number;
   identifierMax: number;
@@ -91,25 +99,27 @@ export function createRateLimiter(opts: {
   return async (c: Context, next: Next) => {
     const ip = getIp(c);
     const identifier = extractIdentifier(c);
+    const ipKey = `${opts.scope}:ip:${ip}`;
+    const idKey = identifier ? `${opts.scope}:id:${identifier}` : null;
 
     // Check lockout (by identifier first, then IP)
-    if (identifier && !checkLockout(`id:${identifier}`)) {
+    if (idKey && !checkLockout(idKey)) {
       return c.json({ error: "Account temporarily locked, try again later" }, 429);
     }
-    if (!checkLockout(`ip:${ip}`)) {
+    if (!checkLockout(ipKey)) {
       return c.json({ error: "Too many requests, try again later" }, 429);
     }
 
     // Check IP rate limit
-    if (!checkStore(ipStore, ip, opts.ipMax, opts.ipWindowMs)) {
-      applyLockout(`ip:${ip}`, ipStore, opts.lockoutThreshold);
+    if (!checkStore(ipStore, ipKey, opts.ipMax, opts.ipWindowMs)) {
+      applyLockout(ipKey, ipStore, opts.lockoutThreshold);
       return c.json({ error: "Too many requests, try again later" }, 429);
     }
 
     // Check identifier rate limit
-    if (identifier) {
-      if (!checkStore(identifierStore, identifier, opts.identifierMax, opts.identifierWindowMs)) {
-        applyLockout(`id:${identifier}`, identifierStore, opts.lockoutThreshold);
+    if (idKey) {
+      if (!checkStore(identifierStore, idKey, opts.identifierMax, opts.identifierWindowMs)) {
+        applyLockout(idKey, identifierStore, opts.lockoutThreshold);
         return c.json({ error: "Too many requests for this account, try again later" }, 429);
       }
     }
@@ -120,6 +130,7 @@ export function createRateLimiter(opts: {
 
 // Pre-configured limiters for specific auth paths
 export const loginRateLimiter = createRateLimiter({
+  scope: "login",
   ipMax: 15,
   ipWindowMs: 10 * 60 * 1000,     // 10 min
   identifierMax: 5,
@@ -128,6 +139,7 @@ export const loginRateLimiter = createRateLimiter({
 });
 
 export const otpRateLimiter = createRateLimiter({
+  scope: "otp",
   ipMax: 10,
   ipWindowMs: 5 * 60 * 1000,      // 5 min
   identifierMax: 3,
@@ -136,10 +148,33 @@ export const otpRateLimiter = createRateLimiter({
 });
 
 export const generalAuthRateLimiter = createRateLimiter({
+  scope: "general",
   ipMax: 30,
   ipWindowMs: 15 * 60 * 1000,     // 15 min
   identifierMax: 20,
   identifierWindowMs: 15 * 60 * 1000,
+  lockoutThreshold: 20,
+});
+
+// Sign-up is the expensive one: each attempt creates an account *and* sends an
+// OTP through Resend, so unlimited sign-ups are unlimited outbound mail on our
+// bill and our domain's reputation. Two windows, applied together — a short
+// burst limit and a daily ceiling.
+export const signupBurstRateLimiter = createRateLimiter({
+  scope: "signup-burst",
+  ipMax: 5,
+  ipWindowMs: 60 * 60 * 1000,     // 1 hour
+  identifierMax: 3,
+  identifierWindowMs: 60 * 60 * 1000,
+  lockoutThreshold: 5,
+});
+
+export const signupDailyRateLimiter = createRateLimiter({
+  scope: "signup-daily",
+  ipMax: 20,
+  ipWindowMs: 24 * 60 * 60 * 1000, // 24 hours
+  identifierMax: 10,
+  identifierWindowMs: 24 * 60 * 60 * 1000,
   lockoutThreshold: 20,
 });
 
