@@ -1,3 +1,4 @@
+import { cloneElement, type ReactElement } from 'react';
 import { Text as RNText } from 'react-native';
 
 /**
@@ -104,16 +105,35 @@ export function glow(color: string = C.p500, opacity = 0.45, radius = 22) {
 }
 
 /**
- * Make every plain <Text> render in Plus Jakarta Sans by default so the whole app — even
- * screens we don't individually restyle — inherits the new typography. Screens
- * that need specific weights use the <Txt> component or an explicit fontFamily.
+ * Make every plain <Text> render in Plus Jakarta Sans by default so the whole
+ * app — even screens we don't individually restyle — inherits the typography.
+ * Screens needing specific weights use <Txt> or an explicit fontFamily.
  * Called once at startup after the fonts are loaded.
+ *
+ * This used to set Text.defaultProps, which does nothing here. React 19 still
+ * honours defaultProps via createElement, but JSX compiles to jsx() from
+ * react/jsx-runtime — the app is on the automatic runtime, since babel.config
+ * sets jsxImportSource — and jsx() ignores them. Verified against the project's
+ * own React 19.0.0: createElement applies them, jsx() does not. So the font
+ * rollout only ever reached components that set fontFamily themselves.
+ *
+ * Wrapping the forwardRef's render is the path that actually runs. The default
+ * goes first in the style array so any caller-supplied style still wins.
  */
 export function patchDefaultFont() {
-  const T = RNText as unknown as { defaultProps?: { style?: unknown } };
-  T.defaultProps = T.defaultProps ?? {};
-  const base = { fontFamily: F.medium };
-  T.defaultProps.style = T.defaultProps.style
-    ? [base, T.defaultProps.style]
-    : base;
+  const T = RNText as unknown as {
+    render?: (...args: unknown[]) => ReactElement | null;
+    __defaultFontPatched?: boolean;
+  };
+  // Fast refresh can re-run this; patching a patch would nest it every time.
+  if (T.__defaultFontPatched || typeof T.render !== 'function') return;
+
+  const original = T.render;
+  T.render = function patchedRender(...args: unknown[]) {
+    const element = original.apply(this, args);
+    if (!element) return element;
+    const { style } = element.props as { style?: unknown };
+    return cloneElement(element, { style: [{ fontFamily: F.medium }, style] } as never);
+  };
+  T.__defaultFontPatched = true;
 }

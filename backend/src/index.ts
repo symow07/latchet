@@ -14,7 +14,6 @@ import { billRemindersRouter } from "./routes/bill-reminders";
 import { recurringRouter } from "./routes/recurring";
 import { netWorthRouter } from "./routes/net-worth";
 import { categoryBudgetsRouter } from "./routes/category-budgets";
-import { sampleRouter } from "./routes/sample";
 import { businessRouter } from "./routes/business";
 import { expensesRouter } from "./routes/expenses";
 import { budgetRouter } from "./routes/budget";
@@ -174,7 +173,6 @@ app.route("/api/v1/me", meRouter);
 app.route("/api/me", meRouter);
 
 // Versioned routes (v1) — canonical paths
-app.route("/api/v1/sample", sampleRouter);
 app.route("/api/v1/transactions", transactionsRouter);
 app.route("/api/v1/accounts", accountsRouter);
 app.route("/api/v1/settings", settingsRouter);
@@ -194,7 +192,6 @@ app.route("/api/v1/rates", ratesRouter);
 app.route("/api/v1/email", emailRouter);
 
 // Backward-compatible unversioned routes (alias to v1)
-app.route("/api/sample", sampleRouter);
 app.route("/api/transactions", transactionsRouter);
 app.route("/api/accounts", accountsRouter);
 app.route("/api/settings", settingsRouter);

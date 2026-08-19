@@ -34,7 +34,6 @@ import Animated, { FadeInUp, FadeInDown } from 'react-native-reanimated';
 import {
   getLinkedBanks,
   getLinkedAccounts,
-  SUPPORTED_BANKS,
   createLinkToken,
   disconnectBank,
   toggleAccountSync,
@@ -58,7 +57,6 @@ export default function LinkBankScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [showConsentModal, setShowConsentModal] = useState(false);
-  const [pendingBankId, setPendingBankId] = useState<string | null>(null);
   const [connectionHealth, setConnectionHealth] = useState<{
     healthy: LinkedBank[];
     expiringSoon: LinkedBank[];
@@ -83,15 +81,12 @@ export default function LinkBankScreen() {
     }
   };
 
-  const handleAddBank = (bankId: string) => {
+  const handleAddBank = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setPendingBankId(bankId);
     setShowConsentModal(true);
   };
 
   const confirmBankConnection = async () => {
-    if (!pendingBankId) return;
-
     setShowConsentModal(false);
     setIsLoading(true);
 
@@ -120,7 +115,6 @@ export default function LinkBankScreen() {
       Alert.alert('Connection failed', e instanceof Error ? e.message : 'Please try again.');
     } finally {
       setIsLoading(false);
-      setPendingBankId(null);
     }
   };
 
@@ -337,51 +331,45 @@ export default function LinkBankScreen() {
   const renderAddBankView = () => (
     <>
       <View className="px-4 mb-4">
-        <Text className="text-gray-400 text-xs font-semibold mb-3">SELECT YOUR BANK</Text>
+        <Text className="text-gray-400 text-xs font-semibold mb-3">CONNECT A BANK</Text>
 
-        {SUPPORTED_BANKS.map((bank, idx) => {
-          const isAlreadyLinked = linkedBanks.some(
-            lb => lb.institutionName.toLowerCase().includes(bank.name.toLowerCase())
-          );
-
-          return (
-            <Animated.View
-              key={bank.id}
-              entering={FadeInUp.delay(50 * idx).duration(300)}
+        {/* One entry point, not a bank list. Choosing the institution happens in
+            the provider's own secure flow, against the real, country-appropriate
+            list — a local list could only ever be a shorter, staler copy. */}
+        <Animated.View entering={FadeInUp.duration(300)}>
+          <Pressable onPress={handleAddBank} disabled={isLoading}>
+            <View
+              className="rounded-xl p-4 flex-row items-center justify-between"
+              style={{ backgroundColor: 'rgba(255,255,255,0.05)' }}
             >
-              <Pressable
-                onPress={() => !isAlreadyLinked && handleAddBank(bank.id)}
-                disabled={isAlreadyLinked}
-              >
+              <View className="flex-row items-center flex-1">
                 <View
-                  className={`rounded-xl p-4 mb-2 flex-row items-center justify-between ${
-                    isAlreadyLinked ? 'opacity-50' : ''
-                  }`}
-                  style={{ backgroundColor: 'rgba(255,255,255,0.05)' }}
+                  className="w-12 h-12 rounded-xl items-center justify-center mr-3"
+                  style={{ backgroundColor: 'rgba(168,85,247,0.15)' }}
                 >
-                  <View className="flex-row items-center">
-                    <View
-                      className="w-12 h-12 rounded-xl items-center justify-center mr-3"
-                      style={{ backgroundColor: `${bank.color}20` }}
-                    >
-                      <Text className="text-2xl">{bank.logo}</Text>
-                    </View>
-                    <Text className="text-white font-medium">{bank.name}</Text>
-                  </View>
-
-                  {isAlreadyLinked ? (
-                    <View className="flex-row items-center">
-                      <Check size={16} color="#22c55e" />
-                      <Text className="text-green-400 text-xs ml-1">Linked</Text>
-                    </View>
-                  ) : (
-                    <ChevronRight size={20} color="#6b7280" />
-                  )}
+                  <Building2 size={22} color="#a855f7" />
                 </View>
-              </Pressable>
-            </Animated.View>
-          );
-        })}
+                <View style={{ flex: 1 }}>
+                  <Text className="text-white font-medium">Find your bank</Text>
+                  <Text className="text-gray-500 text-xs mt-0.5">
+                    Search thousands of banks in your country
+                  </Text>
+                </View>
+              </View>
+              {isLoading ? (
+                <ActivityIndicator color="#a855f7" />
+              ) : (
+                <ChevronRight size={20} color="#6b7280" />
+              )}
+            </View>
+          </Pressable>
+        </Animated.View>
+
+        {linkedBanks.length > 0 && (
+          <Text className="text-gray-500 text-xs mt-3">
+            {linkedBanks.length} bank{linkedBanks.length === 1 ? '' : 's'} already connected.
+          </Text>
+        )}
       </View>
 
       {/* Security Info */}
@@ -558,11 +546,9 @@ export default function LinkBankScreen() {
     );
   };
 
-  // Consent Modal
+  // Consent Modal — shown before handing off to the provider's secure flow,
+  // where the user picks their actual institution.
   const renderConsentModal = () => {
-    const bank = SUPPORTED_BANKS.find(b => b.id === pendingBankId);
-    if (!bank) return null;
-
     return (
       <Modal
         visible={showConsentModal}
@@ -574,11 +560,14 @@ export default function LinkBankScreen() {
             <View className="items-center mb-6">
               <View
                 className="w-16 h-16 rounded-2xl items-center justify-center mb-4"
-                style={{ backgroundColor: `${bank.color}20` }}
+                style={{ backgroundColor: 'rgba(168,85,247,0.15)' }}
               >
-                <Text className="text-4xl">{bank.logo}</Text>
+                <Building2 size={30} color="#a855f7" />
               </View>
-              <Text className="text-white text-xl font-bold">Connect {bank.name}</Text>
+              <Text className="text-white text-xl font-bold">Connect your bank</Text>
+              <Text className="text-gray-400 text-sm mt-1 text-center">
+                You&apos;ll choose your bank and sign in on their secure page.
+              </Text>
             </View>
 
             <View className="mb-6">

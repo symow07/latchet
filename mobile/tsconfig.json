@@ -21,6 +21,5 @@
     "backend/node_modules",
     "backend/generated",
     ".expo"
-  ],
-  "extends": "expo/tsconfig.base"
+  ]
 }

@@ -22,6 +22,7 @@ interface PlaidItemDTO {
   id: string;
   institutionName?: string | null;
   status: string;
+  createdAt: string;
   updatedAt: string;
   accounts: PlaidAccountDTO[];
 }
@@ -32,6 +33,9 @@ function mapAccountType(t: string): LinkedAccount['type'] {
   return 'checking';
 }
 
+/** PSD2 re-consent runs to 90 days; used only for the renewal reminder. */
+const CONSENT_ESTIMATE_DAYS = 90;
+
 function itemToBank(item: PlaidItemDTO): LinkedBank {
   return {
     id: item.id,
@@ -39,9 +43,15 @@ function itemToBank(item: PlaidItemDTO): LinkedBank {
     lastSynced: item.updatedAt,
     connectionStatus: item.status === 'active' ? 'active' : 'error',
     accountsCount: item.accounts.length,
-    // Plaid consent typically lasts ~90 days; surface a derived expiry for display.
+    // Estimated from when the connection was made. It used to be derived from
+    // updatedAt, which the sync rewrites on every run — so the expiry rolled
+    // forward forever and no connection ever appeared to expire, making
+    // checkConnectionHealth permanently report everything healthy.
+    //
+    // This is still an estimate: the authoritative value is Plaid's
+    // item.consent_expiration_time, which we do not yet store.
     consentExpiresAt: new Date(
-      new Date(item.updatedAt).getTime() + 90 * 24 * 60 * 60 * 1000
+      new Date(item.createdAt).getTime() + CONSENT_ESTIMATE_DAYS * 24 * 60 * 60 * 1000
     ).toISOString(),
   };
 }
@@ -110,19 +120,15 @@ export interface ConsentInfo {
 // Storage keys
 const LINKED_BANKS_KEY = 'linked_banks';
 const LINKED_ACCOUNTS_KEY = 'linked_accounts';
-const SYNC_SETTINGS_KEY = 'bank_sync_settings';
 
-// Mock supported banks (in real app, would come from Open Banking API)
-export const SUPPORTED_BANKS = [
-  { id: 'chase', name: 'Chase', logo: '🏦', color: '#117ACA' },
-  { id: 'bofa', name: 'Bank of America', logo: '🏛️', color: '#012169' },
-  { id: 'wells', name: 'Wells Fargo', logo: '🏪', color: '#D71E28' },
-  { id: 'citi', name: 'Citibank', logo: '💳', color: '#003B70' },
-  { id: 'capital_one', name: 'Capital One', logo: '💰', color: '#D03027' },
-  { id: 'usbank', name: 'US Bank', logo: '🏢', color: '#0C2074' },
-  { id: 'pnc', name: 'PNC Bank', logo: '🏗️', color: '#FF6600' },
-  { id: 'td', name: 'TD Bank', logo: '🌿', color: '#34A853' },
-];
+// There is deliberately no bank list here.
+//
+// There used to be eight hardcoded US banks with emoji logos, and the id the
+// user picked was thrown away: the connect flow opens Plaid's Hosted Link,
+// where they choose their bank from the real institution list. So the picker
+// asked the same question twice, and for anyone outside the US it offered
+// eight banks that were not theirs — see lib/bank-providers for the countries
+// actually supported.
 
 // Get all linked banks (live from the backend Plaid integration).
 export async function getLinkedBanks(): Promise<LinkedBank[]> {
@@ -238,8 +244,13 @@ export async function syncAllTransactions(): Promise<{
   }
 }
 
-// Get consent information for a bank
-export function getConsentInfo(bank: LinkedBank): ConsentInfo {
+/**
+ * What a bank connection grants us.
+ *
+ * Takes an optional connection: before linking there is no bank yet, and the
+ * terms are the same either way.
+ */
+export function getConsentInfo(bank?: LinkedBank): ConsentInfo {
   return {
     dataAccessed: [
       'Account balances',
@@ -251,7 +262,7 @@ export function getConsentInfo(bank: LinkedBank): ConsentInfo {
       'No ability to make payments',
       'No access to personal details',
     ],
-    expiresAt: bank.consentExpiresAt,
+    expiresAt: bank?.consentExpiresAt ?? '',
     canRevoke: true,
   };
 }
@@ -285,45 +296,8 @@ export async function checkConnectionHealth(): Promise<{
   return { healthy, expiringSoon, expired };
 }
 
-// Get sync settings
-export interface SyncSettings {
-  autoSync: boolean;
-  syncFrequency: 'daily' | 'weekly' | 'manual';
-  lastAutoSync: string | null;
-  notifyOnNewTransactions: boolean;
-  notifyOnLargeTransactions: boolean;
-  largeTransactionThreshold: number;
-}
+// Sync scheduling settings used to live here — autoSync, syncFrequency,
+// notifyOnNewTransactions and friends. Nothing read them and no scheduler
+// existed to honour them, so they were settings that silently did nothing.
+// Syncing is triggered explicitly, and by the provider's webhook.
 
-export async function getSyncSettings(): Promise<SyncSettings> {
-  try {
-    const data = await AsyncStorage.getItem(SYNC_SETTINGS_KEY);
-    return data ? JSON.parse(data) : {
-      autoSync: true,
-      syncFrequency: 'daily',
-      lastAutoSync: null,
-      notifyOnNewTransactions: true,
-      notifyOnLargeTransactions: true,
-      largeTransactionThreshold: 100,
-    };
-  } catch {
-    return {
-      autoSync: true,
-      syncFrequency: 'daily',
-      lastAutoSync: null,
-      notifyOnNewTransactions: true,
-      notifyOnLargeTransactions: true,
-      largeTransactionThreshold: 100,
-    };
-  }
-}
-
-export async function updateSyncSettings(settings: Partial<SyncSettings>): Promise<boolean> {
-  try {
-    const current = await getSyncSettings();
-    await AsyncStorage.setItem(SYNC_SETTINGS_KEY, JSON.stringify({ ...current, ...settings }));
-    return true;
-  } catch {
-    return false;
-  }
-}
