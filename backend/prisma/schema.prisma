@@ -233,10 +233,15 @@ model PushToken {
 // A linked Plaid Item (one per institution connection). The access token is
 // stored encrypted at rest (AES-256-GCM, key derived from BETTER_AUTH_SECRET).
 // `cursor` is Plaid's /transactions/sync pagination cursor for incremental pulls.
+// A linked bank connection. Named for Plaid because it was the first (and so
+// far only) provider; the rows are provider-neutral storage — see
+// lib/bank-providers for the abstraction and `provider` below.
 model PlaidItem {
   id              String         @id @default(cuid())
   userId          String
   user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Which BankProvider owns this connection, so a second provider can coexist.
+  provider        String         @default("plaid")
   itemId          String         @unique
   accessTokenEnc  String
   institutionId   String?
