@@ -46,6 +46,7 @@ import {
   type SignConvention,
 } from '@/lib/import-parser';
 import { addTransaction, getTransactions, getSettings } from '@/lib/db';
+import { findProfileFor, rememberProfile } from '@/lib/import-profiles';
 
 type ImportStep = 'upload' | 'mapping' | 'preview' | 'success';
 
@@ -70,6 +71,11 @@ export default function ImportScreen() {
   // Manual column mapping, for files whose header we could not read.
   const [inspection, setInspection] = useState<CsvInspection | null>(null);
   const [mapping, setMapping] = useState<Partial<ColumnMapping>>({});
+
+  // The mapping actually used, remembered against this bank once the import
+  // succeeds so the next statement from them needs no setup.
+  const [activeMapping, setActiveMapping] = useState<ColumnMapping | null>(null);
+  const [rememberedBank, setRememberedBank] = useState(false);
 
   const pickFile = useCallback(async (source: ImportSource = 'bank') => {
     try {
@@ -144,12 +150,25 @@ export default function ImportScreen() {
       const fallbackDate: DateConvention =
         settings?.currency === 'USD' ? 'mdy' : 'dmy';
 
-      // A bank CSV whose header we cannot read is a question, not a dead end:
-      // inspect first, and if a required column is missing, ask the user to
-      // point at it rather than refusing the file.
+      let detected: CsvFormat | null = null;
+      let usedMapping: ColumnMapping | null = null;
+      let parsedTransactions: ParsedTransaction[];
+
       if (source === 'bank') {
         const found = inspectCsv(content, fallbackDate);
-        if (found.missing.length > 0) {
+
+        // Have we seen this bank before? The shape of a statement belongs to
+        // the bank, not the file, so anything already worked out (or corrected
+        // by hand) applies again without asking.
+        const remembered = await findProfileFor(found.headers).catch(() => null);
+
+        if (remembered) {
+          detected = remembered.format;
+          usedMapping = remembered.mapping;
+          parsedTransactions = parseCSV(content, remembered.format, remembered.mapping);
+          setRememberedBank(true);
+        } else if (found.missing.length > 0) {
+          // A header we cannot read is a question, not a dead end.
           setRawContent(content);
           setRawSource(source);
           setInspection(found);
@@ -157,14 +176,16 @@ export default function ImportScreen() {
           setStep('mapping');
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
           return;
+        } else {
+          detected = detectCsvFormat(content, fallbackDate);
+          usedMapping = found.mapping;
+          parsedTransactions = parseCSV(content, detected);
+          setRememberedBank(false);
         }
+      } else {
+        // Alipay / WeChat bills have a fixed, known shape.
+        parsedTransactions = parseStatement(content, source);
       }
-
-      const detected =
-        source === 'bank' ? detectCsvFormat(content, fallbackDate) : null;
-
-      // Parse based on the chosen source (bank CSV, Alipay bill, WeChat bill).
-      const parsedTransactions = parseStatement(content, source, detected ?? {});
 
       if (parsedTransactions.length === 0) {
         Alert.alert(
@@ -191,6 +212,7 @@ export default function ImportScreen() {
       setRawContent(content);
       setRawSource(source);
       setFormat(detected);
+      setActiveMapping(usedMapping);
       setStep('preview');
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -252,6 +274,7 @@ export default function ImportScreen() {
     setPreview(importPreview);
     setTransactions(importPreview.transactions);
     setFormat(detectCsvFormat(rawContent, undefined, merged));
+    setActiveMapping(merged);
     setStep('preview');
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   }, [rawContent, inspection, mapping]);
@@ -293,6 +316,14 @@ export default function ImportScreen() {
         });
         count++;
         setImportedCount(count);
+      }
+
+      // Remember this bank's shape now that an import has actually succeeded —
+      // including any correction the user made on the preview screen. Only
+      // formats that produced data the user accepted are worth reusing.
+      if (rawSource === 'bank' && activeMapping && format) {
+        const headers = inspectCsv(rawContent).headers;
+        await rememberProfile(headers, activeMapping, format).catch(() => {});
       }
 
       // Invalidate queries to refresh data
@@ -561,11 +592,15 @@ export default function ImportScreen() {
                   className="rounded-2xl p-4"
                   style={{ backgroundColor: 'rgba(255,255,255,0.05)' }}
                 >
-                  <Text className="text-gray-400 text-xs mb-1">FILE FORMAT</Text>
+                  <Text className="text-gray-400 text-xs mb-1">
+                    {rememberedBank ? 'FILE FORMAT · REMEMBERED' : 'FILE FORMAT'}
+                  </Text>
                   <Text className="text-gray-500 text-xs mb-3 leading-4">
-                    {format.dateAmbiguous || format.signAmbiguous
-                      ? 'We had to guess part of this. Check the dates and amounts below look right.'
-                      : 'Detected from your file. Change these if anything looks wrong.'}
+                    {rememberedBank
+                      ? 'Reusing the settings from your last import from this bank. Change them if anything looks wrong.'
+                      : format.dateAmbiguous || format.signAmbiguous
+                        ? 'We had to guess part of this. Check the dates and amounts below look right.'
+                        : 'Detected from your file. Change these if anything looks wrong.'}
                   </Text>
 
                   <Text className="text-gray-400 text-xs mb-2">Date order</Text>
