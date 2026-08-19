@@ -103,7 +103,12 @@ export const api = {
     request<T>(url, { method: "POST", body: JSON.stringify(body) }),
   put: <T>(url: string, body: unknown) =>
     request<T>(url, { method: "PUT", body: JSON.stringify(body) }),
-  delete: <T>(url: string) => request<T>(url, { method: "DELETE" }),
+  // Optional body: account deletion carries a typed confirmation.
+  delete: <T>(url: string, body?: unknown) =>
+    request<T>(url, {
+      method: "DELETE",
+      ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+    }),
   patch: <T>(url: string, body: unknown) =>
     request<T>(url, { method: "PATCH", body: JSON.stringify(body) }),
 };

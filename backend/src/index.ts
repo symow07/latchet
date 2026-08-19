@@ -27,6 +27,7 @@ import { achievementsRouter } from "./routes/achievements";
 import { pushTokensRouter } from "./routes/push-tokens";
 import { plaidRouter } from "./routes/plaid";
 import { ratesRouter } from "./routes/rates";
+import { meRouter } from "./routes/me";
 import { emailRouter } from "./routes/email";
 import { installErrorHandlers } from "./lib/http-errors";
 import { prisma } from "./prisma";
@@ -168,14 +169,9 @@ if (process.env.NODE_ENV !== "production" || process.env.DEBUG_ROUTES === "true"
   app.route("/api/debug", debugRouter);
 }
 
-// Current user (versioned + backward-compatible)
-const meHandler = (c: any) => {
-  const user = c.get("user");
-  if (!user) return c.json({ error: "Unauthorized" }, 401);
-  return c.json({ user });
-};
-app.get("/api/v1/me", meHandler);
-app.get("/api/me", meHandler);
+// Current user + account deletion (versioned + backward-compatible)
+app.route("/api/v1/me", meRouter);
+app.route("/api/me", meRouter);
 
 // Versioned routes (v1) — canonical paths
 app.route("/api/v1/sample", sampleRouter);

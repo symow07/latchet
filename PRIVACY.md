@@ -43,9 +43,15 @@ Host this document at a public URL and link it from the App Store listing.
   revoked and removed.
 - **Reset All Activity** (Settings) permanently deletes your transactions and
   balances.
-- **Account deletion**: contact support at the email below to delete your
-  account and all associated data.
+- **Account deletion**: Settings → Delete Account removes your account and
+  everything in it — transactions, accounts, budgets, bill reminders, recurring
+  rules, achievements, and any business you own. Bank and inbox connections are
+  revoked with the provider first, so they stop sharing data with us. Deletion
+  is immediate and irreversible; we keep no copy and cannot restore it.
+  If a provider is unreachable at that moment we still delete your account, and
+  the app tells you which connections to revoke yourself.
 
 ## Contact
 
-Questions or deletion requests: <support email — fill in before publishing>.
+Questions: <support email — fill in before publishing>. You do not need to
+contact us to delete your account — Settings → Delete Account does it in full.

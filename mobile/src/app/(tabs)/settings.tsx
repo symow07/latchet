@@ -12,7 +12,7 @@ import { useRouter } from 'expo-router';
 import { getSettings, updateSettings, getAccounts, resetAllData } from '@/lib/db';
 import { exportTransactionsCSV, exportTransactionsJSON } from '@/lib/export-data';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { DollarSign, Wallet, Clock, Eye, Flame, Award, Cloud, Check, ChevronRight, CreditCard, LogOut, Upload, Download, Fingerprint, PieChart, RotateCcw, Bell, Repeat, TrendingUp } from 'lucide-react-native';
+import { DollarSign, Wallet, Clock, Eye, Flame, Award, Cloud, Check, ChevronRight, CreditCard, LogOut, Upload, Download, Fingerprint, PieChart, RotateCcw, Bell, Repeat, TrendingUp, Trash2 } from 'lucide-react-native';
 import { authClient } from '@/lib/auth/auth-client';
 import { useInvalidateSession } from '@/lib/auth/use-session';
 import * as Haptics from 'expo-haptics';
@@ -22,6 +22,8 @@ import { isBiometricAvailable } from '@/lib/biometric';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { C, R, glow } from '@/lib/design';
+import { DeleteAccountModal, UnrevokedGrantsNotice } from '@/components/DeleteAccountModal';
+import type { UnrevokedGrant } from '@/lib/accountApi';
 import { Txt, GlassCard, IconBubble, BubbleButton, ScreenBackground } from '@/components/ui';
 
 function SectionLabel({ children }: { children: string }) {
@@ -110,6 +112,29 @@ export default function SettingsScreen() {
   const [showTimeCost, setShowTimeCost] = useState(false);
   const [saved, setSaved] = useState(false);
   const [biometricEnabled, setBiometricEnabled] = useState(false);
+  const [showDeleteAccount, setShowDeleteAccount] = useState(false);
+  const [unrevokedGrants, setUnrevokedGrants] = useState<UnrevokedGrant[] | null>(null);
+
+  /**
+   * The server has already deleted the account. Clear everything on-device too
+   * — the local SQLite copy would otherwise survive the account it belongs to —
+   * and drop the (now invalid) session.
+   */
+  const handleAccountDeleted = async (unrevoked: UnrevokedGrant[]) => {
+    setShowDeleteAccount(false);
+    try {
+      await resetAllData();
+    } catch (e) {
+      console.error('[delete-account] local wipe failed:', e);
+    }
+    queryClient.clear();
+    resetAccountType();
+    await authClient.signOut().catch(() => {});
+    await invalidateSession();
+
+    // Shown over the signed-out screen; the account is gone either way.
+    if (unrevoked.length > 0) setUnrevokedGrants(unrevoked);
+  };
 
   useEffect(() => {
     AsyncStorage.getItem('@biometric_lock').then((val) => { if (val === 'true') setBiometricEnabled(true); });
@@ -321,6 +346,25 @@ export default function SettingsScreen() {
               </View>
             </GlassCard>
           </Pressable>
+
+          <Pressable
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+              setShowDeleteAccount(true);
+            }}
+            style={{ marginTop: 12 }}
+          >
+            <GlassCard padding={14} tint="rgba(239,68,68,0.07)" border="rgba(239,68,68,0.18)">
+              <View className="flex-row items-center" style={{ gap: 12 }}>
+                <IconBubble color="#ef4444"><Trash2 size={20} color="#ef4444" /></IconBubble>
+                <View style={{ flex: 1 }}>
+                  <Txt weight="semibold" size={15} color="#f87171">Delete Account</Txt>
+                  <Txt size={11} color="rgba(248,113,113,0.6)" style={{ marginTop: 1 }}>Permanently erase your account and all data</Txt>
+                </View>
+                <ChevronRight size={18} color="rgba(248,113,113,0.4)" />
+              </View>
+            </GlassCard>
+          </Pressable>
         </View>
 
         {/* ── Logout ── */}
@@ -335,6 +379,18 @@ export default function SettingsScreen() {
           </Pressable>
         </View>
       </ScrollView>
+
+      <DeleteAccountModal
+        visible={showDeleteAccount}
+        onClose={() => setShowDeleteAccount(false)}
+        onDeleted={handleAccountDeleted}
+      />
+      {unrevokedGrants && (
+        <UnrevokedGrantsNotice
+          grants={unrevokedGrants}
+          onDismiss={() => setUnrevokedGrants(null)}
+        />
+      )}
     </ScreenBackground>
   );
 }
