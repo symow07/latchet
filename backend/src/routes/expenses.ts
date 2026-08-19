@@ -3,6 +3,7 @@ import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { prisma } from "../prisma";
 import { auth } from "../auth";
+import { getUserMembership } from "../lib/get-user-business";
 
 const expensesRouter = new Hono<{
   Variables: {
@@ -19,12 +20,10 @@ expensesRouter.use("*", async (c, next) => {
 });
 
 // ─── Helper: get business membership for current user ─────────────────────────
-async function getMembership(userId: string) {
-  return prisma.teamMember.findFirst({
-    where: { userId },
-    include: { business: true },
-  });
-}
+// Delegates to the shared resolver so expenses cannot disagree with payroll and
+// budget about which business the caller is acting in — this was its own
+// unordered findFirst.
+const getMembership = getUserMembership;
 
 // ─── POST /api/expenses ───────────────────────────────────────────────────────
 // Submit a new expense. Any team member can submit.

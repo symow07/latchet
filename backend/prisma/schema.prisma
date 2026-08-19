@@ -125,6 +125,10 @@ model UserSettings {
   savingsGoal    Float   @default(0)
   spendingStyle  String  @default("moderate")
   primaryGoal    String  @default("track")
+  // Which business the user is currently acting in. Membership resolution used
+  // findFirst, so a user in more than one business got a non-deterministic
+  // answer that could change between requests.
+  activeBusinessId String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 }

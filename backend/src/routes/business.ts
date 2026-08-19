@@ -199,28 +199,48 @@ businessRouter.get("/members", async (c) => {
   return c.json({ members });
 });
 
-// ─── addTeamMember ────────────────────────────────────────────────────────────
-// POST /api/business/team
-businessRouter.post(
-  "/team",
-  zValidator("json", z.object({ userId: z.string().min(1), role: z.enum(["manager", "employee"]) })),
+// ─── addTeamMember: removed ───────────────────────────────────────────────────
+// POST /api/business/team used to accept an arbitrary userId and create a
+// TeamMember row for it — no invitation, no consent, no check that the user
+// even existed. Because membership then resolved by findFirst, a victim who
+// owned no business was silently resolved into the attacker's business, and
+// their business-mode screens read and wrote that attacker's payroll and
+// expense data.
+//
+// There is no safe version of "add this stranger to my company", so the route
+// is gone. Joining happens one way: the invitee enters the owner's invite code
+// at POST /api/business/join, which is consent by construction and already
+// rate-limited. Role changes for existing members remain at
+// PATCH /api/business/team/:memberId.
+
+// ─── setActiveBusiness ────────────────────────────────────────────────────────
+// PUT /api/business/active — choose which business to act in.
+businessRouter.put(
+  "/active",
+  zValidator("json", z.object({ businessId: z.string().min(1) })),
   async (c) => {
     const user = c.get("user")!;
-    const { userId, role } = c.req.valid("json");
+    const { businessId } = c.req.valid("json");
 
-    const business = await prisma.business.findUnique({ where: { ownerId: user.id } });
-    if (!business) return c.json({ error: "No business found" }, 404);
-
-    const existing = await prisma.teamMember.findUnique({
-      where: { businessId_userId: { businessId: business.id, userId } },
+    // Selecting a business must never be what grants access to it.
+    const owned = await prisma.business.findFirst({
+      where: { id: businessId, ownerId: user.id },
     });
-    if (existing) return c.json({ member: existing }, 200);
+    const membership = owned
+      ? null
+      : await prisma.teamMember.findUnique({
+          where: { businessId_userId: { businessId, userId: user.id } },
+        });
+    if (!owned && !membership) {
+      return c.json({ error: "You are not a member of that business" }, 403);
+    }
 
-    const member = await prisma.teamMember.create({
-      data: { businessId: business.id, userId, role },
+    await prisma.userSettings.update({
+      where: { userId: user.id },
+      data: { activeBusinessId: businessId },
     });
 
-    return c.json({ member }, 201);
+    return c.json({ activeBusinessId: businessId });
   }
 );
 
