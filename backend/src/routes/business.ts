@@ -4,6 +4,7 @@ import { z } from "zod";
 import { prisma } from "../prisma";
 import { auth } from "../auth";
 import { randomBytes } from "crypto";
+import { getUserBusiness } from "../lib/get-user-business";
 
 const businessRouter = new Hono<{
   Variables: {
@@ -69,29 +70,24 @@ businessRouter.post(
 );
 
 // ─── getBusiness ──────────────────────────────────────────────────────────────
-// GET /api/business — returns business the current user is a member of (owner OR team)
+// GET /api/business — returns the business the current user is acting in
 businessRouter.get("/", async (c) => {
   const user = c.get("user")!;
 
-  // First check if they own a business
-  const owned = await prisma.business.findUnique({
-    where: { ownerId: user.id },
-    include: { teamMembers: { include: { user: { select: { id: true, name: true, email: true } } } } },
-  });
-  if (owned) return c.json({ business: owned });
+  // Resolve through the shared selector rather than a second findFirst.
+  // Two independent resolutions meant a user in more than one business could
+  // be shown business A while payroll and expense writes — which go through
+  // getUserBusiness — landed in business B.
+  const business = await getUserBusiness(user.id);
+  if (!business) return c.json({ error: "No business found" }, 404);
 
-  // Otherwise check if they are a team member
-  const membership = await prisma.teamMember.findFirst({
-    where: { userId: user.id },
+  const full = await prisma.business.findUnique({
+    where: { id: business.id },
     include: {
-      business: {
-        include: { teamMembers: { include: { user: { select: { id: true, name: true, email: true } } } } },
-      },
+      teamMembers: { include: { user: { select: { id: true, name: true, email: true } } } },
     },
   });
-  if (!membership) return c.json({ error: "No business found" }, 404);
-
-  return c.json({ business: membership.business });
+  return c.json({ business: full });
 });
 
 // ─── getInviteCode ────────────────────────────────────────────────────────────
@@ -183,15 +179,14 @@ businessRouter.post(
 businessRouter.get("/members", async (c) => {
   const user = c.get("user")!;
 
-  // Find the business the user belongs to
-  const membership = await prisma.teamMember.findFirst({
-    where: { userId: user.id },
-    include: { business: true },
-  });
-  if (!membership) return c.json({ error: "Not a member of any business" }, 403);
+  // Same shared selector as everything else. The old findFirst also missed
+  // owners entirely — an owner has no TeamMember row, so listing their own
+  // team answered 403.
+  const business = await getUserBusiness(user.id);
+  if (!business) return c.json({ error: "Not a member of any business" }, 403);
 
   const members = await prisma.teamMember.findMany({
-    where: { businessId: membership.businessId },
+    where: { businessId: business.id },
     include: { user: { select: { id: true, name: true, email: true, image: true } } },
     orderBy: { createdAt: "asc" },
   });
