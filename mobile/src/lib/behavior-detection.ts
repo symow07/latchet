@@ -1,4 +1,6 @@
-import { format, subDays, subMonths, startOfMonth, endOfMonth, getDay, differenceInDays } from 'date-fns';
+import { format, subDays, subMonths, startOfMonth, endOfMonth, getDay } from 'date-fns';
+import { detectSubscriptions as detectFromEngine } from './subscriptions/engine';
+import { chargesFromTransactions } from './subscriptions/sources';
 
 export interface Transaction {
   id: string;
@@ -23,73 +25,28 @@ export interface DetectedSubscription {
   totalSpent: number;
 }
 
+/**
+ * Recurring charges, for the analytics screen.
+ *
+ * This used to be a second, cruder detector — it grouped by rounded amount plus
+ * the first word of the note, and fell back to the category when the note was
+ * empty, so it disagreed with the subscriptions screen about the same data. It
+ * is now a view over the shared engine.
+ */
 export function detectSubscriptions(transactions: Transaction[]): DetectedSubscription[] {
-  const subscriptions: DetectedSubscription[] = [];
-
-  // Group transactions by similar amounts and descriptions
-  const grouped: Record<string, Transaction[]> = {};
-
-  transactions
-    .filter(tx => tx.type === 'Expense')
-    .forEach(tx => {
-      // Create a key based on amount (rounded) and first word of note
-      const amountKey = Math.round(tx.amount * 100) / 100;
-      const descKey = (tx.note || tx.category).toLowerCase().split(' ')[0];
-      const key = `${amountKey}_${descKey}`;
-
-      if (!grouped[key]) grouped[key] = [];
-      grouped[key].push(tx);
-    });
-
-  // Analyze each group for recurring patterns
-  Object.entries(grouped).forEach(([key, txs]) => {
-    if (txs.length < 2) return;
-
-    // Sort by date
-    const sorted = [...txs].sort((a, b) => a.dateISO.localeCompare(b.dateISO));
-
-    // Calculate intervals between transactions
-    const intervals: number[] = [];
-    for (let i = 1; i < sorted.length; i++) {
-      const days = differenceInDays(
-        new Date(sorted[i].dateISO),
-        new Date(sorted[i - 1].dateISO)
-      );
-      intervals.push(days);
-    }
-
-    if (intervals.length === 0) return;
-
-    // Determine average interval
-    const avgInterval = intervals.reduce((a, b) => a + b, 0) / intervals.length;
-
-    // Detect frequency (unified ranges with subscription-detection.ts)
-    let frequency: 'weekly' | 'monthly' | 'yearly' | null = null;
-    if (avgInterval >= 5 && avgInterval <= 10) frequency = 'weekly';
-    else if (avgInterval >= 25 && avgInterval <= 38) frequency = 'monthly';
-    else if (avgInterval >= 330 && avgInterval <= 400) frequency = 'yearly';
-
-    if (!frequency) return;
-
-    // Calculate next expected date
-    const lastTx = sorted[sorted.length - 1];
-    const daysToAdd = frequency === 'weekly' ? 7 : frequency === 'monthly' ? 30 : 365;
-    const nextDate = new Date(lastTx.dateISO);
-    nextDate.setDate(nextDate.getDate() + daysToAdd);
-
-    subscriptions.push({
-      description: lastTx.note || lastTx.category,
-      amount: lastTx.amount,
-      category: lastTx.category,
-      frequency,
-      lastCharged: lastTx.dateISO,
-      nextExpected: format(nextDate, 'yyyy-MM-dd'),
-      occurrences: txs.length,
-      totalSpent: txs.reduce((sum, t) => sum + t.amount, 0),
-    });
-  });
-
-  return subscriptions.sort((a, b) => b.amount - a.amount);
+  return detectFromEngine(chargesFromTransactions(transactions))
+    .filter((s) => s.cadence !== 'unknown')
+    .map((s) => ({
+      description: s.merchantDisplay,
+      amount: s.typicalAmount,
+      category: s.category,
+      frequency: s.cadence as 'weekly' | 'monthly' | 'yearly',
+      lastCharged: s.lastChargedAt,
+      nextExpected: s.nextExpectedAt,
+      occurrences: s.occurrences.length,
+      totalSpent: s.totalSpent,
+    }))
+    .sort((a, b) => b.amount - a.amount);
 }
 
 // Duplicate Charge Detection

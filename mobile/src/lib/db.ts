@@ -204,6 +204,62 @@ async function performInit(): Promise<SQLite.SQLiteDatabase> {
     console.log('Opening balance migration:', e);
   }
 
+  // Migration v5: subscription ids no longer embed the amount, so a price
+  // change updates a subscription instead of minting a second one. Existing
+  // rows carry the old `sub_<merchant>_<amount>` form; fold each into its
+  // merchant-only id, keeping whichever row the user had already acted on.
+  // Occurrences move with their subscription, and duplicates collapse because
+  // their ids are deterministic now too.
+  try {
+    const already = await db.getFirstAsync(
+      `SELECT key FROM migrations WHERE key = 'v5_subscription_ids'`
+    );
+    if (!already) {
+      const rows = (await db.getAllAsync(
+        `SELECT id, status FROM subscriptions`
+      )) as { id: string; status: string }[];
+
+      for (const row of rows) {
+        const match = row.id.match(/^(sub_.+)_\d+$/);
+        if (!match) continue;
+        const newId = match[1]!;
+
+        const existing = await db.getFirstAsync(
+          `SELECT id, status FROM subscriptions WHERE id = ?`,
+          [newId]
+        ) as { id: string; status: string } | null;
+
+        if (!existing) {
+          await db.runAsync(`UPDATE subscriptions SET id = ? WHERE id = ?`, [newId, row.id]);
+          await db.runAsync(
+            `UPDATE subscription_occurrences SET subscriptionId = ? WHERE subscriptionId = ?`,
+            [newId, row.id]
+          );
+          continue;
+        }
+
+        // Both forms present. Keep the one the user acted on; otherwise keep
+        // the new-format row and discard the stale duplicate.
+        const userActed = (s: string) => s === 'confirmed' || s === 'canceled';
+        if (userActed(row.status) && !userActed(existing.status)) {
+          await db.runAsync(`DELETE FROM subscriptions WHERE id = ?`, [newId]);
+          await db.runAsync(`UPDATE subscriptions SET id = ? WHERE id = ?`, [newId, row.id]);
+        } else {
+          await db.runAsync(`DELETE FROM subscriptions WHERE id = ?`, [row.id]);
+        }
+        await db.runAsync(
+          `UPDATE OR IGNORE subscription_occurrences SET subscriptionId = ? WHERE subscriptionId = ?`,
+          [newId, row.id]
+        );
+        await db.runAsync(`DELETE FROM subscription_occurrences WHERE subscriptionId = ?`, [row.id]);
+      }
+
+      await db.runAsync(`INSERT INTO migrations (key) VALUES ('v5_subscription_ids')`);
+    }
+  } catch (e) {
+    console.log('Subscription id migration:', e);
+  }
+
   // Migration v3: add subscriptions tables
   try {
     await db.execAsync(`CREATE TABLE IF NOT EXISTS subscriptions (
@@ -785,12 +841,21 @@ export async function getSubscriptionOccurrences(subscriptionId: string): Promis
   return (await database.getAllAsync(`SELECT * FROM subscription_occurrences WHERE subscriptionId = ? ORDER BY chargedAt DESC`, [subscriptionId])) as SubscriptionOccurrence[];
 }
 
-export async function addSubscriptionOccurrence(occ: Omit<SubscriptionOccurrence, 'id'>): Promise<void> {
+/**
+ * Record one charge against a subscription.
+ *
+ * `id` must be deterministic (see occurrenceId in lib/subscriptions/engine).
+ * It used to be generated randomly here and then guarded with INSERT OR
+ * IGNORE — which had nothing to collide with, so every scan re-appended the
+ * same occurrences and the charge history grew without bound.
+ */
+export async function addSubscriptionOccurrence(
+  occ: SubscriptionOccurrence
+): Promise<void> {
   const database = await getDatabase();
-  const id = `socc_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
   await database.runAsync(
     `INSERT OR IGNORE INTO subscription_occurrences (id, subscriptionId, transactionId, chargedAt, amount) VALUES (?, ?, ?, ?, ?)`,
-    [id, occ.subscriptionId, occ.transactionId, occ.chargedAt, occ.amount]
+    [occ.id, occ.subscriptionId, occ.transactionId, occ.chargedAt, occ.amount]
   );
 }
 
