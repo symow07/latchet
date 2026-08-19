@@ -29,6 +29,7 @@ import { plaidRouter } from "./routes/plaid";
 import { ratesRouter } from "./routes/rates";
 import { emailRouter } from "./routes/email";
 import { installErrorHandlers } from "./lib/http-errors";
+import { prisma } from "./prisma";
 
 const app = new Hono<{
   Variables: {
@@ -148,8 +149,18 @@ app.on(["GET", "POST"], "/api/auth/*", async (c) => {
   }
 });
 
-// Health check
-app.get("/health", (c) => c.json({ status: "ok" }));
+// Health check. Runs a real query: returning ok unconditionally meant Railway
+// kept routing traffic to an instance whose database volume was unreachable,
+// which is precisely the failure the healthcheck exists to catch.
+app.get("/health", async (c) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    return c.json({ status: "ok" });
+  } catch (e) {
+    console.error("[health] database unreachable:", e instanceof Error ? e.message : e);
+    return c.json({ status: "error", error: "database unreachable" }, 503);
+  }
+});
 
 // Diagnostic routes — never mounted in production (they expose internals from
 // the signup-hang investigation). Set DEBUG_ROUTES=true to re-enable temporarily.

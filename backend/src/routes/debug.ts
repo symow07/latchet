@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { prisma } from "../prisma";
 import { env } from "../env";
+import { fetchWithTimeout } from "../lib/fetch-timeout";
 
 const debugRouter = new Hono();
 
@@ -132,7 +133,7 @@ debugRouter.get("/signup-prereq", async (c) => {
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), CHECK_TIMEOUT_MS - 200);
         try {
-          const res = await fetch(smtpUrl, {
+          const res = await fetchWithTimeout(smtpUrl, {
             method: "HEAD",
             signal: controller.signal,
           });

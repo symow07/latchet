@@ -8,6 +8,10 @@ import { allowUsage, allowUsageTiered } from "../lib/usage-limit";
 import { parseInboundToken, isGmailForwardConfirm, extractConfirmationCode } from "../lib/inbound-email";
 import { GmailProvider } from "../lib/email-providers/gmail";
 import type { RawEmail } from "../lib/email-providers/types";
+import { fetchWithTimeout } from "../lib/fetch-timeout";
+import { safeReturnUrl } from "../lib/return-url";
+import { ExpiringMap, OAUTH_STATE_TTL_MS, autoSweep } from "../lib/expiring-map";
+import { secretsMatch } from "../lib/secrets";
 
 /**
  * Gmail-based subscription scanner.
@@ -45,8 +49,15 @@ function inboundConfigured(): boolean {
 
 // Maps an OAuth `state` to the user who started the flow and the app deep link
 // to return to. Process-local (single-instance) — same approach as Plaid's
-// pendingLinkSessions. Entries are short-lived (consumed on callback).
-const pendingEmailSessions = new Map<string, { userId: string; returnUrl: string }>();
+// pendingLinkSessions. Entries expire: consumed on callback, swept otherwise,
+// so an abandoned consent screen no longer leaks an entry for the process's
+// lifetime.
+const pendingEmailSessions = autoSweep(
+  new ExpiringMap<string, { userId: string; returnUrl: string }>(OAUTH_STATE_TTL_MS)
+);
+
+/** Where the callback is allowed to send the browser back to. */
+const DEFAULT_RETURN_URL = "realbudget://email-connected";
 
 const router = new Hono<{
   Variables: {
@@ -62,7 +73,9 @@ router.get("/callback", async (c) => {
   const code = c.req.query("code");
   const state = c.req.query("state");
   const pending = state ? pendingEmailSessions.get(state) : undefined;
-  const returnUrl = pending?.returnUrl ?? "realbudget://email-connected";
+  // Already validated when the flow started, but re-check on the way out:
+  // this value ends up in a redirect carrying the user's email address.
+  const returnUrl = safeReturnUrl(pending?.returnUrl, DEFAULT_RETURN_URL);
 
   const fail = (reason: string) => c.redirect(`${returnUrl}?status=error&reason=${encodeURIComponent(reason)}`);
 
@@ -72,7 +85,7 @@ router.get("/callback", async (c) => {
 
   try {
     // Exchange the authorization code for tokens.
-    const tokenRes = await fetch(GOOGLE_TOKEN_URL, {
+    const tokenRes = await fetchWithTimeout(GOOGLE_TOKEN_URL, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({
@@ -99,7 +112,7 @@ router.get("/callback", async (c) => {
     // userinfo endpoint.
     let email = decodeIdTokenEmail(tokens.id_token);
     if (!email && tokens.access_token) {
-      const infoRes = await fetch("https://openidconnect.googleapis.com/v1/userinfo", {
+      const infoRes = await fetchWithTimeout("https://openidconnect.googleapis.com/v1/userinfo", {
         headers: { Authorization: `Bearer ${tokens.access_token}` },
       });
       if (infoRes.ok) email = ((await infoRes.json()) as { email?: string }).email ?? "";
@@ -133,7 +146,7 @@ router.get("/callback", async (c) => {
 // here as JSON { to, from, subject, text }. Registered before the auth guard. ─
 router.post("/inbound", async (c) => {
   if (!inboundConfigured()) return c.json({ error: "not configured" }, 503);
-  if (c.req.header("x-inbound-secret") !== env.INBOUND_EMAIL_SECRET) {
+  if (!secretsMatch(c.req.header("x-inbound-secret"), env.INBOUND_EMAIL_SECRET)) {
     return c.json({ error: "unauthorized" }, 401);
   }
 
@@ -198,7 +211,9 @@ router.use("*", async (c, next) => {
 router.get("/auth-url", async (c) => {
   if (!googleConfigured()) return c.json({ error: "Gmail connect is not configured on this server." }, 503);
   const user = c.get("user")!;
-  const returnUrl = c.req.query("returnUrl") || "realbudget://email-connected";
+  // Attacker-supplied: without an allowlist, the callback would redirect to
+  // any host with ?email=<the user's address> attached.
+  const returnUrl = safeReturnUrl(c.req.query("returnUrl"), DEFAULT_RETURN_URL);
   const state = randomBytes(16).toString("hex");
   pendingEmailSessions.set(state, { userId: user.id, returnUrl });
 
@@ -340,7 +355,7 @@ router.delete("/disconnect", async (c) => {
   for (const conn of conns) {
     if (conn.refreshTokenEnc) {
       try {
-        await fetch(`${GOOGLE_REVOKE_URL}?token=${encodeURIComponent(decryptSecret(conn.refreshTokenEnc))}`, { method: "POST" });
+        await fetchWithTimeout(`${GOOGLE_REVOKE_URL}?token=${encodeURIComponent(decryptSecret(conn.refreshTokenEnc))}`, { method: "POST" });
       } catch {
         /* best-effort revoke; still remove locally */
       }
@@ -390,7 +405,7 @@ async function extractSubscriptions(emails: RawEmail[]): Promise<DetectedEmailSu
     "De-duplicate by merchant (one entry per service, keep the most recent/representative charge). " +
     "Exclude obvious one-time purchases (e.g. a single Amazon order) unless clearly a membership/subscription. No prose, no markdown.";
 
-  const res = await fetch(OPENAI_URL, {
+  const res = await fetchWithTimeout(OPENAI_URL, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -452,7 +467,7 @@ async function parseInboundEmail(subject: string, from: string, text: string): P
     'merchant = clean brand name. amount = charge as a number (0 if unknown). currency = 3-letter code (default "USD"). ' +
     "lastChargedISO = the charge date as YYYY-MM-DD or null. No prose, no markdown.";
 
-  const res = await fetch(OPENAI_URL, {
+  const res = await fetchWithTimeout(OPENAI_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${env.OPENAI_API_KEY}` },
     body: JSON.stringify({

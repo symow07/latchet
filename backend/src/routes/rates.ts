@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { env } from "../env";
+import { fetchWithTimeout } from "../lib/fetch-timeout";
 
 /**
  * Exchange rates, proxied and cached.
@@ -60,17 +61,11 @@ export function parseUpstream(json: UpstreamResponse, source: string): RatesPayl
 
 async function fetchUpstream(): Promise<RatesPayload> {
   const url = env.EXCHANGE_RATES_URL;
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), UPSTREAM_TIMEOUT_MS);
-  try {
-    const res = await fetch(url, { signal: controller.signal });
-    if (!res.ok) throw new Error(`rates provider HTTP ${res.status}`);
-    const parsed = parseUpstream((await res.json()) as UpstreamResponse, new URL(url).host);
-    if (!parsed) throw new Error("rates provider returned no usable rates");
-    return parsed;
-  } finally {
-    clearTimeout(timeout);
-  }
+  const res = await fetchWithTimeout(url, { timeoutMs: UPSTREAM_TIMEOUT_MS });
+  if (!res.ok) throw new Error(`rates provider HTTP ${res.status}`);
+  const parsed = parseUpstream((await res.json()) as UpstreamResponse, new URL(url).host);
+  if (!parsed) throw new Error("rates provider returned no usable rates");
+  return parsed;
 }
 
 const router = new Hono();

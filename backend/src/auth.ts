@@ -189,12 +189,24 @@ setInterval(() => {
 // ── Password hashing (PBKDF2-SHA256) ────────────────────────────────────────
 // BetterAuth's built-in scrypt uses N=16384,r=16 — 2× the standard r=8 —
 // which takes 10+ seconds on Railway's shared CPU and hits every request timeout.
-// PBKDF2-SHA256 at 100k iterations meets OWASP minimums and completes in ~100ms.
-async function hashPassword(password: string): Promise<string> {
-  const t0 = Date.now();
-  debugLog(`[hash:start] op=hash pwdLen=${password.length}`);
-  const salt = crypto.getRandomValues(new Uint8Array(16));
-  const saltHex = Array.from(salt, (b) => b.toString(16).padStart(2, "0")).join("");
+// PBKDF2-SHA256 is used instead.
+//
+// Iteration count is OWASP's current figure for PBKDF2-HMAC-SHA256. Measured
+// at 32ms/hash on an M-series laptop; Railway's shared CPU is several times
+// slower, which still leaves it far inside the 30s auth handler budget — the
+// original scrypt problem was 10+ seconds, two orders of magnitude worse.
+//
+// The count is stored in the hash so it can be raised again later without
+// invalidating anything: hashes written before this change have three
+// colon-separated parts and are verified at the old 100k.
+const PBKDF2_ITERATIONS = 600_000;
+const LEGACY_PBKDF2_ITERATIONS = 100_000;
+
+async function deriveKeyHex(
+  password: string,
+  salt: Uint8Array,
+  iterations: number
+): Promise<string> {
   const keyMaterial = await crypto.subtle.importKey(
     "raw",
     new TextEncoder().encode(password.normalize("NFKC")),
@@ -203,15 +215,43 @@ async function hashPassword(password: string): Promise<string> {
     ["deriveBits"]
   );
   const bits = await crypto.subtle.deriveBits(
-    { name: "PBKDF2", salt, iterations: 100_000, hash: "SHA-256" },
+    { name: "PBKDF2", salt, iterations, hash: "SHA-256" },
     keyMaterial,
     256
   );
-  const keyHex = Array.from(new Uint8Array(bits), (b) =>
-    b.toString(16).padStart(2, "0")
-  ).join("");
+  return Array.from(new Uint8Array(bits), (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+/** Split a stored hash into its parts, tolerating the pre-iteration format. */
+export function parsePasswordHash(
+  hash: string
+): { iterations: number; saltHex: string; keyHex: string } | null {
+  const parts = hash.split(":");
+  if (parts[0] !== "pbkdf2") return null;
+
+  if (parts.length === 4) {
+    const iterations = Number(parts[1]);
+    if (!Number.isInteger(iterations) || iterations <= 0) return null;
+    return { iterations, saltHex: parts[2]!, keyHex: parts[3]! };
+  }
+  if (parts.length === 3) {
+    // Written before the iteration count was recorded.
+    return {
+      iterations: LEGACY_PBKDF2_ITERATIONS,
+      saltHex: parts[1]!,
+      keyHex: parts[2]!,
+    };
+  }
+  return null;
+}
+async function hashPassword(password: string): Promise<string> {
+  const t0 = Date.now();
+  debugLog(`[hash:start] op=hash pwdLen=${password.length}`);
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const saltHex = Array.from(salt, (b) => b.toString(16).padStart(2, "0")).join("");
+  const keyHex = await deriveKeyHex(password, salt, PBKDF2_ITERATIONS);
   debugLog(`[hash:done] op=hash ms=${Date.now() - t0}`);
-  return `pbkdf2:${saltHex}:${keyHex}`;
+  return `pbkdf2:${PBKDF2_ITERATIONS}:${saltHex}:${keyHex}`;
 }
 
 async function verifyPassword({
@@ -223,29 +263,16 @@ async function verifyPassword({
 }): Promise<boolean> {
   const t0 = Date.now();
   debugLog(`[hash:start] op=verify pwdLen=${password.length}`);
-  const parts = hash.split(":");
-  if (parts[0] !== "pbkdf2" || parts.length !== 3) {
+  const parsed = parsePasswordHash(hash);
+  if (!parsed) {
     console.warn(`[hash:done] op=verify ms=${Date.now() - t0} match=false reason=bad-format`);
     return false;
   }
-  const saltHex = parts[1]!;
-  const keyHex = parts[2]!;
+  const { iterations, saltHex, keyHex } = parsed;
   const salt = new Uint8Array(saltHex.match(/.{2}/g)!.map((b) => parseInt(b, 16)));
-  const keyMaterial = await crypto.subtle.importKey(
-    "raw",
-    new TextEncoder().encode(password.normalize("NFKC")),
-    "PBKDF2",
-    false,
-    ["deriveBits"]
-  );
-  const bits = await crypto.subtle.deriveBits(
-    { name: "PBKDF2", salt, iterations: 100_000, hash: "SHA-256" },
-    keyMaterial,
-    256
-  );
-  const derivedHex = Array.from(new Uint8Array(bits), (b) =>
-    b.toString(16).padStart(2, "0")
-  ).join("");
+  // Verify at whatever cost this hash was written with, so raising
+  // PBKDF2_ITERATIONS never locks an existing user out.
+  const derivedHex = await deriveKeyHex(password, salt, iterations);
   if (derivedHex.length !== keyHex.length) {
     console.warn(`[hash:done] op=verify ms=${Date.now() - t0} match=false reason=length-mismatch`);
     return false;

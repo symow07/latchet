@@ -5,7 +5,19 @@ const envSchema = z.object({
   NODE_ENV: z.string().optional(),
   BACKEND_URL: z.url("BACKEND_URL must be a valid URL").default("http://localhost:3000"),
   DATABASE_URL: z.string().default("file:./prisma/dev.db"),
-  BETTER_AUTH_SECRET: z.string().min(1, "BETTER_AUTH_SECRET is required"),
+  // lib/crypto.ts derives the AES-256-GCM key protecting every Plaid access
+  // token and Gmail refresh token from this value, so a short secret is a weak
+  // key for data at rest — not just a weak session secret.
+  BETTER_AUTH_SECRET: z
+    .string()
+    .min(
+      32,
+      "BETTER_AUTH_SECRET must be at least 32 characters. " +
+        "Note: rotating it makes every stored Plaid access token and Gmail " +
+        "refresh token undecryptable (lib/crypto.ts derives the AES key from " +
+        "it), so affected users must relink. Lengthen it before deploying if " +
+        "the current value is shorter."
+    ),
   // OTP email delivery (lib/email-otp.ts). Set RESEND_API_KEY (recommended) or
   // point SMTP_SERVICE_URL at your own relay. In dev, with neither set, the OTP
   // is logged to the console so signup still works.

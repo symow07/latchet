@@ -17,13 +17,30 @@ payrollRouter.use("*", async (c, next) => {
   await next();
 });
 
-// Helper: get or create payment record for month/year
-async function ensurePayment(salaryId: string, month: number, year: number) {
-  return prisma.salaryPayment.upsert({
-    where: { salaryId_month_year: { salaryId, month, year } },
-    create: { salaryId, month, year, status: "unpaid" },
-    update: {},
-  });
+/** A bounded integer from a query string, falling back when absent or junk. */
+function clampInt(raw: string | undefined, min: number, max: number, fallback: number): number {
+  const n = Number(raw);
+  if (!Number.isInteger(n)) return fallback;
+  return Math.min(Math.max(n, min), max);
+}
+
+/**
+ * What a salary with no payment row for this period looks like.
+ *
+ * Reading the payroll screen used to upsert a row per salary, so merely
+ * opening it wrote to the database — inside a GET, against the single SQLite
+ * writer. An absent row already means "unpaid"; the row gets created when a
+ * payment is actually recorded.
+ */
+function unpaidPlaceholder(month: number, year: number) {
+  return {
+    id: null as string | null,
+    month,
+    year,
+    status: "unpaid",
+    paidAt: null as Date | null,
+    note: null as string | null,
+  };
 }
 
 // ─── GET /api/payroll ─────────────────────────────────────────────────────────
@@ -31,8 +48,9 @@ async function ensurePayment(salaryId: string, month: number, year: number) {
 payrollRouter.get("/", async (c) => {
   const user = c.get("user")!;
   const now  = new Date();
-  const month = Number(c.req.query("month") ?? now.getMonth() + 1);
-  const year  = Number(c.req.query("year")  ?? now.getFullYear());
+  // ?month=abc previously became NaN and reached the upsert as a NaN row.
+  const month = clampInt(c.req.query("month"), 1, 12, now.getMonth() + 1);
+  const year  = clampInt(c.req.query("year"), 1970, 2200, now.getFullYear());
 
   const business = await getUserBusiness(user.id);
   if (!business) return c.json({ error: "Not a member of any business" }, 403);
@@ -57,10 +75,9 @@ payrollRouter.get("/", async (c) => {
     skip: offset,
   });
 
-  // Ensure a payment row exists for every salary this month
   const result = await Promise.all(
     salaries.map(async (s) => {
-      const payment = s.payments[0] ?? await ensurePayment(s.id, month, year);
+      const payment = s.payments[0] ?? unpaidPlaceholder(month, year);
       return {
         id: s.id,
         businessId: s.businessId,

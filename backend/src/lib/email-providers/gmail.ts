@@ -1,5 +1,6 @@
 import { env } from "../../env";
 import type { EmailProvider, RawEmail } from "./types";
+import { fetchWithTimeout } from "../fetch-timeout";
 
 /**
  * Gmail implementation of EmailProvider using the Gmail REST API directly
@@ -23,7 +24,7 @@ interface GmailHeader {
 }
 
 async function getAccessToken(refreshToken: string): Promise<string> {
-  const res = await fetch(TOKEN_URL, {
+  const res = await fetchWithTimeout(TOKEN_URL, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
@@ -50,7 +51,7 @@ export class GmailProvider implements EmailProvider {
     const authHeaders = { Authorization: `Bearer ${accessToken}` };
 
     // 1. List matching message ids.
-    const listRes = await fetch(
+    const listRes = await fetchWithTimeout(
       `${GMAIL_BASE}/messages?maxResults=${limit}&q=${encodeURIComponent(SEARCH_QUERY)}`,
       { headers: authHeaders }
     );
@@ -65,7 +66,7 @@ export class GmailProvider implements EmailProvider {
     const emails = await Promise.all(
       ids.map(async (id): Promise<RawEmail | null> => {
         try {
-          const res = await fetch(
+          const res = await fetchWithTimeout(
             `${GMAIL_BASE}/messages/${id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date`,
             { headers: authHeaders }
           );

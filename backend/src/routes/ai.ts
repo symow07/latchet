@@ -4,6 +4,7 @@ import { z } from "zod";
 import { auth } from "../auth";
 import { env } from "../env";
 import { allowUsageTiered } from "../lib/usage-limit";
+import { fetchWithTimeout } from "../lib/fetch-timeout";
 
 /**
  * AI proxy routes. The mobile app used to call OpenAI directly with a public
@@ -41,7 +42,7 @@ router.use("*", async (c, next) => {
 
 /** Thin OpenAI chat-completions caller. Throws on non-2xx. */
 async function openaiChat(body: Record<string, unknown>): Promise<any> {
-  const res = await fetch(OPENAI_URL, {
+  const res = await fetchWithTimeout(OPENAI_URL, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

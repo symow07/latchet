@@ -2,6 +2,7 @@ import { format, subMonths, startOfMonth, endOfMonth, subDays, addMonths } from 
 import { calculateHealthScore, getPersonalityDescription, type HealthScoreResult } from './health-score';
 import { api } from './api/api';
 import { hasEnoughHistory, projectMonthlyExpenses } from './calculations';
+import { fitConversationHistory, historyBudget, omissionNote } from './prompt-budget';
 
 export interface Transaction {
   id: string;
@@ -397,11 +398,15 @@ export function buildAIPrompt(
   conversationHistory: { role: 'user' | 'assistant'; content: string }[]
 ): string {
   if (!analysis || !settings) {
-    const messages = conversationHistory.map(msg => `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}`).join('\n\n');
-    return `You are a friendly AI financial advisor built into a personal budgeting app called "Budget". The user has not added any transactions yet, so you don't have spending data to analyze. Be helpful, friendly, and encourage them to start tracking their expenses to get personalized advice.
+    const intro = `You are a friendly AI financial advisor built into a personal budgeting app called "Budget". The user has not added any transactions yet, so you don't have spending data to analyze. Be helpful, friendly, and encourage them to start tracking their expenses to get personalized advice.`;
+    const fitted = fitConversationHistory(
+      conversationHistory,
+      historyBudget(intro.length + userMessage.length)
+    );
+    return `${intro}
 
 CONVERSATION HISTORY:
-${messages}
+${omissionNote(fitted.dropped)}${fitted.text}
 
 User: ${userMessage}
 
@@ -480,12 +485,18 @@ GUIDELINES FOR YOUR RESPONSES:
 10. For forecasting questions, use the long-term projections data
 11. Adapt your tone based on personality: encouraging for spenders, affirming for savers`;
 
-  const messages = conversationHistory.map(msg => `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}`).join('\n\n');
+  // The server rejects prompts over 20,000 characters, and history only grows,
+  // so trim to fit rather than letting the advisor start failing permanently
+  // partway through a long conversation.
+  const fitted = fitConversationHistory(
+    conversationHistory,
+    historyBudget(systemContext.length + userMessage.length)
+  );
 
   return `${systemContext}
 
 CONVERSATION HISTORY:
-${messages}
+${omissionNote(fitted.dropped)}${fitted.text}
 
 User: ${userMessage}
 

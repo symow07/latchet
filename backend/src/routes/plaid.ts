@@ -8,6 +8,8 @@ import { encryptSecret, decryptSecret } from "../lib/crypto";
 import { mapAccountType, mapCategory } from "../lib/plaid-mappers";
 import { verifyPlaidWebhook, type PlaidJwk } from "../lib/plaid-webhook";
 import { countryCodesForCurrency, parseEnabledCountries } from "../lib/plaid-countries";
+import { fetchWithTimeout } from "../lib/fetch-timeout";
+import { ExpiringMap, OAUTH_STATE_TTL_MS, autoSweep } from "../lib/expiring-map";
 
 /**
  * Real bank linking via Plaid (replaces the former simulated mock). Uses the
@@ -38,7 +40,7 @@ function plaidConfigured(): boolean {
 /** Call a Plaid endpoint with the shared credentials injected. */
 async function plaid<T = any>(path: string, body: Record<string, unknown>): Promise<T> {
   const host = PLAID_HOSTS[env.PLAID_ENV] ?? PLAID_HOSTS.sandbox;
-  const res = await fetch(`${host}${path}`, {
+  const res = await fetchWithTimeout(`${host}${path}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -57,7 +59,10 @@ async function plaid<T = any>(path: string, body: Record<string, unknown>): Prom
 // Maps a Hosted Link `link_token` to the user who created it, so the
 // SESSION_FINISHED webhook can exchange the resulting public_token for the
 // right account. Process-local (single-instance) — fine for this deployment.
-const pendingLinkSessions = new Map<string, string>();
+// Entries expire so an abandoned bank login does not leak one forever.
+const pendingLinkSessions = autoSweep(
+  new ExpiringMap<string, string>(OAUTH_STATE_TTL_MS)
+);
 
 // Webhook verification keys, cached by key_id. A given key_id always maps to
 // the same key, so this only ever grows by the handful of keys Plaid rotates
