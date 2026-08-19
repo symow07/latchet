@@ -47,6 +47,16 @@ import {
 } from '@/lib/import-parser';
 import { addTransaction, getTransactions, getSettings } from '@/lib/db';
 import { findProfileFor, rememberProfile } from '@/lib/import-profiles';
+import { api } from '@/lib/api/api';
+
+/** One transaction as returned by /api/ai/analyze-statement. */
+interface StatementRow {
+  dateISO: string;
+  amount: number;
+  type: 'Expense' | 'Income';
+  category: string;
+  note: string;
+}
 
 type ImportStep = 'upload' | 'mapping' | 'preview' | 'success';
 
@@ -76,13 +86,104 @@ export default function ImportScreen() {
   // succeeds so the next statement from them needs no setup.
   const [activeMapping, setActiveMapping] = useState<ColumnMapping | null>(null);
   const [rememberedBank, setRememberedBank] = useState(false);
+  const [analyzingPdf, setAnalyzingPdf] = useState(false);
+
+  /**
+   * Read a PDF statement via the vision model.
+   *
+   * Unlike CSV, this leaves the device — the file goes to our backend, which
+   * proxies OpenAI. That is a real change in the privacy story for this screen,
+   * so the user is told before it happens.
+   */
+  const importPdfStatement = useCallback(async (uri: string, filename: string) => {
+    const proceed = await new Promise<boolean>((resolve) => {
+      Alert.alert(
+        'Read this PDF with AI?',
+        'CSV files are processed entirely on your device. A PDF has to be sent to our server to be read. ' +
+          'It is used only to extract the transactions and is not stored.',
+        [
+          { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+          { text: 'Continue', onPress: () => resolve(true) },
+        ],
+      );
+    });
+    if (!proceed) return;
+
+    setAnalyzingPdf(true);
+    try {
+      const base64 = await FileSystem.readAsStringAsync(uri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+
+      const res = await api.post<{ transactions: StatementRow[] }>(
+        '/api/ai/analyze-statement',
+        { file: base64, filename },
+      );
+
+      const rows = res?.transactions ?? [];
+      if (rows.length === 0) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        Alert.alert(
+          'Nothing readable in that PDF',
+          'No transactions could be extracted. If your bank also offers CSV, that will always be more accurate.',
+        );
+        return;
+      }
+
+      const parsed: ParsedTransaction[] = rows.map((r, i) => ({
+        id: `pdf_${Date.now()}_${i}`,
+        date: r.dateISO,
+        description: r.note,
+        amount: r.amount,
+        type: r.type,
+        suggestedCategory: r.category,
+        originalData: {},
+        isImpulse: false,
+      }));
+
+      const existingTxs = await getTransactions();
+      const existingKeys = new Set(
+        existingTxs.map(tx => `${tx.dateISO}_${tx.amount}_${tx.note?.substring(0, 20) || ''}`),
+      );
+      const importPreview = generateImportPreview(parsed, existingKeys);
+
+      setPreview(importPreview);
+      setTransactions(importPreview.transactions);
+      // A PDF has no column mapping or decimal convention to correct, so the
+      // format controls stay hidden and nothing is remembered against a bank.
+      setRawContent('');
+      setRawSource('bank');
+      setFormat(null);
+      setActiveMapping(null);
+      setRememberedBank(false);
+      setStep('preview');
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (e) {
+      console.error('[import] PDF analysis failed:', e);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert(
+        'Could not read that PDF',
+        e instanceof Error && /429/.test(e.message)
+          ? 'You have hit the AI usage limit. Please try again later.'
+          : 'The statement could not be analysed. If your bank offers CSV, that will always be more accurate.',
+      );
+    } finally {
+      setAnalyzingPdf(false);
+    }
+  }, []);
 
   const pickFile = useCallback(async (source: ImportSource = 'bank') => {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
       const result = await DocumentPicker.getDocumentAsync({
-        type: ['text/csv', 'text/comma-separated-values', 'application/csv'],
+        type: [
+          'text/csv',
+          'text/comma-separated-values',
+          'application/csv',
+          // Many banks — especially outside the US — offer only PDF.
+          ...(source === 'bank' ? ['application/pdf'] : []),
+        ],
         copyToCacheDirectory: true,
       });
 
@@ -91,15 +192,27 @@ export default function ImportScreen() {
       const file = result.assets[0];
       if (!file.uri) return;
 
-      // Reject anything that's not a .csv. The picker's MIME filter is advisory
-      // on iOS — users can still pick non-CSV files via "Browse" and we'd then
-      // try to read a binary as text.
+      // The picker's MIME filter is advisory on iOS — users can still pick
+      // anything via "Browse", and we would then read a binary as text.
       const name = file.name?.toLowerCase() ?? '';
-      if (!name.endsWith('.csv')) {
+      const isPdf = name.endsWith('.pdf');
+      if (!name.endsWith('.csv') && !isPdf) {
         Alert.alert(
           'Unsupported File',
-          'Please pick a .csv file. PDFs, images, and other formats aren\'t supported yet.',
+          'Please pick a .csv or .pdf statement. Other formats aren\'t supported yet.',
         );
+        return;
+      }
+
+      if (isPdf) {
+        if (source !== 'bank') {
+          Alert.alert(
+            'Unsupported File',
+            'Alipay and WeChat bills must be exported as CSV, not PDF.',
+          );
+          return;
+        }
+        await importPdfStatement(file.uri, file.name ?? 'statement.pdf');
         return;
       }
 
@@ -221,7 +334,7 @@ export default function ImportScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Alert.alert('Error', 'Failed to read the file. Please try again.');
     }
-  }, []);
+  }, [importPdfStatement]);
 
   /**
    * Re-run the parse with a corrected convention. Detection is good but cannot
@@ -443,11 +556,31 @@ export default function ImportScreen() {
                   <Text className="text-gray-300 ml-3">CSV files (.csv)</Text>
                 </View>
                 <Text className="text-gray-500 text-xs mt-2">
-                  Most banks support CSV export. The file should have columns for date, description, and amount.
+                  Processed entirely on your device. If we can&apos;t recognise the columns,
+                  you&apos;ll be asked to point them out — no file is ever a dead end.
+                </Text>
+                <View className="flex-row items-center mt-4">
+                  <FileText size={20} color="#6b7280" />
+                  <Text className="text-gray-300 ml-3">PDF statements (.pdf)</Text>
+                </View>
+                <Text className="text-gray-500 text-xs mt-2">
+                  For banks that only offer PDF. Read by AI on our server, so it leaves your
+                  device — we ask first. CSV is always more accurate where your bank offers it.
                 </Text>
               </View>
             </View>
           </Animated.View>
+        )}
+
+        {/* Reading a PDF can take a while — say so rather than looking stuck. */}
+        {analyzingPdf && (
+          <View className="px-4 pt-6 items-center">
+            <ActivityIndicator color="#3b82f6" />
+            <Text className="text-gray-300 mt-3 font-semibold">Reading your statement…</Text>
+            <Text className="text-gray-500 text-xs mt-1 text-center">
+              A full page of transactions can take up to a minute.
+            </Text>
+          </View>
         )}
 
         {/* Mapping Step — shown only when the header could not be read */}

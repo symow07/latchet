@@ -5,6 +5,10 @@ import { auth } from "../auth";
 import { env } from "../env";
 import { allowUsageTiered } from "../lib/usage-limit";
 import { fetchWithTimeout } from "../lib/fetch-timeout";
+import {
+  normaliseStatementRows,
+  STATEMENT_CATEGORIES,
+} from "../lib/statement-extract";
 
 /**
  * AI proxy routes. The mobile app used to call OpenAI directly with a public
@@ -131,6 +135,81 @@ router.post("/analyze-receipt", zValidator("json", receiptSchema), async (c) => 
   } catch (e) {
     console.error("[ai:analyze-receipt]", e instanceof Error ? e.message : e);
     return c.json({ error: "Receipt analysis failed" }, 502);
+  }
+});
+
+// ~10 MB of PDF. Statements are text-heavy and small; anything larger is not a
+// statement, and the vision model would reject it anyway.
+const MAX_PDF_BYTES = 10 * 1024 * 1024;
+const MAX_PDF_BASE64_CHARS = Math.ceil(MAX_PDF_BYTES * 1.37);
+
+const statementSchema = z.object({
+  /** Raw base64 PDF (no data: prefix), as produced by expo-file-system. */
+  file: z.string().min(1).max(MAX_PDF_BASE64_CHARS),
+  filename: z.string().max(200).optional(),
+});
+
+/**
+ * Extract transactions from a PDF bank statement.
+ *
+ * Many banks — especially outside the US — offer only PDF. Since import is the
+ * app's universal rail, a PDF-only bank must not mean no import at all.
+ *
+ * The model's output is treated as untrusted: normaliseStatementRows drops
+ * anything without a real date and amount rather than guessing, because a
+ * statement import that invents a date is worse than one that skips a line.
+ */
+router.post("/analyze-statement", zValidator("json", statementSchema), async (c) => {
+  const { file, filename } = c.req.valid("json");
+  const dataUrl = file.startsWith("data:") ? file : `data:application/pdf;base64,${file}`;
+
+  try {
+    const data = await openaiChat({
+      model: VISION_MODEL,
+      messages: [
+        {
+          role: "system",
+          content:
+            "You extract every transaction from a bank statement PDF. Reply ONLY with compact " +
+            'JSON {"transactions": [{"dateISO": "YYYY-MM-DD", "amount": number, ' +
+            `"type": "Expense"|"Income", "category": one of ${JSON.stringify(STATEMENT_CATEGORIES)}, ` +
+            '"note": string}]}. ' +
+            "dateISO must be the transaction date in YYYY-MM-DD, converted from whatever format " +
+            "the statement uses — read the statement's own date convention from its header or " +
+            "from days above 12. amount is always positive; direction goes in type. note is the " +
+            "merchant or description. Skip opening/closing balances, running totals, subtotals " +
+            "and interest summaries — transactions only. If you cannot read a row, omit it " +
+            "rather than guessing. No prose, no markdown.",
+        },
+        {
+          role: "user",
+          content: [
+            { type: "text", text: "Extract every transaction from this statement." },
+            {
+              type: "file",
+              file: { filename: filename ?? "statement.pdf", file_data: dataUrl },
+            },
+          ],
+        },
+      ],
+      temperature: 0,
+      max_tokens: 8000,
+      response_format: { type: "json_object" },
+    });
+
+    const raw = data?.choices?.[0]?.message?.content ?? "{}";
+    const transactions = normaliseStatementRows(JSON.parse(raw));
+
+    if (transactions.length === 0) {
+      return c.json(
+        { error: "No transactions could be read from that statement.", transactions: [] },
+        422
+      );
+    }
+    return c.json({ transactions });
+  } catch (e) {
+    console.error("[ai:analyze-statement]", e instanceof Error ? e.message : e);
+    return c.json({ error: "Statement analysis failed" }, 502);
   }
 });
 
