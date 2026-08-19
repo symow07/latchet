@@ -5,7 +5,7 @@ import { auth } from "../auth";
 import { env } from "../env";
 import { encryptSecret, decryptSecret } from "../lib/crypto";
 import { allowUsage, allowUsageTiered } from "../lib/usage-limit";
-import { parseInboundToken, isGmailForwardConfirm, extractConfirmationCode } from "../lib/inbound-email";
+import { parseInboundToken, isGmailForwardConfirm, extractConfirmationCode, sanitizeSubjectLabel, senderDomain } from "../lib/inbound-email";
 import { GmailProvider } from "../lib/email-providers/gmail";
 import type { RawEmail } from "../lib/email-providers/types";
 import { fetchWithTimeout } from "../lib/fetch-timeout";
@@ -167,7 +167,14 @@ router.post("/inbound", async (c) => {
   if (isGmailForwardConfirm(from, subject)) {
     const code = extractConfirmationCode(subject, text);
     await prisma.inboxEmail.create({
-      data: { userId: conn.userId, fromAddr: from, subject, merchant: code, status: "confirmation", isSubscription: false },
+      data: {
+        userId: conn.userId,
+        senderDomain: senderDomain(from),
+        label: sanitizeSubjectLabel(subject),
+        merchant: code,
+        status: "confirmation",
+        isSubscription: false,
+      },
     });
     return c.json({ received: true });
   }
@@ -186,8 +193,10 @@ router.post("/inbound", async (c) => {
   await prisma.inboxEmail.create({
     data: {
       userId: conn.userId,
-      fromAddr: from,
-      subject,
+      // The raw sender and subject are deliberately not stored — only the
+      // sender's domain and a digit-stripped label. See lib/inbound-email.
+      senderDomain: senderDomain(from),
+      label: sanitizeSubjectLabel(subject),
       merchant: parsed?.merchant ?? null,
       amount: parsed?.amount ?? null,
       currency: parsed?.currency ?? "USD",

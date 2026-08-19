@@ -154,7 +154,9 @@ export default function EmailInboxScreen() {
                       <View className="flex-row items-center">
                         <IconBubble color={C.p500} size={42}><Mail size={19} color={C.p400} /></IconBubble>
                         <View style={{ flex: 1, marginLeft: 12 }}>
-                          <Txt weight="bold" size={15} color={C.text} numberOfLines={1}>{item.merchant ?? item.subject}</Txt>
+                          <Txt weight="bold" size={15} color={C.text} numberOfLines={1}>
+                            {item.merchant || item.label || item.senderDomain || 'Unrecognised email'}
+                          </Txt>
                           <Txt size={12} color={C.textFaint} numberOfLines={1} style={{ marginTop: 1 }}>
                             {item.cadence !== 'unknown' ? `${item.cadence} · ` : ''}{item.chargedISO ? format(parseISO(item.chargedISO), 'MMM d') : 'recent'}
                           </Txt>

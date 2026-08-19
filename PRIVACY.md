@@ -1,6 +1,6 @@
 # Real Budget — Privacy Policy
 
-_Last updated: July 4, 2026_
+_Last updated: August 19, 2026_
 
 Real Budget ("the app", "we") helps you track spending, detect subscriptions,
 and manage business expenses. This policy explains what data we handle and how.
@@ -13,7 +13,7 @@ Host this document at a public URL and link it from the App Store listing.
 | Account info (name, email) | You, at sign-up | Authentication, account recovery |
 | Transactions & budgets | You, or your linked bank | The app's core budgeting features |
 | Bank account data | Plaid (only if you link a bank) | Automatic transaction sync. We never see or store your bank credentials; Plaid provides read-only access tokens, which we store encrypted (AES-256-GCM). |
-| Forwarded billing emails | You (via an email filter you create) | Detecting recurring subscriptions. **We extract only the merchant name, amount, currency, billing cycle, and date — the raw email body is discarded and never stored.** |
+| Forwarded billing emails | You (via an email filter you create) | Detecting recurring subscriptions. **We extract only the merchant name, amount, currency, billing cycle, and date. The email body, the sender's address and the subject line are all discarded — we keep the sender's domain (e.g. `netflix.com`) and a subject remnant with every number removed, so an email we could not identify still shows you something recognisable.** Deleted after 90 days. |
 | Business data (expenses, team, payroll) | You and your team | Business mode features |
 
 ## What we do NOT do
@@ -21,7 +21,8 @@ Host this document at a public URL and link it from the App Store listing.
 - We do not sell or share your data with advertisers or data brokers.
 - We do not read your email inbox. Only emails **you choose to forward** to
   your private Real Budget address are processed.
-- We do not store raw email content, bank credentials, or card numbers.
+- We do not store raw email content, sender addresses, subject lines, bank
+  credentials, or card numbers.
 
 ## Third-party processors
 
@@ -36,6 +37,22 @@ Host this document at a public URL and link it from the App Store listing.
 - OAuth tokens are encrypted at rest (AES-256-GCM).
 - Passwords are hashed (PBKDF2-SHA256, 600k iterations — OWASP's current
   guidance); we never store them in plaintext.
+
+## How long we keep things
+
+| Data | Kept for |
+|---|---|
+| Your transactions, accounts, budgets and business data | Until you delete them, or delete your account |
+| Forwarded billing emails | 90 days — long enough to see an annual renewal cycle |
+| Email-forwarding confirmation codes | 24 hours |
+| Expired sign-in sessions | 7 days past expiry |
+| Used one-time sign-in codes | 24 hours past expiry |
+
+Everything above the first row is removed automatically by a daily job. Your own
+ledger is never expired — it is yours until you remove it.
+
+Subscriptions detected from a forwarded email are stored separately and are not
+affected when the email itself expires.
 
 ## Your controls
 

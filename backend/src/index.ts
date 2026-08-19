@@ -20,6 +20,7 @@ import { budgetRouter } from "./routes/budget";
 import { payrollRouter } from "./routes/payroll";
 import { startRecurringProcessor } from "./jobs/recurring-processor";
 import { startBillReminderChecker } from "./jobs/bill-reminder-checker";
+import { startRetentionJob } from "./jobs/retention";
 import { debugRouter } from "./routes/debug";
 import { aiRouter } from "./routes/ai";
 import { achievementsRouter } from "./routes/achievements";
@@ -213,6 +214,7 @@ app.route("/api/email", emailRouter);
 // Start background jobs
 startRecurringProcessor();
 startBillReminderChecker();
+startRetentionJob();
 
 const port = Number(process.env.PORT) || 3000;
 

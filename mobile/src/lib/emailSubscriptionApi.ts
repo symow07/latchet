@@ -30,8 +30,10 @@ export interface EmailStatus {
 
 export interface InboxItem {
   id: string;
-  fromAddr: string;
-  subject: string;
+  /** Sender's domain only — the raw address is not stored. */
+  senderDomain: string | null;
+  /** Digit-stripped subject remnant; may be empty. */
+  label: string;
   merchant: string | null;
   amount: number | null;
   currency: string;

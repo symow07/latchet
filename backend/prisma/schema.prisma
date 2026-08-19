@@ -299,12 +299,22 @@ model EmailConnection {
 // The raw email is parsed (OpenAI) into subscription fields and discarded; we
 // keep only the extracted summary. The mobile app pulls these and merges them
 // into the local subscription store + spending.
+// A forwarded billing email, reduced to what the subscription detector needs.
+//
+// The raw sender address and subject line are deliberately not stored. Receipt
+// subjects routinely carry order numbers, invoice references and the amount
+// itself, and keeping them indefinitely contradicted the privacy policy's
+// promise to retain only merchant, amount, currency, cycle and date.
+// `label` is a digit-stripped remnant kept solely so the inbox screen can show
+// something for an email the parser failed to identify.
 model InboxEmail {
   id          String   @id @default(cuid())
   userId      String
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  fromAddr    String
-  subject     String
+  /// Sender's domain only (e.g. "netflix.com") — identifies the merchant, not the person.
+  senderDomain String?
+  /// Sanitised subject remnant, no digits. May be empty.
+  label       String   @default("")
   merchant    String?
   amount      Float?
   currency    String   @default("USD")
