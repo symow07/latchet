@@ -34,8 +34,8 @@ Host this document at a public URL and link it from the App Store listing.
 
 - All traffic is encrypted in transit (HTTPS).
 - OAuth tokens are encrypted at rest (AES-256-GCM).
-- Passwords are hashed (PBKDF2-SHA256, 100k iterations); we never store them in
-  plaintext.
+- Passwords are hashed (PBKDF2-SHA256, 600k iterations — OWASP's current
+  guidance); we never store them in plaintext.
 
 ## Your controls
 

@@ -3,6 +3,8 @@
 .DS_Store
 .env
 .env.*
+# ...but the template carries no secrets and should be shared.
+!.env.example
 changelog.txt
 CLAUDE.md
 AGENTS.md
