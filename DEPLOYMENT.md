@@ -20,7 +20,8 @@ user data.**
 
 | Variable | Required | Notes |
 |---|---|---|
-| `BETTER_AUTH_SECRET` | ✅ | Also derives the AES key encrypting Plaid/Gmail tokens — **changing it invalidates all stored tokens**. Back it up. |
+| `BETTER_AUTH_SECRET` | ✅ | Min 32 chars. Signs sessions. **Safe to rotate** once `TOKEN_ENCRYPTION_KEY` is set — costs only a forced re-login. See "Key rotation" below. |
+| `TOKEN_ENCRYPTION_KEY` | Strongly recommended | Min 32 chars. Encrypts Plaid access tokens and Gmail refresh tokens at rest. **Not safe to rotate** without re-encrypting stored tokens. Back it up. |
 | `BACKEND_URL` | ✅ | Public HTTPS URL of the backend. |
 | `DATABASE_URL` | ✅ | Point at the persistent volume (see §1). |
 | `NODE_ENV=production` | ✅ | Disables `/api/debug` routes and verbose PII logging. |
@@ -31,6 +32,44 @@ user data.**
 | `DEBUG_ROUTES` / `DEBUG_LOGS` | Leave unset | Emergency-only overrides to re-enable diagnostics in production. |
 
 Mobile: `EXPO_PUBLIC_BACKEND_URL` must point at the production backend.
+
+### Key rotation
+
+These two variables have deliberately different rotation properties, and the
+distinction matters when a secret leaks or a collaborator leaves.
+
+| | `BETTER_AUTH_SECRET` | `TOKEN_ENCRYPTION_KEY` |
+|---|---|---|
+| Protects | Session signing | Plaid + Gmail tokens at rest |
+| Rotating it | **Safe.** Every user is logged out and signs in again. | **Destructive.** Stored tokens become unreadable; every affected user must relink their bank and inbox. |
+| If lost | Set a new one. | Stored tokens are unrecoverable. |
+
+They used to be the same value: `crypto.ts` derived the AES-256-GCM key from
+`BETTER_AUTH_SECRET` with a bare SHA-256. That meant the auth secret could
+never be rotated — any change silently broke every stored token — so in
+practice it never was, which is the wrong failure mode for the most sensitive
+key in the system.
+
+**Set `TOKEN_ENCRYPTION_KEY` before launch.** With it unset the old coupling
+still applies (the key is derived from `BETTER_AUTH_SECRET` exactly as before,
+so existing deployments keep working), and `BETTER_AUTH_SECRET` stays
+un-rotatable.
+
+Ciphertext is versioned, so adopting the new key needs no migration:
+
+- `base64(iv).base64(tag).base64(data)` — v1, read with the key derived from
+  `BETTER_AUTH_SECRET`. Still decrypts forever.
+- `v2.base64(iv).base64(tag).base64(data)` — written whenever
+  `TOKEN_ENCRYPTION_KEY` is set, using HKDF-SHA256.
+
+Existing v1 rows are only rewritten as v2 when a user relinks. To rotate
+`BETTER_AUTH_SECRET` while v1 ciphertext still exists, re-encrypt those rows
+first — or check that there are none:
+
+```sql
+SELECT (SELECT COUNT(*) FROM PlaidItem) AS plaid,
+       (SELECT COUNT(*) FROM EmailConnection WHERE refreshTokenEnc IS NOT NULL) AS gmail;
+```
 
 ## 3. Third-party sign-offs 🔑
 

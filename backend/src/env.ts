@@ -31,6 +31,21 @@ const envSchema = z.object({
   // Optional at boot so a missing key degrades only the AI features (503) instead of
   // crashing the whole backend, including auth.
   OPENAI_API_KEY: z.string().optional(),
+  // Encrypts Plaid access tokens and Gmail refresh tokens at rest
+  // (lib/crypto.ts). Deliberately separate from BETTER_AUTH_SECRET: coupling
+  // them meant the auth secret could never be rotated, because changing it
+  // silently made every stored token undecryptable and forced every user to
+  // relink their bank and inbox.
+  //
+  // Optional. When unset, the key is derived from BETTER_AUTH_SECRET exactly as
+  // before, so existing deployments keep working untouched.
+  //
+  // Rotating this requires re-encrypting stored tokens. Rotating
+  // BETTER_AUTH_SECRET, once this is set, costs only a forced re-login.
+  TOKEN_ENCRYPTION_KEY: z
+    .string()
+    .min(32, "TOKEN_ENCRYPTION_KEY must be at least 32 characters")
+    .optional(),
   // Plaid bank-linking credentials (routes/plaid.ts). Optional so the backend
   // boots without them; the Plaid routes return 503 until they are set.
   PLAID_CLIENT_ID: z.string().optional(),
