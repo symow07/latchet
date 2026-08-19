@@ -9,6 +9,7 @@ changelog.txt
 CLAUDE.md
 AGENTS.md
 node_modules/
+_site/
 
 # Local installers / binaries
 *.dmg

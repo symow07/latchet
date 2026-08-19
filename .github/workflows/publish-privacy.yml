@@ -1,0 +1,47 @@
+name: Publish privacy policy
+
+# The App Store listing needs a public URL for the privacy policy, and App
+# Review compares that page against what the app actually does. Generating it
+# from PRIVACY.md on every change means the two cannot drift apart.
+on:
+  push:
+    branches: [main]
+    paths:
+      - PRIVACY.md
+      - scripts/build-privacy-page.mjs
+      - .github/workflows/publish-privacy.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Never let two deploys race; finish the one in flight.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install --no-save marked@12
+      - run: node scripts/build-privacy-page.mjs
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

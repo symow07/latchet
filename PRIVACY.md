@@ -4,7 +4,10 @@ _Last updated: August 19, 2026_
 
 Real Budget ("the app", "we") helps you track spending, detect subscriptions,
 and manage business expenses. This policy explains what data we handle and how.
-Host this document at a public URL and link it from the App Store listing.
+
+This document is the source for the published policy: it is rendered to
+<https://symow07.github.io/budget/> automatically whenever it changes on `main`,
+so the hosted page and the repository can never disagree.
 
 ## Data we collect and why
 
@@ -70,5 +73,11 @@ affected when the email itself expires.
 
 ## Contact
 
-Questions: <support email — fill in before publishing>. You do not need to
-contact us to delete your account — Settings → Delete Account does it in full.
+Questions: support@realbudget.app
+
+<!-- TODO(task-20): the address above is a placeholder tied to the app-name
+     decision (Cowry / Mizan / Kesh). It MUST be a working inbox before App
+     Store submission — Apple checks that the privacy policy contact resolves. -->
+
+You do not need to contact us to delete your account — Settings → Delete Account
+does it in full.
