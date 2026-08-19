@@ -8,6 +8,9 @@ import {
   detectDecimalConvention,
   detectDateConvention,
   detectSignConvention,
+  inspectCsv,
+  missingColumns,
+  emptyMapping,
 } from './import-parser';
 
 // ── Amount conventions ───────────────────────────────────────────────────────
@@ -221,4 +224,82 @@ test('a WeChat export parses amounts, dates and direction', () => {
 test('detectCsvFormat reports what it found for each fixture', () => {
   expect(detectCsvFormat(FRENCH_BANK)).toMatchObject({ decimal: 'european', date: 'dmy' });
   expect(detectCsvFormat(US_BANK)).toMatchObject({ decimal: 'us', date: 'mdy' });
+});
+
+// ── Manual column mapping — no file is a dead end ────────────────────────────
+
+const UNRECOGNISABLE = `Buchungstag,Verwendungszweck,Betrag EUR
+15.03.2026,REWE MARKT,"-84,32"
+16.03.2026,GEHALT,"2.450,00"`;
+
+test('an unrecognisable header is reported, not thrown', () => {
+  // Previously this threw, which made the file a dead end with no way forward.
+  const found = inspectCsv(UNRECOGNISABLE);
+
+  expect(found.missing).toContain('date');
+  expect(found.headers).toEqual(['Buchungstag', 'Verwendungszweck', 'Betrag EUR']);
+});
+
+test('inspection returns sample rows so the user can see the columns', () => {
+  const found = inspectCsv(UNRECOGNISABLE);
+
+  expect(found.sampleRows.length).toBe(2);
+  expect(found.sampleRows[0]).toEqual(['15.03.2026', 'REWE MARKT', '-84,32']);
+});
+
+test('parsing an unmappable file returns nothing rather than throwing', () => {
+  expect(() => parseCSV(UNRECOGNISABLE)).not.toThrow();
+  expect(parseCSV(UNRECOGNISABLE)).toEqual([]);
+});
+
+test('a user-supplied mapping rescues the file', () => {
+  const rows = parseCSV(
+    UNRECOGNISABLE,
+    { decimal: 'european', date: 'dmy' },
+    { dateIdx: 0, descIdx: 1, amountIdx: 2 }
+  );
+
+  expect(rows).toHaveLength(2);
+  expect(rows[0]).toMatchObject({
+    date: '2026-03-15',
+    description: 'REWE MARKT',
+    amount: 84.32,
+    type: 'Expense',
+  });
+  expect(rows[1]).toMatchObject({ date: '2026-03-16', amount: 2450, type: 'Income' });
+});
+
+test('a mapping only needs to fill what detection missed', () => {
+  // Description was found; only the date column needs pointing at.
+  const partial = `Buchungstag,Description,Amount
+15.03.2026,REWE MARKT,-84.32`;
+
+  expect(inspectCsv(partial).missing).toEqual(['date']);
+  expect(parseCSV(partial, { date: 'dmy' }, { dateIdx: 0 })).toHaveLength(1);
+});
+
+test('a recognisable file needs no mapping at all', () => {
+  const found = inspectCsv(US_BANK);
+  expect(found.missing).toEqual([]);
+  expect(found.mapping.dateIdx).toBe(0);
+  expect(found.mapping.amountIdx).toBe(2);
+});
+
+test('missingColumns reports both when nothing is found', () => {
+  expect(missingColumns(emptyMapping())).toEqual(['date', 'amount']);
+});
+
+test('a credit-only column counts as an amount', () => {
+  const creditOnly = `Date,Description,Credit
+03/15/2026,REFUND,25.00`;
+
+  expect(inspectCsv(creditOnly).missing).toEqual([]);
+  const [row] = parseCSV(creditOnly);
+  expect(row).toMatchObject({ amount: 25, type: 'Income' });
+});
+
+test('an empty file is reported as missing everything, not crashed on', () => {
+  const found = inspectCsv('');
+  expect(found.missing).toEqual(['date', 'amount']);
+  expect(found.headers).toEqual([]);
 });

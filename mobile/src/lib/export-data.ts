@@ -3,49 +3,27 @@
  *
  * Writes a real file to the cache dir and hands it to the native share sheet
  * via expo-sharing (falling back to the RN Share API where unavailable, e.g.
- * web). The CSV is intentionally round-trip compatible with parseCSV() in
- * import-parser.ts: a `Date,Description,Amount,Category,Type` header with a
- * single signed Amount column (expenses negative) so a re-import reconstructs
- * the same transactions.
+ * web). The CSV is round-trip compatible with parseCSV() in import-parser.ts.
+ *
+ * Every column the importer can read is written, because anything omitted is
+ * re-derived on import and derivation is lossy: Category was previously
+ * written but ignored on the way back in, so a category the user had corrected
+ * by hand was silently replaced by a keyword guess — and Impulse was never
+ * written at all, so it could not be recovered by any means.
  */
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { Share, Platform } from 'react-native';
 import { getTransactions } from './db';
+import { buildTransactionsCSV, buildTransactionsJSON } from './csv-export';
 
-/** Escape a value for a CSV cell (quote if it contains a comma, quote or newline). */
-function csvCell(value: string): string {
-  if (/[",\n]/.test(value)) {
-    return `"${value.replace(/"/g, '""')}"`;
-  }
-  return value;
-}
-
-/** Build a round-trippable CSV string from all stored transactions. */
-export function buildTransactionsCSV(
-  txs: Awaited<ReturnType<typeof getTransactions>>
-): string {
-  const header = ['Date', 'Description', 'Amount', 'Category', 'Type'].join(',');
-  const rows = txs.map((tx) => {
-    // Expense → negative so parseCSV() infers the type back on import.
-    const signed = tx.type === 'Income' ? Math.abs(tx.amount) : -Math.abs(tx.amount);
-    return [
-      csvCell(tx.dateISO),
-      csvCell(tx.note ?? ''),
-      signed.toString(),
-      csvCell(tx.category),
-      csvCell(tx.type),
-    ].join(',');
-  });
-  return [header, ...rows].join('\n');
-}
-
-/** Full-fidelity JSON backup (every column, no lossy sign encoding). */
-export function buildTransactionsJSON(
-  txs: Awaited<ReturnType<typeof getTransactions>>
-): string {
-  return JSON.stringify({ exportedAt: new Date().toISOString(), transactions: txs }, null, 2);
-}
+export {
+  csvCell,
+  buildTransactionsCSV,
+  buildTransactionsJSON,
+  EXPORT_COLUMNS,
+  type ExportableTransaction,
+} from './csv-export';
 
 async function shareFile(content: string, filename: string, mimeType: string, dialogTitle: string) {
   // Web has no file system / Sharing module — fall back to the text share API.

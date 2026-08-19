@@ -36,13 +36,18 @@ import {
   type ImportPreview,
   type Category,
   type ImportSource,
+  parseCSV,
+  inspectCsv,
+  missingColumns,
   type CsvFormat,
+  type CsvInspection,
+  type ColumnMapping,
   type DateConvention,
   type SignConvention,
 } from '@/lib/import-parser';
 import { addTransaction, getTransactions, getSettings } from '@/lib/db';
 
-type ImportStep = 'upload' | 'preview' | 'success';
+type ImportStep = 'upload' | 'mapping' | 'preview' | 'success';
 
 export default function ImportScreen() {
   const router = useRouter();
@@ -61,6 +66,10 @@ export default function ImportScreen() {
   const [rawContent, setRawContent] = useState<string>('');
   const [rawSource, setRawSource] = useState<ImportSource>('bank');
   const [format, setFormat] = useState<CsvFormat | null>(null);
+
+  // Manual column mapping, for files whose header we could not read.
+  const [inspection, setInspection] = useState<CsvInspection | null>(null);
+  const [mapping, setMapping] = useState<Partial<ColumnMapping>>({});
 
   const pickFile = useCallback(async (source: ImportSource = 'bank') => {
     try {
@@ -135,10 +144,24 @@ export default function ImportScreen() {
       const fallbackDate: DateConvention =
         settings?.currency === 'USD' ? 'mdy' : 'dmy';
 
+      // A bank CSV whose header we cannot read is a question, not a dead end:
+      // inspect first, and if a required column is missing, ask the user to
+      // point at it rather than refusing the file.
+      if (source === 'bank') {
+        const found = inspectCsv(content, fallbackDate);
+        if (found.missing.length > 0) {
+          setRawContent(content);
+          setRawSource(source);
+          setInspection(found);
+          setMapping({});
+          setStep('mapping');
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+          return;
+        }
+      }
+
       const detected =
-        source === 'bank'
-          ? detectCsvFormat(content, fallbackDate)
-          : null;
+        source === 'bank' ? detectCsvFormat(content, fallbackDate) : null;
 
       // Parse based on the chosen source (bank CSV, Alipay bill, WeChat bill).
       const parsedTransactions = parseStatement(content, source, detected ?? {});
@@ -204,6 +227,35 @@ export default function ImportScreen() {
     [rawContent, rawSource, format]
   );
 
+  /** Parse with the user's column mapping and move on to the preview. */
+  const confirmMapping = useCallback(async () => {
+    if (!rawContent || !inspection) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+    const merged = { ...inspection.mapping, ...mapping };
+    const parsed = parseCSV(rawContent, {}, merged);
+
+    if (parsed.length === 0) {
+      Alert.alert(
+        'Still nothing to import',
+        'Those columns did not produce any transactions. Check that the date and amount columns are the right way round.'
+      );
+      return;
+    }
+
+    const existingTxs = await getTransactions();
+    const existingKeys = new Set(
+      existingTxs.map(tx => `${tx.dateISO}_${tx.amount}_${tx.note?.substring(0, 20) || ''}`)
+    );
+    const importPreview = generateImportPreview(parsed, existingKeys);
+
+    setPreview(importPreview);
+    setTransactions(importPreview.transactions);
+    setFormat(detectCsvFormat(rawContent, undefined, merged));
+    setStep('preview');
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  }, [rawContent, inspection, mapping]);
+
   const updateTransactionCategory = (txId: string, category: Category) => {
     setTransactions(prev =>
       prev.map(tx => (tx.id === txId ? { ...tx, suggestedCategory: category } : tx))
@@ -237,6 +289,7 @@ export default function ImportScreen() {
           isImpulse: tx.isImpulse,
           note: tx.description,
           dateISO: tx.date,
+          ...(tx.currency ? { currency: tx.currency } : {}),
         });
         count++;
         setImportedCount(count);
@@ -363,6 +416,105 @@ export default function ImportScreen() {
                 </Text>
               </View>
             </View>
+          </Animated.View>
+        )}
+
+        {/* Mapping Step — shown only when the header could not be read */}
+        {step === 'mapping' && inspection && (
+          <Animated.View entering={FadeInUp.duration(400)} className="pt-4 px-4">
+            <View
+              className="rounded-2xl p-4 mb-4"
+              style={{ backgroundColor: 'rgba(251,191,36,0.12)' }}
+            >
+              <Text className="text-amber-300 font-semibold mb-1">
+                We couldn&apos;t read this file&apos;s columns
+              </Text>
+              <Text className="text-gray-300 text-xs leading-5">
+                Tell us which column holds what and we&apos;ll take it from there. Your
+                bank&apos;s wording is shown with a sample value from the file.
+              </Text>
+            </View>
+
+            {([
+              { key: 'dateIdx' as const, label: 'Date', required: true },
+              { key: 'amountIdx' as const, label: 'Amount', required: true },
+              { key: 'descIdx' as const, label: 'Description', required: false },
+            ]).map(field => {
+              const current = mapping[field.key] ?? inspection.mapping[field.key];
+              return (
+                <View key={field.key} className="mb-5">
+                  <Text className="text-gray-400 text-xs font-semibold mb-2 ml-1">
+                    {field.label.toUpperCase()}
+                    {field.required ? ' (required)' : ' (optional)'}
+                  </Text>
+                  <View className="flex-row flex-wrap" style={{ gap: 8 }}>
+                    {inspection.headers.map((header, idx) => {
+                      const active = current === idx;
+                      const sample = inspection.sampleRows[0]?.[idx] ?? '';
+                      return (
+                        <Pressable
+                          key={`${field.key}-${idx}`}
+                          onPress={() => {
+                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                            setMapping(m => ({ ...m, [field.key]: active ? -1 : idx }));
+                          }}
+                          className="rounded-xl px-3 py-2"
+                          style={{
+                            backgroundColor: active
+                              ? 'rgba(59,130,246,0.22)'
+                              : 'rgba(255,255,255,0.05)',
+                            borderWidth: active ? 1 : 0,
+                            borderColor: '#3b82f6',
+                            minWidth: 104,
+                          }}
+                        >
+                          <Text
+                            numberOfLines={1}
+                            className={active ? 'text-white font-semibold' : 'text-gray-300'}
+                          >
+                            {header || `Column ${idx + 1}`}
+                          </Text>
+                          {!!sample && (
+                            <Text numberOfLines={1} className="text-gray-500 text-xs mt-0.5">
+                              {sample}
+                            </Text>
+                          )}
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </View>
+              );
+            })}
+
+            <Pressable
+              onPress={confirmMapping}
+              disabled={missingColumns({ ...inspection.mapping, ...mapping } as ColumnMapping).length > 0}
+              className="rounded-xl py-4 items-center mt-2"
+              style={{
+                backgroundColor:
+                  missingColumns({ ...inspection.mapping, ...mapping } as ColumnMapping).length > 0
+                    ? 'rgba(255,255,255,0.08)'
+                    : '#3b82f6',
+              }}
+            >
+              <Text className="text-white font-semibold">
+                {missingColumns({ ...inspection.mapping, ...mapping } as ColumnMapping).length > 0
+                  ? 'Pick a date and an amount column'
+                  : 'Continue'}
+              </Text>
+            </Pressable>
+
+            <Pressable
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setStep('upload');
+                setInspection(null);
+              }}
+              className="rounded-xl py-3 items-center mt-2"
+            >
+              <Text className="text-gray-400">Choose a different file</Text>
+            </Pressable>
           </Animated.View>
         )}
 

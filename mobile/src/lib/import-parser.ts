@@ -51,9 +51,14 @@ export interface ParsedTransaction {
   description: string;
   amount: number;
   type: 'Expense' | 'Income';
-  suggestedCategory: Category;
+  /**
+   * Free-form, not the built-in union: users create their own categories, and
+   * a re-imported export must be able to carry one back in unchanged.
+   */
+  suggestedCategory: string;
   originalData: Record<string, string>;
   isImpulse: boolean;
+  currency?: string;
 }
 
 export interface ImportPreview {
@@ -223,6 +228,39 @@ export function detectSignConvention(amounts: number[]): {
   return { convention: 'all-expense', ambiguous: hasPositive };
 }
 
+/**
+ * Which column holds what. Auto-detected from the header row, and overridable
+ * by the user when the header is unrecognisable — a file whose columns cannot
+ * be identified should be a question, not a dead end.
+ *
+ * -1 means "not present".
+ */
+export interface ColumnMapping {
+  dateIdx: number;
+  descIdx: number;
+  amountIdx: number;
+  debitIdx: number;
+  creditIdx: number;
+  categoryIdx: number;
+  typeIdx: number;
+  impulseIdx: number;
+  currencyIdx: number;
+}
+
+/** The columns a file cannot be parsed without. */
+export type RequiredColumn = 'date' | 'amount';
+
+export interface CsvInspection {
+  /** Header cells as written in the file (not lowercased). */
+  headers: string[];
+  /** A few data rows, so the user can see what each column actually contains. */
+  sampleRows: string[][];
+  mapping: ColumnMapping;
+  /** Empty when the file is ready to parse. */
+  missing: RequiredColumn[];
+  format: CsvFormat;
+}
+
 /** Column indices and header row, shared by detection and parsing. */
 function locateColumns(lines: string[]) {
   const headers = parseCSVLine(lines[0]!).map((h) => deaccent(h.toLowerCase()).trim());
@@ -243,7 +281,34 @@ function locateColumns(lines: string[]) {
     (h) => h.includes('credit') || h.includes('deposit') || h.includes('versement')
   );
 
-  return { headers, dateIdx, descIdx, amountIdx, debitIdx, creditIdx };
+  // Columns our own export writes. Present in a re-imported backup, absent in
+  // a bank statement — when they are there they are authoritative, because
+  // re-deriving them loses information the user already corrected by hand.
+  const categoryIdx = headers.findIndex((h) => h.startsWith('categor'));
+  const typeIdx = headers.findIndex((h) => h === 'type');
+  const impulseIdx = headers.findIndex((h) => h.includes('impulse'));
+  const currencyIdx = headers.findIndex(
+    (h) => h === 'currency' || h === 'devise'
+  );
+
+  return {
+    headers,
+    dateIdx,
+    descIdx,
+    amountIdx,
+    debitIdx,
+    creditIdx,
+    categoryIdx,
+    typeIdx,
+    impulseIdx,
+    currencyIdx,
+  };
+}
+
+/** Interpret a boolean-ish cell ("true", "1", "yes", "y"). */
+function parseBooleanCell(value: string | undefined): boolean {
+  const v = (value ?? '').trim().toLowerCase();
+  return v === 'true' || v === '1' || v === 'yes' || v === 'y';
 }
 
 /**
@@ -255,7 +320,13 @@ function locateColumns(lines: string[]) {
  */
 export function detectCsvFormat(
   csvContent: string,
-  fallbackDate: DateConvention = 'mdy'
+  fallbackDate: DateConvention = 'mdy',
+  /**
+   * Columns the user mapped by hand. Detection must sample *those* columns:
+   * inferring the decimal and sign conventions from auto-located columns that
+   * were never found means inferring them from nothing.
+   */
+  mappingOverride?: Partial<ColumnMapping>
 ): CsvFormat {
   const lines = csvContent.trim().split('\n');
   if (lines.length < 2) {
@@ -269,7 +340,11 @@ export function detectCsvFormat(
     };
   }
 
-  const { dateIdx, amountIdx, debitIdx, creditIdx } = locateColumns(lines);
+  const located = locateColumns(lines);
+  const dateIdx = mappingOverride?.dateIdx ?? located.dateIdx;
+  const amountIdx = mappingOverride?.amountIdx ?? located.amountIdx;
+  const debitIdx = mappingOverride?.debitIdx ?? located.debitIdx;
+  const creditIdx = mappingOverride?.creditIdx ?? located.creditIdx;
 
   const amountCells: string[] = [];
   const dateCells: string[] = [];
@@ -293,9 +368,12 @@ export function detectCsvFormat(
   let sign: { convention: SignConvention; ambiguous: boolean };
   if (debitIdx >= 0 && creditIdx >= 0) {
     sign = { convention: 'signed', ambiguous: false };
-  } else if (debitIdx >= 0 && creditIdx === -1) {
+  } else if (debitIdx >= 0 && creditIdx === -1 && amountIdx === debitIdx) {
     // A debit column with no credit column is all outflow, whatever the sign.
     sign = { convention: 'all-expense', ambiguous: false };
+  } else if (creditIdx >= 0 && debitIdx === -1 && amountIdx === creditIdx) {
+    // ...and the mirror image: a credit column alone is all inflow.
+    sign = { convention: 'all-income', ambiguous: false };
   } else {
     const parsed = amountCells.map((c) => parseAmount(c, decimal.convention));
     sign = detectSignConvention(parsed);
@@ -311,25 +389,128 @@ export function detectCsvFormat(
   };
 }
 
+/**
+ * Look at a file without committing to parsing it.
+ *
+ * Never throws. When `missing` is non-empty the caller should ask the user to
+ * map those columns and pass the result back through `parseCSV`.
+ */
+export function inspectCsv(
+  csvContent: string,
+  fallbackDate: DateConvention = 'mdy'
+): CsvInspection {
+  const lines = csvContent.trim().split('\n').filter((l) => l.trim());
+  const format = detectCsvFormat(csvContent, fallbackDate);
+
+  if (lines.length === 0) {
+    return {
+      headers: [],
+      sampleRows: [],
+      mapping: emptyMapping(),
+      missing: ['date', 'amount'],
+      format,
+    };
+  }
+
+  const located = locateColumns(lines);
+  const mapping: ColumnMapping = {
+    dateIdx: located.dateIdx,
+    descIdx: located.descIdx,
+    amountIdx: located.amountIdx,
+    debitIdx: located.debitIdx,
+    creditIdx: located.creditIdx,
+    categoryIdx: located.categoryIdx,
+    typeIdx: located.typeIdx,
+    impulseIdx: located.impulseIdx,
+    currencyIdx: located.currencyIdx,
+  };
+
+  return {
+    // Raw header text, so the user recognises their own bank's wording.
+    headers: parseCSVLine(lines[0]!).map((h) => h.trim()),
+    sampleRows: lines.slice(1, 6).map((l) => parseCSVLine(l).map((v) => v.trim())),
+    mapping,
+    missing: missingColumns(mapping),
+    format,
+  };
+}
+
+export function emptyMapping(): ColumnMapping {
+  return {
+    dateIdx: -1,
+    descIdx: -1,
+    amountIdx: -1,
+    debitIdx: -1,
+    creditIdx: -1,
+    categoryIdx: -1,
+    typeIdx: -1,
+    impulseIdx: -1,
+    currencyIdx: -1,
+  };
+}
+
+/** A file needs a date, and some column carrying an amount. */
+export function missingColumns(mapping: ColumnMapping): RequiredColumn[] {
+  const missing: RequiredColumn[] = [];
+  if (mapping.dateIdx === -1) missing.push('date');
+  if (mapping.amountIdx === -1 && mapping.debitIdx === -1 && mapping.creditIdx === -1) {
+    missing.push('amount');
+  }
+  return missing;
+}
+
 // Parse CSV content into transactions
 export function parseCSV(
   csvContent: string,
-  overrides: Partial<CsvFormat> = {}
+  overrides: Partial<CsvFormat> = {},
+  /**
+   * Explicit column mapping, from the manual mapping UI. When omitted the
+   * columns are auto-detected from the header row.
+   */
+  mappingOverride?: Partial<ColumnMapping>
 ): ParsedTransaction[] {
   const lines = csvContent.trim().split('\n');
   if (lines.length < 2) return [];
 
   const format: CsvFormat = {
-    ...detectCsvFormat(csvContent, overrides.date),
+    ...detectCsvFormat(csvContent, overrides.date, mappingOverride),
     ...overrides,
   };
 
   // Parse header row (deaccented + lowercased so French headers like "Libellé",
   // "Débit", "Crédit", "Montant" on Moroccan/European statements match too).
-  const { headers, dateIdx, descIdx, amountIdx, debitIdx, creditIdx } = locateColumns(lines);
+  const located = locateColumns(lines);
+  const headers = located.headers;
 
-  if (dateIdx === -1 || (amountIdx === -1 && debitIdx === -1)) {
-    throw new Error('Could not identify required columns (date, amount)');
+  // Anything the user mapped by hand wins over detection.
+  const {
+    dateIdx,
+    descIdx,
+    amountIdx,
+    debitIdx,
+    creditIdx,
+    categoryIdx,
+    typeIdx,
+    impulseIdx,
+    currencyIdx,
+  }: ColumnMapping = {
+    dateIdx: located.dateIdx,
+    descIdx: located.descIdx,
+    amountIdx: located.amountIdx,
+    debitIdx: located.debitIdx,
+    creditIdx: located.creditIdx,
+    categoryIdx: located.categoryIdx,
+    typeIdx: located.typeIdx,
+    impulseIdx: located.impulseIdx,
+    currencyIdx: located.currencyIdx,
+    ...mappingOverride,
+  };
+
+  // Nothing to parse without a date and an amount. Returning empty rather than
+  // throwing lets the caller offer the mapping UI instead of dead-ending the
+  // file — see inspectCsv().
+  if (dateIdx === -1 || (amountIdx === -1 && debitIdx === -1 && creditIdx === -1)) {
+    return [];
   }
 
   const transactions: ParsedTransaction[] = [];
@@ -359,8 +540,13 @@ export function parseCSV(
         amount = credit;
         type = 'Income';
       }
+    } else if (amountIdx === -1 && creditIdx >= 0) {
+      // A credit column with no debit column is all inflow.
+      amount = Math.abs(parseAmount(values[creditIdx]!, format.decimal));
+      type = 'Income';
     } else {
-      const raw = parseAmount(values[amountIdx]!, format.decimal);
+      const column = amountIdx >= 0 ? amountIdx : debitIdx;
+      const raw = parseAmount(values[column]!, format.decimal);
 
       if (format.sign === 'all-expense') {
         amount = Math.abs(raw);
@@ -375,6 +561,15 @@ export function parseCSV(
       }
     }
 
+    // An explicit Type column beats inferring direction from the sign — our
+    // own export writes both, and a bank that writes one is telling us
+    // something more reliable than a guess.
+    if (typeIdx >= 0) {
+      const declared = (values[typeIdx] ?? '').trim().toLowerCase();
+      if (declared === 'income') type = 'Income';
+      else if (declared === 'expense') type = 'Expense';
+    }
+
     if (amount === 0) continue;
 
     const dateISO = parseDate(dateStr, format.date);
@@ -385,15 +580,25 @@ export function parseCSV(
       if (values[idx]) originalData[header] = values[idx]!;
     });
 
+    // A category the file states is one the user already chose — re-guessing
+    // it from the description throws that away. Same for the impulse flag,
+    // which cannot be recovered from the text at all.
+    const declaredCategory = categoryIdx >= 0 ? (values[categoryIdx] ?? '').trim() : '';
+    const declaredCurrency = currencyIdx >= 0 ? (values[currencyIdx] ?? '').trim() : '';
+
     transactions.push({
       id: `import_${Date.now()}_${i}`,
       date: dateISO,
       description: description.trim(),
       amount,
       type,
-      suggestedCategory: autoCategorize(description),
+      suggestedCategory: declaredCategory || autoCategorize(description),
       originalData,
-      isImpulse: detectImpulse(description, amount),
+      isImpulse:
+        impulseIdx >= 0
+          ? parseBooleanCell(values[impulseIdx])
+          : detectImpulse(description, amount),
+      ...(declaredCurrency ? { currency: declaredCurrency } : {}),
     });
   }
 
