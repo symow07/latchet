@@ -1,0 +1,161 @@
+{
+  "common": {
+    "cancel": "取消",
+    "done": "完成",
+    "save": "保存",
+    "saved": "已保存！🎉",
+    "retry": "重试",
+    "continue": "继续",
+    "close": "关闭",
+    "back": "返回",
+    "error": "出错了",
+    "loading": "加载中…",
+    "notEnoughData": "数据还不够",
+    "days": {
+      "other": "%{count} 天"
+    },
+    "transactions": {
+      "zero": "暂无交易",
+      "other": "%{count} 笔交易"
+    }
+  },
+  "settings": {
+    "title": "设置 ⚙️",
+    "sections": {
+      "accounts": "账户 👛",
+      "import": "导入数据 📥",
+      "tools": "工具 🛠️",
+      "numbers": "你的数字 💰",
+      "preferences": "偏好设置 🎛️",
+      "features": "功能 ✨",
+      "subscription": "订阅 ✨",
+      "language": "语言 🌍",
+      "danger": "危险操作 ⚠️"
+    },
+    "manageAccounts": "管理账户",
+    "importTransactions": "导入交易",
+    "exportData": "导出数据",
+    "monthlyBudget": "每月预算",
+    "monthlyBudgetHint": "你的每月支出上限",
+    "startingBalance": "初始余额",
+    "startingBalanceHint": "你的账户起始余额",
+    "hourlyRate": "时薪",
+    "hourlyRateHint": "用工作时长衡量消费",
+    "logOut": "退出登录",
+    "version": "Budget v1.0.0 — 用心打造 💜",
+    "makeItYours": "随心设置——我们不会评判！😄"
+  },
+  "subscription": {
+    "upgradeTitle": "升级到 Pro",
+    "upgradeSubtitle": "解锁 AI 顾问、小票扫描和银行同步",
+    "proTitle": "Budget Pro",
+    "proSubtitle": "AI 顾问、小票扫描、邮件识别和银行同步",
+    "restore": "恢复购买",
+    "restoredTitle": "已恢复购买",
+    "restoredBody": "此账户上的有效订阅已重新生效。",
+    "nothingToRestoreTitle": "没有可恢复的内容",
+    "nothingToRestoreBody": "未找到此账户的有效订阅。如果你用其他 Apple ID 或 Google 账户订阅，请改用该账户登录后重试。",
+    "proFeatureTitle": "Pro 功能",
+    "bankProTitle": "银行同步是 Pro 功能",
+    "bankProBody": "在设置中升级到 Pro 即可连接银行。你也可以导入对账单——所有方案都支持。",
+    "aiLimitReached": "你今天的免费 AI 次数已用完。在设置中升级到 Pro 可获得更多。",
+    "pdfProBody": "读取 PDF 对账单需要使用 AI。请在设置中升级到 Pro，或改为导入 CSV——CSV 在你的设备上解析，结果也更准确。"
+  },
+  "language": {
+    "title": "语言",
+    "subtitle": "更改立即生效",
+    "systemDefault": "使用设备语言"
+  },
+  "deleteAccount": {
+    "entry": "删除账户",
+    "entryHint": "永久删除你的账户和所有数据",
+    "title": "删除账户",
+    "intro": "此操作将永久删除你的账户及其中的一切。无法撤销，我们之后也无法为你恢复。",
+    "whatGetsDeleted": "将被删除的内容",
+    "transactions": "交易",
+    "accounts": "账户",
+    "linkedBanks": "已连接的银行",
+    "connectedInboxes": "已连接的邮箱",
+    "plusRest": "以及你的设置、预算、账单提醒、周期交易和成就。",
+    "businessWarningTitle": "这也会删除 %{name}",
+    "businessWarningBody": "你是这个企业的所有者，删除账户会将其完全移除——包括 %{expenses} 以及 %{members} 的访问权限。他们的记录也会一并删除。",
+    "expenses": {
+      "other": "%{count} 笔支出"
+    },
+    "members": {
+      "other": "%{count} 位其他成员"
+    },
+    "revokeNote": "我们会先撤销你已连接的银行和邮箱授权，让它们停止向我们共享数据。",
+    "confirmPrompt": "输入 %{email} 以确认。",
+    "confirmPlaceholder": "你的邮箱地址",
+    "confirmButton": "永久删除我的账户",
+    "keepAccount": "保留我的账户",
+    "loadFailed": "无法加载你的账户信息。请检查网络后重试。",
+    "deleteFailed": "账户删除失败。请重试。",
+    "deletedTitle": "账户已删除",
+    "deletedBody": "你的账户和数据已删除。但我们未能自动撤销全部授权——请手动断开以下连接：",
+    "bankConnection": "银行连接",
+    "inboxConnection": "邮箱连接"
+  },
+  "import": {
+    "selectSource": "你的数据来自哪里？",
+    "bankTitle": "银行对账单",
+    "bankSubtitle": "任何银行——导出 CSV 即可",
+    "alipayTitle": "支付宝",
+    "wechatTitle": "微信支付",
+    "supportedFormats": "支持的格式",
+    "csvTitle": "CSV 文件（.csv）",
+    "csvBody": "完全在你的设备上处理。如果我们无法识别列，会请你指出——没有文件会走进死胡同。",
+    "pdfTitle": "PDF 对账单（.pdf）",
+    "pdfBody": "适用于只提供 PDF 的银行。由我们服务器上的 AI 读取，因此文件会离开你的设备——我们会先征询同意。如果银行提供 CSV，CSV 始终更准确。",
+    "analysing": "正在读取你的对账单…",
+    "analysingHint": "整页交易可能需要一分钟。",
+    "mappingTitle": "我们无法识别此文件的列",
+    "mappingBody": "告诉我们每一列的含义，剩下的交给我们。下面显示的是你银行的原始列名和文件中的示例值。",
+    "columnDate": "日期",
+    "columnAmount": "金额",
+    "columnDescription": "说明",
+    "required": "必填",
+    "optional": "选填",
+    "pickColumns": "请选择日期列和金额列",
+    "chooseDifferentFile": "选择其他文件",
+    "summary": "导入摘要",
+    "totalExpenses": "支出合计",
+    "totalIncome": "收入合计",
+    "duplicatesSkipped": "已跳过重复项",
+    "format": "文件格式",
+    "formatRemembered": "文件格式 · 已记住",
+    "formatRememberedHint": "沿用你上次从该银行导入时的设置。如有不对请修改。",
+    "formatGuessedHint": "其中一部分是我们推测的。请检查下方的日期和金额是否正确。",
+    "formatDetectedHint": "根据你的文件识别。如有不对请修改。",
+    "dateOrder": "日期顺序",
+    "dayFirst": "日在前",
+    "monthFirst": "月在前",
+    "amountsAre": "金额表示",
+    "signed": "带符号",
+    "signedHint": "− 表示支出",
+    "allSpending": "全部支出",
+    "allSpendingHint": "每一行都是支出",
+    "allIncome": "全部收入",
+    "allIncomeHint": "每一行都是收入",
+    "pdfReadFailedTitle": "无法读取该 PDF"
+  },
+  "advisor": {
+    "issue": "抱歉，出现了问题：%{message}",
+    "upgraded": "都好了——尽管问我吧。",
+    "placeholder": "问问你的消费情况…"
+  },
+  "bank": {
+    "connectSection": "连接银行",
+    "findYourBank": "查找你的银行",
+    "findYourBankHint": "搜索你所在国家的数千家银行",
+    "alreadyConnected": {
+      "other": "已连接 %{count} 家银行。"
+    },
+    "consentTitle": "连接你的银行",
+    "consentSubtitle": "你将在银行的安全页面上选择并登录。",
+    "unavailableTitle": "暂时无法连接银行",
+    "unavailableBody": "服务器尚未配置银行连接功能。请稍后再试。",
+    "connectionFailed": "连接失败"
+  }
+}

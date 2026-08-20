@@ -1,5 +1,6 @@
 import * as SQLite from 'expo-sqlite';
 import { setActiveCurrency } from './calculations';
+import { setLocale, normalizeLocale } from './i18n/core';
 
 const DB_NAME = 'real_budget.db';
 
@@ -70,7 +71,8 @@ async function performInit(): Promise<SQLite.SQLiteDatabase> {
       monthlyIncome REAL DEFAULT 0,
       savingsGoal REAL DEFAULT 0,
       spendingStyle TEXT DEFAULT 'moderate',
-      primaryGoal TEXT DEFAULT 'track'
+      primaryGoal TEXT DEFAULT 'track',
+      locale TEXT DEFAULT 'en'
     );
 
     CREATE TABLE IF NOT EXISTS accounts (
@@ -202,6 +204,19 @@ async function performInit(): Promise<SQLite.SQLiteDatabase> {
     }
   } catch (e) {
     console.log('Opening balance migration:', e);
+  }
+
+  // Migration v6: UI language, so the app can be used in French or Chinese.
+  // Existing devices default to English until the user picks, or until the
+  // first-run device-language default applies to a fresh install.
+  try {
+    const settingsInfo = await db.getAllAsync('PRAGMA table_info(settings)');
+    const hasLocale = (settingsInfo as { name: string }[]).some(c => c.name === 'locale');
+    if (!hasLocale) {
+      await db.execAsync("ALTER TABLE settings ADD COLUMN locale TEXT DEFAULT 'en'");
+    }
+  } catch (e) {
+    console.log('Locale migration:', e);
   }
 
   // Migration v5: subscription ids no longer embed the amount, so a price
@@ -687,6 +702,8 @@ export interface Settings {
   savingsGoal: number;
   spendingStyle: string;
   primaryGoal: string;
+  /** UI language: 'en' | 'fr' | 'zh'. */
+  locale: string;
 }
 
 export async function getSettings(): Promise<Settings> {
@@ -695,7 +712,13 @@ export async function getSettings(): Promise<Settings> {
     'SELECT * FROM settings WHERE id = 1'
   ) as Settings;
   // Keep app-wide currency formatting in sync with the user's choice.
-  if (settings) setActiveCurrency(settings.currency, settings.currencySymbol);
+  // Keep app-wide currency and language in sync with the user's choice, so
+  // every formatCurrency and t() call site follows without threading it through.
+  if (settings) {
+    setActiveCurrency(settings.currency, settings.currencySymbol);
+    const locale = normalizeLocale(settings.locale);
+    if (locale) setLocale(locale);
+  }
   return settings;
 }
 
@@ -715,7 +738,7 @@ export async function updateSettings(settings: Partial<Settings>) {
     `UPDATE settings
      SET monthlyBudget = ?, startingBalance = ?, hourlyValue = ?, showTimeCost = ?,
          currency = ?, currencySymbol = ?, monthlyIncome = ?, savingsGoal = ?,
-         spendingStyle = ?, primaryGoal = ?
+         spendingStyle = ?, primaryGoal = ?, locale = ?
      WHERE id = 1`,
     [
       settings.monthlyBudget ?? current?.monthlyBudget ?? 0,
@@ -728,6 +751,7 @@ export async function updateSettings(settings: Partial<Settings>) {
       settings.savingsGoal ?? current?.savingsGoal ?? 0,
       settings.spendingStyle ?? current?.spendingStyle ?? 'moderate',
       settings.primaryGoal ?? current?.primaryGoal ?? 'track',
+      settings.locale ?? current?.locale ?? 'en',
     ]
   );
   notifyLocalMutation();

@@ -45,6 +45,7 @@ import {
 } from '@/lib/bank-linking';
 import { useEntitlement } from '@/lib/useEntitlement';
 import { isUpgradeRequired } from '@/lib/entitlementApi';
+import { t } from '@/lib/i18n/core';
 
 type ViewMode = 'main' | 'add-bank' | 'bank-detail' | 'consent';
 
@@ -101,8 +102,8 @@ export default function LinkBankScreen() {
       const { hostedLinkUrl } = await createLinkToken();
       if (!hostedLinkUrl) {
         Alert.alert(
-          'Bank linking unavailable',
-          'Bank linking is not configured on the server yet. Please try again later.'
+          t('bank.unavailableTitle'),
+          t('bank.unavailableBody')
         );
         return;
       }
@@ -123,12 +124,12 @@ export default function LinkBankScreen() {
       }
       if (isUpgradeRequired(e)) {
         Alert.alert(
-          'Bank sync is a Pro feature',
-          'Upgrade to Pro in Settings to connect your bank. You can always import a statement instead — that works on any plan.'
+          t('subscription.bankProTitle'),
+          t('subscription.bankProBody')
         );
         return;
       }
-      Alert.alert('Connection failed', e instanceof Error ? e.message : 'Please try again.');
+      Alert.alert(t('bank.connectionFailed'), e instanceof Error ? e.message : t('common.retry'));
     } finally {
       setIsLoading(false);
     }
@@ -347,7 +348,7 @@ export default function LinkBankScreen() {
   const renderAddBankView = () => (
     <>
       <View className="px-4 mb-4">
-        <Text className="text-gray-400 text-xs font-semibold mb-3">CONNECT A BANK</Text>
+        <Text className="text-gray-400 text-xs font-semibold mb-3">{t('bank.connectSection')}</Text>
 
         {/* One entry point, not a bank list. Choosing the institution happens in
             the provider's own secure flow, against the real, country-appropriate
@@ -366,9 +367,9 @@ export default function LinkBankScreen() {
                   <Building2 size={22} color="#a855f7" />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text className="text-white font-medium">Find your bank</Text>
+                  <Text className="text-white font-medium">{t('bank.findYourBank')}</Text>
                   <Text className="text-gray-500 text-xs mt-0.5">
-                    Search thousands of banks in your country
+{t('bank.findYourBankHint')}
                   </Text>
                 </View>
               </View>
@@ -580,9 +581,9 @@ export default function LinkBankScreen() {
               >
                 <Building2 size={30} color="#a855f7" />
               </View>
-              <Text className="text-white text-xl font-bold">Connect your bank</Text>
+              <Text className="text-white text-xl font-bold">{t('bank.consentTitle')}</Text>
               <Text className="text-gray-400 text-sm mt-1 text-center">
-                You&apos;ll choose your bank and sign in on their secure page.
+{t('bank.consentSubtitle')}
               </Text>
             </View>
 

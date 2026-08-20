@@ -25,6 +25,8 @@ import Animated, { FadeInUp } from 'react-native-reanimated';
 import { C, R, glow } from '@/lib/design';
 import { DeleteAccountModal, UnrevokedGrantsNotice } from '@/components/DeleteAccountModal';
 import { useEntitlement } from '@/lib/useEntitlement';
+import { t, getLocale, SUPPORTED_LOCALES, LOCALE_LABELS, type AppLocale } from '@/lib/i18n/core';
+import { chooseLocale } from '@/lib/i18n/bootstrap';
 import type { UnrevokedGrant } from '@/lib/accountApi';
 import { Txt, GlassCard, IconBubble, BubbleButton, ScreenBackground } from '@/components/ui';
 
@@ -116,6 +118,7 @@ export default function SettingsScreen() {
   const [biometricEnabled, setBiometricEnabled] = useState(false);
   const [showDeleteAccount, setShowDeleteAccount] = useState(false);
   const [restoring, setRestoring] = useState(false);
+  const [locale, setLocaleState] = useState<AppLocale>(getLocale());
   const { isPro, presentPaywall, restore } = useEntitlement();
   const [unrevokedGrants, setUnrevokedGrants] = useState<UnrevokedGrant[] | null>(null);
 
@@ -225,40 +228,40 @@ export default function SettingsScreen() {
 
         {/* ── Accounts ── */}
         <Animated.View entering={FadeInUp.delay(40).springify().damping(16)} style={{ paddingHorizontal: 20, paddingTop: 22 }}>
-          <SectionLabel>ACCOUNTS 👛</SectionLabel>
-          <NavRow icon={<CreditCard size={20} color={C.p400} />} color={C.p400} label="Manage Accounts" desc={`${accounts.length} account${accounts.length !== 1 ? 's' : ''} linked`} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/accounts'); }} />
+          <SectionLabel>{t('settings.sections.accounts')}</SectionLabel>
+          <NavRow icon={<CreditCard size={20} color={C.p400} />} color={C.p400} label={t('settings.manageAccounts')} desc={`${accounts.length} account${accounts.length !== 1 ? 's' : ''} linked`} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/accounts'); }} />
         </Animated.View>
 
         {/* ── Import ── */}
         <Animated.View entering={FadeInUp.delay(70).springify().damping(16)} style={{ paddingHorizontal: 20, paddingTop: 20 }}>
-          <SectionLabel>IMPORT DATA 📥</SectionLabel>
-          <NavRow icon={<Upload size={20} color={C.lilac} />} color={C.lilac} label="Import Transactions" desc="Upload CSV from your bank 🔒" onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/import'); }} />
+          <SectionLabel>{t('settings.sections.import')}</SectionLabel>
+          <NavRow icon={<Upload size={20} color={C.lilac} />} color={C.lilac} label={t('settings.importTransactions')} desc="Upload CSV from your bank 🔒" onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/import'); }} />
         </Animated.View>
 
         {/* ── Tools ── */}
         <Animated.View entering={FadeInUp.delay(100).springify().damping(16)} style={{ paddingHorizontal: 20, paddingTop: 20 }}>
-          <SectionLabel>TOOLS 🛠️</SectionLabel>
+          <SectionLabel>{t('settings.sections.tools')}</SectionLabel>
           <View style={{ gap: 10 }}>
             {tools.map((item) => (
               <NavRow key={item.route} icon={<item.Icon size={20} color={item.color} />} color={item.color} label={item.label} desc={item.desc} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push(item.route as any); }} />
             ))}
-            <NavRow icon={<Download size={20} color={C.lilac} />} color={C.lilac} label="Export Data" desc="Download transactions as CSV/JSON" onPress={handleExportData} />
+            <NavRow icon={<Download size={20} color={C.lilac} />} color={C.lilac} label={t('settings.exportData')} desc="Download transactions as CSV/JSON" onPress={handleExportData} />
           </View>
         </Animated.View>
 
         {/* ── Numbers ── */}
         <Animated.View entering={FadeInUp.delay(130).springify().damping(16)} style={{ paddingHorizontal: 20, paddingTop: 20 }}>
-          <SectionLabel>YOUR NUMBERS 💰</SectionLabel>
-          <MoneyInput icon={<Wallet size={15} color={C.p400} />} color={C.p400} label="Monthly Budget" hint="Your target monthly spending limit" value={monthlyBudget} onChangeText={setMonthlyBudget} placeholder="5000" />
-          <MoneyInput icon={<Wallet size={15} color={C.green} />} color={C.green} label="Starting Balance" hint="Your initial account balance" value={startingBalance} onChangeText={setStartingBalance} placeholder="0" />
-          <MoneyInput icon={<Clock size={15} color={C.lilac} />} color={C.lilac} label="Hourly Rate" hint="Used to calculate time cost of purchases ⏱️" value={hourlyValue} onChangeText={setHourlyValue} placeholder="0" suffix="/hr" />
+          <SectionLabel>{t('settings.sections.numbers')}</SectionLabel>
+          <MoneyInput icon={<Wallet size={15} color={C.p400} />} color={C.p400} label={t('settings.monthlyBudget')} hint={t('settings.monthlyBudgetHint')} value={monthlyBudget} onChangeText={setMonthlyBudget} placeholder="5000" />
+          <MoneyInput icon={<Wallet size={15} color={C.green} />} color={C.green} label={t('settings.startingBalance')} hint={t('settings.startingBalanceHint')} value={startingBalance} onChangeText={setStartingBalance} placeholder="0" />
+          <MoneyInput icon={<Clock size={15} color={C.lilac} />} color={C.lilac} label={t('settings.hourlyRate')} hint="Used to calculate time cost of purchases ⏱️" value={hourlyValue} onChangeText={setHourlyValue} placeholder="0" suffix="/hr" />
         </Animated.View>
 
         {/* ── Preferences ── */}
         <Animated.View entering={FadeInUp.delay(160).springify().damping(16)} style={{ paddingHorizontal: 20, paddingTop: 20 }}>
-          <SectionLabel>PREFERENCES 🎛️</SectionLabel>
+          <SectionLabel>{t('settings.sections.preferences')}</SectionLabel>
           <View style={{ gap: 12 }}>
-            <ToggleRow icon={<Eye size={20} color={C.lilac} />} color={C.lilac} label="Show Time Cost ⏱️" desc="See purchases in work hours" value={showTimeCost} onValueChange={(val) => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setShowTimeCost(val); }} />
+            <ToggleRow icon={<Eye size={20} color={C.lilac} />} color={C.lilac} label="Show Time Cost ⏱️" desc={t('settings.hourlyRateHint')} value={showTimeCost} onValueChange={(val) => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setShowTimeCost(val); }} />
             <ToggleRow icon={<Fingerprint size={20} color={C.p400} />} color={C.p400} label="Biometric Lock 🔒" desc="Require Face ID / Fingerprint on open" value={biometricEnabled} onValueChange={handleBiometricToggle} />
           </View>
         </Animated.View>
@@ -287,7 +290,7 @@ export default function SettingsScreen() {
 
         {/* ── Features ── */}
         <View style={{ paddingHorizontal: 20, paddingTop: 28 }}>
-          <SectionLabel>FEATURES ✨</SectionLabel>
+          <SectionLabel>{t('settings.sections.features')}</SectionLabel>
           <View style={{ gap: 12 }}>
             {[
               { Icon: Flame, color: C.lilac, label: 'Logging Streak 🔥', desc: 'Build streaks by logging transactions daily' },
@@ -309,12 +312,53 @@ export default function SettingsScreen() {
 
         {/* ── Version ── */}
         <View style={{ paddingHorizontal: 20, paddingTop: 24 }}>
-          <Txt size={11} color={C.textFaint} style={{ textAlign: 'center' }}>Budget v1.0.0 — made with care 💜</Txt>
+          <Txt size={11} color={C.textFaint} style={{ textAlign: 'center' }}>{t('settings.version')}</Txt>
+        </View>
+
+        {/* ── Language ── */}
+        <View style={{ paddingHorizontal: 20, paddingTop: 18 }}>
+          <SectionLabel>{t('settings.sections.language')}</SectionLabel>
+          <GlassCard padding={6}>
+            {SUPPORTED_LOCALES.map((code, i) => {
+              const active = locale === code;
+              return (
+                <Pressable
+                  key={code}
+                  onPress={async () => {
+                    if (active) return;
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    await chooseLocale(code);
+                    setLocaleState(code);
+                    // Every screen reads t() at render, so re-running the
+                    // queries is enough — no reload, no restart.
+                    queryClient.invalidateQueries();
+                  }}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    paddingVertical: 12,
+                    paddingHorizontal: 10,
+                    borderBottomWidth: i < SUPPORTED_LOCALES.length - 1 ? 1 : 0,
+                    borderBottomColor: 'rgba(255,255,255,0.06)',
+                  }}
+                >
+                  <Txt size={15} color={active ? C.text : C.textFaint}>
+                    {LOCALE_LABELS[code]}
+                  </Txt>
+                  {active && <Check size={18} color="#22c55e" />}
+                </Pressable>
+              );
+            })}
+          </GlassCard>
+          <Txt size={11} color={C.textFaint} style={{ marginTop: 6, marginLeft: 4 }}>
+            {t('language.subtitle')}
+          </Txt>
         </View>
 
         {/* ── Subscription ── */}
         <View style={{ paddingHorizontal: 20, paddingTop: 18 }}>
-          <SectionLabel>SUBSCRIPTION ✨</SectionLabel>
+          <SectionLabel>{t('settings.sections.subscription')}</SectionLabel>
 
           <Pressable
             onPress={async () => {
@@ -330,12 +374,12 @@ export default function SettingsScreen() {
                 </IconBubble>
                 <View style={{ flex: 1 }}>
                   <Txt weight="semibold" size={15} color={C.text}>
-                    {isPro ? 'Budget Pro' : 'Upgrade to Pro'}
+                    {isPro ? t('subscription.proTitle') : t('subscription.upgradeTitle')}
                   </Txt>
                   <Txt size={11} color={C.textFaint} style={{ marginTop: 1 }}>
                     {isPro
-                      ? 'AI advisor, receipt scan, email detection and bank sync'
-                      : 'Unlock the AI advisor, receipt scan and bank sync'}
+                      ? t('subscription.proSubtitle')
+                      : t('subscription.upgradeSubtitle')}
                   </Txt>
                 </View>
                 {isPro ? (
@@ -375,7 +419,7 @@ export default function SettingsScreen() {
                 ) : (
                   <RotateCcw size={16} color={C.textFaint} />
                 )}
-                <Txt size={13} color={C.textFaint}>Restore purchases</Txt>
+                <Txt size={13} color={C.textFaint}>{t('subscription.restore')}</Txt>
               </View>
             </GlassCard>
           </Pressable>
@@ -383,7 +427,7 @@ export default function SettingsScreen() {
 
         {/* ── Danger zone ── */}
         <View style={{ paddingHorizontal: 20, paddingTop: 18 }}>
-          <SectionLabel>CAREFUL ZONE ⚠️</SectionLabel>
+          <SectionLabel>{t('settings.sections.danger')}</SectionLabel>
           <Pressable
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
@@ -431,8 +475,8 @@ export default function SettingsScreen() {
               <View className="flex-row items-center" style={{ gap: 12 }}>
                 <IconBubble color="#ef4444"><Trash2 size={20} color="#ef4444" /></IconBubble>
                 <View style={{ flex: 1 }}>
-                  <Txt weight="semibold" size={15} color="#f87171">Delete Account</Txt>
-                  <Txt size={11} color="rgba(248,113,113,0.6)" style={{ marginTop: 1 }}>Permanently erase your account and all data</Txt>
+                  <Txt weight="semibold" size={15} color="#f87171">{t('deleteAccount.entry')}</Txt>
+                  <Txt size={11} color="rgba(248,113,113,0.6)" style={{ marginTop: 1 }}>{t('deleteAccount.entryHint')}</Txt>
                 </View>
                 <ChevronRight size={18} color="rgba(248,113,113,0.4)" />
               </View>
@@ -446,7 +490,7 @@ export default function SettingsScreen() {
             <GlassCard padding={14} tint="rgba(239,68,68,0.07)" border="rgba(239,68,68,0.16)">
               <View className="flex-row items-center justify-center" style={{ gap: 8 }}>
                 <LogOut size={20} color="#ef4444" />
-                <Txt weight="semibold" size={15} color="#f87171">Log Out</Txt>
+                <Txt weight="semibold" size={15} color="#f87171">{t('settings.logOut')}</Txt>
               </View>
             </GlassCard>
           </Pressable>

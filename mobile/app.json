@@ -50,7 +50,8 @@
           "savePhotosPermission": "Allow Budget to save receipts to your photos."
         }
       ],
-      "./plugins/withFmtConstevalFix"
+      "./plugins/withFmtConstevalFix",
+      "expo-localization"
     ],
     "experiments": {
       "typedRoutes": true

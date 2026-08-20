@@ -11,6 +11,7 @@ import { View, Text, Pressable, ActivityIndicator } from 'react-native';
 import { initializeDatabase } from '@/lib/db';
 import { startCloudSync } from '@/lib/cloud-sync';
 import { loadRates } from '@/lib/rates';
+import { initLocale } from '@/lib/i18n/bootstrap';
 import { useSession, SESSION_QUERY_KEY } from '@/lib/auth/use-session';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { isBiometricAvailable, authenticateWithBiometrics } from '@/lib/biometric';
@@ -346,6 +347,8 @@ export default function RootLayout() {
     try {
       await withTimeout(initializeDatabase(), DB_INIT_TIMEOUT_MS, 'initializeDatabase');
       console.log('[startup] initializeDatabase success');
+      // Language before any screen renders, so nothing flashes in English first.
+      await initLocale().catch(() => {});
     } catch (e) {
       console.error('[startup] initializeDatabase error', e);
       setDbError(e instanceof Error ? e.message : 'Failed to initialize database');

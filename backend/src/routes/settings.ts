@@ -21,6 +21,8 @@ const settingsSchema = z.object({
     .enum(["save", "track", "reduce_debt", "budget"])
     .optional()
     .default("track"),
+  // Must match SUPPORTED_LOCALES in mobile/src/lib/i18n/core.ts.
+  locale: z.enum(["en", "fr", "zh"]).optional().default("en"),
 });
 
 const router = new Hono<{

@@ -133,6 +133,9 @@ model UserSettings {
   savingsGoal    Float   @default(0)
   spendingStyle  String  @default("moderate")
   primaryGoal    String  @default("track")
+  /// UI language: "en" | "fr" | "zh". Synced so it follows the user's account
+  /// across devices; the device language is only the first-run default.
+  locale         String  @default("en")
   // Which business the user is currently acting in. Membership resolution used
   // findFirst, so a user in more than one business got a non-deterministic
   // answer that could change between requests.

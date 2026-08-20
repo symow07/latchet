@@ -1,5 +1,6 @@
 import { format, startOfDay, subDays, startOfMonth, endOfMonth } from 'date-fns';
 import { todayISO, daysAgoISO, daysBetween } from './dates';
+import { getIntlTag } from './i18n/core';
 
 export interface DailySpending {
   date: string;
@@ -310,10 +311,11 @@ export function formatCurrency(amount: number): string {
   // Proper locale currency formatting; fall back to symbol + grouped number
   // (Hermes Intl can be inconsistent for some currency codes).
   try {
-    // undefined = the device's own locale. Hardcoding 'en-US' gave every
-    // non-US user US grouping and symbol placement — "€1,234.56" where they
-    // expect "1.234,56 €".
-    const formatted = new Intl.NumberFormat(undefined, {
+    // The user's chosen language, not the device's. Hardcoding 'en-US' gave
+    // every non-US user US grouping and symbol placement — "€1,234.56" where
+    // they expect "1 234,56 €" — and the device locale is only the first-run
+    // default, so it stops matching as soon as they pick a language.
+    const formatted = new Intl.NumberFormat(getIntlTag(), {
       style: 'currency',
       currency: activeCurrency,
       currencyDisplay: 'narrowSymbol',
@@ -322,7 +324,7 @@ export function formatCurrency(amount: number): string {
     }).format(abs);
     return amount < 0 ? `-${formatted}` : formatted;
   } catch {
-    const n = abs.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const n = abs.toLocaleString(getIntlTag(), { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     return `${amount < 0 ? '-' : ''}${activeSymbol}${n}`;
   }
 }

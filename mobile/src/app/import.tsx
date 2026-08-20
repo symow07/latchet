@@ -50,6 +50,7 @@ import { findProfileFor, rememberProfile } from '@/lib/import-profiles';
 import { useEntitlement } from '@/lib/useEntitlement';
 import { isUpgradeRequired } from '@/lib/entitlementApi';
 import { api } from '@/lib/api/api';
+import { t } from '@/lib/i18n/core';
 
 /** One transaction as returned by /api/ai/analyze-statement. */
 interface StatementRow {
@@ -168,9 +169,9 @@ export default function ImportScreen() {
       // not told the file was unreadable.
       if (await handleUpgradeRequired(e)) return;
       Alert.alert(
-        isUpgradeRequired(e) ? 'Pro feature' : 'Could not read that PDF',
+        isUpgradeRequired(e) ? t('subscription.proFeatureTitle') : t('import.pdfReadFailedTitle'),
         isUpgradeRequired(e)
-          ? 'Reading PDF statements uses AI. Upgrade to Pro in Settings, or import a CSV instead — CSV is parsed on your device and is always more accurate.'
+          ? t('subscription.pdfProBody')
           : e instanceof Error && /429/.test(e.message)
             ? 'You have hit the AI usage limit. Please try again later.'
             : 'The statement could not be analysed. If your bank offers CSV, that will always be more accurate.',
@@ -561,7 +562,7 @@ export default function ImportScreen() {
               >
                 <View className="flex-row items-center">
                   <FileText size={20} color="#6b7280" />
-                  <Text className="text-gray-300 ml-3">CSV files (.csv)</Text>
+                  <Text className="text-gray-300 ml-3">{t('import.csvTitle')}</Text>
                 </View>
                 <Text className="text-gray-500 text-xs mt-2">
                   Processed entirely on your device. If we can&apos;t recognise the columns,
@@ -569,7 +570,7 @@ export default function ImportScreen() {
                 </Text>
                 <View className="flex-row items-center mt-4">
                   <FileText size={20} color="#6b7280" />
-                  <Text className="text-gray-300 ml-3">PDF statements (.pdf)</Text>
+                  <Text className="text-gray-300 ml-3">{t('import.pdfTitle')}</Text>
                 </View>
                 <Text className="text-gray-500 text-xs mt-2">
                   For banks that only offer PDF. Read by AI on our server, so it leaves your
@@ -584,9 +585,9 @@ export default function ImportScreen() {
         {analyzingPdf && (
           <View className="px-4 pt-6 items-center">
             <ActivityIndicator color="#3b82f6" />
-            <Text className="text-gray-300 mt-3 font-semibold">Reading your statement…</Text>
+            <Text className="text-gray-300 mt-3 font-semibold">{t('import.analysing')}</Text>
             <Text className="text-gray-500 text-xs mt-1 text-center">
-              A full page of transactions can take up to a minute.
+{t('import.analysingHint')}
             </Text>
           </View>
         )}
@@ -599,7 +600,7 @@ export default function ImportScreen() {
               style={{ backgroundColor: 'rgba(251,191,36,0.12)' }}
             >
               <Text className="text-amber-300 font-semibold mb-1">
-                We couldn&apos;t read this file&apos;s columns
+{t('import.mappingTitle')}
               </Text>
               <Text className="text-gray-300 text-xs leading-5">
                 Tell us which column holds what and we&apos;ll take it from there. Your
@@ -699,26 +700,26 @@ export default function ImportScreen() {
                 className="rounded-2xl p-4"
                 style={{ backgroundColor: 'rgba(255,255,255,0.05)' }}
               >
-                <Text className="text-gray-400 text-xs mb-3">IMPORT SUMMARY</Text>
+                <Text className="text-gray-400 text-xs mb-3">{t('import.summary')}</Text>
                 <View className="flex-row justify-between mb-2">
                   <Text className="text-gray-400">Transactions</Text>
                   <Text className="text-white font-semibold">{transactions.length}</Text>
                 </View>
                 <View className="flex-row justify-between mb-2">
-                  <Text className="text-gray-400">Total Expenses</Text>
+                  <Text className="text-gray-400">{t('import.totalExpenses')}</Text>
                   <Text className="text-red-400 font-semibold">
                     {formatCurrency(transactions.filter(t => t.type === 'Expense').reduce((s, t) => s + t.amount, 0))}
                   </Text>
                 </View>
                 <View className="flex-row justify-between mb-2">
-                  <Text className="text-gray-400">Total Income</Text>
+                  <Text className="text-gray-400">{t('import.totalIncome')}</Text>
                   <Text className="text-green-400 font-semibold">
                     {formatCurrency(transactions.filter(t => t.type === 'Income').reduce((s, t) => s + t.amount, 0))}
                   </Text>
                 </View>
                 {preview.duplicatesFound > 0 && (
                   <View className="flex-row justify-between">
-                    <Text className="text-gray-400">Duplicates Skipped</Text>
+                    <Text className="text-gray-400">{t('import.duplicatesSkipped')}</Text>
                     <Text className="text-amber-400 font-semibold">{preview.duplicatesFound}</Text>
                   </View>
                 )}
@@ -734,7 +735,7 @@ export default function ImportScreen() {
                   style={{ backgroundColor: 'rgba(255,255,255,0.05)' }}
                 >
                   <Text className="text-gray-400 text-xs mb-1">
-                    {rememberedBank ? 'FILE FORMAT · REMEMBERED' : 'FILE FORMAT'}
+                    {rememberedBank ? t('import.formatRemembered') : t('import.format')}
                   </Text>
                   <Text className="text-gray-500 text-xs mb-3 leading-4">
                     {rememberedBank
@@ -744,11 +745,11 @@ export default function ImportScreen() {
                         : 'Detected from your file. Change these if anything looks wrong.'}
                   </Text>
 
-                  <Text className="text-gray-400 text-xs mb-2">Date order</Text>
+                  <Text className="text-gray-400 text-xs mb-2">{t('import.dateOrder')}</Text>
                   <View className="flex-row mb-4" style={{ gap: 8 }}>
                     {([
-                      { value: 'dmy' as DateConvention, label: 'Day first', hint: '31/12/2026' },
-                      { value: 'mdy' as DateConvention, label: 'Month first', hint: '12/31/2026' },
+                      { value: 'dmy' as DateConvention, label: t('import.dayFirst'), hint: '31/12/2026' },
+                      { value: 'mdy' as DateConvention, label: t('import.monthFirst'), hint: '12/31/2026' },
                     ]).map(opt => {
                       const active = format.date === opt.value;
                       return (
@@ -771,12 +772,12 @@ export default function ImportScreen() {
                     })}
                   </View>
 
-                  <Text className="text-gray-400 text-xs mb-2">Amounts are</Text>
+                  <Text className="text-gray-400 text-xs mb-2">{t('import.amountsAre')}</Text>
                   <View className="flex-row" style={{ gap: 8 }}>
                     {([
-                      { value: 'signed' as SignConvention, label: 'Signed', hint: '− is spending' },
-                      { value: 'all-expense' as SignConvention, label: 'All spending', hint: 'every row out' },
-                      { value: 'all-income' as SignConvention, label: 'All income', hint: 'every row in' },
+                      { value: 'signed' as SignConvention, label: t('import.signed'), hint: t('import.signedHint') },
+                      { value: 'all-expense' as SignConvention, label: t('import.allSpending'), hint: t('import.allSpendingHint') },
+                      { value: 'all-income' as SignConvention, label: t('import.allIncome'), hint: t('import.allIncomeHint') },
                     ]).map(opt => {
                       const active = format.sign === opt.value;
                       return (

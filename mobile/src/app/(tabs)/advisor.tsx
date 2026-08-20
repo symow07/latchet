@@ -27,6 +27,7 @@ import { C, R, glow } from '@/lib/design';
 import { Txt, GlassCard, IconBubble, ScreenBackground } from '@/components/ui';
 import { useEntitlement } from '@/lib/useEntitlement';
 import { isUpgradeRequired } from '@/lib/entitlementApi';
+import { t } from '@/lib/i18n/core';
 
 interface Message {
   id: string;
@@ -76,12 +77,14 @@ export default function AdvisorTab() {
       // A free user who has used their daily allowance gets the paywall, not an
       // apology — the server sends 402 with a code so we can tell the two apart.
       if (await handleUpgradeRequired(error)) {
-        setMessages(prev => [...prev, { id: `msg_${Date.now()}`, role: 'assistant', content: "You're all set — ask me anything.", timestamp: new Date() }]);
+        setMessages(prev => [...prev, { id: `msg_${Date.now()}`, role: 'assistant', content: t('advisor.upgraded'), timestamp: new Date() }]);
         return;
       }
       const message = isUpgradeRequired(error)
-        ? "You've used your free AI requests for today. Upgrade to Pro in Settings for more."
-        : `I'm sorry, I encountered an issue: ${error instanceof Error ? error.message : 'Please try again later.'}`;
+        ? t('subscription.aiLimitReached')
+        : t('advisor.issue', {
+            message: error instanceof Error ? error.message : t('common.retry'),
+          });
       setMessages(prev => [...prev, { id: `msg_${Date.now()}`, role: 'assistant', content: message, timestamp: new Date() }]);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     },

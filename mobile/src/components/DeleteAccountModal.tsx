@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AlertTriangle, X, ExternalLink } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { Txt, GlassCard } from '@/components/ui';
+import { t } from '@/lib/i18n/core';
 import {
   fetchDeletionPreview,
   deleteAccount,
@@ -42,7 +43,7 @@ export function DeleteAccountModal({
       setPreview(await fetchDeletionPreview());
     } catch (e) {
       console.error('[delete-account] preview failed:', e);
-      setLoadError('Could not load your account details. Check your connection and try again.');
+      setLoadError(t('deleteAccount.loadFailed'));
     } finally {
       setLoading(false);
     }
@@ -70,7 +71,7 @@ export function DeleteAccountModal({
     } catch (e) {
       console.error('[delete-account] failed:', e);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      setDeleteError('Your account could not be deleted. Please try again.');
+      setDeleteError(t('deleteAccount.deleteFailed'));
       setDeleting(false);
     }
   };
@@ -98,9 +99,9 @@ export function DeleteAccountModal({
           <View className="flex-row items-center justify-between" style={{ padding: 20, paddingBottom: 8 }}>
             <View className="flex-row items-center" style={{ gap: 10 }}>
               <AlertTriangle size={22} color="#ef4444" />
-              <Txt weight="bold" size={19} color="#fff">Delete account</Txt>
+              <Txt weight="bold" size={19} color="#fff">{t('deleteAccount.title')}</Txt>
             </View>
-            <Pressable onPress={onClose} hitSlop={12} accessibilityLabel="Close">
+            <Pressable onPress={onClose} hitSlop={12} accessibilityLabel={t('common.close')}>
               <X size={22} color="rgba(255,255,255,0.5)" />
             </Pressable>
           </View>
@@ -116,7 +117,7 @@ export function DeleteAccountModal({
                 <Pressable onPress={load} style={{ marginTop: 14 }}>
                   <GlassCard padding={12}>
                     <Txt weight="semibold" size={14} color="#fff" style={{ textAlign: 'center' }}>
-                      Try again
+{t('common.retry')}
                     </Txt>
                   </GlassCard>
                 </Pressable>
@@ -124,22 +125,20 @@ export function DeleteAccountModal({
             ) : preview ? (
               <>
                 <Txt size={14} color="rgba(255,255,255,0.7)" style={{ lineHeight: 20 }}>
-                  This permanently deletes your account and everything in it. It cannot be undone,
-                  and we cannot recover it for you afterwards.
+{t('deleteAccount.intro')}
                 </Txt>
 
                 <View style={{ marginTop: 16 }}>
                   <GlassCard padding={14}>
                     <Txt size={11} weight="semibold" color="rgba(255,255,255,0.45)">
-                      WHAT GETS DELETED
+{t('deleteAccount.whatGetsDeleted')}
                     </Txt>
-                    {line('Transactions', preview.transactions)}
-                    {line('Accounts', preview.accounts)}
-                    {line('Linked banks', preview.linkedBanks)}
-                    {line('Connected inboxes', preview.connectedInboxes)}
+                    {line(t('deleteAccount.transactions'), preview.transactions)}
+                    {line(t('deleteAccount.accounts'), preview.accounts)}
+                    {line(t('deleteAccount.linkedBanks'), preview.linkedBanks)}
+                    {line(t('deleteAccount.connectedInboxes'), preview.connectedInboxes)}
                     <Txt size={12} color="rgba(255,255,255,0.4)" style={{ marginTop: 8, lineHeight: 17 }}>
-                      Plus your settings, budgets, bill reminders, recurring transactions and
-                      achievements.
+{t('deleteAccount.plusRest')}
                     </Txt>
                   </GlassCard>
                 </View>
@@ -150,7 +149,7 @@ export function DeleteAccountModal({
                   <View style={{ marginTop: 12 }}>
                     <GlassCard padding={14} tint="rgba(239,68,68,0.1)" border="rgba(239,68,68,0.28)">
                       <Txt weight="semibold" size={14} color="#f87171">
-                        This also deletes {preview.ownedBusiness.name}
+{t('deleteAccount.businessWarningTitle', { name: preview.ownedBusiness.name })}
                       </Txt>
                       <Txt size={13} color="rgba(255,255,255,0.7)" style={{ marginTop: 6, lineHeight: 19 }}>
                         You own this business, so deleting your account removes it entirely —
@@ -165,8 +164,7 @@ export function DeleteAccountModal({
 
                 {(preview.linkedBanks > 0 || preview.connectedInboxes > 0) && (
                   <Txt size={12} color="rgba(255,255,255,0.45)" style={{ marginTop: 12, lineHeight: 18 }}>
-                    We&apos;ll revoke access to your linked bank and inbox connections first, so
-                    they stop sharing data with us.
+{t('deleteAccount.revokeNote')}
                   </Txt>
                 )}
 
@@ -179,9 +177,9 @@ export function DeleteAccountModal({
                   autoCapitalize="none"
                   autoCorrect={false}
                   keyboardType="email-address"
-                  placeholder="your email address"
+                  placeholder={t('deleteAccount.confirmPlaceholder')}
                   placeholderTextColor="rgba(255,255,255,0.28)"
-                  accessibilityLabel="Type your email address to confirm deletion"
+                  accessibilityLabel={t('deleteAccount.confirmPrompt', { email: preview.email })}
                   style={{
                     marginTop: 8,
                     borderRadius: 12,
@@ -219,13 +217,13 @@ export function DeleteAccountModal({
                       size={15}
                       color={confirmed ? '#fff' : 'rgba(255,255,255,0.35)'}
                     >
-                      Delete my account permanently
+{t('deleteAccount.confirmButton')}
                     </Txt>
                   )}
                 </Pressable>
 
                 <Pressable onPress={onClose} disabled={deleting} style={{ paddingVertical: 14, alignItems: 'center' }}>
-                  <Txt size={14} color="rgba(255,255,255,0.55)">Keep my account</Txt>
+                  <Txt size={14} color="rgba(255,255,255,0.55)">{t('deleteAccount.keepAccount')}</Txt>
                 </Pressable>
               </>
             ) : null}
@@ -254,7 +252,7 @@ export function UnrevokedGrantsNotice({
     <Modal visible animationType="fade" transparent onRequestClose={onDismiss}>
       <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'center', padding: 24 }}>
         <View style={{ backgroundColor: '#0b0b0f', borderRadius: 20, padding: 20, paddingBottom: insets.bottom + 20 }}>
-          <Txt weight="bold" size={18} color="#fff">Account deleted</Txt>
+          <Txt weight="bold" size={18} color="#fff">{t('deleteAccount.deletedTitle')}</Txt>
           <Txt size={14} color="rgba(255,255,255,0.7)" style={{ marginTop: 10, lineHeight: 20 }}>
             Your account and data are gone. We couldn&apos;t automatically revoke everything
             though — please disconnect these yourself:
@@ -271,7 +269,7 @@ export function UnrevokedGrantsNotice({
                   <View style={{ flex: 1 }}>
                     <Txt weight="semibold" size={14} color="#fff">{g.label}</Txt>
                     <Txt size={12} color="rgba(255,255,255,0.45)" style={{ marginTop: 2 }}>
-                      {g.kind === 'bank' ? 'Bank connection' : 'Inbox connection'}
+                      {g.kind === 'bank' ? t('deleteAccount.bankConnection') : t('deleteAccount.inboxConnection')}
                     </Txt>
                   </View>
                   <ExternalLink size={18} color="rgba(255,255,255,0.5)" />
@@ -281,7 +279,7 @@ export function UnrevokedGrantsNotice({
           ))}
 
           <Pressable onPress={onDismiss} style={{ marginTop: 18, paddingVertical: 12, alignItems: 'center' }}>
-            <Txt weight="semibold" size={15} color="#fff">Done</Txt>
+            <Txt weight="semibold" size={15} color="#fff">{t('common.done')}</Txt>
           </Pressable>
         </View>
       </View>

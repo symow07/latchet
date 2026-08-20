@@ -16,6 +16,8 @@ import { FREE_AI_CALLS_PER_DAY } from "../lib/entitlement";
 const FREE_USER = "guard_free_user";
 const PRO_USER = "guard_pro_user";
 const EXPIRED_USER = "guard_expired_user";
+// The webhook test mutates its subject, so it gets one nobody else asserts on.
+const WEBHOOK_USER = "guard_webhook_user";
 
 /** The context variables the global session middleware normally populates. */
 type SessionVars = {
@@ -55,11 +57,12 @@ beforeAll(async () => {
   await makeUser(FREE_USER, "free", null);
   await makeUser(PRO_USER, "pro", future);
   await makeUser(EXPIRED_USER, "pro", past);
+  await makeUser(WEBHOOK_USER, "free", null);
 });
 
 afterAll(async () => {
   await prisma.user.deleteMany({
-    where: { id: { in: [FREE_USER, PRO_USER, EXPIRED_USER] } },
+    where: { id: { in: [FREE_USER, PRO_USER, EXPIRED_USER, WEBHOOK_USER] } },
   });
 });
 
@@ -142,7 +145,7 @@ test("a webhook with the wrong secret is rejected, and changes nothing", async (
     body: JSON.stringify({
       event: {
         type: "INITIAL_PURCHASE",
-        app_user_id: FREE_USER,
+        app_user_id: WEBHOOK_USER,
         entitlement_ids: ["pro"],
         expiration_at_ms: Date.now() + 86_400_000,
       },
@@ -151,7 +154,7 @@ test("a webhook with the wrong secret is rejected, and changes nothing", async (
 
   expect(res.status).toBe(401);
   // The forged upgrade must not have landed.
-  const user = await prisma.user.findUnique({ where: { id: FREE_USER } });
+  const user = await prisma.user.findUnique({ where: { id: WEBHOOK_USER } });
   expect(user!.entitlement).toBe("free");
 });
 
@@ -164,7 +167,7 @@ test("a signed webhook grants and then expires the entitlement", async () => {
       body: JSON.stringify({
         event: {
           type,
-          app_user_id: FREE_USER,
+          app_user_id: WEBHOOK_USER,
           entitlement_ids: ["pro"],
           expiration_at_ms: Date.now() + 30 * 86_400_000,
         },
@@ -172,13 +175,13 @@ test("a signed webhook grants and then expires the entitlement", async () => {
     });
 
   expect((await send("INITIAL_PURCHASE")).status).toBe(200);
-  expect((await prisma.user.findUnique({ where: { id: FREE_USER } }))!.entitlement).toBe("pro");
+  expect((await prisma.user.findUnique({ where: { id: WEBHOOK_USER } }))!.entitlement).toBe("pro");
   // ...and the guard follows immediately.
-  expect((await appAs(FREE_USER, plaidRouter as never).request("/accounts")).status).toBe(200);
+  expect((await appAs(WEBHOOK_USER, plaidRouter as never).request("/accounts")).status).toBe(200);
 
   expect((await send("EXPIRATION")).status).toBe(200);
-  expect((await prisma.user.findUnique({ where: { id: FREE_USER } }))!.entitlement).toBe("free");
-  expect((await appAs(FREE_USER, plaidRouter as never).request("/accounts")).status).toBe(402);
+  expect((await prisma.user.findUnique({ where: { id: WEBHOOK_USER } }))!.entitlement).toBe("free");
+  expect((await appAs(WEBHOOK_USER, plaidRouter as never).request("/accounts")).status).toBe(402);
 });
 
 test("a webhook for an unknown subscriber is acknowledged, not retried forever", async () => {
