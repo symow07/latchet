@@ -1,3 +1,5 @@
+import { readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { test, expect, afterEach } from 'bun:test';
 import {
   categoryLabel,
@@ -127,8 +129,6 @@ test('an unknown category still gets a usable icon and colour', () => {
 // the import preview all still printed the stored English name. Grepping is the
 // only thing that catches that reliably, so it is a test rather than a habit.
 
-import { readdirSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
 
 /**
  * Business-mode expenses use their own vocabulary (Travel, Software, Meals…)
