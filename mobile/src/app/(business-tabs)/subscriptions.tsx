@@ -22,6 +22,7 @@ import {
 import { type TeamMember } from '@/lib/businessApi';
 import { B, R, glow } from '@/lib/design';
 import { Txt, GlassCard, IconBubble, Pill, BizBackground, BubbleButton } from '@/components/ui';
+import { t } from '@/lib/i18n/core';
 
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
@@ -62,7 +63,7 @@ function AddSalaryModal({ visible, onClose, members, existingUserIds }: { visibl
           <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 22 }}>
             <View style={{ width: 40, height: 4, backgroundColor: B.slate700, borderRadius: 2, alignSelf: 'center', marginBottom: 20 }} />
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 22 }}>
-              <Txt weight="bold" size={20} color={B.text}>Add Employee Salary</Txt>
+              <Txt weight="bold" size={20} color={B.text}>{t('businessPayroll.addSalary')}</Txt>
               <Pressable onPress={handleClose} hitSlop={10}><X size={22} color={B.textFaint} /></Pressable>
             </View>
 
@@ -72,10 +73,10 @@ function AddSalaryModal({ visible, onClose, members, existingUserIds }: { visibl
               </GlassCard>
             )}
 
-            <FieldLabel>EMPLOYEE</FieldLabel>
+            <FieldLabel>{t('businessPayroll.employee')}</FieldLabel>
             {eligible.length === 0 ? (
               <GlassCard padding={14} radius={R.sm} style={{ marginBottom: 14 }}>
-                <Txt size={13} color={B.textFaint} style={{ textAlign: 'center' }}>All team members already have salaries set</Txt>
+                <Txt size={13} color={B.textFaint} style={{ textAlign: 'center' }}>{t('businessPayroll.allHaveSalaries')}</Txt>
               </GlassCard>
             ) : (
               <>
@@ -88,7 +89,7 @@ function AddSalaryModal({ visible, onClose, members, existingUserIds }: { visibl
                             <Txt weight="semibold" size={15} color={B.text}>{selected.user?.name}</Txt>
                             <Txt size={11} color={B.textFaint} style={{ marginTop: 2 }}>{selected.user?.email}</Txt>
                           </>
-                        ) : <Txt size={15} color={B.textFaint}>Select a team member…</Txt>}
+                        ) : <Txt size={15} color={B.textFaint}>{t('businessPayroll.selectMember')}</Txt>}
                       </View>
                       <ChevronDown size={16} color={B.textFaint} />
                     </View>
@@ -116,10 +117,10 @@ function AddSalaryModal({ visible, onClose, members, existingUserIds }: { visibl
               </>
             )}
 
-            <FieldLabel>JOB TITLE (OPTIONAL)</FieldLabel>
+            <FieldLabel>{t('businessPayroll.jobTitle')}</FieldLabel>
             <TextInput value={title} onChangeText={setTitle} placeholder="e.g. Software Engineer" placeholderTextColor={B.textFaint} style={{ color: B.text, fontSize: 15, fontFamily: 'PlusJakartaSans_500Medium', backgroundColor: B.glass, borderRadius: R.md, paddingHorizontal: 16, paddingVertical: 14, borderWidth: 1, borderColor: B.glassBorder, marginBottom: 14 }} selectionColor={B.accent} />
 
-            <FieldLabel>MONTHLY SALARY</FieldLabel>
+            <FieldLabel>{t('businessPayroll.monthlySalary')}</FieldLabel>
             <GlassCard padding={0} radius={R.md} border={`${B.accent}33`} style={{ marginBottom: 22 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14 }}>
                 <Txt weight="bold" size={20} color={B.accent} style={{ marginRight: 8 }}>$</Txt>
@@ -244,8 +245,8 @@ export default function PayrollScreen() {
         {/* Header */}
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 16, paddingBottom: 14 }}>
           <View>
-            <Txt weight="bold" size={12} color={B.accent} style={{ letterSpacing: 1.6 }}>BUSINESS</Txt>
-            <Txt weight="bold" size={25} color={B.text} style={{ marginTop: 2 }}>Payroll</Txt>
+            <Txt weight="bold" size={12} color={B.accent} style={{ letterSpacing: 1.6 }}>{t('business.label')}</Txt>
+            <Txt weight="bold" size={25} color={B.text} style={{ marginTop: 2 }}>{t('businessPayroll.title')}</Txt>
           </View>
           {canEdit && (
             <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setShowAdd(true); }} style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 9, borderRadius: 13, backgroundColor: `${B.accent}22`, borderWidth: 1.5, borderColor: `${B.accent}44` })}>
@@ -278,7 +279,7 @@ export default function PayrollScreen() {
               <LinearGradient colors={[B.slate800, '#102a4a']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[{ borderRadius: R.lg, padding: 22, borderWidth: 1, borderColor: `${B.accent}2a` }, glow(B.accentDeep, 0.25, 20)]}>
                 <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 18 }}>
                   <View>
-                    <Txt weight="semibold" size={12} color="rgba(255,255,255,0.4)" style={{ letterSpacing: 1, marginBottom: 4 }}>TOTAL PAYROLL</Txt>
+                    <Txt weight="semibold" size={12} color="rgba(255,255,255,0.4)" style={{ letterSpacing: 1, marginBottom: 4 }}>{t('businessPayroll.total')}</Txt>
                     <Txt weight="bold" size={38} color="#fff" style={{ lineHeight: 42 }}>${(summary?.totalPayroll ?? 0).toLocaleString()}</Txt>
                     <Txt size={12} color={B.textFaint} style={{ marginTop: 4 }}>{salaries.length} employee{salaries.length !== 1 ? 's' : ''} · {MONTH_NAMES[month - 1]}</Txt>
                   </View>
@@ -317,7 +318,7 @@ export default function PayrollScreen() {
               <View style={{ marginHorizontal: 20 }}>
                 <GlassCard padding={40} radius={R.lg} style={{ alignItems: 'center' }}>
                   <Briefcase size={32} color={B.slate700} />
-                  <Txt weight="semibold" size={14} color={B.textDim} style={{ marginTop: 12, marginBottom: 4 }}>No payroll set up</Txt>
+                  <Txt weight="semibold" size={14} color={B.textDim} style={{ marginTop: 12, marginBottom: 4 }}>{t('businessPayroll.none')}</Txt>
                   <Txt size={12} color={B.textFaint} style={{ textAlign: 'center' }}>{canEdit ? 'Tap Add to set salaries for your team' : "Payroll hasn't been configured yet"}</Txt>
                 </GlassCard>
               </View>

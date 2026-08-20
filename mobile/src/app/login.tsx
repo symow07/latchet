@@ -13,6 +13,7 @@ import * as SecureStore from 'expo-secure-store';
 import { authClient } from '@/lib/auth/auth-client';
 import { useInvalidateSession } from '@/lib/auth/use-session';
 import { useAccountTypeStore } from '@/lib/account-type-store';
+import { t } from '@/lib/i18n/core';
 
 const SECURE_STORE_PROBE_KEYS = [
   'realbudget.session_token',
@@ -173,7 +174,7 @@ export default function LoginScreen() {
             >
               <Text style={{ fontSize: 32 }}>💰</Text>
             </View>
-            <Text className="text-4xl font-bold text-white mb-2">Welcome back</Text>
+            <Text className="text-4xl font-bold text-white mb-2">{t('auth.welcomeBack')}</Text>
             <Text className="text-white/55 text-base leading-6">
               Sign in to your Budget account
             </Text>
@@ -261,7 +262,7 @@ export default function LoginScreen() {
                   <ActivityIndicator color="white" size="small" />
                 ) : (
                   <>
-                    <Text className="text-white font-bold text-base mr-2">Sign In</Text>
+                    <Text className="text-white font-bold text-base mr-2">{t('auth.signIn')}</Text>
                     <ArrowRight size={18} color="white" />
                   </>
                 )}
@@ -270,9 +271,9 @@ export default function LoginScreen() {
 
             {/* Sign up link */}
             <View className="flex-row justify-center mt-7">
-              <Text className="text-gray-500 text-sm">Don't have an account? </Text>
+              <Text className="text-gray-500 text-sm">{t('auth.noAccount')}</Text>
               <Pressable onPress={() => router.push('/signup')}>
-                <Text className="text-purple-400 font-semibold text-sm">Create one</Text>
+                <Text className="text-purple-400 font-semibold text-sm">{t('auth.createOne')}</Text>
               </Pressable>
             </View>
           </View>

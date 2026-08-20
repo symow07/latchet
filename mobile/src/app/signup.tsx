@@ -13,6 +13,7 @@ import * as Haptics from 'expo-haptics';
 import * as SecureStore from 'expo-secure-store';
 import { authClient } from '@/lib/auth/auth-client';
 import { useInvalidateSession } from '@/lib/auth/use-session';
+import { t } from '@/lib/i18n/core';
 
 // Probe the SecureStore keys expoClient may write under storagePrefix "realbudget".
 // Both delimiters are checked because the prefix-key separator has varied across
@@ -161,8 +162,8 @@ export default function SignUpScreen() {
               borderBottomRightRadius: 48,
             }}
           >
-            <Text className="text-4xl font-bold text-white mb-2">Create Account</Text>
-            <Text className="text-white/55 text-base">Start your financial journey</Text>
+            <Text className="text-4xl font-bold text-white mb-2">{t('auth.createAccount')}</Text>
+            <Text className="text-white/55 text-base">{t('auth.startJourney')}</Text>
           </LinearGradient>
 
           {/* Form */}
@@ -290,7 +291,7 @@ export default function SignUpScreen() {
                   <ActivityIndicator color="white" size="small" />
                 ) : (
                   <>
-                    <Text className="text-white font-bold text-base mr-2">Create Account</Text>
+                    <Text className="text-white font-bold text-base mr-2">{t('auth.createAccount')}</Text>
                     <ArrowRight size={18} color="white" />
                   </>
                 )}
@@ -299,9 +300,9 @@ export default function SignUpScreen() {
 
             {/* Login Link */}
             <View className="flex-row justify-center mt-7">
-              <Text className="text-gray-500 text-sm">Already have an account? </Text>
+              <Text className="text-gray-500 text-sm">{t('auth.haveAccount')}</Text>
               <Pressable onPress={() => router.push('/login')}>
-                <Text className="text-purple-400 font-semibold text-sm">Sign In</Text>
+                <Text className="text-purple-400 font-semibold text-sm">{t('auth.signIn')}</Text>
               </Pressable>
             </View>
           </View>

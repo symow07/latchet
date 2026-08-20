@@ -32,6 +32,7 @@ import * as Haptics from 'expo-haptics';
 import Animated, { FadeInUp, FadeInDown, ZoomIn } from 'react-native-reanimated';
 import { addTransaction } from '@/lib/db';
 import { api } from '@/lib/api/api';
+import { t } from '@/lib/i18n/core';
 
 type Category = 'Food' | 'Transport' | 'Shopping' | 'Gym' | 'Subscriptions' | 'Other';
 type TransactionType = 'Expense' | 'Income';
@@ -207,7 +208,7 @@ export default function ReceiptScanScreen() {
           </Pressable>
 
           <View style={{ flex: 1, alignItems: 'center' }}>
-            <Text style={{ color: 'white', fontSize: 18, fontWeight: 'bold' }}>Scan Receipt</Text>
+            <Text style={{ color: 'white', fontSize: 18, fontWeight: 'bold' }}>{t('receiptScan.title')}</Text>
             <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, marginTop: 2 }}>
               {step === 'pick' && 'Take or choose a photo'}
               {step === 'analyzing' && 'AI is reading your receipt...'}
@@ -259,7 +260,7 @@ export default function ReceiptScanScreen() {
               <AlertCircle size={18} color="#ef4444" />
               <Text style={{ color: '#f87171', marginLeft: 10, flex: 1, fontSize: 13 }}>{errorMsg}</Text>
               <Pressable onPress={() => setErrorMsg(null)}>
-                <Text style={{ color: '#f87171', fontWeight: '600', fontSize: 13 }}>Dismiss</Text>
+                <Text style={{ color: '#f87171', fontWeight: '600', fontSize: 13 }}>{t('receiptScan.dismiss')}</Text>
               </Pressable>
             </View>
           </Animated.View>
@@ -770,7 +771,7 @@ export default function ReceiptScanScreen() {
                   <Zap size={18} color={isImpulse ? '#ec4899' : '#6b7280'} />
                 </View>
                 <View>
-                  <Text style={{ color: 'white', fontWeight: '600', fontSize: 15 }}>Impulse Buy</Text>
+                  <Text style={{ color: 'white', fontWeight: '600', fontSize: 15 }}>{t('receiptScan.impulseBuy')}</Text>
                   <Text style={{ color: '#6b7280', fontSize: 12, marginTop: 1 }}>
                     Mark as an unplanned purchase
                   </Text>
@@ -829,7 +830,7 @@ export default function ReceiptScanScreen() {
                   colors={['#22c55e', '#16a34a']}
                   style={{ borderRadius: 16, paddingVertical: 16, alignItems: 'center' }}
                 >
-                  <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 17 }}>Go to Dashboard</Text>
+                  <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 17 }}>{t('receiptScan.goToDashboard')}</Text>
                 </LinearGradient>
               </Pressable>
 

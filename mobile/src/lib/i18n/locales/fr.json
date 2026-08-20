@@ -19,7 +19,12 @@
       "zero": "Aucune transaction",
       "one": "%{count} transaction",
       "other": "%{count} transactions"
-    }
+    },
+    "reset": "Tout réinitialiser",
+    "resetHint": "Supprimer toutes les transactions et repartir de zéro",
+    "noLimit": "Aucune limite",
+    "nothingYet": "Rien pour l'instant !",
+    "goHome": "Aller à l'écran d'accueil !"
   },
   "settings": {
     "title": "Réglages ⚙️",
@@ -147,7 +152,14 @@
   "advisor": {
     "issue": "Désolé, j'ai rencontré un problème : %{message}",
     "upgraded": "C'est bon — posez-moi vos questions.",
-    "placeholder": "Posez une question sur vos dépenses…"
+    "placeholder": "Posez une question sur vos dépenses…",
+    "title": "Conseiller IA",
+    "subtitle": "Votre assistant financier personnel",
+    "welcome": "Bienvenue ! 👋",
+    "analyzing": "Analyse de vos finances…",
+    "analyzed": "J'ai analysé vos dépenses",
+    "quickInsights": "APERÇUS RAPIDES",
+    "tryAsking": "ESSAYEZ DE DEMANDER"
   },
   "bank": {
     "connectSection": "CONNECTER UNE BANQUE",
@@ -162,5 +174,265 @@
     "unavailableTitle": "Connexion bancaire indisponible",
     "unavailableBody": "La connexion bancaire n'est pas encore configurée sur le serveur. Veuillez réessayer plus tard.",
     "connectionFailed": "Échec de la connexion"
+  },
+  "dashboard": {
+    "totalBalance": "Solde total",
+    "currentBalance": "Solde actuel 🏦",
+    "avgDaily": "Moy. / jour",
+    "today": "Aujourd'hui 🌅",
+    "thisWeek": "Cette semaine ⚡",
+    "thisMonth": "Ce mois 📅",
+    "discipline": "Discipline ⭐",
+    "impulse": "Impulsif ⚡",
+    "healthScore": "Score de santé 💗",
+    "last14Days": "14 derniers jours 📊",
+    "loggingStreak": "Série de saisies",
+    "keepItUp": "Continuez, vous êtes lancé !",
+    "badges": "Badges débloqués 🎖️",
+    "myAccounts": "Mes comptes 👛",
+    "subscriptions": "Abonnements 📱",
+    "smartAnalytics": "Analyses intelligentes 🧠",
+    "smartAnalyticsHint": "Abonnements, tendances et gaspillage",
+    "linkBank": "Lier un compte bancaire 🏦",
+    "linkBankHint": "Synchronisez vos transactions en toute sécurité",
+    "viewAll": "Tout voir",
+    "budget": "Budget"
+  },
+  "onboarding": {
+    "chooseCurrency": "Choisissez votre devise",
+    "chooseCurrencyHint": "Sélectionnez la devise que vous utilisez le plus",
+    "popular": "COURANTES",
+    "allCurrencies": "TOUTES LES DEVISES",
+    "yourIncome": "Vos revenus mensuels",
+    "incomeHint": "Cela nous aide à proposer un budget réaliste",
+    "monthlyIncome": "Revenus mensuels",
+    "savingsGoal": "Objectif d'épargne mensuel (facultatif)",
+    "primaryGoal": "Votre objectif principal",
+    "primaryGoalHint": "Nous adapterons votre expérience en conséquence",
+    "spendingStyle": "Votre style de dépense",
+    "spendingStyleHint": "Comment décririez-vous vos habitudes de dépense ?",
+    "failed": "Une erreur est survenue. Veuillez réessayer."
+  },
+  "accounts": {
+    "title": "Mes comptes",
+    "totalNetWorth": "Valeur nette totale",
+    "accountName": "Nom du compte",
+    "accountType": "Type de compte",
+    "color": "Couleur",
+    "default": "Par défaut",
+    "delete": "Supprimer le compte",
+    "namePlaceholder": "ex. Compte courant"
+  },
+  "netWorth": {
+    "title": "VALEUR NETTE",
+    "assets": "ACTIFS",
+    "liabilities": "PASSIFS",
+    "totalAssets": "Total des actifs",
+    "totalLiabilities": "Total des passifs",
+    "newSnapshot": "Nouvel instantané",
+    "noSnapshots": "Aucun instantané",
+    "noHistory": "Aucun historique",
+    "needMore": "Ajoutez des instantanés pour voir le graphique",
+    "loadFailed": "Impossible de charger les données de valeur nette."
+  },
+  "analytics": {
+    "title": "Analyses intelligentes",
+    "behaviorDetection": "Détection de comportements",
+    "monthlySubscriptions": "Abonnements mensuels",
+    "potentialSavings": "Économies possibles",
+    "activeAlerts": "Alertes actives",
+    "allClear": "Tout va bien !",
+    "duplicateDetected": "Doublon détecté",
+    "totalSpent": "Total dépensé",
+    "nextDue": "Prochaine échéance",
+    "amount": "Montant",
+    "transactions": "Transactions"
+  },
+  "subscriptionDetail": {
+    "title": "Détails de l'abonnement",
+    "notFound": "Introuvable",
+    "confidence": "Fiabilité de la détection",
+    "history": "Historique des transactions",
+    "yourNotes": "Vos notes",
+    "saveNotes": "Enregistrer"
+  },
+  "business": {
+    "label": "ENTREPRISE",
+    "dashboard": "Tableau de bord",
+    "overview": "APERÇU",
+    "quickActions": "ACTIONS RAPIDES",
+    "recent": "ACTIVITÉ RÉCENTE",
+    "tools": "OUTILS ET ABONNEMENTS",
+    "businessTools": "Outils d'entreprise",
+    "addExpense": "Ajouter une dépense",
+    "noExpenses": "Aucune dépense",
+    "noExpensesHint": "Allez dans l'onglet Dépenses pour soumettre la première",
+    "dueSoon": "BIENTÔT DÛ",
+    "perMonth": "PAR MOIS",
+    "perYear": "PAR AN",
+    "detectHint": "Ajoutez des dépenses logicielles pour détecter les outils récurrents"
+  },
+  "businessTools": {
+    "title": "Outils et abonnements",
+    "monthlySpend": "DÉPENSES MENSUELLES",
+    "monthlyCost": "COÛT MENSUEL",
+    "annualCost": "COÛT ANNUEL",
+    "lastCharged": "DERNIER PRÉLÈVEMENT",
+    "monthsSeen": "MOIS OBSERVÉS",
+    "recurring": "RÉCURRENT",
+    "nextCharge": "Prochain prélèvement",
+    "none": "Aucun abonnement détecté",
+    "howToCancel": "Comment annuler",
+    "cancelSteps": "ÉTAPES D'ANNULATION",
+    "cancelTip": "CONSEIL D'ANNULATION",
+    "emptyHint": "Soumettez des dépenses logicielles ou récurrentes pour suivre vos outils ici."
+  },
+  "businessExpenses": {
+    "title": "Dépenses",
+    "new": "Nouvelle dépense",
+    "amount": "MONTANT",
+    "category": "CATÉGORIE",
+    "description": "DESCRIPTION",
+    "receipt": "REÇU (FACULTATIF)",
+    "camera": "Appareil photo",
+    "gallery": "Galerie",
+    "removeImage": "Retirer l'image",
+    "viewReceipt": "Voir le reçu",
+    "approve": "Approuver",
+    "reject": "Refuser",
+    "approved": "APPROUVÉ",
+    "total": "TOTAL"
+  },
+  "businessTeam": {
+    "title": "Équipe",
+    "members": "Membres de l'équipe",
+    "inviteCode": "CODE D'INVITATION",
+    "shareCode": "Partagez ce code pour que vos collègues rejoignent",
+    "join": "Rejoindre",
+    "joinBusiness": "Rejoindre une entreprise",
+    "enterCode": "Saisissez le code d'invitation de votre responsable",
+    "remove": "Retirer de l'équipe",
+    "enterCodeLong": "Saisissez le code d'invitation à 6 caractères partagé par votre responsable."
+  },
+  "businessInsights": {
+    "budget": "Budget",
+    "monthlySpend": "DÉPENSES DU MOIS",
+    "byCategory": "PAR CATÉGORIE",
+    "totalBudget": "BUDGET MENSUEL TOTAL",
+    "categoryBudgets": "BUDGETS PAR CATÉGORIE (FACULTATIF)",
+    "setBudget": "Définir le budget mensuel",
+    "setBudgetShort": "Définir un budget mensuel",
+    "noSpending": "Aucune dépense ce mois-ci",
+    "noSpendingHint": "Soumettez des dépenses pour voir l'utilisation du budget",
+    "edit": "Modifier"
+  },
+  "businessPayroll": {
+    "title": "Paie",
+    "addSalary": "Ajouter un salaire",
+    "employee": "EMPLOYÉ",
+    "jobTitle": "POSTE (FACULTATIF)",
+    "monthlySalary": "SALAIRE MENSUEL",
+    "total": "MASSE SALARIALE",
+    "none": "Aucune paie configurée",
+    "selectMember": "Choisir un membre de l'équipe…",
+    "allHaveSalaries": "Tous les membres ont déjà un salaire défini"
+  },
+  "auth": {
+    "welcomeBack": "Bon retour",
+    "signIn": "Se connecter",
+    "noAccount": "Pas encore de compte ? ",
+    "createOne": "Créer un compte",
+    "createAccount": "Créer un compte",
+    "startJourney": "Commencez votre parcours financier",
+    "haveAccount": "Vous avez déjà un compte ? ",
+    "checkEmail": "Vérifiez vos e-mails",
+    "verifying": "Vérification…",
+    "didntGet": "Rien reçu ? ",
+    "resend": "Renvoyer le code",
+    "codeSent": "Code renvoyé !"
+  },
+  "addTransaction": {
+    "title": "Ajouter une transaction",
+    "subtitle": "Suivons cette dépense ! 📝",
+    "howMuch": "Combien ? 💸",
+    "selectAccount": "Choisir un compte",
+    "impulse": "Achat impulsif ⚡",
+    "impulseHint": "Achat non prévu ou émotionnel",
+    "timeCost": "Coût en temps ⏱️",
+    "newCategory": "Nouvelle catégorie",
+    "icon": "Icône",
+    "color": "Couleur"
+  },
+  "healthScore": {
+    "title": "Santé financière",
+    "breakdown": "DÉTAIL DU SCORE",
+    "breakdownHint": "Le détail complet de votre score",
+    "getAdvice": "Obtenir des conseils personnalisés"
+  },
+  "receiptScan": {
+    "title": "Scanner un reçu",
+    "impulseBuy": "Achat impulsif",
+    "dismiss": "Ignorer",
+    "goToDashboard": "Aller au tableau de bord"
+  },
+  "recurring": {
+    "name": "NOM",
+    "amount": "MONTANT",
+    "category": "CATÉGORIE",
+    "type": "TYPE",
+    "frequency": "FRÉQUENCE"
+  },
+  "emailInbox": {
+    "title": "Boîte de réception 📨",
+    "detected": "FACTURES DÉTECTÉES",
+    "none": "Aucune facture",
+    "yourAddress": "VOTRE ADRESSE BUDGET",
+    "setup": "CONFIGURATION UNIQUE (GMAIL)",
+    "enterCode": "Saisissez ce code dans les réglages de transfert Gmail :",
+    "confirmGmail": "Confirmer dans Gmail",
+    "active": "Actif",
+    "notOn": "Pas encore activé"
+  },
+  "bankExtra": {
+    "connectBank": "Connecter la banque",
+    "linkedAccounts": "COMPTES LIÉS",
+    "dataAccess": "ACCÈS AUX DONNÉES",
+    "security": "Sécurité bancaire",
+    "howItWorks": "Comment ça marche",
+    "viewBalances": "Consulter le solde de vos comptes",
+    "readHistory": "Lire votre historique de transactions",
+    "disconnect": "Déconnecter",
+    "expired": "Expiré",
+    "expiring": "Expire bientôt",
+    "preferManual": "Vous préférez la saisie manuelle ?",
+    "noPayments": "Nous NE POUVONS PAS effectuer de paiements ni de virements"
+  },
+  "importExtra": {
+    "title": "Importer des transactions",
+    "chooseSource": "CHOISIR UNE SOURCE",
+    "complete": "Import terminé !",
+    "goToDashboard": "Aller au tableau de bord",
+    "privateTitle": "Vos données restent privées",
+    "category": "CATÉGORIE",
+    "impulse": "Impulsif",
+    "transactions": "Transactions"
+  },
+  "startup": {
+    "retry": "Réessayer",
+    "continueOffline": "Continuer hors ligne"
+  },
+  "businessSettings": {
+    "title": "Réglages",
+    "signOut": "Se déconnecter"
+  },
+  "transactionsScreen": {
+    "filterByCategory": "Filtrer par catégorie"
+  },
+  "billReminders": {
+    "title": "Rappels de factures",
+    "recurring": "RÉCURRENT"
+  },
+  "subscriptionsScreen": {
+    "title": "Abonnements"
   }
 }

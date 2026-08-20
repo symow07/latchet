@@ -32,6 +32,7 @@ import {
   monthlySubscriptionTotal,
 } from '@/lib/subscription-detection';
 import { formatCurrency } from '@/lib/calculations';
+import { t } from '@/lib/i18n/core';
 
 type SegmentKey = 'confirmed' | 'possible' | 'canceled';
 
@@ -313,7 +314,7 @@ export default function SubscriptionsScreen() {
           </Pressable>
 
           <View className="flex-1 items-center px-3">
-            <Text className="text-white text-lg font-bold">Subscriptions</Text>
+            <Text className="text-white text-lg font-bold">{t('subscriptionsScreen.title')}</Text>
             {activeCount > 0 && (
               <Text className="text-white/70 text-xs mt-0.5">
                 {formatCurrency(monthlyTotal)}/mo from {activeCount} active

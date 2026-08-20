@@ -18,6 +18,7 @@ import * as Haptics from 'expo-haptics';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { C, R } from '@/lib/design';
 import { Txt, GlassCard, Pill, ScreenBackground } from '@/components/ui';
+import { t } from '@/lib/i18n/core';
 
 interface Transaction {
   id: string;
@@ -137,7 +138,7 @@ export default function TransactionsScreen() {
         <View style={{ paddingHorizontal: 20, paddingTop: 18 }}>
           <View className="flex-row items-center mb-3" style={{ gap: 8 }}>
             <Filter size={14} color={C.p400} />
-            <Txt weight="semibold" size={12} color={C.p300}>Filter by category</Txt>
+            <Txt weight="semibold" size={12} color={C.p300}>{t('transactionsScreen.filterByCategory')}</Txt>
           </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, marginBottom: 12 }} contentContainerStyle={{ gap: 8 }}>
             <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setFilterCategory(null); }}>
@@ -175,7 +176,7 @@ export default function TransactionsScreen() {
             <View style={{ width: 84, height: 84, borderRadius: 28, alignItems: 'center', justifyContent: 'center', marginBottom: 16, backgroundColor: `${C.p700}26` }}>
               <Txt size={40}>📭</Txt>
             </View>
-            <Txt weight="bold" size={18} color={C.text} style={{ marginBottom: 6 }}>Nothing here yet!</Txt>
+            <Txt weight="bold" size={18} color={C.text} style={{ marginBottom: 6 }}>{t('common.nothingYet')}</Txt>
             <Txt size={13} color={C.textFaint} style={{ textAlign: 'center', paddingHorizontal: 40 }}>
               Try adjusting your filters, or add your first transaction 👆
             </Txt>

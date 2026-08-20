@@ -20,6 +20,7 @@ import Animated, { FadeInUp } from 'react-native-reanimated';
 import { C, R, glow } from '@/lib/design';
 import { Txt, GlassCard, IconBubble, BubbleButton, ScreenBackground } from '@/components/ui';
 import { getCategories, DEFAULT_CATEGORIES, CATEGORY_EMOJIS, CATEGORY_COLORS } from '@/lib/categories';
+import { t } from '@/lib/i18n/core';
 
 const getAccountIcon = (type: string) => {
   switch (type) {
@@ -161,8 +162,8 @@ export default function AddTransactionScreen() {
       >
         {/* ── Header + amount ── */}
         <View style={{ paddingTop: insets.top + 16, paddingHorizontal: 20 }}>
-          <Txt weight="bold" size={30} color={C.text}>Add Transaction</Txt>
-          <Txt weight="medium" size={13} color={C.textDim} style={{ marginTop: 2 }}>Let's track that spending! 📝</Txt>
+          <Txt weight="bold" size={30} color={C.text}>{t('addTransaction.title')}</Txt>
+          <Txt weight="medium" size={13} color={C.textDim} style={{ marginTop: 2 }}>{t('addTransaction.subtitle')}</Txt>
 
           <Animated.View entering={FadeInUp.delay(40).springify().damping(16)}>
             <LinearGradient
@@ -174,7 +175,7 @@ export default function AddTransactionScreen() {
               <View style={{ position: 'absolute', top: -50, right: -40, width: 160, height: 160, borderRadius: 80, backgroundColor: 'rgba(255,255,255,0.10)' }} />
               <View className="flex-row items-center mb-2" style={{ gap: 6 }}>
                 <DollarSign size={15} color="rgba(255,255,255,0.75)" />
-                <Txt weight="semibold" size={13} color="rgba(255,255,255,0.8)">How much? 💸</Txt>
+                <Txt weight="semibold" size={13} color="rgba(255,255,255,0.8)">{t('addTransaction.howMuch')}</Txt>
               </View>
               <View className="flex-row items-center">
                 <Txt weight="bold" size={40} color="#fff">$</Txt>
@@ -230,7 +231,7 @@ export default function AddTransactionScreen() {
                         <Txt size={11} color={C.textFaint} style={{ textTransform: 'capitalize' }}>{selectedAccount.type}</Txt>
                       </View>
                     </View>
-                  ) : <Txt color={C.textFaint}>Select an account</Txt>}
+                  ) : <Txt color={C.textFaint}>{t('addTransaction.selectAccount')}</Txt>}
                   <ChevronDown size={20} color={C.textFaint} />
                 </View>
               </GlassCard>
@@ -295,7 +296,7 @@ export default function AddTransactionScreen() {
           <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', paddingHorizontal: 24 }} onPress={() => setShowCatModal(false)}>
             <Pressable onPress={() => {}} style={{ backgroundColor: C.bgRaise, borderRadius: R.xl, padding: 22, borderWidth: 1, borderColor: C.glassBorder }}>
               <View className="flex-row items-center justify-between" style={{ marginBottom: 18 }}>
-                <Txt weight="bold" size={19} color={C.text}>New Category</Txt>
+                <Txt weight="bold" size={19} color={C.text}>{t('addTransaction.newCategory')}</Txt>
                 <Pressable onPress={() => setShowCatModal(false)} hitSlop={10}><X size={22} color={C.textFaint} /></Pressable>
               </View>
 
@@ -315,7 +316,7 @@ export default function AddTransactionScreen() {
                 selectionColor={C.p500}
               />
 
-              <Txt weight="semibold" size={12} color={C.textDim} style={{ marginBottom: 8 }}>Icon</Txt>
+              <Txt weight="semibold" size={12} color={C.textDim} style={{ marginBottom: 8 }}>{t('addTransaction.icon')}</Txt>
               <View className="flex-row flex-wrap" style={{ gap: 8, marginBottom: 16 }}>
                 {CATEGORY_EMOJIS.map(e => (
                   <Pressable key={e} onPress={() => setNewCatEmoji(e)}>
@@ -326,7 +327,7 @@ export default function AddTransactionScreen() {
                 ))}
               </View>
 
-              <Txt weight="semibold" size={12} color={C.textDim} style={{ marginBottom: 8 }}>Color</Txt>
+              <Txt weight="semibold" size={12} color={C.textDim} style={{ marginBottom: 8 }}>{t('addTransaction.color')}</Txt>
               <View className="flex-row flex-wrap" style={{ gap: 10, marginBottom: 22 }}>
                 {CATEGORY_COLORS.map(col => (
                   <Pressable key={col} onPress={() => setNewCatColor(col)}>
@@ -363,8 +364,8 @@ export default function AddTransactionScreen() {
               <View className="flex-row items-center flex-1" style={{ gap: 12 }}>
                 <IconBubble color={C.rose} size={40}><Zap size={19} color={C.rose} /></IconBubble>
                 <View className="flex-1">
-                  <Txt weight="semibold" size={14} color={C.text}>Impulse Purchase ⚡</Txt>
-                  <Txt size={11} color={C.textFaint} style={{ marginTop: 1 }}>Unplanned or emotional buy</Txt>
+                  <Txt weight="semibold" size={14} color={C.text}>{t('addTransaction.impulse')}</Txt>
+                  <Txt size={11} color={C.textFaint} style={{ marginTop: 1 }}>{t('addTransaction.impulseHint')}</Txt>
                 </View>
               </View>
               <Switch
@@ -399,7 +400,7 @@ export default function AddTransactionScreen() {
               <View className="flex-row items-center" style={{ gap: 12 }}>
                 <IconBubble color={C.p500} size={40}><Clock size={19} color={C.p400} /></IconBubble>
                 <View>
-                  <Txt size={11} color={C.textFaint}>Time Cost ⏱️</Txt>
+                  <Txt size={11} color={C.textFaint}>{t('addTransaction.timeCost')}</Txt>
                   <Txt weight="bold" size={17} color={C.p400}>{Math.round((parseFloat(amount) / settings.hourlyValue) * 60)} minutes of work</Txt>
                 </View>
               </View>

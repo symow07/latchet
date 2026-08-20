@@ -35,6 +35,7 @@ import * as Haptics from 'expo-haptics';
 import Animated, { FadeInUp, FadeInDown } from 'react-native-reanimated';
 
 import { api } from '@/lib/api/api';
+import { t } from '@/lib/i18n/core';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CHART_HEIGHT = 120;
@@ -127,7 +128,7 @@ function NetWorthChart({ entries }: { entries: NetWorthEntry[] }) {
         className="items-center justify-center"
       >
         <BarChart3 size={32} color="#374151" />
-        <Text className="text-gray-600 text-xs mt-2">No history yet</Text>
+        <Text className="text-gray-600 text-xs mt-2">{t('netWorth.noHistory')}</Text>
       </View>
     );
   }
@@ -138,7 +139,7 @@ function NetWorthChart({ entries }: { entries: NetWorthEntry[] }) {
         style={{ height: CHART_HEIGHT, width: CHART_WIDTH }}
         className="items-center justify-center"
       >
-        <Text className="text-gray-500 text-xs">Add more snapshots to see chart</Text>
+        <Text className="text-gray-500 text-xs">{t('netWorth.needMore')}</Text>
       </View>
     );
   }
@@ -344,7 +345,7 @@ function AddModal({ visible, onClose, onSubmit, isSubmitting }: AddModalProps) {
           className="flex-row items-center justify-between border-b border-gray-800"
         >
           <View>
-            <Text className="text-white text-xl font-bold">New Snapshot</Text>
+            <Text className="text-white text-xl font-bold">{t('netWorth.newSnapshot')}</Text>
             <Text className="text-gray-500 text-xs mt-0.5">{formatDate(todayISO())}</Text>
           </View>
           <Pressable
@@ -373,7 +374,7 @@ function AddModal({ visible, onClose, onSubmit, isSubmitting }: AddModalProps) {
                 >
                   <TrendingUp size={14} color="#22c55e" />
                 </View>
-                <Text className="text-green-400 text-xs font-bold tracking-widest">ASSETS</Text>
+                <Text className="text-green-400 text-xs font-bold tracking-widest">{t('netWorth.assets')}</Text>
               </View>
 
               <View
@@ -409,7 +410,7 @@ function AddModal({ visible, onClose, onSubmit, isSubmitting }: AddModalProps) {
                   className="flex-row items-center justify-between pt-3 mt-1"
                   style={{ borderTopWidth: 1, borderTopColor: 'rgba(34,197,94,0.15)' }}
                 >
-                  <Text className="text-green-400 text-sm font-semibold">Total Assets</Text>
+                  <Text className="text-green-400 text-sm font-semibold">{t('netWorth.totalAssets')}</Text>
                   <Text className="text-green-400 text-base font-bold">{formatCurrencyFull(totalAssets)}</Text>
                 </View>
               </View>
@@ -424,7 +425,7 @@ function AddModal({ visible, onClose, onSubmit, isSubmitting }: AddModalProps) {
                 >
                   <TrendingDown size={14} color="#ef4444" />
                 </View>
-                <Text className="text-red-400 text-xs font-bold tracking-widest">LIABILITIES</Text>
+                <Text className="text-red-400 text-xs font-bold tracking-widest">{t('netWorth.liabilities')}</Text>
               </View>
 
               <View
@@ -460,7 +461,7 @@ function AddModal({ visible, onClose, onSubmit, isSubmitting }: AddModalProps) {
                   className="flex-row items-center justify-between pt-3 mt-1"
                   style={{ borderTopWidth: 1, borderTopColor: 'rgba(239,68,68,0.15)' }}
                 >
-                  <Text className="text-red-400 text-sm font-semibold">Total Liabilities</Text>
+                  <Text className="text-red-400 text-sm font-semibold">{t('netWorth.totalLiabilities')}</Text>
                   <Text className="text-red-400 text-base font-bold">{formatCurrencyFull(totalLiabilities)}</Text>
                 </View>
               </View>
@@ -675,7 +676,7 @@ export default function NetWorthScreen() {
           </Pressable>
 
           <View className="items-center">
-            <Text className="text-white/60 text-xs font-semibold tracking-widest">NET WORTH</Text>
+            <Text className="text-white/60 text-xs font-semibold tracking-widest">{t('netWorth.title')}</Text>
           </View>
 
           <View style={{ width: 40 }} />
@@ -738,7 +739,7 @@ export default function NetWorthScreen() {
           >
             <View className="flex-row items-center mb-1">
               <TrendingUp size={13} color="#4ade80" />
-              <Text className="text-green-400 text-xs font-semibold ml-1">ASSETS</Text>
+              <Text className="text-green-400 text-xs font-semibold ml-1">{t('netWorth.assets')}</Text>
             </View>
             <Text className="text-white font-bold text-base">{formatCurrency(currentAssets)}</Text>
           </View>
@@ -749,7 +750,7 @@ export default function NetWorthScreen() {
           >
             <View className="flex-row items-center mb-1">
               <TrendingDown size={13} color="#f87171" />
-              <Text className="text-red-400 text-xs font-semibold ml-1">LIABILITIES</Text>
+              <Text className="text-red-400 text-xs font-semibold ml-1">{t('netWorth.liabilities')}</Text>
             </View>
             <Text className="text-white font-bold text-base">{formatCurrency(currentLiabilities)}</Text>
           </View>
@@ -842,7 +843,7 @@ export default function NetWorthScreen() {
               className="rounded-2xl p-4 items-center"
               style={{ backgroundColor: 'rgba(239,68,68,0.08)', borderWidth: 1, borderColor: 'rgba(239,68,68,0.15)' }}
             >
-              <Text className="text-red-400 text-sm">Could not load net worth data.</Text>
+              <Text className="text-red-400 text-sm">{t('netWorth.loadFailed')}</Text>
             </View>
           )}
 
@@ -854,7 +855,7 @@ export default function NetWorthScreen() {
               >
                 <PiggyBank size={30} color="#3b82f6" />
               </View>
-              <Text className="text-white font-semibold text-base mb-1">No snapshots yet</Text>
+              <Text className="text-white font-semibold text-base mb-1">{t('netWorth.noSnapshots')}</Text>
               <Text className="text-gray-500 text-sm text-center px-8">
                 Tap the + button to record your first net worth snapshot.
               </Text>

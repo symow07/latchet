@@ -31,6 +31,7 @@ import * as Haptics from 'expo-haptics';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { C, R, glow } from '@/lib/design';
 import { Txt, GlassCard, IconBubble, Pill, BubbleButton, ScreenBackground } from '@/components/ui';
+import { t } from '@/lib/i18n/core';
 
 function getGreeting(): string {
   const hour = new Date().getHours();
@@ -185,6 +186,7 @@ export default function DashboardScreen() {
         <View style={{ paddingTop: insets.top + 14, paddingHorizontal: 20 }}>
           <Txt weight="semibold" size={15} color={C.lilac}>{getGreeting()}</Txt>
           <View className="flex-row items-center justify-between mt-1">
+            {/* The app name, deliberately untranslated. */}
             <Txt weight="bold" size={32} color={C.text}>Budget</Txt>
             <Pill label="💜 You're doing great" color={C.p400} />
           </View>
@@ -204,7 +206,7 @@ export default function DashboardScreen() {
                 style={{ position: 'absolute', top: -40, right: -30, width: 160, height: 160, borderRadius: 80, backgroundColor: 'rgba(255,255,255,0.10)' }}
               />
               <View className="flex-row items-center justify-between">
-                <Txt weight="semibold" size={13} color="rgba(255,255,255,0.8)">Current Balance 🏦</Txt>
+                <Txt weight="semibold" size={13} color="rgba(255,255,255,0.8)">{t('dashboard.currentBalance')}</Txt>
                 <IconBubble color="#ffffff" size={36} radius={14} style={{ backgroundColor: 'rgba(255,255,255,0.18)', borderColor: 'rgba(255,255,255,0.25)' }}>
                   <Wallet size={18} color="#fff" />
                 </IconBubble>
@@ -226,7 +228,7 @@ export default function DashboardScreen() {
                   </View>
                 </View>
                 <View className="items-end">
-                  <Txt size={11} color="rgba(255,255,255,0.65)">Avg Daily</Txt>
+                  <Txt size={11} color="rgba(255,255,255,0.65)">{t('dashboard.avgDaily')}</Txt>
                   <Txt weight="semibold" size={17} color="#fff">{formatCurrency(avgDailySpend)}</Txt>
                 </View>
               </View>
@@ -259,16 +261,16 @@ export default function DashboardScreen() {
                 <View className="flex-row items-center justify-between mb-3">
                   <View className="flex-row items-center" style={{ gap: 8 }}>
                     <Wallet size={15} color={C.p400} />
-                    <Txt weight="semibold" size={12} color={C.p300}>My Accounts 👛</Txt>
+                    <Txt weight="semibold" size={12} color={C.p300}>{t('dashboard.myAccounts')}</Txt>
                   </View>
                   <View className="flex-row items-center" style={{ gap: 4 }}>
-                    <Txt size={11} color={C.textFaint}>View All</Txt>
+                    <Txt size={11} color={C.textFaint}>{t('dashboard.viewAll')}</Txt>
                     <ChevronRight size={14} color={C.p400} />
                   </View>
                 </View>
                 <View className="flex-row items-center justify-between">
                   <View>
-                    <Txt size={11} color={C.textFaint}>Total Balance</Txt>
+                    <Txt size={11} color={C.textFaint}>{t('dashboard.totalBalance')}</Txt>
                     <Txt weight="bold" size={24} color={C.text}>{settings?.currencySymbol || '$'}{totalAccountBalance.toFixed(2)}</Txt>
                   </View>
                   <View className="flex-row">
@@ -295,14 +297,14 @@ export default function DashboardScreen() {
             <GlassCard style={{ flex: 1 }} tint={`${C.rose}14`} border={`${C.rose}2a`} radius={R.lg}>
               <View className="flex-row items-center mb-2" style={{ gap: 8 }}>
                 <IconBubble color={C.rose} size={32} radius={12}><TrendingDown size={15} color={C.rose} /></IconBubble>
-                <Txt size={11} color={C.textDim}>Today 🌅</Txt>
+                <Txt size={11} color={C.textDim}>{t('dashboard.today')}</Txt>
               </View>
               <Txt weight="bold" size={21} color={C.text}>{formatCurrency(todaySpent)}</Txt>
             </GlassCard>
             <GlassCard style={{ flex: 1 }} tint={`${C.p500}14`} border={`${C.p500}2a`} radius={R.lg}>
               <View className="flex-row items-center mb-2" style={{ gap: 8 }}>
                 <IconBubble color={C.p400} size={32} radius={12}><Zap size={15} color={C.p400} /></IconBubble>
-                <Txt size={11} color={C.textDim}>This Week ⚡</Txt>
+                <Txt size={11} color={C.textDim}>{t('dashboard.thisWeek')}</Txt>
               </View>
               <Txt weight="bold" size={21} color={C.text}>{formatCurrency(weekSpent)}</Txt>
             </GlassCard>
@@ -313,12 +315,12 @@ export default function DashboardScreen() {
               <View className="flex-row items-center" style={{ gap: 12 }}>
                 <IconBubble color={C.p500} size={42}><Flame size={20} color={C.p400} /></IconBubble>
                 <View>
-                  <Txt size={11} color={C.textDim}>This Month 📅</Txt>
+                  <Txt size={11} color={C.textDim}>{t('dashboard.thisMonth')}</Txt>
                   <Txt weight="bold" size={24} color={C.text}>{formatCurrency(monthSpent)}</Txt>
                 </View>
               </View>
               <View className="items-end">
-                <Txt size={11} color={C.textFaint}>Budget</Txt>
+                <Txt size={11} color={C.textFaint}>{t('dashboard.budget')}</Txt>
                 <Txt weight="semibold" size={14} color={C.textDim}>{formatCurrency(settings?.monthlyBudget ?? 0)}</Txt>
               </View>
             </View>
@@ -331,7 +333,7 @@ export default function DashboardScreen() {
             <GlassCard style={{ flex: 1 }} tint={`${C.p500}14`} border={`${C.p500}2a`} radius={R.lg}>
               <View className="flex-row items-center mb-3" style={{ gap: 8 }}>
                 <Target size={15} color={C.p400} />
-                <Txt size={11} color={C.textDim}>Discipline ⭐</Txt>
+                <Txt size={11} color={C.textDim}>{t('dashboard.discipline')}</Txt>
               </View>
               <View className="flex-row items-center" style={{ gap: 12 }}>
                 <View style={{ width: 54, height: 54, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: `${C.p500}26` }}>
@@ -348,7 +350,7 @@ export default function DashboardScreen() {
             <GlassCard style={{ flex: 1 }} tint={`${C.rose}14`} border={`${C.rose}2a`} radius={R.lg}>
               <View className="flex-row items-center mb-3" style={{ gap: 8 }}>
                 <Zap size={15} color={C.rose} />
-                <Txt size={11} color={C.textDim}>Impulse ⚡</Txt>
+                <Txt size={11} color={C.textDim}>{t('dashboard.impulse')}</Txt>
               </View>
               <Txt weight="bold" size={36} color={C.text}>{impulsePercent}%</Txt>
               <Txt size={11} color={C.textFaint} style={{ marginTop: 2 }}>of purchases</Txt>
@@ -365,9 +367,9 @@ export default function DashboardScreen() {
                   <Txt size={24}>🔥</Txt>
                 </LinearGradient>
                 <View>
-                  <Txt size={11} color={C.textDim}>Logging Streak</Txt>
+                  <Txt size={11} color={C.textDim}>{t('dashboard.loggingStreak')}</Txt>
                   <Txt weight="bold" size={22} color={C.text}>{streak} days</Txt>
-                  {streak >= 3 && <Txt size={11} color={C.p300} style={{ marginTop: 1 }}>Keep it up, you're on fire!</Txt>}
+                  {streak >= 3 && <Txt size={11} color={C.p300} style={{ marginTop: 1 }}>{t('dashboard.keepItUp')}</Txt>}
                 </View>
               </View>
               {badges.length > 0 && <Pill label={`🏆 ${badges.length} badges`} color={C.p400} />}
@@ -381,7 +383,7 @@ export default function DashboardScreen() {
             <GlassCard tint={`${C.p700}14`} border={`${C.p700}28`}>
               <View className="flex-row items-center mb-3" style={{ gap: 8 }}>
                 <Award size={15} color={C.p400} />
-                <Txt weight="semibold" size={12} color={C.p300}>Badges Unlocked 🎖️</Txt>
+                <Txt weight="semibold" size={12} color={C.p300}>{t('dashboard.badges')}</Txt>
               </View>
               <View className="flex-row flex-wrap" style={{ gap: 8 }}>
                 {badges.map((badge, idx) => (
@@ -395,7 +397,7 @@ export default function DashboardScreen() {
         {/* ── 14-day chart ── */}
         <Section delay={250} style={{ paddingHorizontal: 20, marginTop: 12 }}>
           <GlassCard>
-            <Txt size={12} color={C.textDim} style={{ marginBottom: 14 }}>Last 14 Days 📊</Txt>
+            <Txt size={12} color={C.textDim} style={{ marginBottom: 14 }}>{t('dashboard.last14Days')}</Txt>
             <View style={{ height: 112, flexDirection: 'row', alignItems: 'flex-end', gap: 5 }}>
               {dailyData.length > 0 ? (
                 dailyData.map((day, idx) => {
@@ -423,8 +425,8 @@ export default function DashboardScreen() {
                 <View className="flex-row items-center" style={{ gap: 12 }}>
                   <IconBubble color={C.p500} size={48} radius={18}><BarChart3 size={23} color={C.p400} /></IconBubble>
                   <View>
-                    <Txt weight="bold" size={15} color={C.text}>Smart Analytics 🧠</Txt>
-                    <Txt size={12} color={C.textDim} style={{ marginTop: 1 }}>Subscriptions, patterns & waste</Txt>
+                    <Txt weight="bold" size={15} color={C.text}>{t('dashboard.smartAnalytics')}</Txt>
+                    <Txt size={12} color={C.textDim} style={{ marginTop: 1 }}>{t('dashboard.smartAnalyticsHint')}</Txt>
                   </View>
                 </View>
                 <ChevronRight size={20} color={C.p400} />
@@ -444,7 +446,7 @@ export default function DashboardScreen() {
                       <Txt weight="bold" size={22} color="#fff">{healthScore.totalScore}</Txt>
                     </View>
                     <View>
-                      <Txt weight="bold" size={17} color="#fff">Health Score 💗</Txt>
+                      <Txt weight="bold" size={17} color="#fff">{t('dashboard.healthScore')}</Txt>
                       <Txt size={12} color="rgba(255,255,255,0.85)" style={{ marginTop: 1 }}>
                         Grade {healthScore.grade} • {healthScore.trend === 'up' ? '↑' : healthScore.trend === 'down' ? '↓' : '→'} {healthScore.trend === 'stable' ? 'Stable' : `${healthScore.trendValue}%`}
                       </Txt>
@@ -469,7 +471,7 @@ export default function DashboardScreen() {
                   <View className="flex-row items-center" style={{ gap: 12 }}>
                     <IconBubble color={C.lilac} size={42}><CreditCard size={20} color={C.lilac} /></IconBubble>
                     <View>
-                      <Txt weight="bold" size={15} color={C.text}>Subscriptions 📱</Txt>
+                      <Txt weight="bold" size={15} color={C.text}>{t('dashboard.subscriptions')}</Txt>
                       <Txt size={12} color={C.textDim} style={{ marginTop: 1 }}>{formatCurrency(subMonthlyTotal)}/mo recurring</Txt>
                     </View>
                   </View>
@@ -498,8 +500,8 @@ export default function DashboardScreen() {
                 <View className="flex-row items-center" style={{ gap: 12 }}>
                   <IconBubble color={C.p600} size={48} radius={18}><Building2 size={23} color={C.p500} /></IconBubble>
                   <View>
-                    <Txt weight="bold" size={15} color={C.text}>Link Bank Account 🏦</Txt>
-                    <Txt size={12} color={C.textDim} style={{ marginTop: 1 }}>Auto-sync transactions securely</Txt>
+                    <Txt weight="bold" size={15} color={C.text}>{t('dashboard.linkBank')}</Txt>
+                    <Txt size={12} color={C.textDim} style={{ marginTop: 1 }}>{t('dashboard.linkBankHint')}</Txt>
                   </View>
                 </View>
                 <ChevronRight size={20} color={C.p500} />

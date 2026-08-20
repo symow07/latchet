@@ -11,6 +11,7 @@ import { useInvalidateSession, useSession } from '@/lib/auth/use-session';
 import { useAccountTypeStore } from '@/lib/account-type-store';
 import { B, R, glow } from '@/lib/design';
 import { Txt, GlassCard, IconBubble, Pill, BizBackground } from '@/components/ui';
+import { t } from '@/lib/i18n/core';
 
 const SECTIONS = [
   {
@@ -54,8 +55,8 @@ export default function BusinessSettingsScreen() {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 110 }}>
         {/* Header */}
         <View style={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 18 }}>
-          <Txt weight="bold" size={12} color={B.accent} style={{ letterSpacing: 1.6 }}>BUSINESS</Txt>
-          <Txt weight="bold" size={25} color={B.text} style={{ marginTop: 2 }}>Settings</Txt>
+          <Txt weight="bold" size={12} color={B.accent} style={{ letterSpacing: 1.6 }}>{t('business.label')}</Txt>
+          <Txt weight="bold" size={25} color={B.text} style={{ marginTop: 2 }}>{t('businessSettings.title')}</Txt>
         </View>
 
         {/* Profile card */}
@@ -106,7 +107,7 @@ export default function BusinessSettingsScreen() {
             <GlassCard padding={16} radius={R.md} tint={`${B.red}12`} border={`${B.red}28`}>
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
                 <LogOut size={17} color={B.red} />
-                <Txt weight="bold" size={15} color={B.red}>Sign Out</Txt>
+                <Txt weight="bold" size={15} color={B.red}>{t('businessSettings.signOut')}</Txt>
               </View>
             </GlassCard>
           </Pressable>

@@ -9,6 +9,7 @@ import * as Haptics from 'expo-haptics';
 import { authClient } from '@/lib/auth/auth-client';
 import { useInvalidateSession } from '@/lib/auth/use-session';
 import { pullCloudDataToLocal } from '@/lib/cloud-sync';
+import { t } from '@/lib/i18n/core';
 
 const OTP_LENGTH = 6;
 
@@ -127,7 +128,7 @@ export default function VerifyOTPScreen() {
           <View className="w-14 h-14 rounded-2xl bg-purple-500/20 items-center justify-center mb-4">
             <ShieldCheck size={28} color="#a855f7" />
           </View>
-          <Text className="text-3xl font-bold text-white mb-2">Check your email</Text>
+          <Text className="text-3xl font-bold text-white mb-2">{t('auth.checkEmail')}</Text>
           <Text className="text-white/60 text-sm leading-5">
             We sent a 6-digit code to{'\n'}
             <Text className="text-purple-300 font-semibold">{email}</Text>
@@ -160,7 +161,7 @@ export default function VerifyOTPScreen() {
 
           {resent ? (
             <View className="bg-green-500/15 border border-green-500/25 rounded-xl p-3 mt-4">
-              <Text className="text-green-400 text-sm text-center">Code sent again!</Text>
+              <Text className="text-green-400 text-sm text-center">{t('auth.codeSent')}</Text>
             </View>
           ) : null}
 
@@ -168,15 +169,15 @@ export default function VerifyOTPScreen() {
           {isLoading && (
             <View className="items-center mt-8">
               <ActivityIndicator color="#a855f7" size="large" />
-              <Text className="text-gray-500 text-sm mt-3">Verifying...</Text>
+              <Text className="text-gray-500 text-sm mt-3">{t('auth.verifying')}</Text>
             </View>
           )}
 
           {/* Resend */}
           <View className="flex-row justify-center mt-8">
-            <Text className="text-gray-500 text-sm">Didn't get it? </Text>
+            <Text className="text-gray-500 text-sm">{t('auth.didntGet')}</Text>
             <Pressable onPress={handleResend}>
-              <Text className="text-purple-400 text-sm font-semibold">Resend code</Text>
+              <Text className="text-purple-400 text-sm font-semibold">{t('auth.resend')}</Text>
             </Pressable>
           </View>
         </View>

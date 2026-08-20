@@ -36,6 +36,7 @@ import Animated, {
   ZoomIn,
 } from 'react-native-reanimated';
 import { api } from '@/lib/api/api';
+import { t } from '@/lib/i18n/core';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -551,7 +552,7 @@ function AddRecurringModal({
               ) : null}
 
               {/* Type toggle: Expense / Income */}
-              <Text style={labelStyle}>TYPE</Text>
+              <Text style={labelStyle}>{t('recurring.type')}</Text>
               <View
                 style={{
                   flexDirection: 'row',
@@ -595,7 +596,7 @@ function AddRecurringModal({
               </View>
 
               {/* Name */}
-              <Text style={labelStyle}>NAME</Text>
+              <Text style={labelStyle}>{t('recurring.name')}</Text>
               <View style={inputStyle}>
                 <Tag size={16} color="#6b7280" />
                 <TextInput
@@ -608,7 +609,7 @@ function AddRecurringModal({
               </View>
 
               {/* Amount */}
-              <Text style={labelStyle}>AMOUNT</Text>
+              <Text style={labelStyle}>{t('recurring.amount')}</Text>
               <View style={inputStyle}>
                 <DollarSign size={16} color="#6b7280" />
                 <TextInput
@@ -622,7 +623,7 @@ function AddRecurringModal({
               </View>
 
               {/* Category */}
-              <Text style={labelStyle}>CATEGORY</Text>
+              <Text style={labelStyle}>{t('recurring.category')}</Text>
               <Pressable
                 onPress={() => {
                   setShowFrequencyPicker(false);
@@ -695,7 +696,7 @@ function AddRecurringModal({
               )}
 
               {/* Frequency */}
-              <Text style={labelStyle}>FREQUENCY</Text>
+              <Text style={labelStyle}>{t('recurring.frequency')}</Text>
               <Pressable
                 onPress={() => {
                   setShowCategoryPicker(false);

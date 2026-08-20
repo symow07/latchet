@@ -24,6 +24,7 @@ import * as Haptics from 'expo-haptics';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 
 import { getTransactions, getSettings } from '@/lib/db';
+import { t } from '@/lib/i18n/core';
 import {
   generateAnalyticsSummary,
   type AnalyticsSummary,
@@ -96,8 +97,8 @@ export default function AnalyticsScreen() {
             <ArrowLeft size={20} color="white" />
           </Pressable>
           <View className="flex-1 items-center">
-            <Text className="text-white text-lg font-bold">Smart Analytics</Text>
-            <Text className="text-white/70 text-xs mt-1">Behavior Detection</Text>
+            <Text className="text-white text-lg font-bold">{t('analytics.title')}</Text>
+            <Text className="text-white/70 text-xs mt-1">{t('analytics.behaviorDetection')}</Text>
           </View>
           <View className="w-10" />
         </View>
@@ -106,13 +107,13 @@ export default function AnalyticsScreen() {
         {analytics && (
           <View className="flex-row mt-4 gap-3">
             <View className="flex-1 bg-white/20 rounded-xl p-3">
-              <Text className="text-white/70 text-xs">Potential Savings</Text>
+              <Text className="text-white/70 text-xs">{t('analytics.potentialSavings')}</Text>
               <Text className="text-white text-xl font-bold">
                 {formatCurrency(analytics.potentialMonthlySavings)}
               </Text>
             </View>
             <View className="flex-1 bg-white/20 rounded-xl p-3">
-              <Text className="text-white/70 text-xs">Active Alerts</Text>
+              <Text className="text-white/70 text-xs">{t('analytics.activeAlerts')}</Text>
               <Text className="text-white text-xl font-bold">{analytics.alertCount}</Text>
             </View>
           </View>
@@ -199,7 +200,7 @@ export default function AnalyticsScreen() {
                       <RefreshCw size={20} color="#a855f7" />
                     </View>
                     <View>
-                      <Text className="text-gray-400 text-xs">Monthly Subscriptions</Text>
+                      <Text className="text-gray-400 text-xs">{t('analytics.monthlySubscriptions')}</Text>
                       <Text className="text-white text-xl font-bold">
                         {formatCurrency(analytics.totalMonthlySubscriptions)}
                       </Text>
@@ -327,7 +328,7 @@ export default function AnalyticsScreen() {
                   >
                     <View className="flex-row items-center mb-2">
                       <AlertCircle size={16} color="#ef4444" />
-                      <Text className="text-red-400 font-medium ml-2">Duplicate Detected</Text>
+                      <Text className="text-red-400 font-medium ml-2">{t('analytics.duplicateDetected')}</Text>
                     </View>
                     <Text className="text-white">{dup.description}</Text>
                     <Text className="text-gray-400 text-sm">
@@ -366,7 +367,7 @@ export default function AnalyticsScreen() {
                 <View className="w-12 h-12 rounded-full bg-green-500/20 items-center justify-center mb-3">
                   <Zap size={24} color="#22c55e" />
                 </View>
-                <Text className="text-green-400 font-semibold text-lg">All Clear!</Text>
+                <Text className="text-green-400 font-semibold text-lg">{t('analytics.allClear')}</Text>
                 <Text className="text-gray-400 text-center mt-2">
                   No suspicious activity or duplicate charges detected.
                 </Text>
@@ -416,13 +417,13 @@ function WasteCategoryCard({
 
         <View className="flex-row justify-between">
           <View>
-            <Text className="text-gray-500 text-xs">Impulse</Text>
+            <Text className="text-gray-500 text-xs">{t('importExtra.impulse')}</Text>
             <Text className="text-pink-400 font-medium">
               {formatCurrency(waste.impulseSpent)} ({Math.round(waste.impulsePercentage)}%)
             </Text>
           </View>
           <View>
-            <Text className="text-gray-500 text-xs">Transactions</Text>
+            <Text className="text-gray-500 text-xs">{t('analytics.transactions')}</Text>
             <Text className="text-gray-300 font-medium">{waste.transactionCount}</Text>
           </View>
           <View>
@@ -460,17 +461,17 @@ function SubscriptionCard({
 
       <View className="flex-row justify-between items-center">
         <View>
-          <Text className="text-gray-500 text-xs">Amount</Text>
+          <Text className="text-gray-500 text-xs">{t('analytics.amount')}</Text>
           <Text className="text-white font-bold text-lg">
             {formatCurrency(subscription.amount)}
           </Text>
         </View>
         <View>
-          <Text className="text-gray-500 text-xs">Total Spent</Text>
+          <Text className="text-gray-500 text-xs">{t('analytics.totalSpent')}</Text>
           <Text className="text-gray-300">{formatCurrency(subscription.totalSpent)}</Text>
         </View>
         <View>
-          <Text className="text-gray-500 text-xs">Next Due</Text>
+          <Text className="text-gray-500 text-xs">{t('analytics.nextDue')}</Text>
           <Text className="text-amber-400">{subscription.nextExpected}</Text>
         </View>
       </View>

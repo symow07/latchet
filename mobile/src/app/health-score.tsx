@@ -29,6 +29,7 @@ import Animated, { FadeInUp } from 'react-native-reanimated';
 import Svg, { Circle, G } from 'react-native-svg';
 
 import { getTransactions, getSettings } from '@/lib/db';
+import { t } from '@/lib/i18n/core';
 import {
   calculateHealthScore,
   getPersonalityDescription,
@@ -95,7 +96,7 @@ export default function HealthScoreScreen() {
   if (!healthScore || !settings) {
     return (
       <View className="flex-1 bg-[#0c0716] items-center justify-center">
-        <Text className="text-gray-400">Loading...</Text>
+        <Text className="text-gray-400">{t('common.loading')}</Text>
       </View>
     );
   }
@@ -174,8 +175,8 @@ export default function HealthScoreScreen() {
           </Pressable>
 
           <View className="flex-1 items-center">
-            <Text className="text-white text-lg font-bold">Financial Health</Text>
-            <Text className="text-white/70 text-xs mt-1">Your complete score breakdown</Text>
+            <Text className="text-white text-lg font-bold">{t('healthScore.title')}</Text>
+            <Text className="text-white/70 text-xs mt-1">{t('healthScore.breakdownHint')}</Text>
           </View>
 
           <View className="w-10" />
@@ -274,7 +275,7 @@ export default function HealthScoreScreen() {
 
         {/* Score Breakdown */}
         <View className="px-4 mb-4">
-          <Text className="text-gray-400 text-xs font-semibold mb-3 ml-1">SCORE BREAKDOWN</Text>
+          <Text className="text-gray-400 text-xs font-semibold mb-3 ml-1">{t('healthScore.breakdown')}</Text>
 
           {breakdownItems.map((item, idx) => (
             <Animated.View
@@ -366,7 +367,7 @@ export default function HealthScoreScreen() {
                     <Sparkles size={24} color="white" />
                   </View>
                   <View>
-                    <Text className="text-white font-bold">Get Personalized Advice</Text>
+                    <Text className="text-white font-bold">{t('healthScore.getAdvice')}</Text>
                     <Text className="text-white/70 text-xs mt-0.5">
                       Chat with AI about your health score
                     </Text>

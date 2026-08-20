@@ -28,6 +28,7 @@ import {
   PlusJakartaSans_700Bold,
 } from '@expo-google-fonts/plus-jakarta-sans';
 import { patchDefaultFont } from '@/lib/design';
+import { t } from '@/lib/i18n/core';
 
 // Silence verbose console.log in release builds (startup/gate/api tracing stays
 // available in dev via expo.log). warn/error still surface for crash reporting.
@@ -266,13 +267,13 @@ function RootLayoutNav({ colorScheme }: { colorScheme: 'light' | 'dark' | null |
           onPress={() => queryClient.invalidateQueries({ queryKey: SESSION_QUERY_KEY })}
           style={{ paddingHorizontal: 32, paddingVertical: 14, borderRadius: 16, backgroundColor: '#2563eb' }}
         >
-          <Text style={{ color: '#fff', fontWeight: '600', fontSize: 16 }}>Retry</Text>
+          <Text style={{ color: '#fff', fontWeight: '600', fontSize: 16 }}>{t('startup.retry')}</Text>
         </Pressable>
         <Pressable
           onPress={() => setSessionTimedOut(true)}
           style={{ marginTop: 12, paddingHorizontal: 32, paddingVertical: 14 }}
         >
-          <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14 }}>Continue offline</Text>
+          <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14 }}>{t('startup.continueOffline')}</Text>
         </Pressable>
       </View>
     );
@@ -299,7 +300,6 @@ function RootLayoutNav({ colorScheme }: { colorScheme: 'light' | 'dark' | null |
           <Stack.Screen name="subscriptions" options={{ headerShown: false }} />
           <Stack.Screen name="subscription-detail" options={{ headerShown: false }} />
           <Stack.Screen name="email-inbox" options={{ headerShown: false }} />
-          <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
           {/* Account type & business navigation */}
           <Stack.Screen name="account-type" options={{ headerShown: false }} />
           <Stack.Screen name="(business-tabs)" options={{ headerShown: false }} />
@@ -406,7 +406,7 @@ export default function RootLayout() {
             onPress={initApp}
             style={{ paddingHorizontal: 32, paddingVertical: 14, borderRadius: 16, backgroundColor: '#2563eb' }}
           >
-            <Text style={{ color: '#fff', fontWeight: '600', fontSize: 16 }}>Retry</Text>
+            <Text style={{ color: '#fff', fontWeight: '600', fontSize: 16 }}>{t('startup.retry')}</Text>
           </Pressable>
         </View>
       </SafeAreaProvider>

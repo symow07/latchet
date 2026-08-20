@@ -52,6 +52,7 @@ import { findCancelEntry, getCancelLink } from '@/lib/cancel-directory';
 import { formatCurrency } from '@/lib/calculations';
 import { C } from '@/lib/design';
 import { ScreenBackground } from '@/components/ui';
+import { t } from '@/lib/i18n/core';
 
 function cadenceLabel(cadence: Subscription['cadence']): string {
   switch (cadence) {
@@ -287,7 +288,7 @@ export default function SubscriptionDetailScreen() {
         className="flex-1 items-center justify-center px-8"
         style={{ backgroundColor: C.bg }}
       >
-        <Text className="text-white text-lg font-bold mb-2">Not Found</Text>
+        <Text className="text-white text-lg font-bold mb-2">{t('subscriptionDetail.notFound')}</Text>
         <Text className="text-center text-sm" style={{ color: '#9ca3af' }}>
           This subscription could not be found.
         </Text>
@@ -338,7 +339,7 @@ export default function SubscriptionDetailScreen() {
               <Text className="text-white text-xl font-bold" numberOfLines={1}>
                 {subscription.merchantDisplay}
               </Text>
-              <Text className="text-white/60 text-xs mt-0.5">Subscription Details</Text>
+              <Text className="text-white/60 text-xs mt-0.5">{t('subscriptionDetail.title')}</Text>
             </View>
             <StatusBadge status={subscription.status} />
           </View>
@@ -506,7 +507,7 @@ export default function SubscriptionDetailScreen() {
           {/* Transaction history */}
           <Animated.View entering={FadeInUp.delay(160).springify()} className="mx-4 mb-4">
             <View className="flex-row items-center justify-between mb-3">
-              <Text className="text-white font-bold text-base">Transaction History</Text>
+              <Text className="text-white font-bold text-base">{t('subscriptionDetail.history')}</Text>
               <Text className="text-xs" style={{ color: '#9ca3af' }}>
                 {occurrences.length} occurrence{occurrences.length !== 1 ? 's' : ''}
               </Text>
@@ -539,7 +540,7 @@ export default function SubscriptionDetailScreen() {
                 style={{ backgroundColor: 'rgba(255,255,255,0.05)' }}
               >
                 <View className="flex-row justify-between mb-2">
-                  <Text className="text-white font-semibold text-sm">Detection Confidence</Text>
+                  <Text className="text-white font-semibold text-sm">{t('subscriptionDetail.confidence')}</Text>
                   <Text className="font-bold text-sm" style={{ color: '#f59e0b' }}>
                     {Math.round(subscription.confidenceScore)}%
                   </Text>
@@ -766,7 +767,7 @@ export default function SubscriptionDetailScreen() {
 
               {/* Cancel notes */}
               <View className="gap-3">
-                <Text className="text-white font-semibold text-sm">Your Notes</Text>
+                <Text className="text-white font-semibold text-sm">{t('subscriptionDetail.yourNotes')}</Text>
                 <TextInput
                   value={cancelNotes}
                   onChangeText={setCancelNotes}
@@ -800,7 +801,7 @@ export default function SubscriptionDetailScreen() {
                   {isSavingNotes ? (
                     <ActivityIndicator color="white" />
                   ) : (
-                    <Text className="text-white font-bold text-sm">Save Notes</Text>
+                    <Text className="text-white font-bold text-sm">{t('subscriptionDetail.saveNotes')}</Text>
                   )}
                 </Pressable>
               </View>

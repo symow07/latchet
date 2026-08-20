@@ -15,6 +15,7 @@ import Animated, { FadeInUp } from 'react-native-reanimated';
 import { detectSubscriptions } from '@/lib/business-subscription-detection';
 import { B, R, glow } from '@/lib/design';
 import { Txt, GlassCard, IconBubble, Pill, BizBackground } from '@/components/ui';
+import { t } from '@/lib/i18n/core';
 
 function Label({ children }: { children: string }) {
   return <Txt weight="bold" size={11} color={B.textFaint} style={{ letterSpacing: 1.4, marginBottom: 12 }}>{children}</Txt>;
@@ -55,7 +56,7 @@ export default function BusinessDashboardTab() {
         {/* Header */}
         <View style={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           <View>
-            <Txt weight="bold" size={12} color={B.accent} style={{ letterSpacing: 1.6 }}>BUSINESS</Txt>
+            <Txt weight="bold" size={12} color={B.accent} style={{ letterSpacing: 1.6 }}>{t('business.label')}</Txt>
             <Txt weight="bold" size={25} color={B.text} style={{ marginTop: 2 }}>Hey, {firstName}</Txt>
           </View>
           <IconBubble color={B.accent} size={42} radius={14}><Briefcase size={19} color={B.accent} /></IconBubble>
@@ -86,7 +87,7 @@ export default function BusinessDashboardTab() {
 
         {/* Metrics */}
         <Animated.View entering={FadeInUp.delay(80).springify().damping(16)} style={{ paddingHorizontal: 20, marginBottom: 20 }}>
-          <Label>OVERVIEW</Label>
+          <Label>{t('business.overview')}</Label>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
             {metrics.map(m => (
               <GlassCard key={m.label} style={{ width: '47.5%' }} padding={16} radius={R.md} tint={`${m.accent}12`} border={`${m.accent}26`}>
@@ -100,12 +101,12 @@ export default function BusinessDashboardTab() {
 
         {/* Quick actions */}
         <Animated.View entering={FadeInUp.delay(120).springify().damping(16)} style={{ paddingHorizontal: 20, marginBottom: 20 }}>
-          <Label>QUICK ACTIONS</Label>
+          <Label>{t('business.quickActions')}</Label>
           <View style={{ flexDirection: 'row', gap: 10 }}>
             <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push('/(business-tabs)/expenses'); }} style={({ pressed }) => ({ flex: 1, opacity: pressed ? 0.75 : 1 })}>
               <GlassCard padding={14} radius={R.md} tint={`${B.accent}0e`} border={`${B.accent}24`} style={{ alignItems: 'center', gap: 8 }}>
                 <IconBubble color={B.red} size={40}><TrendingDown size={18} color={B.red} /></IconBubble>
-                <Txt weight="semibold" size={11} color={B.textDim}>Add Expense</Txt>
+                <Txt weight="semibold" size={11} color={B.textDim}>{t('business.addExpense')}</Txt>
               </GlassCard>
             </Pressable>
             {canReview && pending.length > 0 && (
@@ -121,13 +122,13 @@ export default function BusinessDashboardTab() {
 
         {/* Tools & subscriptions */}
         <Animated.View entering={FadeInUp.delay(150).springify().damping(16)} style={{ paddingHorizontal: 20, marginBottom: 20 }}>
-          <Label>TOOLS & SUBSCRIPTIONS</Label>
+          <Label>{t('business.tools')}</Label>
           <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push('/business-tools'); }} style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}>
             <GlassCard padding={20} radius={R.lg} tint={B.slate900} border={`${B.accent}22`}>
               <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 14 }}>
                 <IconBubble color={B.accent} size={40} radius={13} style={{ marginRight: 12 }}><Wrench size={18} color={B.accent} /></IconBubble>
                 <View style={{ flex: 1 }}>
-                  <Txt weight="bold" size={15} color={B.text}>Business Tools</Txt>
+                  <Txt weight="bold" size={15} color={B.text}>{t('business.businessTools')}</Txt>
                   <Txt size={12} color={B.textFaint} style={{ marginTop: 1 }}>
                     {subSummary.subscriptions.length > 0 ? `${subSummary.subscriptions.length} tool${subSummary.subscriptions.length !== 1 ? 's' : ''} detected` : 'No subscriptions detected yet'}
                   </Txt>
@@ -139,7 +140,7 @@ export default function BusinessDashboardTab() {
                 <View style={{ flexDirection: 'row', gap: 8 }}>
                   <GlassCard style={{ flex: 1 }} padding={12} radius={R.sm} tint={`${B.red}10`} border={`${B.red}26`}>
                     <Txt weight="bold" size={18} color={B.red}>${subSummary.monthlyTotal.toFixed(0)}</Txt>
-                    <Txt weight="bold" size={10} color={B.textFaint} style={{ letterSpacing: 0.5, marginTop: 2 }}>PER MONTH</Txt>
+                    <Txt weight="bold" size={10} color={B.textFaint} style={{ letterSpacing: 0.5, marginTop: 2 }}>{t('business.perMonth')}</Txt>
                   </GlassCard>
                   {subSummary.upcoming.length > 0 && (
                     <GlassCard style={{ flex: 1 }} padding={12} radius={R.sm} tint={`${B.amber}0e`} border={`${B.amber}2a`}>
@@ -147,17 +148,17 @@ export default function BusinessDashboardTab() {
                         <AlertCircle size={12} color={B.amber} />
                         <Txt weight="bold" size={18} color={B.amber}>{subSummary.upcoming.length}</Txt>
                       </View>
-                      <Txt weight="bold" size={10} color={B.textFaint} style={{ letterSpacing: 0.5, marginTop: 2 }}>DUE SOON</Txt>
+                      <Txt weight="bold" size={10} color={B.textFaint} style={{ letterSpacing: 0.5, marginTop: 2 }}>{t('business.dueSoon')}</Txt>
                     </GlassCard>
                   )}
                   <GlassCard style={{ flex: 1 }} padding={12} radius={R.sm}>
                     <Txt weight="bold" size={18} color={B.textDim}>${(subSummary.annualTotal / 1000).toFixed(1)}k</Txt>
-                    <Txt weight="bold" size={10} color={B.textFaint} style={{ letterSpacing: 0.5, marginTop: 2 }}>PER YEAR</Txt>
+                    <Txt weight="bold" size={10} color={B.textFaint} style={{ letterSpacing: 0.5, marginTop: 2 }}>{t('business.perYear')}</Txt>
                   </GlassCard>
                 </View>
               ) : (
                 <GlassCard padding={12} radius={R.sm}>
-                  <Txt size={12} color={B.textFaint} style={{ textAlign: 'center' }}>Add Software expenses to detect recurring tools</Txt>
+                  <Txt size={12} color={B.textFaint} style={{ textAlign: 'center' }}>{t('business.detectHint')}</Txt>
                 </GlassCard>
               )}
             </GlassCard>
@@ -166,14 +167,14 @@ export default function BusinessDashboardTab() {
 
         {/* Recent activity */}
         <View style={{ paddingHorizontal: 20 }}>
-          <Label>RECENT ACTIVITY</Label>
+          <Label>{t('business.recent')}</Label>
           {isLoading ? (
             <View style={{ alignItems: 'center', paddingVertical: 32 }}><ActivityIndicator color={B.accent} /></View>
           ) : recentExpenses.length === 0 ? (
             <GlassCard padding={32} radius={R.lg} style={{ alignItems: 'center' }}>
               <DollarSign size={32} color={B.slate700} />
-              <Txt weight="semibold" size={14} color={B.textDim} style={{ marginTop: 12, marginBottom: 4 }}>No expenses yet</Txt>
-              <Txt size={12} color={B.textFaint} style={{ textAlign: 'center' }}>Go to Expenses tab to submit your first expense</Txt>
+              <Txt weight="semibold" size={14} color={B.textDim} style={{ marginTop: 12, marginBottom: 4 }}>{t('business.noExpenses')}</Txt>
+              <Txt size={12} color={B.textFaint} style={{ textAlign: 'center' }}>{t('business.noExpensesHint')}</Txt>
             </GlassCard>
           ) : (
             <View style={{ gap: 8 }}>

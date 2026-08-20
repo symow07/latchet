@@ -38,6 +38,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { api } from '@/lib/api/api';
+import { t } from '@/lib/i18n/core';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -289,7 +290,7 @@ function BillCard({
                     backgroundColor: '#a855f720',
                   }}
                 >
-                  <Text style={{ color: '#a855f7', fontSize: 10, fontWeight: '600' }}>RECURRING</Text>
+                  <Text style={{ color: '#a855f7', fontSize: 10, fontWeight: '600' }}>{t('billReminders.recurring')}</Text>
                 </View>
               )}
             </View>
@@ -779,7 +780,7 @@ export default function BillRemindersScreen() {
           </Pressable>
 
           <View style={{ alignItems: 'center' }}>
-            <Text style={{ color: 'white', fontSize: 18, fontWeight: '700' }}>Bill Reminders</Text>
+            <Text style={{ color: 'white', fontSize: 18, fontWeight: '700' }}>{t('billReminders.title')}</Text>
             <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, marginTop: 2 }}>
               {unpaidCount} upcoming · {bills.length} total
             </Text>

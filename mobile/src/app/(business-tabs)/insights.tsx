@@ -20,6 +20,7 @@ import { useSession } from '@/lib/auth/use-session';
 import { useFocusEffect } from 'expo-router';
 import { B, R, glow } from '@/lib/design';
 import { Txt, GlassCard, IconBubble, BizBackground, BubbleButton } from '@/components/ui';
+import { t } from '@/lib/i18n/core';
 
 const ALL_CATEGORIES: { key: BudgetCategory; label: string; icon: React.ComponentType<{ size: number; color: string }>; color: string }[] = [
   { key: 'Travel', label: 'Travel', icon: Plane, color: '#818cf8' },
@@ -82,11 +83,11 @@ function EditBudgetModal({ visible, onClose, currentData }: { visible: boolean; 
           <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 22 }}>
             <View style={{ width: 40, height: 4, backgroundColor: B.slate700, borderRadius: 2, alignSelf: 'center', marginBottom: 20 }} />
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 22 }}>
-              <Txt weight="bold" size={20} color={B.text}>Set Monthly Budget</Txt>
+              <Txt weight="bold" size={20} color={B.text}>{t('businessInsights.setBudget')}</Txt>
               <Pressable onPress={onClose} hitSlop={10}><X size={22} color={B.textFaint} /></Pressable>
             </View>
 
-            <FieldLabel>TOTAL MONTHLY BUDGET</FieldLabel>
+            <FieldLabel>{t('businessInsights.totalBudget')}</FieldLabel>
             <GlassCard padding={0} radius={R.md} border={`${B.accent}33`} style={{ marginBottom: 22 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14 }}>
                 <Txt weight="bold" size={20} color={B.accent} style={{ marginRight: 8 }}>$</Txt>
@@ -94,7 +95,7 @@ function EditBudgetModal({ visible, onClose, currentData }: { visible: boolean; 
               </View>
             </GlassCard>
 
-            <FieldLabel>CATEGORY BUDGETS (OPTIONAL)</FieldLabel>
+            <FieldLabel>{t('businessInsights.categoryBudgets')}</FieldLabel>
             <View style={{ gap: 8 }}>
               {ALL_CATEGORIES.map(cat => {
                 const Icon = cat.icon;
@@ -193,13 +194,13 @@ export default function BudgetScreen() {
         {/* Header */}
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 16, paddingBottom: 14 }}>
           <View>
-            <Txt weight="bold" size={12} color={B.accent} style={{ letterSpacing: 1.6 }}>BUSINESS</Txt>
-            <Txt weight="bold" size={25} color={B.text} style={{ marginTop: 2 }}>Budget</Txt>
+            <Txt weight="bold" size={12} color={B.accent} style={{ letterSpacing: 1.6 }}>{t('business.label')}</Txt>
+            <Txt weight="bold" size={25} color={B.text} style={{ marginTop: 2 }}>{t('businessInsights.budget')}</Txt>
           </View>
           {canEdit && (
             <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setShowEdit(true); }} style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 9, borderRadius: 13, backgroundColor: `${B.accent}22`, borderWidth: 1.5, borderColor: `${B.accent}44` })}>
               <SlidersHorizontal size={15} color={B.accent} />
-              <Txt weight="bold" size={13} color={B.accent}>Edit</Txt>
+              <Txt weight="bold" size={13} color={B.accent}>{t('businessInsights.edit')}</Txt>
             </Pressable>
           )}
         </View>
@@ -228,7 +229,7 @@ export default function BudgetScreen() {
 
                 <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 16 }}>
                   <View>
-                    <Txt weight="semibold" size={12} color="rgba(255,255,255,0.45)" style={{ letterSpacing: 1, marginBottom: 4 }}>MONTHLY SPEND</Txt>
+                    <Txt weight="semibold" size={12} color="rgba(255,255,255,0.45)" style={{ letterSpacing: 1, marginBottom: 4 }}>{t('businessInsights.monthlySpend')}</Txt>
                     <Txt weight="bold" size={38} color={overBudget ? B.red : '#fff'} style={{ lineHeight: 42 }}>${totalSpent.toFixed(0)}</Txt>
                     {totalBudget > 0 && <Txt size={13} color={B.textFaint} style={{ marginTop: 2 }}>of ${totalBudget.toFixed(0)} budget</Txt>}
                   </View>
@@ -245,7 +246,7 @@ export default function BudgetScreen() {
                 {totalBudget === 0 && canEdit && (
                   <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setShowEdit(true); }} style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1, marginTop: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, backgroundColor: `${B.accent}16`, borderRadius: 12, paddingVertical: 11, borderWidth: 1, borderColor: `${B.accent}2a` })}>
                     <TrendingUp size={14} color={B.accent} />
-                    <Txt weight="bold" size={13} color={B.accent}>Set a monthly budget</Txt>
+                    <Txt weight="bold" size={13} color={B.accent}>{t('businessInsights.setBudgetShort')}</Txt>
                   </Pressable>
                 )}
               </LinearGradient>
@@ -270,7 +271,7 @@ export default function BudgetScreen() {
             {/* By category */}
             {catRows.length > 0 && (
               <View style={{ paddingHorizontal: 20 }}>
-                <Txt weight="bold" size={11} color={B.textFaint} style={{ letterSpacing: 1.4, marginBottom: 12 }}>BY CATEGORY</Txt>
+                <Txt weight="bold" size={11} color={B.textFaint} style={{ letterSpacing: 1.4, marginBottom: 12 }}>{t('businessInsights.byCategory')}</Txt>
                 <View style={{ gap: 10 }}>
                   {catRows.map((r, i) => <CategoryRow key={r.cat.key} cat={r.cat} spent={r.spent} budget={r.budget} index={i} />)}
                 </View>
@@ -281,8 +282,8 @@ export default function BudgetScreen() {
               <View style={{ marginHorizontal: 20 }}>
                 <GlassCard padding={40} radius={R.lg} style={{ alignItems: 'center' }}>
                   <TrendingUp size={32} color={B.slate700} />
-                  <Txt weight="semibold" size={14} color={B.textDim} style={{ marginTop: 12, marginBottom: 4 }}>No spending this month</Txt>
-                  <Txt size={12} color={B.textFaint} style={{ textAlign: 'center' }}>Submit expenses to see your budget usage here</Txt>
+                  <Txt weight="semibold" size={14} color={B.textDim} style={{ marginTop: 12, marginBottom: 4 }}>{t('businessInsights.noSpending')}</Txt>
+                  <Txt size={12} color={B.textFaint} style={{ textAlign: 'center' }}>{t('businessInsights.noSpendingHint')}</Txt>
                 </GlassCard>
               </View>
             )}

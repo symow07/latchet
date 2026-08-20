@@ -22,6 +22,7 @@ import { saveOnboardingData } from '@/lib/onboarding-storage';
 import { updateSettings } from '@/lib/db';
 import { scheduleCloudPush } from '@/lib/cloud-sync';
 import { CURRENCIES, getPopularCurrencies, type Currency } from '@/lib/currencies';
+import { t } from '@/lib/i18n/core';
 
 const STEPS = ['currency', 'income', 'goal', 'style'] as const;
 
@@ -119,8 +120,8 @@ export default function OnboardingScreen() {
       case 'currency':
         return (
           <View className="flex-1">
-            <Text className="text-2xl font-bold text-white mb-2">Choose Your Currency</Text>
-            <Text className="text-gray-400 mb-6">Select the currency you use most often</Text>
+            <Text className="text-2xl font-bold text-white mb-2">{t('onboarding.chooseCurrency')}</Text>
+            <Text className="text-gray-400 mb-6">{t('onboarding.chooseCurrencyHint')}</Text>
 
             {/* Selected Currency */}
             <Pressable
@@ -145,7 +146,7 @@ export default function OnboardingScreen() {
             {/* Currency List */}
             {showCurrencyPicker && (
               <ScrollView className="max-h-64 mb-4" showsVerticalScrollIndicator={false}>
-                <Text className="text-gray-500 text-xs mb-2 ml-1">POPULAR</Text>
+                <Text className="text-gray-500 text-xs mb-2 ml-1">{t('onboarding.popular')}</Text>
                 {popularCurrencies.map((c) => (
                   <Pressable
                     key={c.code}
@@ -171,7 +172,7 @@ export default function OnboardingScreen() {
                   </Pressable>
                 ))}
 
-                <Text className="text-gray-500 text-xs mb-2 mt-4 ml-1">ALL CURRENCIES</Text>
+                <Text className="text-gray-500 text-xs mb-2 mt-4 ml-1">{t('onboarding.allCurrencies')}</Text>
                 {CURRENCIES.filter(c => !popularCurrencies.find(p => p.code === c.code)).map((c) => (
                   <Pressable
                     key={c.code}
@@ -204,11 +205,11 @@ export default function OnboardingScreen() {
       case 'income':
         return (
           <View className="flex-1">
-            <Text className="text-2xl font-bold text-white mb-2">Your Monthly Income</Text>
-            <Text className="text-gray-400 mb-6">This helps us suggest a realistic budget</Text>
+            <Text className="text-2xl font-bold text-white mb-2">{t('onboarding.yourIncome')}</Text>
+            <Text className="text-gray-400 mb-6">{t('onboarding.incomeHint')}</Text>
 
             <View className="mb-6">
-              <Text className="text-gray-400 text-sm mb-2 ml-1">Monthly Income</Text>
+              <Text className="text-gray-400 text-sm mb-2 ml-1">{t('onboarding.monthlyIncome')}</Text>
               <View
                 className="flex-row items-center rounded-2xl px-4 py-4"
                 style={{ backgroundColor: 'rgba(255,255,255,0.05)' }}
@@ -233,7 +234,7 @@ export default function OnboardingScreen() {
             </View>
 
             <View>
-              <Text className="text-gray-400 text-sm mb-2 ml-1">Monthly Savings Goal (Optional)</Text>
+              <Text className="text-gray-400 text-sm mb-2 ml-1">{t('onboarding.savingsGoal')}</Text>
               <View
                 className="flex-row items-center rounded-2xl px-4 py-4"
                 style={{ backgroundColor: 'rgba(255,255,255,0.05)' }}
@@ -262,8 +263,8 @@ export default function OnboardingScreen() {
       case 'goal':
         return (
           <View className="flex-1">
-            <Text className="text-2xl font-bold text-white mb-2">Your Primary Goal</Text>
-            <Text className="text-gray-400 mb-6">We'll customize your experience based on this</Text>
+            <Text className="text-2xl font-bold text-white mb-2">{t('onboarding.primaryGoal')}</Text>
+            <Text className="text-gray-400 mb-6">{t('onboarding.primaryGoalHint')}</Text>
 
             <View className="gap-3">
               {PRIMARY_GOALS.map((goal) => (
@@ -301,8 +302,8 @@ export default function OnboardingScreen() {
       case 'style':
         return (
           <View className="flex-1">
-            <Text className="text-2xl font-bold text-white mb-2">Your Spending Style</Text>
-            <Text className="text-gray-400 mb-6">How would you describe your spending habits?</Text>
+            <Text className="text-2xl font-bold text-white mb-2">{t('onboarding.spendingStyle')}</Text>
+            <Text className="text-gray-400 mb-6">{t('onboarding.spendingStyleHint')}</Text>
 
             <View className="gap-3">
               {SPENDING_STYLES.map((style) => {
@@ -388,7 +389,7 @@ export default function OnboardingScreen() {
         <View className="px-6 pb-8" style={{ paddingBottom: insets.bottom + 24, paddingTop: 24 }}>
           {saveMutation.isError && (
             <View className="mb-3 px-4 py-3 rounded-xl" style={{ backgroundColor: 'rgba(239,68,68,0.15)', borderWidth: 1, borderColor: 'rgba(239,68,68,0.4)' }}>
-              <Text className="text-red-400 text-sm text-center">Something went wrong. Please try again.</Text>
+              <Text className="text-red-400 text-sm text-center">{t('onboarding.failed')}</Text>
             </View>
           )}
           <View className="flex-row gap-3">
@@ -399,7 +400,7 @@ export default function OnboardingScreen() {
                 style={{ backgroundColor: 'rgba(255,255,255,0.05)' }}
               >
                 <ArrowLeft size={20} color="#9ca3af" />
-                <Text className="text-gray-400 font-semibold ml-2">Back</Text>
+                <Text className="text-gray-400 font-semibold ml-2">{t('common.back')}</Text>
               </Pressable>
             )}
 

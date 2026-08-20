@@ -22,6 +22,7 @@ import {
 import * as Haptics from 'expo-haptics';
 import { getTransactions } from '@/lib/db';
 import { api } from '@/lib/api/api';
+import { t } from '@/lib/i18n/core';
 
 // --- Types ---
 
@@ -221,7 +222,7 @@ function EditModal({
                     backgroundColor: 'rgba(255,255,255,0.06)',
                   }}
                 >
-                  <Text style={{ color: '#9ca3af', fontWeight: '600', fontSize: 15 }}>Cancel</Text>
+                  <Text style={{ color: '#9ca3af', fontWeight: '600', fontSize: 15 }}>{t('common.cancel')}</Text>
                 </Pressable>
                 <Pressable
                   onPress={onSave}
@@ -452,7 +453,7 @@ export default function CategoryBudgetsScreen() {
                         ${budget.amount.toFixed(0)}
                       </Text>
                     ) : (
-                      <Text style={{ color: '#4b5563', fontSize: 13 }}>No limit</Text>
+                      <Text style={{ color: '#4b5563', fontSize: 13 }}>{t('common.noLimit')}</Text>
                     )}
                     <Pressable
                       onPress={() => openEdit(cat)}

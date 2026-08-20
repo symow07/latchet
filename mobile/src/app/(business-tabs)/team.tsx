@@ -19,6 +19,7 @@ import {
 } from '@/lib/businessApi';
 import { B, R, glow } from '@/lib/design';
 import { Txt, GlassCard, IconBubble, Pill, BizBackground, BubbleButton } from '@/components/ui';
+import { t } from '@/lib/i18n/core';
 
 const ROLE_META: Record<string, { label: string; color: string; icon: React.ComponentType<{ size: number; color: string }> }> = {
   owner: { label: 'Owner', color: B.amber, icon: Crown },
@@ -47,9 +48,9 @@ function InviteCodePanel() {
 
   return (
     <View style={{ marginHorizontal: 20, marginBottom: 20 }}>
-      <Label>INVITE CODE</Label>
+      <Label>{t('businessTeam.inviteCode')}</Label>
       <GlassCard padding={18} radius={R.lg} tint={B.slate900} border={`${B.accent}2a`}>
-        <Txt size={12} color={B.textFaint} style={{ marginBottom: 12 }}>Share this code with teammates so they can join</Txt>
+        <Txt size={12} color={B.textFaint} style={{ marginBottom: 12 }}>{t('businessTeam.shareCode')}</Txt>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
           <View style={{ flex: 1, backgroundColor: B.glass, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14, borderWidth: 1, borderColor: B.glassBorder }}>
             {isLoading ? (
@@ -89,10 +90,10 @@ function JoinModal({ visible, onClose, onJoined }: { visible: boolean; onClose: 
       <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: B.slate900, borderTopLeftRadius: 30, borderTopRightRadius: 30, borderWidth: 1, borderColor: `${B.accent}26`, padding: 22, paddingBottom: 44 }}>
         <View style={{ width: 40, height: 4, backgroundColor: B.slate700, borderRadius: 2, alignSelf: 'center', marginBottom: 20 }} />
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-          <Txt weight="bold" size={20} color={B.text}>Join a Business</Txt>
+          <Txt weight="bold" size={20} color={B.text}>{t('businessTeam.joinBusiness')}</Txt>
           <Pressable onPress={handleClose} hitSlop={10}><X size={22} color={B.textFaint} /></Pressable>
         </View>
-        <Txt size={13} color={B.textFaint} style={{ marginBottom: 16 }}>Enter the 6-character invite code your manager shared with you.</Txt>
+        <Txt size={13} color={B.textFaint} style={{ marginBottom: 16 }}>{t('businessTeam.enterCodeLong')}</Txt>
         {!!err && (
           <GlassCard padding={12} radius={R.sm} tint={`${B.red}16`} border={`${B.red}33`} style={{ marginBottom: 14 }}>
             <Txt size={13} color={B.red} style={{ textAlign: 'center' }}>{err}</Txt>
@@ -156,7 +157,7 @@ function MemberRow({ member, isMe, isOwner, onRemove, onChangeRole }: { member: 
           })}
           <Pressable onPress={() => { setRoleOpen(false); onRemove(member.id); }} style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 11, gap: 10 })}>
             <X size={14} color={B.red} />
-            <Txt weight="semibold" size={13} color={B.red}>Remove from team</Txt>
+            <Txt weight="semibold" size={13} color={B.red}>{t('businessTeam.remove')}</Txt>
           </Pressable>
         </View>
       )}
@@ -200,13 +201,13 @@ export default function TeamScreen() {
         {/* Header */}
         <View style={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           <View>
-            <Txt weight="bold" size={12} color={B.accent} style={{ letterSpacing: 1.6 }}>BUSINESS</Txt>
-            <Txt weight="bold" size={25} color={B.text} style={{ marginTop: 2 }}>Team</Txt>
+            <Txt weight="bold" size={12} color={B.accent} style={{ letterSpacing: 1.6 }}>{t('business.label')}</Txt>
+            <Txt weight="bold" size={25} color={B.text} style={{ marginTop: 2 }}>{t('businessTeam.title')}</Txt>
           </View>
           {!isInBusiness && (
             <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setShowJoin(true); }} style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 9, borderRadius: 13, backgroundColor: `${B.accent}22`, borderWidth: 1.5, borderColor: `${B.accent}44` })}>
               <LogIn size={15} color={B.accent} />
-              <Txt weight="bold" size={13} color={B.accent}>Join</Txt>
+              <Txt weight="bold" size={13} color={B.accent}>{t('businessTeam.join')}</Txt>
             </Pressable>
           )}
         </View>
@@ -215,7 +216,7 @@ export default function TeamScreen() {
         <View style={{ marginHorizontal: 20, marginBottom: 20 }}>
           <LinearGradient colors={[B.slate800, '#16365f']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[{ borderRadius: R.lg, padding: 20, borderWidth: 1, borderColor: `${B.accent}2a`, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, glow(B.accentDeep, 0.25, 18)]}>
             <View>
-              <Txt size={13} color="rgba(255,255,255,0.5)" style={{ marginBottom: 4 }}>Team members</Txt>
+              <Txt size={13} color="rgba(255,255,255,0.5)" style={{ marginBottom: 4 }}>{t('businessTeam.members')}</Txt>
               <Txt weight="bold" size={36} color="#fff">{membersLoading ? '—' : members.length}</Txt>
               <Txt weight="semibold" size={13} color={B.accentSoft} style={{ marginTop: 2 }}>{business?.name ?? (bizLoading ? 'Loading...' : 'Not in a business yet')}</Txt>
             </View>
@@ -231,8 +232,8 @@ export default function TeamScreen() {
           <View style={{ marginHorizontal: 20, marginBottom: 20 }}>
             <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setShowJoin(true); }} style={({ pressed }) => ({ opacity: pressed ? 0.8 : 1, backgroundColor: `${B.accent}0e`, borderRadius: R.lg, padding: 28, alignItems: 'center', borderWidth: 1.5, borderColor: `${B.accent}2a`, borderStyle: 'dashed' })}>
               <UserPlus size={28} color={B.slate700} style={{ marginBottom: 10 }} />
-              <Txt weight="bold" size={15} color={B.textDim} style={{ marginBottom: 4 }}>Join a business</Txt>
-              <Txt size={12} color={B.textFaint} style={{ textAlign: 'center' }}>Enter an invite code from your manager</Txt>
+              <Txt weight="bold" size={15} color={B.textDim} style={{ marginBottom: 4 }}>{t('businessTeam.joinBusiness')}</Txt>
+              <Txt size={12} color={B.textFaint} style={{ textAlign: 'center' }}>{t('businessTeam.enterCode')}</Txt>
             </Pressable>
           </View>
         )}

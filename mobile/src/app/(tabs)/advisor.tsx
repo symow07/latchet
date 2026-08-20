@@ -121,8 +121,8 @@ export default function AdvisorTab() {
             <Bot size={20} color="#fff" />
           </LinearGradient>
           <View>
-            <Txt weight="bold" size={19} color={C.text}>AI Advisor</Txt>
-            <Txt size={11} color={C.textDim}>Your personal finance assistant</Txt>
+            <Txt weight="bold" size={19} color={C.text}>{t('advisor.title')}</Txt>
+            <Txt size={11} color={C.textDim}>{t('advisor.subtitle')}</Txt>
           </View>
         </View>
       </View>
@@ -145,8 +145,8 @@ export default function AdvisorTab() {
                 <View className="flex-row items-center mb-3" style={{ gap: 12 }}>
                   <IconBubble color={C.p500} size={48} radius={18}><Sparkles size={23} color={C.p400} /></IconBubble>
                   <View className="flex-1">
-                    <Txt weight="bold" size={18} color={C.text}>Welcome! 👋</Txt>
-                    <Txt size={13} color={C.textDim}>I've analyzed your spending</Txt>
+                    <Txt weight="bold" size={18} color={C.text}>{t('advisor.welcome')}</Txt>
+                    <Txt size={13} color={C.textDim}>{t('advisor.analyzed')}</Txt>
                   </View>
                 </View>
                 <Txt size={13} color={C.textDim} style={{ lineHeight: 20 }}>
@@ -157,7 +157,7 @@ export default function AdvisorTab() {
 
               {quickInsights.length > 0 && (
                 <View style={{ marginBottom: 16 }}>
-                  <Txt weight="bold" size={11} color={C.textFaint} style={{ marginBottom: 10, marginLeft: 2, letterSpacing: 1 }}>QUICK INSIGHTS</Txt>
+                  <Txt weight="bold" size={11} color={C.textFaint} style={{ marginBottom: 10, marginLeft: 2, letterSpacing: 1 }}>{t('advisor.quickInsights')}</Txt>
                   <View style={{ gap: 8 }}>
                     {quickInsights.map((insight, idx) => (
                       <Animated.View key={idx} entering={FadeInUp.delay(100 * idx).duration(300)}>
@@ -170,7 +170,7 @@ export default function AdvisorTab() {
                 </View>
               )}
 
-              <Txt weight="bold" size={11} color={C.textFaint} style={{ marginBottom: 10, marginLeft: 2, letterSpacing: 1 }}>TRY ASKING</Txt>
+              <Txt weight="bold" size={11} color={C.textFaint} style={{ marginBottom: 10, marginLeft: 2, letterSpacing: 1 }}>{t('advisor.tryAsking')}</Txt>
               <View style={{ gap: 10 }}>
                 {SUGGESTED_PROMPTS.map((prompt, idx) => (
                   <Animated.View key={idx} entering={FadeInUp.delay(200 + 100 * idx).duration(300)}>
@@ -212,7 +212,7 @@ export default function AdvisorTab() {
                       <View style={{ width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: `${C.p500}33` }}>
                         <Bot size={13} color={C.p400} />
                       </View>
-                      <Txt size={11} color={C.textDim}>AI Advisor</Txt>
+                      <Txt size={11} color={C.textDim}>{t('advisor.title')}</Txt>
                     </View>
                     <Txt size={14} color={C.text} style={{ lineHeight: 20 }}>{message.content}</Txt>
                   </GlassCard>
@@ -227,7 +227,7 @@ export default function AdvisorTab() {
               <GlassCard padding={14} radius={R.lg} tint={C.glassStrong}>
                 <View className="flex-row items-center" style={{ gap: 10 }}>
                   <ActivityIndicator size="small" color={C.p400} />
-                  <Txt size={13} color={C.textDim}>Analyzing your finances…</Txt>
+                  <Txt size={13} color={C.textDim}>{t('advisor.analyzing')}</Txt>
                 </View>
               </GlassCard>
             </Animated.View>

@@ -15,6 +15,7 @@ import {
 } from '@/lib/emailSubscriptionApi';
 import { C, R } from '@/lib/design';
 import { Txt, GlassCard, IconBubble, Pill, BubbleButton, ScreenBackground } from '@/components/ui';
+import { t } from '@/lib/i18n/core';
 
 const STEPS = [
   'Copy your private Budget address above.',
@@ -70,9 +71,9 @@ export default function EmailInboxScreen() {
         <View style={{ paddingHorizontal: 20 }}>
           <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.back(); }} style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1, flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 14, alignSelf: 'flex-start' })}>
             <ArrowLeft size={18} color={C.p400} />
-            <Txt weight="semibold" size={14} color={C.p400}>Back</Txt>
+            <Txt weight="semibold" size={14} color={C.p400}>{t('common.back')}</Txt>
           </Pressable>
-          <Txt weight="bold" size={28} color={C.text}>Email Inbox 📨</Txt>
+          <Txt weight="bold" size={28} color={C.text}>{t('emailInbox.title')}</Txt>
           <Txt weight="medium" size={13} color={C.textDim} style={{ marginTop: 2 }}>
             Forward receipts to your private Budget address and we'll spot the subscriptions automatically.
           </Txt>
@@ -84,7 +85,7 @@ export default function EmailInboxScreen() {
               <View className="flex-row items-start" style={{ gap: 12 }}>
                 <IconBubble color={C.amber}><Mail size={20} color={C.amber} /></IconBubble>
                 <View className="flex-1">
-                  <Txt weight="bold" size={15} color={C.text}>Not switched on yet</Txt>
+                  <Txt weight="bold" size={15} color={C.text}>{t('emailInbox.notOn')}</Txt>
                   <Txt size={13} color={C.textDim} style={{ marginTop: 3, lineHeight: 19 }}>
                     Email forwarding isn't enabled for this app yet. Once it's turned on, your private inbox address will appear here.
                   </Txt>
@@ -98,9 +99,9 @@ export default function EmailInboxScreen() {
             <Animated.View entering={FadeInUp.delay(40).springify().damping(16)} style={{ paddingHorizontal: 20, marginTop: 18 }}>
               <GlassCard tint={`${C.p500}14`} border={`${C.p500}2e`}>
                 <View className="flex-row items-center justify-between mb-3">
-                  <Txt weight="semibold" size={12} color={C.p300}>YOUR BUDGET ADDRESS</Txt>
+                  <Txt weight="semibold" size={12} color={C.p300}>{t('emailInbox.yourAddress')}</Txt>
                   {addr?.verified
-                    ? <View className="flex-row items-center" style={{ gap: 4 }}><ShieldCheck size={13} color={C.green} /><Txt weight="bold" size={11} color={C.green}>Active</Txt></View>
+                    ? <View className="flex-row items-center" style={{ gap: 4 }}><ShieldCheck size={13} color={C.green} /><Txt weight="bold" size={11} color={C.green}>{t('emailInbox.active')}</Txt></View>
                     : <Pill label="Awaiting first email" color={C.amber} />}
                 </View>
                 <View className="flex-row items-center" style={{ gap: 10 }}>
@@ -121,8 +122,8 @@ export default function EmailInboxScreen() {
                   <View className="flex-row items-center" style={{ gap: 12 }}>
                     <IconBubble color={C.amber}><KeyRound size={20} color={C.amber} /></IconBubble>
                     <View className="flex-1">
-                      <Txt weight="bold" size={14} color={C.text}>Confirm in Gmail</Txt>
-                      <Txt size={12} color={C.textDim} style={{ marginTop: 2 }}>Enter this code in Gmail's forwarding settings:</Txt>
+                      <Txt weight="bold" size={14} color={C.text}>{t('emailInbox.confirmGmail')}</Txt>
+                      <Txt size={12} color={C.textDim} style={{ marginTop: 2 }}>{t('emailInbox.enterCode')}</Txt>
                       <Txt weight="bold" size={22} color={C.amber} style={{ marginTop: 4, letterSpacing: 2 }}>{confirmation.merchant}</Txt>
                     </View>
                   </View>
@@ -133,7 +134,7 @@ export default function EmailInboxScreen() {
             {/* Detected invoices */}
             <View style={{ paddingHorizontal: 20, marginTop: 18 }}>
               <View className="flex-row items-center justify-between mb-3">
-                <Txt weight="bold" size={12} color={C.textFaint} style={{ letterSpacing: 1 }}>DETECTED INVOICES</Txt>
+                <Txt weight="bold" size={12} color={C.textFaint} style={{ letterSpacing: 1 }}>{t('emailInbox.detected')}</Txt>
                 {invoices.length > 0 && <Pill label={`${invoices.length} new`} color={C.p400} />}
               </View>
 
@@ -142,7 +143,7 @@ export default function EmailInboxScreen() {
               ) : invoices.length === 0 ? (
                 <GlassCard style={{ alignItems: 'center', paddingVertical: 30 }}>
                   <Inbox size={30} color={C.textFaint} />
-                  <Txt weight="semibold" size={14} color={C.textDim} style={{ marginTop: 10 }}>No invoices yet</Txt>
+                  <Txt weight="semibold" size={14} color={C.textDim} style={{ marginTop: 10 }}>{t('emailInbox.none')}</Txt>
                   <Txt size={12} color={C.textFaint} style={{ textAlign: 'center', marginTop: 3 }}>
                     Forward a receipt email to your address above — it'll show up here.
                   </Txt>
@@ -181,7 +182,7 @@ export default function EmailInboxScreen() {
 
             {/* Setup steps */}
             <View style={{ paddingHorizontal: 20, marginTop: 22 }}>
-              <Txt weight="bold" size={12} color={C.textFaint} style={{ letterSpacing: 1, marginBottom: 12 }}>ONE-TIME SETUP (GMAIL)</Txt>
+              <Txt weight="bold" size={12} color={C.textFaint} style={{ letterSpacing: 1, marginBottom: 12 }}>{t('emailInbox.setup')}</Txt>
               <GlassCard>
                 {STEPS.map((step, i) => (
                   <View key={i} className="flex-row" style={{ gap: 12, marginBottom: i < STEPS.length - 1 ? 16 : 0 }}>

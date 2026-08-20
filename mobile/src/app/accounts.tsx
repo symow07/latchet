@@ -20,6 +20,7 @@ import {
 import * as Haptics from 'expo-haptics';
 import { getAccounts, createAccount, updateAccount, deleteAccount, getSettings, type Account } from '@/lib/db';
 import { formatCurrencyAmount } from '@/lib/currencies';
+import { t } from '@/lib/i18n/core';
 
 const ACCOUNT_TYPES = [
   { id: 'cash', label: 'Cash', icon: Wallet, color: '#22c55e' },
@@ -174,7 +175,7 @@ export default function AccountsScreen() {
           >
             <ArrowLeft size={20} color="white" />
           </Pressable>
-          <Text className="text-white text-xl font-bold flex-1">My Accounts</Text>
+          <Text className="text-white text-xl font-bold flex-1">{t('accounts.title')}</Text>
           <Pressable
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -193,7 +194,7 @@ export default function AccountsScreen() {
           className="rounded-2xl p-4"
           style={{ backgroundColor: 'rgba(255,255,255,0.15)' }}
         >
-          <Text className="text-white/70 text-sm mb-1">Total Net Worth</Text>
+          <Text className="text-white/70 text-sm mb-1">{t('accounts.totalNetWorth')}</Text>
           <Text className="text-white text-3xl font-bold">
             {formatCurrencyAmount(totalBalance, currencyCode)}
           </Text>
@@ -246,7 +247,7 @@ export default function AccountsScreen() {
                     </Text>
                     {account.isDefault === 1 && (
                       <View className="bg-purple-500/20 px-2 py-0.5 rounded-full mt-1">
-                        <Text className="text-purple-400 text-xs">Default</Text>
+                        <Text className="text-purple-400 text-xs">{t('accounts.default')}</Text>
                       </View>
                     )}
                   </View>
@@ -303,7 +304,7 @@ export default function AccountsScreen() {
           <ScrollView className="flex-1 px-5 py-6">
             {/* Account Name */}
             <View className="mb-6">
-              <Text className="text-gray-400 text-sm mb-2 ml-1">Account Name</Text>
+              <Text className="text-gray-400 text-sm mb-2 ml-1">{t('accounts.accountName')}</Text>
               <View
                 className="rounded-2xl px-4 py-4"
                 style={{ backgroundColor: 'rgba(255,255,255,0.05)' }}
@@ -311,7 +312,7 @@ export default function AccountsScreen() {
                 <TextInput
                   value={name}
                   onChangeText={setName}
-                  placeholder="e.g., Main Checking"
+                  placeholder={t('accounts.namePlaceholder')}
                   placeholderTextColor="#555"
                   className="text-white text-lg"
                   selectionColor="#a855f7"
@@ -321,7 +322,7 @@ export default function AccountsScreen() {
 
             {/* Account Type */}
             <View className="mb-6">
-              <Text className="text-gray-400 text-sm mb-2 ml-1">Account Type</Text>
+              <Text className="text-gray-400 text-sm mb-2 ml-1">{t('accounts.accountType')}</Text>
               <View className="flex-row flex-wrap gap-2">
                 {ACCOUNT_TYPES.map((t) => {
                   const Icon = t.icon;
@@ -383,7 +384,7 @@ export default function AccountsScreen() {
 
             {/* Color */}
             <View className="mb-6">
-              <Text className="text-gray-400 text-sm mb-2 ml-1">Color</Text>
+              <Text className="text-gray-400 text-sm mb-2 ml-1">{t('accounts.color')}</Text>
               <View className="flex-row flex-wrap gap-3">
                 {ACCOUNT_COLORS.map((c) => (
                   <Pressable
@@ -420,7 +421,7 @@ export default function AccountsScreen() {
               >
                 <View className="flex-row items-center justify-center py-4 rounded-2xl bg-red-500/10">
                   <Trash2 size={20} color="#ef4444" />
-                  <Text className="text-red-400 font-semibold ml-2">Delete Account</Text>
+                  <Text className="text-red-400 font-semibold ml-2">{t('accounts.delete')}</Text>
                 </View>
               </Pressable>
             )}

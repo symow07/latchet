@@ -23,6 +23,7 @@ import { getEmailDetectedForBusiness } from '@/lib/emailSubscriptionApi';
 import { EmailScanCard } from '@/components/EmailScanCard';
 import { B, R, glow } from '@/lib/design';
 import { Txt, GlassCard, IconBubble, BizBackground, BubbleButton } from '@/components/ui';
+import { t } from '@/lib/i18n/core';
 
 // ─── Cancel Guide Modal ─────────────────────────────────────────────────────────
 function CancelGuideModal({ sub, visible, onClose }: { sub: DetectedSubscription | null; visible: boolean; onClose: () => void }) {
@@ -41,7 +42,7 @@ function CancelGuideModal({ sub, visible, onClose }: { sub: DetectedSubscription
           <View style={{ width: 40, height: 4, backgroundColor: B.slate700, borderRadius: 2, alignSelf: 'center', marginBottom: 20 }} />
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
             <View style={{ flex: 1 }}>
-              <Txt weight="bold" size={11} color={B.accent} style={{ letterSpacing: 1.2, marginBottom: 4 }}>HOW TO CANCEL</Txt>
+              <Txt weight="bold" size={11} color={B.accent} style={{ letterSpacing: 1.2, marginBottom: 4 }}>{t('businessTools.howToCancel')}</Txt>
               <Txt weight="bold" size={20} color={B.text} numberOfLines={2}>{sub.name}</Txt>
             </View>
             <Pressable onPress={onClose} hitSlop={10}><X size={22} color={B.textFaint} /></Pressable>
@@ -49,17 +50,17 @@ function CancelGuideModal({ sub, visible, onClose }: { sub: DetectedSubscription
 
           <GlassCard padding={16} radius={R.md} tint={`${B.red}0e`} border={`${B.red}26`} style={{ marginBottom: 16, flexDirection: 'row', alignItems: 'center' }}>
             <View style={{ flex: 1 }}>
-              <Txt weight="semibold" size={11} color={B.textDim} style={{ letterSpacing: 0.8 }}>MONTHLY COST</Txt>
+              <Txt weight="semibold" size={11} color={B.textDim} style={{ letterSpacing: 0.8 }}>{t('businessTools.monthlyCost')}</Txt>
               <Txt weight="bold" size={26} color={B.red} style={{ marginTop: 2 }}>${sub.amount.toFixed(2)}</Txt>
               <Txt size={12} color={B.textFaint} style={{ marginTop: 2 }}>${(sub.amount * 12).toFixed(0)}/year</Txt>
             </View>
             <View style={{ alignItems: 'flex-end' }}>
-              <Txt size={11} color={B.textFaint}>Next charge</Txt>
+              <Txt size={11} color={B.textFaint}>{t('businessTools.nextCharge')}</Txt>
               <Txt weight="bold" size={14} color={B.amber} style={{ marginTop: 2 }}>{formatNextCharge(sub.nextChargeDate)}</Txt>
             </View>
           </GlassCard>
 
-          <Txt weight="bold" size={11} color={B.textFaint} style={{ letterSpacing: 1.2, marginBottom: 12 }}>CANCELLATION STEPS</Txt>
+          <Txt weight="bold" size={11} color={B.textFaint} style={{ letterSpacing: 1.2, marginBottom: 12 }}>{t('businessTools.cancelSteps')}</Txt>
           <GlassCard padding={18} radius={R.md} style={{ marginBottom: 16 }}>
             {steps.map((s, i) => (
               <View key={i} style={{ flexDirection: 'row', gap: 12, marginBottom: i < steps.length - 1 ? 16 : 0 }}>
@@ -112,7 +113,7 @@ function SubscriptionCard({ sub, onCancelGuide }: { sub: DetectedSubscription; o
               {sub.isRecurring && (
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
                   <RefreshCw size={9} color={B.teal} />
-                  <Txt weight="bold" size={10} color={B.teal}>RECURRING</Txt>
+                  <Txt weight="bold" size={10} color={B.teal}>{t('businessTools.recurring')}</Txt>
                 </View>
               )}
               <Txt size={10} color={B.textFaint}>{sub.category}</Txt>
@@ -135,23 +136,23 @@ function SubscriptionCard({ sub, onCancelGuide }: { sub: DetectedSubscription; o
         <View style={{ borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.06)', paddingHorizontal: 16, paddingVertical: 14, backgroundColor: 'rgba(0,0,0,0.15)' }}>
           <View style={{ flexDirection: 'row', marginBottom: 14 }}>
             <View style={{ flex: 1 }}>
-              <Txt weight="bold" size={10} color={B.textFaint} style={{ letterSpacing: 0.8, marginBottom: 4 }}>ANNUAL COST</Txt>
+              <Txt weight="bold" size={10} color={B.textFaint} style={{ letterSpacing: 0.8, marginBottom: 4 }}>{t('businessTools.annualCost')}</Txt>
               <Txt weight="bold" size={15} color={B.text}>${(sub.amount * 12).toFixed(0)}/yr</Txt>
             </View>
             <View style={{ flex: 1 }}>
-              <Txt weight="bold" size={10} color={B.textFaint} style={{ letterSpacing: 0.8, marginBottom: 4 }}>LAST CHARGED</Txt>
+              <Txt weight="bold" size={10} color={B.textFaint} style={{ letterSpacing: 0.8, marginBottom: 4 }}>{t('businessTools.lastCharged')}</Txt>
               <Txt weight="bold" size={15} color={B.text}>{new Date(sub.lastChargeDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</Txt>
             </View>
             {sub.isRecurring && (
               <View style={{ flex: 1 }}>
-                <Txt weight="bold" size={10} color={B.textFaint} style={{ letterSpacing: 0.8, marginBottom: 4 }}>MONTHS SEEN</Txt>
+                <Txt weight="bold" size={10} color={B.textFaint} style={{ letterSpacing: 0.8, marginBottom: 4 }}>{t('businessTools.monthsSeen')}</Txt>
                 <Txt weight="bold" size={15} color={B.text}>{sub.monthlyCount}×</Txt>
               </View>
             )}
           </View>
           <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); onCancelGuide(sub); }} style={({ pressed }) => ({ opacity: pressed ? 0.75 : 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 11, borderRadius: 12, backgroundColor: `${B.red}14`, borderWidth: 1, borderColor: `${B.red}2a` })}>
             <X size={13} color={B.red} />
-            <Txt weight="bold" size={13} color={B.red}>How to Cancel</Txt>
+            <Txt weight="bold" size={13} color={B.red}>{t('businessTools.howToCancel')}</Txt>
           </Pressable>
         </View>
       )}
@@ -188,12 +189,12 @@ export default function BusinessToolsScreen() {
         <View style={{ paddingHorizontal: 20, paddingTop: insets.top + 16, paddingBottom: 14 }}>
           <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.back(); }} style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1, flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 16, alignSelf: 'flex-start' })}>
             <ArrowLeft size={18} color={B.accent} />
-            <Txt weight="semibold" size={14} color={B.accent}>Dashboard</Txt>
+            <Txt weight="semibold" size={14} color={B.accent}>{t('business.dashboard')}</Txt>
           </Pressable>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
             <View style={{ flex: 1 }}>
-              <Txt weight="bold" size={12} color={B.accent} style={{ letterSpacing: 1.6 }}>BUSINESS</Txt>
-              <Txt weight="bold" size={25} color={B.text} style={{ marginTop: 2 }}>Tools & Subscriptions</Txt>
+              <Txt weight="bold" size={12} color={B.accent} style={{ letterSpacing: 1.6 }}>{t('business.label')}</Txt>
+              <Txt weight="bold" size={25} color={B.text} style={{ marginTop: 2 }}>{t('businessTools.title')}</Txt>
             </View>
             <IconBubble color={B.accent} size={44} radius={14}><Wrench size={20} color={B.accent} /></IconBubble>
           </View>
@@ -208,8 +209,8 @@ export default function BusinessToolsScreen() {
           <View style={{ marginHorizontal: 20, marginTop: 30 }}>
             <GlassCard padding={40} radius={R.xl} style={{ alignItems: 'center' }}>
               <IconBubble color={B.accent} size={72} radius={24} style={{ marginBottom: 16 }}><Wrench size={32} color={B.slate700} /></IconBubble>
-              <Txt weight="bold" size={16} color={B.textDim} style={{ marginBottom: 6 }}>No subscriptions detected</Txt>
-              <Txt size={13} color={B.textFaint} style={{ textAlign: 'center', lineHeight: 19 }}>Submit software or recurring expenses to start tracking your business tools here.</Txt>
+              <Txt weight="bold" size={16} color={B.textDim} style={{ marginBottom: 6 }}>{t('businessTools.none')}</Txt>
+              <Txt size={13} color={B.textFaint} style={{ textAlign: 'center', lineHeight: 19 }}>{t('businessTools.emptyHint')}</Txt>
             </GlassCard>
           </View>
         ) : (
@@ -219,7 +220,7 @@ export default function BusinessToolsScreen() {
               <LinearGradient colors={[B.slate800, '#102a4a']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[{ borderRadius: R.lg, padding: 24, borderWidth: 1, borderColor: `${B.accent}2a` }, glow(B.accentDeep, 0.25, 22)]}>
                 <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 }}>
                   <View>
-                    <Txt weight="semibold" size={12} color="rgba(255,255,255,0.4)" style={{ letterSpacing: 1, marginBottom: 6 }}>MONTHLY TOOL SPEND</Txt>
+                    <Txt weight="semibold" size={12} color="rgba(255,255,255,0.4)" style={{ letterSpacing: 1, marginBottom: 6 }}>{t('businessTools.monthlySpend')}</Txt>
                     <Txt weight="bold" size={40} color="#fff" style={{ lineHeight: 44 }}>${monthlyTotal.toFixed(2)}</Txt>
                     <Txt size={12} color={B.textFaint} style={{ marginTop: 4 }}>{subscriptions.length} tool{subscriptions.length !== 1 ? 's' : ''} · ${annualTotal.toFixed(0)}/year</Txt>
                   </View>
@@ -283,7 +284,7 @@ export default function BusinessToolsScreen() {
               <GlassCard padding={18} radius={R.lg} tint={`${B.accent}0c`} border={`${B.accent}22`}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}>
                   <Info size={15} color={B.accent} />
-                  <Txt weight="bold" size={12} color={B.accent} style={{ letterSpacing: 0.8 }}>CANCELLATION TIP</Txt>
+                  <Txt weight="bold" size={12} color={B.accent} style={{ letterSpacing: 0.8 }}>{t('businessTools.cancelTip')}</Txt>
                 </View>
                 <Txt size={13} color={B.textDim} style={{ lineHeight: 20 }}>
                   Most SaaS tools let you cancel from <Txt weight="semibold" size={13} color={B.text}>Settings → Billing</Txt>. Cancel <Txt weight="semibold" size={13} color={B.text}>at least 24 hours before</Txt> the next renewal date to avoid being charged. Always request a cancellation confirmation email.

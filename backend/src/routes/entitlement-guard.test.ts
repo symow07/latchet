@@ -4,7 +4,8 @@ import { prisma } from "../prisma";
 import { aiRouter } from "./ai";
 import { plaidRouter } from "./plaid";
 import { revenueCatRouter } from "./revenuecat";
-import { FREE_AI_CALLS_PER_DAY } from "../lib/entitlement";
+import { FREE_AI_CALLS_PER_DAY, aiAllowance } from "../lib/entitlement";
+import { allowUsageTiered } from "../lib/usage-limit";
 
 /**
  * The entitlement gate, exercised against a real database.
@@ -106,25 +107,37 @@ test("an expired Pro subscription is treated as free", async () => {
 // ── The AI allowance ─────────────────────────────────────────────────────────
 
 test("a free user gets a taste of the advisor, then a paywall", async () => {
-  const app = appAs(FREE_USER, aiRouter as never);
-  const call = () =>
-    app.request("/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt: "hello" }),
-    });
-
-  // The allowance is consumed by the guard before the handler runs, so these
-  // do not reach OpenAI.
-  const statuses: number[] = [];
-  for (let i = 0; i < FREE_AI_CALLS_PER_DAY + 1; i++) {
-    statuses.push((await call()).status);
+  // The allowance is spent directly rather than over HTTP. The guard calls
+  // next() once a request is allowed, so driving it through the route would
+  // run the handler and make a real call to OpenAI — five of them, each with a
+  // 15s timeout, which is both slow and dependent on the network.
+  const allowance = aiAllowance(false);
+  for (let i = 0; i < FREE_AI_CALLS_PER_DAY; i++) {
+    expect(allowUsageTiered("ai", FREE_USER, allowance)).toBe(true);
   }
 
-  const overLimit = statuses[FREE_AI_CALLS_PER_DAY]!;
+  // One request past the allowance: refused by the guard, so it never reaches
+  // the handler and never touches the network.
+  const res = await appAs(FREE_USER, aiRouter as never).request("/chat", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ prompt: "hello" }),
+  });
+
   // 402, not 429: this is a paywall, not congestion.
-  expect(overLimit).toBe(402);
-  expect(statuses.slice(0, FREE_AI_CALLS_PER_DAY)).not.toContain(402);
+  expect(res.status).toBe(402);
+  expect((await res.json()) as { code: string }).toMatchObject({
+    code: "upgrade_required",
+    tier: "free",
+  });
+});
+
+test("a Pro user is not stopped at the free allowance", async () => {
+  const allowance = aiAllowance(true);
+  // Well past what a free user gets, still permitted.
+  for (let i = 0; i < FREE_AI_CALLS_PER_DAY + 3; i++) {
+    expect(allowUsageTiered("ai", PRO_USER, allowance)).toBe(true);
+  }
 });
 
 // ── Webhook authentication ───────────────────────────────────────────────────

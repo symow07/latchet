@@ -22,6 +22,7 @@ import { getBusiness } from '@/lib/businessApi';
 import { useSession } from '@/lib/auth/use-session';
 import { B, R, glow } from '@/lib/design';
 import { Txt, GlassCard, IconBubble, Pill, BizBackground, BubbleButton } from '@/components/ui';
+import { t } from '@/lib/i18n/core';
 
 type CatMeta = { label: ExpenseCategory; icon: React.ComponentType<{ size: number; color: string }>; color: string };
 
@@ -101,7 +102,7 @@ function SubmitModal({ visible, onClose, onDone }: { visible: boolean; onClose: 
           <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
             <View style={{ width: 40, height: 4, backgroundColor: B.slate700, borderRadius: 2, alignSelf: 'center', marginBottom: 20 }} />
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 22 }}>
-              <Txt weight="bold" size={20} color={B.text}>New Expense</Txt>
+              <Txt weight="bold" size={20} color={B.text}>{t('businessExpenses.new')}</Txt>
               <Pressable onPress={handleClose} hitSlop={10}><X size={22} color={B.textFaint} /></Pressable>
             </View>
 
@@ -111,7 +112,7 @@ function SubmitModal({ visible, onClose, onDone }: { visible: boolean; onClose: 
               </GlassCard>
             )}
 
-            <FieldLabel>AMOUNT</FieldLabel>
+            <FieldLabel>{t('businessExpenses.amount')}</FieldLabel>
             <GlassCard padding={0} radius={R.md} style={{ marginBottom: 14 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14 }}>
                 <Txt weight="bold" size={20} color={B.accent} style={{ marginRight: 8 }}>$</Txt>
@@ -119,7 +120,7 @@ function SubmitModal({ visible, onClose, onDone }: { visible: boolean; onClose: 
               </View>
             </GlassCard>
 
-            <FieldLabel>CATEGORY</FieldLabel>
+            <FieldLabel>{t('businessExpenses.category')}</FieldLabel>
             <Pressable onPress={() => setCatOpen(v => !v)}>
               <GlassCard padding={0} radius={R.md} border={catOpen ? `${B.accent}55` : B.glassBorder} style={{ marginBottom: catOpen ? 0 : 14 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 12 }}>
@@ -144,27 +145,27 @@ function SubmitModal({ visible, onClose, onDone }: { visible: boolean; onClose: 
               </GlassCard>
             )}
 
-            <FieldLabel>DESCRIPTION</FieldLabel>
+            <FieldLabel>{t('businessExpenses.description')}</FieldLabel>
             <TextInput value={desc} onChangeText={t => { setDesc(t); setErr(''); }} placeholder="What was this for?" placeholderTextColor={B.textFaint} multiline numberOfLines={3} style={{ color: B.text, fontSize: 15, fontFamily: 'PlusJakartaSans_500Medium', backgroundColor: B.glass, borderRadius: R.md, padding: 14, borderWidth: 1, borderColor: B.glassBorder, textAlignVertical: 'top', minHeight: 80, marginBottom: 14 }} selectionColor={B.accent} />
 
-            <FieldLabel>RECEIPT (OPTIONAL)</FieldLabel>
+            <FieldLabel>{t('businessExpenses.receipt')}</FieldLabel>
             {imageUri ? (
               <View style={{ marginBottom: 14 }}>
                 <Image source={{ uri: imageUri }} style={{ width: '100%', height: 140, borderRadius: R.md, marginBottom: 8 }} resizeMode="cover" />
                 <Pressable onPress={() => setImageUri(null)} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: `${B.red}16`, borderRadius: 12, paddingVertical: 9, borderWidth: 1, borderColor: `${B.red}33` }}>
                   <X size={14} color={B.red} />
-                  <Txt weight="semibold" size={13} color={B.red}>Remove Image</Txt>
+                  <Txt weight="semibold" size={13} color={B.red}>{t('businessExpenses.removeImage')}</Txt>
                 </Pressable>
               </View>
             ) : (
               <View style={{ flexDirection: 'row', gap: 8, marginBottom: 14 }}>
                 <Pressable onPress={takePhoto} style={({ pressed }) => ({ flex: 1, opacity: pressed ? 0.7 : 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: `${B.accent}0e`, borderRadius: 14, paddingVertical: 13, borderWidth: 1, borderColor: `${B.accent}2a` })}>
                   <Camera size={16} color={B.accent} />
-                  <Txt weight="semibold" size={13} color={B.accent}>Camera</Txt>
+                  <Txt weight="semibold" size={13} color={B.accent}>{t('businessExpenses.camera')}</Txt>
                 </Pressable>
                 <Pressable onPress={pickImage} style={({ pressed }) => ({ flex: 1, opacity: pressed ? 0.7 : 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: `${B.accent}0e`, borderRadius: 14, paddingVertical: 13, borderWidth: 1, borderColor: `${B.accent}2a` })}>
                   <ImageIcon size={16} color={B.accent} />
-                  <Txt weight="semibold" size={13} color={B.accent}>Gallery</Txt>
+                  <Txt weight="semibold" size={13} color={B.accent}>{t('businessExpenses.gallery')}</Txt>
                 </Pressable>
               </View>
             )}
@@ -214,7 +215,7 @@ function ExpenseCard({ expense, canReview, onApprove, onReject }: { expense: Exp
           ) : (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: `${B.accent}10`, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 6, alignSelf: 'flex-start', borderWidth: 1, borderColor: `${B.accent}22` }}>
               <ImageIcon size={12} color={B.accent} />
-              <Txt weight="semibold" size={11} color={B.accent}>View Receipt</Txt>
+              <Txt weight="semibold" size={11} color={B.accent}>{t('businessExpenses.viewReceipt')}</Txt>
             </View>
           )}
         </Pressable>
@@ -230,11 +231,11 @@ function ExpenseCard({ expense, canReview, onApprove, onReject }: { expense: Exp
         <View style={{ flexDirection: 'row', gap: 8, marginTop: 6 }}>
           <Pressable onPress={() => onApprove(expense.id)} style={({ pressed }) => ({ flex: 1, opacity: pressed ? 0.7 : 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: `${B.teal}16`, borderRadius: 12, paddingVertical: 11, gap: 5, borderWidth: 1, borderColor: `${B.teal}33` })}>
             <Check size={14} color={B.teal} strokeWidth={3} />
-            <Txt weight="bold" size={13} color={B.teal}>Approve</Txt>
+            <Txt weight="bold" size={13} color={B.teal}>{t('businessExpenses.approve')}</Txt>
           </Pressable>
           <Pressable onPress={() => onReject(expense.id)} style={({ pressed }) => ({ flex: 1, opacity: pressed ? 0.7 : 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: `${B.red}16`, borderRadius: 12, paddingVertical: 11, gap: 5, borderWidth: 1, borderColor: `${B.red}33` })}>
             <XCircle size={14} color={B.red} />
-            <Txt weight="bold" size={13} color={B.red}>Reject</Txt>
+            <Txt weight="bold" size={13} color={B.red}>{t('businessExpenses.reject')}</Txt>
           </Pressable>
         </View>
       )}
@@ -277,8 +278,8 @@ export default function ExpensesScreen() {
         {/* Header */}
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 16, paddingBottom: 14 }}>
           <View>
-            <Txt weight="bold" size={12} color={B.accent} style={{ letterSpacing: 1.6 }}>BUSINESS</Txt>
-            <Txt weight="bold" size={25} color={B.text} style={{ marginTop: 2 }}>Expenses</Txt>
+            <Txt weight="bold" size={12} color={B.accent} style={{ letterSpacing: 1.6 }}>{t('business.label')}</Txt>
+            <Txt weight="bold" size={25} color={B.text} style={{ marginTop: 2 }}>{t('businessExpenses.title')}</Txt>
           </View>
           <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setShowSubmit(true); }} style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 9, borderRadius: 13, backgroundColor: `${B.accent}22`, borderWidth: 1.5, borderColor: `${B.accent}44` })}>
             <Plus size={16} color={B.accent} />
@@ -289,12 +290,12 @@ export default function ExpensesScreen() {
         {/* Summary */}
         <View style={{ flexDirection: 'row', paddingHorizontal: 20, gap: 10, marginBottom: 18 }}>
           <GlassCard style={{ flex: 1 }} padding={16} radius={R.md} tint={`${B.red}10`} border={`${B.red}26`}>
-            <Txt weight="semibold" size={11} color={B.textFaint} style={{ marginBottom: 4 }}>TOTAL</Txt>
+            <Txt weight="semibold" size={11} color={B.textFaint} style={{ marginBottom: 4 }}>{t('businessExpenses.total')}</Txt>
             <Txt weight="bold" size={22} color={B.text}>${totalAll.toFixed(2)}</Txt>
             <Txt size={11} color={B.textFaint} style={{ marginTop: 2 }}>{expenses.length} expense{expenses.length !== 1 ? 's' : ''}</Txt>
           </GlassCard>
           <GlassCard style={{ flex: 1 }} padding={16} radius={R.md} tint={`${B.teal}10`} border={`${B.teal}26`}>
-            <Txt weight="semibold" size={11} color={B.textFaint} style={{ marginBottom: 4 }}>APPROVED</Txt>
+            <Txt weight="semibold" size={11} color={B.textFaint} style={{ marginBottom: 4 }}>{t('businessExpenses.approved')}</Txt>
             <Txt weight="bold" size={22} color={B.teal}>${totalApproved.toFixed(2)}</Txt>
             <Txt size={11} color={B.textFaint} style={{ marginTop: 2 }}>{pendingCount > 0 ? `${pendingCount} pending review` : 'none pending'}</Txt>
           </GlassCard>

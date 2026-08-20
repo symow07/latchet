@@ -488,7 +488,7 @@ export default function ImportScreen() {
             <ArrowLeft size={20} color="white" />
           </Pressable>
           <View className="flex-1 items-center">
-            <Text className="text-white text-lg font-bold">Import Transactions</Text>
+            <Text className="text-white text-lg font-bold">{t('importExtra.title')}</Text>
             <Text className="text-white/70 text-xs mt-1">
               {step === 'upload' ? 'Upload CSV' : step === 'preview' ? 'Review & Edit' : 'Complete'}
             </Text>
@@ -512,7 +512,7 @@ export default function ImportScreen() {
               <Shield size={20} color="#22c55e" />
             </View>
             <View className="flex-1">
-              <Text className="text-green-400 font-semibold mb-1">Your Data Stays Private</Text>
+              <Text className="text-green-400 font-semibold mb-1">{t('importExtra.privateTitle')}</Text>
               <Text className="text-gray-400 text-xs leading-4">
                 We do not store your banking credentials. Files are processed locally on your device
                 and never uploaded to external servers.
@@ -524,7 +524,7 @@ export default function ImportScreen() {
         {/* Upload Step */}
         {step === 'upload' && (
           <Animated.View entering={FadeInUp.delay(200).duration(400)} className="px-4 pt-6">
-            <Text className="text-gray-400 text-xs font-semibold mb-3 ml-1">CHOOSE A SOURCE</Text>
+            <Text className="text-gray-400 text-xs font-semibold mb-3 ml-1">{t('importExtra.chooseSource')}</Text>
             <View className="gap-3">
               {([
                 { source: 'bank' as ImportSource, emoji: '🏦', title: 'Bank statement', sub: 'CIH, Attijariwafa, or any bank — export a CSV', color: '#3b82f6' },
@@ -555,7 +555,7 @@ export default function ImportScreen() {
 
             {/* Supported Formats */}
             <View className="mt-6">
-              <Text className="text-gray-400 text-xs font-semibold mb-3 ml-1">SUPPORTED FORMATS</Text>
+              <Text className="text-gray-400 text-xs font-semibold mb-3 ml-1">{t('import.supportedFormats')}</Text>
               <View
                 className="rounded-xl p-4"
                 style={{ backgroundColor: 'rgba(255,255,255,0.05)' }}
@@ -686,7 +686,7 @@ export default function ImportScreen() {
               }}
               className="rounded-xl py-3 items-center mt-2"
             >
-              <Text className="text-gray-400">Choose a different file</Text>
+              <Text className="text-gray-400">{t('import.chooseDifferentFile')}</Text>
             </Pressable>
           </Animated.View>
         )}
@@ -702,7 +702,7 @@ export default function ImportScreen() {
               >
                 <Text className="text-gray-400 text-xs mb-3">{t('import.summary')}</Text>
                 <View className="flex-row justify-between mb-2">
-                  <Text className="text-gray-400">Transactions</Text>
+                  <Text className="text-gray-400">{t('importExtra.transactions')}</Text>
                   <Text className="text-white font-semibold">{transactions.length}</Text>
                 </View>
                 <View className="flex-row justify-between mb-2">
@@ -839,7 +839,7 @@ export default function ImportScreen() {
                               <>
                                 <View className="w-1 h-1 rounded-full bg-gray-600 mx-2" />
                                 <View className="bg-pink-500/20 rounded-full px-2 py-0.5">
-                                  <Text className="text-pink-400 text-xs">Impulse</Text>
+                                  <Text className="text-pink-400 text-xs">{t('importExtra.impulse')}</Text>
                                 </View>
                               </>
                             )}
@@ -861,7 +861,7 @@ export default function ImportScreen() {
                       {expandedTx === tx.id && (
                         <Animated.View entering={FadeInDown.duration(200)} className="mt-4 pt-4 border-t border-gray-800">
                           {/* Category Selector */}
-                          <Text className="text-gray-400 text-xs mb-2">CATEGORY</Text>
+                          <Text className="text-gray-400 text-xs mb-2">{t('importExtra.category')}</Text>
                           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }}>
                             <View className="flex-row gap-2">
                               {CATEGORIES.map(cat => (
@@ -930,7 +930,7 @@ export default function ImportScreen() {
             <View className="w-24 h-24 rounded-full bg-green-500/20 items-center justify-center mb-6">
               <Check size={48} color="#22c55e" />
             </View>
-            <Text className="text-white text-2xl font-bold mb-2">Import Complete!</Text>
+            <Text className="text-white text-2xl font-bold mb-2">{t('importExtra.complete')}</Text>
             <Text className="text-gray-400 text-center mb-6">
               Successfully imported {importedCount} transactions into your budget tracker.
             </Text>
@@ -949,7 +949,7 @@ export default function ImportScreen() {
                   alignItems: 'center',
                 }}
               >
-                <Text className="text-white font-bold text-lg">Go to Dashboard</Text>
+                <Text className="text-white font-bold text-lg">{t('importExtra.goToDashboard')}</Text>
               </LinearGradient>
             </Pressable>
           </Animated.View>

@@ -181,7 +181,7 @@ export default function LinkBankScreen() {
       >
         <View className="flex-row items-center mb-2">
           <Shield size={18} color="#22c55e" />
-          <Text className="text-green-400 font-semibold ml-2">Bank-Grade Security</Text>
+          <Text className="text-green-400 font-semibold ml-2">{t('bankExtra.security')}</Text>
         </View>
         <Text className="text-gray-400 text-sm leading-5">
           We use OAuth authentication and never store your banking credentials.
@@ -199,7 +199,7 @@ export default function LinkBankScreen() {
       {linkedBanks.length > 0 && (
         <View className="px-4 mb-6">
           <View className="flex-row items-center justify-between mb-3">
-            <Text className="text-gray-400 text-xs font-semibold">LINKED ACCOUNTS</Text>
+            <Text className="text-gray-400 text-xs font-semibold">{t('bankExtra.linkedAccounts')}</Text>
             <Pressable
               onPress={handleSync}
               disabled={isSyncing}
@@ -265,12 +265,12 @@ export default function LinkBankScreen() {
                       <View className="flex-row items-center">
                         {isExpired && (
                           <View className="bg-red-500/20 rounded-full px-2 py-1 mr-2">
-                            <Text className="text-red-400 text-xs">Expired</Text>
+                            <Text className="text-red-400 text-xs">{t('bankExtra.expired')}</Text>
                           </View>
                         )}
                         {isExpiring && !isExpired && (
                           <View className="bg-amber-500/20 rounded-full px-2 py-1 mr-2">
-                            <Text className="text-amber-400 text-xs">Expiring</Text>
+                            <Text className="text-amber-400 text-xs">{t('bankExtra.expiring')}</Text>
                           </View>
                         )}
                         <ChevronRight size={20} color="#6b7280" />
@@ -334,7 +334,7 @@ export default function LinkBankScreen() {
         >
           <View className="flex-row items-center mb-2">
             <Info size={16} color="#6b7280" />
-            <Text className="text-gray-500 text-sm ml-2">Prefer manual entry?</Text>
+            <Text className="text-gray-500 text-sm ml-2">{t('bankExtra.preferManual')}</Text>
           </View>
           <Text className="text-gray-600 text-xs">
             You can continue adding transactions manually in the Dashboard.
@@ -397,7 +397,7 @@ export default function LinkBankScreen() {
         >
           <View className="flex-row items-center mb-2">
             <Lock size={16} color="#a855f7" />
-            <Text className="text-purple-400 font-semibold ml-2">How It Works</Text>
+            <Text className="text-purple-400 font-semibold ml-2">{t('bankExtra.howItWorks')}</Text>
           </View>
           <View className="gap-2">
             <View className="flex-row items-start">
@@ -476,7 +476,7 @@ export default function LinkBankScreen() {
                   style={{ backgroundColor: 'rgba(239, 68, 68, 0.2)' }}
                 >
                   <Unlink size={16} color="#ef4444" />
-                  <Text className="text-red-400 font-semibold ml-2">Disconnect</Text>
+                  <Text className="text-red-400 font-semibold ml-2">{t('bankExtra.disconnect')}</Text>
                 </View>
               </Pressable>
             </View>
@@ -485,7 +485,7 @@ export default function LinkBankScreen() {
 
         {/* Accounts */}
         <View className="px-4 mb-4">
-          <Text className="text-gray-400 text-xs font-semibold mb-3">LINKED ACCOUNTS</Text>
+          <Text className="text-gray-400 text-xs font-semibold mb-3">{t('bankExtra.linkedAccounts')}</Text>
 
           {bankAccounts.map((account, idx) => (
             <Animated.View
@@ -533,7 +533,7 @@ export default function LinkBankScreen() {
 
         {/* Consent Info */}
         <View className="px-4">
-          <Text className="text-gray-400 text-xs font-semibold mb-3">DATA ACCESS</Text>
+          <Text className="text-gray-400 text-xs font-semibold mb-3">{t('bankExtra.dataAccess')}</Text>
 
           <View
             className="rounded-xl p-4"
@@ -597,21 +597,21 @@ export default function LinkBankScreen() {
                   <View className="w-8 h-8 rounded-full bg-green-500/20 items-center justify-center mr-3">
                     <Check size={16} color="#22c55e" />
                   </View>
-                  <Text className="text-gray-300 flex-1">View your account balances</Text>
+                  <Text className="text-gray-300 flex-1">{t('bankExtra.viewBalances')}</Text>
                 </View>
 
                 <View className="flex-row items-center">
                   <View className="w-8 h-8 rounded-full bg-green-500/20 items-center justify-center mr-3">
                     <Check size={16} color="#22c55e" />
                   </View>
-                  <Text className="text-gray-300 flex-1">Read your transaction history</Text>
+                  <Text className="text-gray-300 flex-1">{t('bankExtra.readHistory')}</Text>
                 </View>
 
                 <View className="flex-row items-center">
                   <View className="w-8 h-8 rounded-full bg-red-500/20 items-center justify-center mr-3">
                     <AlertTriangle size={16} color="#ef4444" />
                   </View>
-                  <Text className="text-gray-500 flex-1">We CANNOT make payments or transfers</Text>
+                  <Text className="text-gray-500 flex-1">{t('bankExtra.noPayments')}</Text>
                 </View>
               </View>
             </View>
@@ -634,7 +634,7 @@ export default function LinkBankScreen() {
                 className="flex-1"
               >
                 <View className="bg-gray-800 rounded-xl py-4 items-center">
-                  <Text className="text-gray-300 font-semibold">Cancel</Text>
+                  <Text className="text-gray-300 font-semibold">{t('common.cancel')}</Text>
                 </View>
               </Pressable>
 
@@ -646,7 +646,7 @@ export default function LinkBankScreen() {
                   colors={['#3b82f6', '#2563eb']}
                   style={{ borderRadius: 12, paddingVertical: 16, alignItems: 'center' }}
                 >
-                  <Text className="text-white font-semibold">Connect Bank</Text>
+                  <Text className="text-white font-semibold">{t('bankExtra.connectBank')}</Text>
                 </LinearGradient>
               </Pressable>
             </View>

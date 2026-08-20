@@ -457,8 +457,8 @@ export default function SettingsScreen() {
               <View className="flex-row items-center" style={{ gap: 12 }}>
                 <IconBubble color="#ef4444"><RotateCcw size={20} color="#ef4444" /></IconBubble>
                 <View style={{ flex: 1 }}>
-                  <Txt weight="semibold" size={15} color="#f87171">Reset All Activity</Txt>
-                  <Txt size={11} color="rgba(248,113,113,0.6)" style={{ marginTop: 1 }}>Delete all transactions & reset to zero</Txt>
+                  <Txt weight="semibold" size={15} color="#f87171">{t('common.reset')}</Txt>
+                  <Txt size={11} color="rgba(248,113,113,0.6)" style={{ marginTop: 1 }}>{t('common.resetHint')}</Txt>
                 </View>
               </View>
             </GlassCard>

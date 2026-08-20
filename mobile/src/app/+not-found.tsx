@@ -1,5 +1,6 @@
 import { Link, Stack } from 'expo-router';
 import { Text, View } from 'react-native';
+import { t } from '@/lib/i18n/core';
 
 export default function NotFoundScreen() {
   return (
@@ -11,7 +12,7 @@ export default function NotFoundScreen() {
         </Text>
 
         <Link href="/" className="mt-4 py-4">
-          <Text className="text-sm text-blue-500">Go to home screen!</Text>
+          <Text className="text-sm text-blue-500">{t('common.goHome')}</Text>
         </Link>
       </View>
     </>
