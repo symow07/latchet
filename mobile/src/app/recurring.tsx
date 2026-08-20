@@ -37,6 +37,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { api } from '@/lib/api/api';
 import { t } from '@/lib/i18n/core';
+import { categoryLabel } from '@/lib/categories';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -280,7 +281,7 @@ function RecurringCard({
                 </View>
               </View>
               <Text style={{ color: '#6b7280', fontSize: 12, marginTop: 2 }}>
-                {item.category} · {item.type}
+                {categoryLabel(item.category)} · {item.type}
               </Text>
             </View>
 

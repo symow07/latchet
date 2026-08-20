@@ -24,6 +24,7 @@ import { EmailScanCard } from '@/components/EmailScanCard';
 import { B, R, glow } from '@/lib/design';
 import { Txt, GlassCard, IconBubble, BizBackground, BubbleButton } from '@/components/ui';
 import { t } from '@/lib/i18n/core';
+import { categoryLabel } from '@/lib/categories';
 
 // ─── Cancel Guide Modal ─────────────────────────────────────────────────────────
 function CancelGuideModal({ sub, visible, onClose }: { sub: DetectedSubscription | null; visible: boolean; onClose: () => void }) {
@@ -116,7 +117,7 @@ function SubscriptionCard({ sub, onCancelGuide }: { sub: DetectedSubscription; o
                   <Txt weight="bold" size={10} color={B.teal}>{t('businessTools.recurring')}</Txt>
                 </View>
               )}
-              <Txt size={10} color={B.textFaint}>{sub.category}</Txt>
+              <Txt size={10} color={B.textFaint}>{categoryLabel(sub.category)}</Txt>
             </View>
           </View>
           <View style={{ alignItems: 'flex-end', gap: 4 }}>

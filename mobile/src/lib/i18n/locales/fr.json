@@ -434,5 +434,17 @@
   },
   "subscriptionsScreen": {
     "title": "Abonnements"
+  },
+  "categories": {
+    "Food": "Alimentation",
+    "Gym": "Sport",
+    "Transport": "Transport",
+    "Shopping": "Achats",
+    "Subscriptions": "Abonnements",
+    "Other": "Autre"
+  },
+  "categoryBudgets": {
+    "titleFor": "Budget %{category}",
+    "monthlyLimit": "Plafond de dépenses mensuel"
   }
 }

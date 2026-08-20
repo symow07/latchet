@@ -429,5 +429,17 @@
   },
   "subscriptionsScreen": {
     "title": "订阅"
+  },
+  "categories": {
+    "Food": "餐饮",
+    "Gym": "健身",
+    "Transport": "交通",
+    "Shopping": "购物",
+    "Subscriptions": "订阅",
+    "Other": "其他"
+  },
+  "categoryBudgets": {
+    "titleFor": "%{category}预算",
+    "monthlyLimit": "每月支出上限"
   }
 }

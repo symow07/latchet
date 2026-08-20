@@ -19,7 +19,7 @@ import * as Haptics from 'expo-haptics';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { C, R, glow } from '@/lib/design';
 import { Txt, GlassCard, IconBubble, BubbleButton, ScreenBackground } from '@/components/ui';
-import { getCategories, DEFAULT_CATEGORIES, CATEGORY_EMOJIS, CATEGORY_COLORS } from '@/lib/categories';
+import { getCategories, DEFAULT_CATEGORIES, CATEGORY_EMOJIS, CATEGORY_COLORS, categoryLabel } from '@/lib/categories';
 import { t } from '@/lib/i18n/core';
 
 const getAccountIcon = (type: string) => {
@@ -276,7 +276,7 @@ export default function AddTransactionScreen() {
                 <Pressable key={cat.name} onPress={() => handleCategoryChange(cat.name)}>
                   <View style={{ paddingVertical: 12, paddingHorizontal: 16, borderRadius: R.pill, flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: isSelected ? `${cat.color}26` : C.glass, borderWidth: 1.5, borderColor: isSelected ? `${cat.color}77` : 'transparent' }}>
                     <Txt size={14}>{cat.icon}</Txt>
-                    <Txt weight="semibold" size={13} color={isSelected ? cat.color : C.textFaint}>{cat.name}</Txt>
+                    <Txt weight="semibold" size={13} color={isSelected ? cat.color : C.textFaint}>{categoryLabel(cat.name, categories)}</Txt>
                   </View>
                 </Pressable>
               );

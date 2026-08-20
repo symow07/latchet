@@ -23,6 +23,7 @@ import * as Haptics from 'expo-haptics';
 import { getTransactions } from '@/lib/db';
 import { api } from '@/lib/api/api';
 import { t } from '@/lib/i18n/core';
+import { categoryLabel } from '@/lib/categories';
 
 // --- Types ---
 
@@ -170,10 +171,12 @@ function EditModal({
                 </View>
                 <View>
                   <Text style={{ color: '#fff', fontSize: 18, fontWeight: '700' }}>
-                    {category.name} Budget
+                    {t('categoryBudgets.titleFor', {
+                      category: categoryLabel(category.name),
+                    })}
                   </Text>
                   <Text style={{ color: '#9ca3af', fontSize: 13, marginTop: 2 }}>
-                    Monthly spending limit
+                    {t('categoryBudgets.monthlyLimit')}
                   </Text>
                 </View>
               </View>
@@ -426,7 +429,7 @@ export default function CategoryBudgetsScreen() {
 
                   {/* Name + budget */}
                   <View style={{ flex: 1 }}>
-                    <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>{cat.name}</Text>
+                    <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>{categoryLabel(cat.name)}</Text>
                     {hasLimit ? (
                       <Text style={{ color: '#9ca3af', fontSize: 12, marginTop: 2 }}>
                         ${spent.toFixed(0)} spent

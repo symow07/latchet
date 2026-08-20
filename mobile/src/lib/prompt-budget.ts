@@ -80,3 +80,33 @@ export function omissionNote(dropped: number): string {
   if (dropped <= 0) return '';
   return `[${dropped} earlier message${dropped === 1 ? '' : 's'} omitted for length — do not claim to recall them]\n\n`;
 }
+
+// ── Reply language ───────────────────────────────────────────────────────────
+
+/** How to name each language to the model. */
+const LANGUAGE_NAMES: Record<string, string> = {
+  en: 'English',
+  fr: 'French',
+  zh: 'Simplified Chinese',
+};
+
+/**
+ * The one localised line in the advisor prompt.
+ *
+ * Two halves of the same problem: the reply language, and the category names
+ * inside it. The model echoes whatever it is shown — given English category
+ * names it answers with English ones, and the user then reads "Alimentation"
+ * everywhere in the app and "Food" in the advice about it.
+ *
+ * Only this line is localised. The rest of the system context stays English:
+ * it is scaffolding around numeric data, models read it perfectly well, and
+ * maintaining three copies of a prompt that changes often would cost more than
+ * it returns.
+ */
+export function localeInstruction(locale: string, categoryLabels: string[] = []): string {
+  const language = LANGUAGE_NAMES[locale] ?? LANGUAGE_NAMES.en;
+  const labels = categoryLabels.length
+    ? ` When naming a spending category, use exactly these labels: ${categoryLabels.join(', ')}.`
+    : '';
+  return `Reply entirely in ${language}, whatever language the user writes in.${labels}`;
+}

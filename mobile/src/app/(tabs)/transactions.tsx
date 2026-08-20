@@ -9,7 +9,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, parseISO, startOfMonth, endOfMonth } from 'date-fns';
 import { getTransactions, deleteTransaction, getSettings } from '@/lib/db';
-import { getCategories, categoryMeta, DEFAULT_CATEGORIES } from '@/lib/categories';
+import { getCategories, categoryMeta, DEFAULT_CATEGORIES, categoryLabel } from '@/lib/categories';
 import { formatCurrency, formatTimeCost, calculateTimeCost } from '@/lib/calculations';
 import { Trash2, Filter, Zap, Clock } from 'lucide-react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -153,7 +153,7 @@ export default function TransactionsScreen() {
                 <Pressable key={cat} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setFilterCategory(cat); }}>
                   <View style={{ paddingVertical: 10, paddingHorizontal: 16, borderRadius: R.pill, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: isSelected ? `${color}22` : C.glass, borderWidth: 1.5, borderColor: isSelected ? `${color}77` : 'transparent' }}>
                     <Txt size={13}>{meta(cat).icon}</Txt>
-                    <Txt weight="semibold" size={13} color={isSelected ? color : C.textFaint}>{cat}</Txt>
+                    <Txt weight="semibold" size={13} color={isSelected ? color : C.textFaint}>{categoryLabel(cat, allCategories)}</Txt>
                   </View>
                 </Pressable>
               );
@@ -205,7 +205,7 @@ export default function TransactionsScreen() {
 
                           <View className="flex-1">
                             <View className="flex-row items-center flex-wrap" style={{ gap: 6 }}>
-                              <Txt weight="semibold" size={15} color={C.text}>{tx.category}</Txt>
+                              <Txt weight="semibold" size={15} color={C.text}>{categoryLabel(tx.category, allCategories)}</Txt>
                               {tx.isImpulse ? <Pill label="⚡ Impulse" color={C.rose} /> : null}
                             </View>
                             {tx.note ? <Txt size={13} color={C.textFaint} style={{ marginTop: 2 }}>{tx.note}</Txt> : null}

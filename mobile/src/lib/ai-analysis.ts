@@ -2,7 +2,9 @@ import { format, subMonths, startOfMonth, endOfMonth, subDays, addMonths } from 
 import { calculateHealthScore, getPersonalityDescription, type HealthScoreResult } from './health-score';
 import { api } from './api/api';
 import { hasEnoughHistory, projectMonthlyExpenses } from './calculations';
-import { fitConversationHistory, historyBudget, omissionNote } from './prompt-budget';
+import { categoryLabel, DEFAULT_CATEGORIES } from './category-meta';
+import type { AppLocale } from './i18n/core';
+import { fitConversationHistory, historyBudget, omissionNote, localeInstruction } from './prompt-budget';
 
 export interface Transaction {
   id: string;
@@ -395,10 +397,14 @@ export function buildAIPrompt(
   analysis: SpendingAnalysis | null,
   settings: Settings | null,
   userMessage: string,
-  conversationHistory: { role: 'user' | 'assistant'; content: string }[]
+  conversationHistory: { role: 'user' | 'assistant'; content: string }[],
+  /** The user's chosen language. Drives the reply language and category names. */
+  locale: AppLocale = 'en'
 ): string {
   if (!analysis || !settings) {
-    const intro = `You are a friendly AI financial advisor built into a personal budgeting app called "Budget". The user has not added any transactions yet, so you don't have spending data to analyze. Be helpful, friendly, and encourage them to start tracking their expenses to get personalized advice.`;
+    const intro = `You are a friendly AI financial advisor built into a personal budgeting app called "Budget". The user has not added any transactions yet, so you don't have spending data to analyze. Be helpful, friendly, and encourage them to start tracking their expenses to get personalized advice.
+
+${localeInstruction(locale, [])}`;
     const fitted = fitConversationHistory(
       conversationHistory,
       historyBudget(intro.length + userMessage.length)
@@ -453,7 +459,7 @@ ${analysis.projectedMonthEndBalance !== null ? `- Projected Month-End Balance: $
 ${analysis.daysUntilBudgetExceeded !== null ? `- Days Until Budget Exceeded: ${analysis.daysUntilBudgetExceeded === 0 ? 'ALREADY EXCEEDED' : analysis.daysUntilBudgetExceeded + ' days'}` : ''}
 
 TOP SPENDING CATEGORIES THIS MONTH:
-${analysis.topExpenseCategories.map(c => `- ${c.category}: ${currencySymbol}${c.amount.toFixed(2)} (${c.percentage.toFixed(1)}%)`).join('\n')}
+${analysis.topExpenseCategories.map(c => `- ${categoryLabel(c.category)}: ${currencySymbol}${c.amount.toFixed(2)} (${c.percentage.toFixed(1)}%)`).join('\n')}
 
 ${analysis.overspendingCategories.length > 0 ? `OVERSPENDING CATEGORIES (vs last month): ${analysis.overspendingCategories.join(', ')}` : ''}
 ${analysis.underspendingCategories.length > 0 ? `IMPROVED CATEGORIES (vs last month): ${analysis.underspendingCategories.join(', ')}` : ''}
@@ -483,7 +489,8 @@ GUIDELINES FOR YOUR RESPONSES:
 8. Use the currency symbol ${currencySymbol} for all amounts
 9. When relevant, mention their health score and how to improve it
 10. For forecasting questions, use the long-term projections data
-11. Adapt your tone based on personality: encouraging for spenders, affirming for savers`;
+11. Adapt your tone based on personality: encouraging for spenders, affirming for savers
+12. ${localeInstruction(locale, DEFAULT_CATEGORIES.map(c => categoryLabel(c.name)))}`;
 
   // The server rejects prompts over 20,000 characters, and history only grows,
   // so trim to fit rather than letting the advisor start failing permanently

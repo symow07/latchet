@@ -434,5 +434,17 @@
   },
   "subscriptionsScreen": {
     "title": "Subscriptions"
+  },
+  "categories": {
+    "Food": "Food",
+    "Gym": "Gym",
+    "Transport": "Transport",
+    "Shopping": "Shopping",
+    "Subscriptions": "Subscriptions",
+    "Other": "Other"
+  },
+  "categoryBudgets": {
+    "titleFor": "%{category} Budget",
+    "monthlyLimit": "Monthly spending limit"
   }
 }

@@ -27,7 +27,7 @@ import { C, R, glow } from '@/lib/design';
 import { Txt, GlassCard, IconBubble, ScreenBackground } from '@/components/ui';
 import { useEntitlement } from '@/lib/useEntitlement';
 import { isUpgradeRequired } from '@/lib/entitlementApi';
-import { t } from '@/lib/i18n/core';
+import { t, getLocale } from '@/lib/i18n/core';
 
 interface Message {
   id: string;
@@ -66,7 +66,7 @@ export default function AdvisorTab() {
   const sendMessageMutation = useMutation({
     mutationFn: async (userMessage: string) => {
       const conversationHistory = messages.map(m => ({ role: m.role, content: m.content }));
-      const prompt = buildAIPrompt(analysis, settings ?? null, userMessage, conversationHistory);
+      const prompt = buildAIPrompt(analysis, settings ?? null, userMessage, conversationHistory, getLocale());
       return getAIResponse(prompt, '');
     },
     onSuccess: (response) => {
