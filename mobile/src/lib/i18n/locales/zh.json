@@ -296,7 +296,9 @@
     "approve": "批准",
     "reject": "拒绝",
     "approved": "已批准",
-    "total": "合计"
+    "total": "合计",
+    "add": "添加",
+    "descPlaceholder": "这笔支出用于什么？"
   },
   "businessTeam": {
     "title": "团队",
@@ -441,5 +443,19 @@
   "categoryBudgets": {
     "titleFor": "%{category}预算",
     "monthlyLimit": "每月支出上限"
+  },
+  "expenseCategories": {
+    "Travel": "差旅",
+    "Software": "软件",
+    "Meals": "餐饮",
+    "Transport": "交通",
+    "Office": "办公",
+    "Other": "其他"
+  },
+  "expenseStatuses": {
+    "all": "全部",
+    "pending": "待处理",
+    "approved": "已批准",
+    "rejected": "已拒绝"
   }
 }

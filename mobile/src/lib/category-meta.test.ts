@@ -131,12 +131,11 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 /**
- * Business-mode expenses use their own vocabulary (Travel, Software, Meals…),
- * which is a different enum from the transaction categories this module owns.
- * Localising it is separate work with its own keys, so it is excluded here
- * rather than silently passing.
+ * Business-mode expenses use their own vocabulary (Travel, Software, Meals…)
+ * and their own namespace — see expense-meta. They are localised too, so
+ * nothing is excluded here any more.
  */
-const KNOWN_UNLOCALISED = ['(business-tabs)/index.tsx'];
+const KNOWN_UNLOCALISED: string[] = [];
 
 function screenFiles(dir: string, out: string[] = []): string[] {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {

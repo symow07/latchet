@@ -301,7 +301,9 @@
     "approve": "Approve",
     "reject": "Reject",
     "approved": "APPROVED",
-    "total": "TOTAL"
+    "total": "TOTAL",
+    "add": "Add",
+    "descPlaceholder": "What was this for?"
   },
   "businessTeam": {
     "title": "Team",
@@ -446,5 +448,19 @@
   "categoryBudgets": {
     "titleFor": "%{category} Budget",
     "monthlyLimit": "Monthly spending limit"
+  },
+  "expenseCategories": {
+    "Travel": "Travel",
+    "Software": "Software",
+    "Meals": "Meals",
+    "Transport": "Transport",
+    "Office": "Office",
+    "Other": "Other"
+  },
+  "expenseStatuses": {
+    "all": "All",
+    "pending": "Pending",
+    "approved": "Approved",
+    "rejected": "Rejected"
   }
 }

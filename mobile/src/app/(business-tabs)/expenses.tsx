@@ -23,6 +23,7 @@ import { useSession } from '@/lib/auth/use-session';
 import { B, R, glow } from '@/lib/design';
 import { Txt, GlassCard, IconBubble, Pill, BizBackground, BubbleButton } from '@/components/ui';
 import { t } from '@/lib/i18n/core';
+import { expenseCategoryLabel, expenseStatusLabel } from '@/lib/expense-meta';
 
 type CatMeta = { label: ExpenseCategory; icon: React.ComponentType<{ size: number; color: string }>; color: string };
 
@@ -35,11 +36,11 @@ const CATEGORIES: CatMeta[] = [
   { label: 'Other', icon: Tag, color: '#a78bfa' },
 ];
 
-const STATUS_FILTERS: { label: string; value: ExpenseStatus | 'all' }[] = [
-  { label: 'All', value: 'all' },
-  { label: 'Pending', value: 'pending' },
-  { label: 'Approved', value: 'approved' },
-  { label: 'Rejected', value: 'rejected' },
+const STATUS_FILTERS: { value: ExpenseStatus | 'all' }[] = [
+  { value: 'all' },
+  { value: 'pending' },
+  { value: 'approved' },
+  { value: 'rejected' },
 ];
 
 const STATUS_COLOR: Record<ExpenseStatus, string> = { pending: B.amber, approved: B.teal, rejected: B.red };
@@ -125,7 +126,7 @@ function SubmitModal({ visible, onClose, onDone }: { visible: boolean; onClose: 
               <GlassCard padding={0} radius={R.md} border={catOpen ? `${B.accent}55` : B.glassBorder} style={{ marginBottom: catOpen ? 0 : 14 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 12 }}>
                   <IconBubble color={selCat.color} size={32} radius={10} style={{ marginRight: 12 }}><CatIcon size={16} color={selCat.color} /></IconBubble>
-                  <Txt size={15} color={B.textDim} style={{ flex: 1 }}>{cat}</Txt>
+                  <Txt size={15} color={B.textDim} style={{ flex: 1 }}>{expenseCategoryLabel(cat)}</Txt>
                   <ChevronDown size={16} color={B.textFaint} />
                 </View>
               </GlassCard>
@@ -137,7 +138,7 @@ function SubmitModal({ visible, onClose, onDone }: { visible: boolean; onClose: 
                   return (
                     <Pressable key={c.label} onPress={() => { setCat(c.label); setCatOpen(false); }} style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 11, backgroundColor: active ? `${B.accent}12` : 'transparent' })}>
                       <IconBubble color={c.color} size={28} radius={8} style={{ marginRight: 12 }}><Icon size={14} color={c.color} /></IconBubble>
-                      <Txt size={14} color={active ? B.accent : B.textDim} style={{ flex: 1 }}>{c.label}</Txt>
+                      <Txt size={14} color={active ? B.accent : B.textDim} style={{ flex: 1 }}>{expenseCategoryLabel(c.label)}</Txt>
                       {active && <Check size={14} color={B.accent} />}
                     </Pressable>
                   );
@@ -146,7 +147,7 @@ function SubmitModal({ visible, onClose, onDone }: { visible: boolean; onClose: 
             )}
 
             <FieldLabel>{t('businessExpenses.description')}</FieldLabel>
-            <TextInput value={desc} onChangeText={t => { setDesc(t); setErr(''); }} placeholder="What was this for?" placeholderTextColor={B.textFaint} multiline numberOfLines={3} style={{ color: B.text, fontSize: 15, fontFamily: 'PlusJakartaSans_500Medium', backgroundColor: B.glass, borderRadius: R.md, padding: 14, borderWidth: 1, borderColor: B.glassBorder, textAlignVertical: 'top', minHeight: 80, marginBottom: 14 }} selectionColor={B.accent} />
+            <TextInput value={desc} onChangeText={t => { setDesc(t); setErr(''); }} placeholder={t('businessExpenses.descPlaceholder')} placeholderTextColor={B.textFaint} multiline numberOfLines={3} style={{ color: B.text, fontSize: 15, fontFamily: 'PlusJakartaSans_500Medium', backgroundColor: B.glass, borderRadius: R.md, padding: 14, borderWidth: 1, borderColor: B.glassBorder, textAlignVertical: 'top', minHeight: 80, marginBottom: 14 }} selectionColor={B.accent} />
 
             <FieldLabel>{t('businessExpenses.receipt')}</FieldLabel>
             {imageUri ? (
@@ -283,7 +284,7 @@ export default function ExpensesScreen() {
           </View>
           <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setShowSubmit(true); }} style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 9, borderRadius: 13, backgroundColor: `${B.accent}22`, borderWidth: 1.5, borderColor: `${B.accent}44` })}>
             <Plus size={16} color={B.accent} />
-            <Txt weight="bold" size={13} color={B.accent}>Add</Txt>
+            <Txt weight="bold" size={13} color={B.accent}>{t('businessExpenses.add')}</Txt>
           </Pressable>
         </View>
 
@@ -307,7 +308,7 @@ export default function ExpensesScreen() {
             const active = filter === f.value;
             return (
               <Pressable key={f.value} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setFilter(f.value as ExpenseStatus | 'all'); }} style={({ pressed }) => ({ opacity: pressed ? 0.75 : 1, paddingHorizontal: 16, paddingVertical: 8, borderRadius: R.pill, backgroundColor: active ? `${B.accent}1f` : B.glass, borderWidth: 1.5, borderColor: active ? `${B.accent}55` : 'transparent' })}>
-                <Txt weight="bold" size={13} color={active ? B.accent : B.textFaint}>{f.label}</Txt>
+                <Txt weight="bold" size={13} color={active ? B.accent : B.textFaint}>{expenseStatusLabel(f.value)}</Txt>
               </Pressable>
             );
           })}

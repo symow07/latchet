@@ -1,0 +1,83 @@
+name: CI
+
+# Everything here runs from a clean checkout, which is the whole point.
+#
+# category-meta.ts was once imported but untracked: every local check passed
+# while a fresh clone could not have built. Local state is not evidence, so
+# these jobs install from the lockfile into an empty tree and never see a
+# working directory.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      # --frozen-lockfile fails rather than silently resolving a different
+      # tree, so a lockfile that was never committed is caught here.
+      - name: Install
+        run: bun install --frozen-lockfile
+
+      # The Prisma client is generated, not committed. Without this, typecheck
+      # would be checking against whatever the last generate produced locally.
+      - name: Generate Prisma client
+        run: bunx prisma generate
+
+      - name: Typecheck
+        run: bun run typecheck
+
+      - name: Test
+        run: bun test
+        env:
+          # env.ts exits the process on invalid config, and the suite's preload
+          # provisions its own SQLite database.
+          BETTER_AUTH_SECRET: ci-secret-at-least-32-characters-long
+
+      # Proves the migrations apply to an empty database in order — the state
+      # a fresh deploy actually starts from, which no local run reproduces
+      # once a dev database already exists.
+      - name: Migrations apply from scratch
+        run: bunx prisma migrate deploy
+        env:
+          DATABASE_URL: file:/tmp/ci-migrations.db
+          BETTER_AUTH_SECRET: ci-secret-at-least-32-characters-long
+
+  mobile:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install
+        run: bun install --frozen-lockfile
+
+      - name: Typecheck
+        run: bun run typecheck
+
+      - name: Lint
+        run: bun run lint
+
+      # Date handling is timezone-sensitive and CI runners are UTC, which is
+      # the one zone where the bugs this suite exists to catch do not appear.
+      - name: Test (Asia/Shanghai, America/Los_Angeles, UTC)
+        run: bun run test:tz

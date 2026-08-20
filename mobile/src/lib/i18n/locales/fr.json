@@ -301,7 +301,9 @@
     "approve": "Approuver",
     "reject": "Refuser",
     "approved": "APPROUVÉ",
-    "total": "TOTAL"
+    "total": "TOTAL",
+    "add": "Ajouter",
+    "descPlaceholder": "C'était pour quoi ?"
   },
   "businessTeam": {
     "title": "Équipe",
@@ -446,5 +448,19 @@
   "categoryBudgets": {
     "titleFor": "Budget %{category}",
     "monthlyLimit": "Plafond de dépenses mensuel"
+  },
+  "expenseCategories": {
+    "Travel": "Déplacement",
+    "Software": "Logiciel",
+    "Meals": "Repas",
+    "Transport": "Transport",
+    "Office": "Bureau",
+    "Other": "Autre"
+  },
+  "expenseStatuses": {
+    "all": "Toutes",
+    "pending": "En attente",
+    "approved": "Approuvée",
+    "rejected": "Refusée"
   }
 }

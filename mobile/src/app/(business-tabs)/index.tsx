@@ -16,6 +16,7 @@ import { detectSubscriptions } from '@/lib/business-subscription-detection';
 import { B, R, glow } from '@/lib/design';
 import { Txt, GlassCard, IconBubble, Pill, BizBackground } from '@/components/ui';
 import { t } from '@/lib/i18n/core';
+import { expenseCategoryLabel } from '@/lib/expense-meta';
 
 function Label({ children }: { children: string }) {
   return <Txt weight="bold" size={11} color={B.textFaint} style={{ letterSpacing: 1.4, marginBottom: 12 }}>{children}</Txt>;
@@ -183,7 +184,7 @@ export default function BusinessDashboardTab() {
                   <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                     <View style={{ flex: 1 }}>
                       <Txt weight="semibold" size={14} color={B.text} numberOfLines={1}>{expense.description}</Txt>
-                      <Txt size={11} color={B.textFaint} style={{ marginTop: 2 }}>{expense.submitter.name} · {expense.category}</Txt>
+                      <Txt size={11} color={B.textFaint} style={{ marginTop: 2 }}>{expense.submitter.name} · {expenseCategoryLabel(expense.category)}</Txt>
                     </View>
                     <View style={{ alignItems: 'flex-end', gap: 4 }}>
                       <Txt weight="bold" size={14} color={B.text}>${expense.amount.toFixed(2)}</Txt>
