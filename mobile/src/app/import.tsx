@@ -51,6 +51,7 @@ import { useEntitlement } from '@/lib/useEntitlement';
 import { isUpgradeRequired } from '@/lib/entitlementApi';
 import { api } from '@/lib/api/api';
 import { t } from '@/lib/i18n/core';
+import { categoryLabel } from '@/lib/category-meta';
 
 /** One transaction as returned by /api/ai/analyze-statement. */
 interface StatementRow {
@@ -833,7 +834,7 @@ export default function ImportScreen() {
                             <Text className="text-gray-500 text-xs">{tx.date}</Text>
                             <View className="w-1 h-1 rounded-full bg-gray-600 mx-2" />
                             <View className="bg-purple-500/20 rounded-full px-2 py-0.5">
-                              <Text className="text-purple-400 text-xs">{tx.suggestedCategory}</Text>
+                              <Text className="text-purple-400 text-xs">{categoryLabel(tx.suggestedCategory)}</Text>
                             </View>
                             {tx.isImpulse && (
                               <>
@@ -883,7 +884,7 @@ export default function ImportScreen() {
                                           : 'text-gray-400'
                                       }`}
                                     >
-                                      {cat}
+                                      {categoryLabel(cat)}
                                     </Text>
                                   </View>
                                 </Pressable>

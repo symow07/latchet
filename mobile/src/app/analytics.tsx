@@ -25,6 +25,7 @@ import Animated, { FadeInUp } from 'react-native-reanimated';
 
 import { getTransactions, getSettings } from '@/lib/db';
 import { t } from '@/lib/i18n/core';
+import { categoryLabel } from '@/lib/category-meta';
 import {
   generateAnalyticsSummary,
   type AnalyticsSummary,
@@ -266,7 +267,7 @@ export default function AnalyticsScreen() {
                       <Lightbulb size={16} color="#f59e0b" />
                     </View>
                     <View className="flex-1">
-                      <Text className="text-white font-medium">{waste.category}</Text>
+                      <Text className="text-white font-medium">{categoryLabel(waste.category)}</Text>
                       <Text className="text-gray-400 text-sm mt-1">{waste.tip}</Text>
                       <Text className="text-amber-400 text-xs mt-2">
                         Potential savings: {formatCurrency(waste.potentialSavings)}/month
@@ -410,7 +411,7 @@ function WasteCategoryCard({
             >
               <Text style={{ color, fontWeight: 'bold' }}>#{index + 1}</Text>
             </View>
-            <Text className="text-white font-semibold">{waste.category}</Text>
+            <Text className="text-white font-semibold">{categoryLabel(waste.category)}</Text>
           </View>
           <Text className="text-white font-bold">{formatCurrency(waste.totalSpent)}</Text>
         </View>
@@ -506,7 +507,7 @@ function SpendingPatternCard({
         {pattern.topCategories.map((cat, idx) => (
           <View key={idx} className="bg-blue-500/20 rounded-full px-2 py-1 mr-2">
             <Text className="text-blue-300 text-xs">
-              {cat.category}: {formatCurrency(cat.amount)}
+              {categoryLabel(cat.category)}: {formatCurrency(cat.amount)}
             </Text>
           </View>
         ))}

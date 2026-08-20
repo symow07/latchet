@@ -120,3 +120,74 @@ test('an unknown category still gets a usable icon and colour', () => {
   expect(meta.icon).toBeTruthy();
   expect(meta.color).toBeTruthy();
 });
+
+// ── No render site may bypass categoryLabel ─────────────────────────────────
+//
+// The first pass at this missed six call sites — analytics, bill reminders and
+// the import preview all still printed the stored English name. Grepping is the
+// only thing that catches that reliably, so it is a test rather than a habit.
+
+import { readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
+/**
+ * Business-mode expenses use their own vocabulary (Travel, Software, Meals…),
+ * which is a different enum from the transaction categories this module owns.
+ * Localising it is separate work with its own keys, so it is excluded here
+ * rather than silently passing.
+ */
+const KNOWN_UNLOCALISED = ['(business-tabs)/index.tsx'];
+
+function screenFiles(dir: string, out: string[] = []): string[] {
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const full = join(dir, entry.name);
+    if (entry.isDirectory()) screenFiles(full, out);
+    else if (entry.name.endsWith('.tsx')) out.push(full);
+  }
+  return out;
+}
+
+test('no screen renders a stored category name directly', () => {
+  const offenders: string[] = [];
+
+  for (const file of screenFiles(join(import.meta.dir, '..', 'app'))) {
+    if (KNOWN_UNLOCALISED.some((k) => file.endsWith(k))) continue;
+
+    readFileSync(file, 'utf8')
+      .split('\n')
+      .forEach((line, i) => {
+        // A category value interpolated into JSX...
+        const renders = /\{\s*[a-zA-Z]+\.(category|suggestedCategory)\s*\}|\{\s*(cat|category)\.name\s*\}/.test(line);
+        // ...that is not going through categoryLabel, and is not a React key.
+        if (renders && !line.includes('categoryLabel') && !line.includes('key=')) {
+          offenders.push(`${file.split('/app/')[1]}:${i + 1}`);
+        }
+      });
+  }
+
+  expect(offenders).toEqual([]);
+});
+
+test('every built-in category has a label in all three languages', () => {
+  for (const locale of ['en', 'fr', 'zh'] as const) {
+    const json = JSON.parse(
+      readFileSync(join(import.meta.dir, 'i18n', 'locales', `${locale}.json`), 'utf8')
+    ) as { categories?: Record<string, string> };
+
+    for (const { name } of DEFAULT_CATEGORIES) {
+      expect(json.categories?.[name]).toBeTruthy();
+    }
+  }
+});
+
+test('the parameterised budget title exists in every language, with the placeholder', () => {
+  // "%{category} Budget" in English, "Budget %{category}" in French — a
+  // concatenation could not express that.
+  for (const locale of ['en', 'fr', 'zh'] as const) {
+    const json = JSON.parse(
+      readFileSync(join(import.meta.dir, 'i18n', 'locales', `${locale}.json`), 'utf8')
+    ) as { categoryBudgets?: { titleFor?: string } };
+
+    expect(json.categoryBudgets?.titleFor).toContain('%{category}');
+  }
+});

@@ -39,6 +39,7 @@ import Animated, {
 
 import { api } from '@/lib/api/api';
 import { t } from '@/lib/i18n/core';
+import { categoryLabel } from '@/lib/category-meta';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -242,7 +243,7 @@ function BillCard({
                   {bill.name}
                 </Text>
                 <Text style={{ color: '#6b7280', fontSize: 12, marginTop: 1 }}>
-                  {bill.category} · Due {bill.dueDay}{getDaySuffix(bill.dueDay)} of month
+                  {categoryLabel(bill.category)} · Due {bill.dueDay}{getDaySuffix(bill.dueDay)} of month
                 </Text>
               </View>
             </View>
