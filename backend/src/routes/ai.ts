@@ -4,6 +4,8 @@ import { z } from "zod";
 import { auth } from "../auth";
 import { env } from "../env";
 import { allowUsageTiered } from "../lib/usage-limit";
+import { aiAllowance } from "../lib/entitlement";
+import { userIsPro } from "../lib/user-entitlement";
 import { fetchWithTimeout } from "../lib/fetch-timeout";
 import {
   normaliseStatementRows,
@@ -30,15 +32,33 @@ const router = new Hono<{
   };
 }>();
 
-// Auth guard + per-user spend cap for all AI routes
+// Auth guard, entitlement check, and per-user spend cap for all AI routes.
 router.use("*", async (c, next) => {
   const user = c.get("user");
   if (!user) return c.json({ error: "Unauthorized" }, 401);
   if (!env.OPENAI_API_KEY) {
     return c.json({ error: "AI features are not configured on this server." }, 503);
   }
-  // Cap OpenAI spend per user: 20 requests / 5 min, 200 / day.
-  if (!allowUsageTiered("ai", user.id, { burstMax: 20, burstWindowMs: 5 * 60_000, dailyMax: 200 })) {
+
+  // The tier is read from the database, never from the request. A client
+  // claiming Pro gets exactly the free allowance.
+  const pro = await userIsPro(user.id);
+  const allowance = aiAllowance(pro);
+
+  if (!allowUsageTiered("ai", user.id, allowance)) {
+    // 402 rather than 429 for a free user who has used their taste of the
+    // advisor: this is a paywall, not congestion, and the client should offer
+    // an upgrade rather than "try again later".
+    if (!pro) {
+      return c.json(
+        {
+          error: `You've used your ${allowance.dailyMax} free AI requests for today.`,
+          code: "upgrade_required",
+          tier: "free",
+        },
+        402
+      );
+    }
     return c.json({ error: "AI usage limit reached. Please try again later." }, 429);
   }
   await next();

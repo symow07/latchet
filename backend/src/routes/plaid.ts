@@ -11,6 +11,7 @@ import {
   removeConnection,
 } from "../lib/bank-sync";
 import { ExpiringMap, OAUTH_STATE_TTL_MS, autoSweep } from "../lib/expiring-map";
+import { userIsPro } from "../lib/user-entitlement";
 
 /**
  * Bank linking routes.
@@ -114,6 +115,19 @@ router.use("*", async (c, next) => {
   if (!user) return c.json({ error: "Unauthorized" }, 401);
   if (!provider.isConfigured()) {
     return c.json({ error: "Bank linking is not configured on this server." }, 503);
+  }
+
+  // Bank sync is a paid feature, and every sync costs Plaid quota. The tier
+  // comes from the database — a client asserting Pro gets nothing.
+  if (!(await userIsPro(user.id))) {
+    return c.json(
+      {
+        error: "Bank sync is a Pro feature.",
+        code: "upgrade_required",
+        tier: "free",
+      },
+      402
+    );
   }
   await next();
 });

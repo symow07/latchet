@@ -6,6 +6,12 @@ import { auth } from "../auth";
 import { env } from "../env";
 import { decryptSecret } from "../lib/crypto";
 import { fetchWithTimeout } from "../lib/fetch-timeout";
+import { isPro } from "../lib/entitlement";
+import {
+  loadEntitlement,
+  saveEntitlement,
+  fetchEntitlementFromRevenueCat,
+} from "../lib/user-entitlement";
 import { getProvider, DEFAULT_PROVIDER_ID } from "../lib/bank-providers";
 import {
   deleteAccount,
@@ -27,7 +33,62 @@ router.use("*", async (c, next) => {
   await next();
 });
 
-router.get("/", (c) => c.json({ user: c.get("user") }));
+router.get("/", async (c) => {
+  const user = c.get("user")!;
+  const state = await loadEntitlement(user.id);
+  // The client is told its tier, but never gets to assert one.
+  return c.json({
+    user,
+    entitlement: {
+      tier: isPro(state) ? "pro" : "free",
+      expiresAt: state.expiresAt?.toISOString() ?? null,
+    },
+  });
+});
+
+/**
+ * Re-read this user's entitlement straight from RevenueCat.
+ *
+ * A purchase completes on device seconds before the webhook lands. Without
+ * this the user would sit in front of a paywall they had just paid to dismiss.
+ * The client calls it right after a successful purchase; the webhook stays the
+ * source of truth for everything that happens later.
+ */
+router.post("/entitlement/refresh", async (c) => {
+  const user = c.get("user")!;
+
+  try {
+    const fresh = await fetchEntitlementFromRevenueCat(user.id);
+    if (!fresh) {
+      // Not configured — report what we already hold rather than erroring.
+      const current = await loadEntitlement(user.id);
+      return c.json({
+        tier: isPro(current) ? "pro" : "free",
+        expiresAt: current.expiresAt?.toISOString() ?? null,
+        refreshed: false,
+      });
+    }
+
+    await saveEntitlement(user.id, fresh);
+    return c.json({
+      tier: isPro(fresh) ? "pro" : "free",
+      expiresAt: fresh.expiresAt?.toISOString() ?? null,
+      refreshed: true,
+    });
+  } catch (e) {
+    console.warn(
+      "[entitlement:refresh] failed:",
+      e instanceof Error ? e.message : e
+    );
+    // Fall back to the stored value; the webhook will correct it shortly.
+    const current = await loadEntitlement(user.id);
+    return c.json({
+      tier: isPro(current) ? "pro" : "free",
+      expiresAt: current.expiresAt?.toISOString() ?? null,
+      refreshed: false,
+    });
+  }
+});
 
 /**
  * What deleting this account would destroy.

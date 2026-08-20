@@ -28,6 +28,7 @@ import { pushTokensRouter } from "./routes/push-tokens";
 import { plaidRouter } from "./routes/plaid";
 import { ratesRouter } from "./routes/rates";
 import { meRouter } from "./routes/me";
+import { revenueCatRouter } from "./routes/revenuecat";
 import { emailRouter } from "./routes/email";
 import { installErrorHandlers } from "./lib/http-errors";
 import { prisma } from "./prisma";
@@ -190,6 +191,7 @@ app.route("/api/v1/achievements", achievementsRouter);
 app.route("/api/v1/push-tokens", pushTokensRouter);
 app.route("/api/v1/plaid", plaidRouter);
 app.route("/api/v1/rates", ratesRouter);
+app.route("/api/v1/revenuecat", revenueCatRouter);
 app.route("/api/v1/email", emailRouter);
 
 // Backward-compatible unversioned routes (alias to v1)
@@ -209,6 +211,7 @@ app.route("/api/achievements", achievementsRouter);
 app.route("/api/push-tokens", pushTokensRouter);
 app.route("/api/plaid", plaidRouter);
 app.route("/api/rates", ratesRouter);
+app.route("/api/revenuecat", revenueCatRouter);
 app.route("/api/email", emailRouter);
 
 // Start background jobs

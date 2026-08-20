@@ -13,6 +13,14 @@ model User {
   email         String    @unique
   emailVerified Boolean   @default(false)
   image         String?
+  /// "free" | "pro". Decided server-side from RevenueCat; never from the client.
+  entitlement   String    @default("free")
+  /// When pro access lapses. Read on every check, so a missed EXPIRATION
+  /// webhook cannot leave someone on pro indefinitely.
+  entitlementExpiresAt DateTime?
+  /// RevenueCat's app_user_id. Equals `id` once the client calls setUserId,
+  /// which is what lets a webhook find the account a purchase belongs to.
+  revenueCatUserId String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   sessions      Session[]

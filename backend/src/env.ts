@@ -46,6 +46,13 @@ const envSchema = z.object({
     .string()
     .min(32, "TOKEN_ENCRYPTION_KEY must be at least 32 characters")
     .optional(),
+  // RevenueCat. The webhook secret is the Authorization header value configured
+  // in the RevenueCat dashboard; the API key (v1 secret key) is used to query a
+  // subscriber directly, which closes the gap between a purchase completing on
+  // device and the webhook arriving. Optional: without them the app runs with
+  // everyone on the free tier rather than failing.
+  REVENUECAT_WEBHOOK_SECRET: z.string().min(16).optional(),
+  REVENUECAT_API_KEY: z.string().optional(),
   // Plaid bank-linking credentials (routes/plaid.ts). Optional so the backend
   // boots without them; the Plaid routes return 503 until they are set.
   PLAID_CLIENT_ID: z.string().optional(),
