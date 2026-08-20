@@ -25,6 +25,8 @@ import {
 } from '@/lib/ai-analysis';
 import { C, R, glow } from '@/lib/design';
 import { Txt, GlassCard, IconBubble, ScreenBackground } from '@/components/ui';
+import { useEntitlement } from '@/lib/useEntitlement';
+import { isUpgradeRequired } from '@/lib/entitlementApi';
 
 interface Message {
   id: string;
@@ -41,6 +43,7 @@ const SUGGESTED_PROMPTS = [
 ];
 
 export default function AdvisorTab() {
+  const { handleUpgradeRequired } = useEntitlement();
   const insets = useSafeAreaInsets();
   const scrollViewRef = useRef<ScrollView>(null);
   const [inputText, setInputText] = useState('');
@@ -69,8 +72,17 @@ export default function AdvisorTab() {
       setMessages(prev => [...prev, { id: `msg_${Date.now()}`, role: 'assistant', content: response, timestamp: new Date() }]);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     },
-    onError: (error) => {
-      setMessages(prev => [...prev, { id: `msg_${Date.now()}`, role: 'assistant', content: `I'm sorry, I encountered an issue: ${error instanceof Error ? error.message : 'Please try again later.'}`, timestamp: new Date() }]);
+    onError: async (error) => {
+      // A free user who has used their daily allowance gets the paywall, not an
+      // apology — the server sends 402 with a code so we can tell the two apart.
+      if (await handleUpgradeRequired(error)) {
+        setMessages(prev => [...prev, { id: `msg_${Date.now()}`, role: 'assistant', content: "You're all set — ask me anything.", timestamp: new Date() }]);
+        return;
+      }
+      const message = isUpgradeRequired(error)
+        ? "You've used your free AI requests for today. Upgrade to Pro in Settings for more."
+        : `I'm sorry, I encountered an issue: ${error instanceof Error ? error.message : 'Please try again later.'}`;
+      setMessages(prev => [...prev, { id: `msg_${Date.now()}`, role: 'assistant', content: message, timestamp: new Date() }]);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     },
   });

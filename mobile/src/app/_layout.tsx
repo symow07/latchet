@@ -18,6 +18,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets, SafeAreaProvider } from 'react-native-safe-area-context';
 import { useAccountTypeStore, type AccountTypeStore } from '@/lib/account-type-store';
 import { registerForPushNotifications, scheduleStreakReminder } from '@/lib/notifications';
+import { setUserId, logoutUser } from '@/lib/revenuecatClient';
 import {
   useFonts,
   PlusJakartaSans_400Regular,
@@ -220,6 +221,32 @@ function RootLayoutNav({ colorScheme }: { colorScheme: 'light' | 'dark' | null |
     pushRegisteredFor.current = userId;
     registerForPushNotifications().catch(() => {});
     scheduleStreakReminder().catch(() => {});
+  }, [session?.user?.id]);
+
+  // Tell RevenueCat who this is — once per authenticated user, and log out
+  // again when the session ends.
+  //
+  // Load-bearing: RevenueCat's app user id must equal the Better Auth user id,
+  // because that is the only thing tying a purchase to an account. Without it
+  // the webhook receives an id it cannot resolve and the purchase is never
+  // applied — the user pays and stays on the free tier.
+  const revenueCatIdentifiedAs = useRef<string | null>(null);
+  useEffect(() => {
+    const userId = session?.user?.id ?? null;
+
+    if (!userId) {
+      // Signed out: detach so a subsequent sign-in on this device does not
+      // inherit the previous account's purchases.
+      if (revenueCatIdentifiedAs.current) {
+        revenueCatIdentifiedAs.current = null;
+        logoutUser().catch(() => {});
+      }
+      return;
+    }
+
+    if (revenueCatIdentifiedAs.current === userId) return;
+    revenueCatIdentifiedAs.current = userId;
+    setUserId(userId).catch(() => {});
   }, [session?.user?.id]);
 
   // Surface session-fetch errors with a visible Retry instead of silently

@@ -43,10 +43,13 @@ import {
   type LinkedBank,
   type LinkedAccount,
 } from '@/lib/bank-linking';
+import { useEntitlement } from '@/lib/useEntitlement';
+import { isUpgradeRequired } from '@/lib/entitlementApi';
 
 type ViewMode = 'main' | 'add-bank' | 'bank-detail' | 'consent';
 
 export default function LinkBankScreen() {
+  const { handleUpgradeRequired } = useEntitlement();
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
@@ -112,6 +115,19 @@ export default function LinkBankScreen() {
       await loadData();
       setViewMode('main');
     } catch (e) {
+      // Bank sync is Pro. Offer the upgrade at the moment it is wanted rather
+      // than reporting a failed connection.
+      if (await handleUpgradeRequired(e)) {
+        setIsLoading(false);
+        return;
+      }
+      if (isUpgradeRequired(e)) {
+        Alert.alert(
+          'Bank sync is a Pro feature',
+          'Upgrade to Pro in Settings to connect your bank. You can always import a statement instead — that works on any plan.'
+        );
+        return;
+      }
       Alert.alert('Connection failed', e instanceof Error ? e.message : 'Please try again.');
     } finally {
       setIsLoading(false);

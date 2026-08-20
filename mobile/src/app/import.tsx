@@ -47,6 +47,8 @@ import {
 } from '@/lib/import-parser';
 import { addTransaction, getTransactions, getSettings } from '@/lib/db';
 import { findProfileFor, rememberProfile } from '@/lib/import-profiles';
+import { useEntitlement } from '@/lib/useEntitlement';
+import { isUpgradeRequired } from '@/lib/entitlementApi';
 import { api } from '@/lib/api/api';
 
 /** One transaction as returned by /api/ai/analyze-statement. */
@@ -61,6 +63,7 @@ interface StatementRow {
 type ImportStep = 'upload' | 'mapping' | 'preview' | 'success';
 
 export default function ImportScreen() {
+  const { handleUpgradeRequired } = useEntitlement();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
@@ -161,16 +164,21 @@ export default function ImportScreen() {
     } catch (e) {
       console.error('[import] PDF analysis failed:', e);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      // A free user hitting the allowance should be offered the upgrade here,
+      // not told the file was unreadable.
+      if (await handleUpgradeRequired(e)) return;
       Alert.alert(
-        'Could not read that PDF',
-        e instanceof Error && /429/.test(e.message)
-          ? 'You have hit the AI usage limit. Please try again later.'
-          : 'The statement could not be analysed. If your bank offers CSV, that will always be more accurate.',
+        isUpgradeRequired(e) ? 'Pro feature' : 'Could not read that PDF',
+        isUpgradeRequired(e)
+          ? 'Reading PDF statements uses AI. Upgrade to Pro in Settings, or import a CSV instead — CSV is parsed on your device and is always more accurate.'
+          : e instanceof Error && /429/.test(e.message)
+            ? 'You have hit the AI usage limit. Please try again later.'
+            : 'The statement could not be analysed. If your bank offers CSV, that will always be more accurate.',
       );
     } finally {
       setAnalyzingPdf(false);
     }
-  }, []);
+  }, [handleUpgradeRequired]);
 
   const pickFile = useCallback(async (source: ImportSource = 'bank') => {
     try {

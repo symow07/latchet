@@ -5,6 +5,7 @@ import {
   Switch,
   Pressable,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -12,7 +13,7 @@ import { useRouter } from 'expo-router';
 import { getSettings, updateSettings, getAccounts, resetAllData } from '@/lib/db';
 import { exportTransactionsCSV, exportTransactionsJSON } from '@/lib/export-data';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { DollarSign, Wallet, Clock, Eye, Flame, Award, Cloud, Check, ChevronRight, CreditCard, LogOut, Upload, Download, Fingerprint, PieChart, RotateCcw, Bell, Repeat, TrendingUp, Trash2 } from 'lucide-react-native';
+import { DollarSign, Wallet, Clock, Eye, Flame, Award, Cloud, Check, ChevronRight, CreditCard, LogOut, Upload, Download, Fingerprint, PieChart, RotateCcw, Bell, Repeat, TrendingUp, Trash2, Sparkles } from 'lucide-react-native';
 import { authClient } from '@/lib/auth/auth-client';
 import { useInvalidateSession } from '@/lib/auth/use-session';
 import * as Haptics from 'expo-haptics';
@@ -23,6 +24,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { C, R, glow } from '@/lib/design';
 import { DeleteAccountModal, UnrevokedGrantsNotice } from '@/components/DeleteAccountModal';
+import { useEntitlement } from '@/lib/useEntitlement';
 import type { UnrevokedGrant } from '@/lib/accountApi';
 import { Txt, GlassCard, IconBubble, BubbleButton, ScreenBackground } from '@/components/ui';
 
@@ -113,6 +115,8 @@ export default function SettingsScreen() {
   const [saved, setSaved] = useState(false);
   const [biometricEnabled, setBiometricEnabled] = useState(false);
   const [showDeleteAccount, setShowDeleteAccount] = useState(false);
+  const [restoring, setRestoring] = useState(false);
+  const { isPro, presentPaywall, restore } = useEntitlement();
   const [unrevokedGrants, setUnrevokedGrants] = useState<UnrevokedGrant[] | null>(null);
 
   /**
@@ -306,6 +310,75 @@ export default function SettingsScreen() {
         {/* ── Version ── */}
         <View style={{ paddingHorizontal: 20, paddingTop: 24 }}>
           <Txt size={11} color={C.textFaint} style={{ textAlign: 'center' }}>Budget v1.0.0 — made with care 💜</Txt>
+        </View>
+
+        {/* ── Subscription ── */}
+        <View style={{ paddingHorizontal: 20, paddingTop: 18 }}>
+          <SectionLabel>SUBSCRIPTION ✨</SectionLabel>
+
+          <Pressable
+            onPress={async () => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              if (isPro) return;
+              await presentPaywall();
+            }}
+          >
+            <GlassCard padding={14}>
+              <View className="flex-row items-center" style={{ gap: 12 }}>
+                <IconBubble color={isPro ? '#22c55e' : C.p400}>
+                  <Sparkles size={20} color={isPro ? '#22c55e' : C.p400} />
+                </IconBubble>
+                <View style={{ flex: 1 }}>
+                  <Txt weight="semibold" size={15} color={C.text}>
+                    {isPro ? 'Budget Pro' : 'Upgrade to Pro'}
+                  </Txt>
+                  <Txt size={11} color={C.textFaint} style={{ marginTop: 1 }}>
+                    {isPro
+                      ? 'AI advisor, receipt scan, email detection and bank sync'
+                      : 'Unlock the AI advisor, receipt scan and bank sync'}
+                  </Txt>
+                </View>
+                {isPro ? (
+                  <Check size={18} color="#22c55e" />
+                ) : (
+                  <ChevronRight size={18} color={C.textFaint} />
+                )}
+              </View>
+            </GlassCard>
+          </Pressable>
+
+          {/* Apple requires a restore path for previously-purchased
+              subscriptions — an app without one is rejected. */}
+          <Pressable
+            onPress={async () => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setRestoring(true);
+              try {
+                const restored = await restore();
+                Alert.alert(
+                  restored ? 'Purchases restored' : 'Nothing to restore',
+                  restored
+                    ? 'Any active subscription on this account has been reapplied.'
+                    : 'We couldn\'t find an active subscription for this account. If you subscribed with a different Apple ID or Google account, sign in with that one and try again.',
+                );
+              } finally {
+                setRestoring(false);
+              }
+            }}
+            disabled={restoring}
+            style={{ marginTop: 10 }}
+          >
+            <GlassCard padding={12}>
+              <View className="flex-row items-center justify-center" style={{ gap: 8 }}>
+                {restoring ? (
+                  <ActivityIndicator size="small" color={C.textFaint} />
+                ) : (
+                  <RotateCcw size={16} color={C.textFaint} />
+                )}
+                <Txt size={13} color={C.textFaint}>Restore purchases</Txt>
+              </View>
+            </GlassCard>
+          </Pressable>
         </View>
 
         {/* ── Danger zone ── */}

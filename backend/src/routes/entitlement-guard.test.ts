@@ -17,9 +17,14 @@ const FREE_USER = "guard_free_user";
 const PRO_USER = "guard_pro_user";
 const EXPIRED_USER = "guard_expired_user";
 
+/** The context variables the global session middleware normally populates. */
+type SessionVars = {
+  Variables: { user: { id: string; email: string } | null; session: unknown };
+};
+
 /** Mounts a router behind a middleware that pretends `userId` is signed in. */
 function appAs(userId: string, router: Hono<never>) {
-  const app = new Hono();
+  const app = new Hono<SessionVars>();
   app.use("*", async (c, next) => {
     c.set("user", { id: userId, email: `${userId}@example.com` });
     c.set("session", { userId });
