@@ -173,7 +173,7 @@ function EditModal({
                   <Text style={{ fontSize: 22 }}>{category.emoji}</Text>
                 </View>
                 <View>
-                  <Text style={{ color: '#fff', fontSize: 18, fontWeight: '700' }}>
+                  <Text style={{ color: C.text, fontSize: 18, fontWeight: '700' }}>
                     {t('categoryBudgets.titleFor', {
                       category: categoryLabel(category.name),
                     })}
@@ -209,7 +209,7 @@ function EditModal({
                   selectionColor={category.color}
                   style={{
                     flex: 1,
-                    color: '#fff',
+                    color: C.text,
                     fontSize: 24,
                     fontWeight: '700',
                   }}
@@ -433,7 +433,7 @@ export default function CategoryBudgetsScreen() {
 
                   {/* Name + budget */}
                   <View style={{ flex: 1 }}>
-                    <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>{categoryLabel(cat.name)}</Text>
+                    <Text style={{ color: C.text, fontSize: 16, fontWeight: '700' }}>{categoryLabel(cat.name)}</Text>
                     {hasLimit ? (
                       <Text style={{ color: '#9ca3af', fontSize: 12, marginTop: 2 }}>
                         ${spent.toFixed(0)} spent

@@ -187,7 +187,7 @@ export function DeleteAccountModal({
                     borderRadius: 12,
                     paddingHorizontal: 14,
                     paddingVertical: 12,
-                    color: '#fff',
+                    color: C.text,
                     fontSize: 15,
                     backgroundColor: C.glass,
                     borderWidth: 1,

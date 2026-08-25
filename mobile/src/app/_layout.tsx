@@ -73,10 +73,10 @@ function StartupScreen({ stage }: { stage: string }) {
   return (
     <View style={{ flex: 1, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
       <ActivityIndicator size="large" color={C.amber} />
-      <Text style={{ color: '#fff', fontSize: 18, fontWeight: '600', marginTop: 24 }}>
+      <Text style={{ color: C.text, fontSize: 18, fontWeight: '600', marginTop: 24 }}>
         Starting Budget…
       </Text>
-      <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, marginTop: 8 }}>
+      <Text style={{ color: C.textDim, fontSize: 13, marginTop: 8 }}>
         {stage}
       </Text>
     </View>
