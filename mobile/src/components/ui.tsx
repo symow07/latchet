@@ -9,7 +9,6 @@ import {
   type TextStyle,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import Animated, {
   useAnimatedStyle,
@@ -363,27 +362,6 @@ export function EmptyState({
   );
 }
 
-/**
- * A scrim the height of the status bar, drawn over scrolled content.
- *
- * These screens are full-bleed: the ScrollView starts at y=0 and its header
- * carries the top inset as padding. That looks right at rest, but once you
- * scroll, list content passes under the clock and the battery with nothing
- * between them. The tab bar already solves the same problem at the bottom with
- * a blur; this is that treatment at the top.
- */
-function TopScrim({ color }: { color: string }) {
-  const insets = useSafeAreaInsets();
-  if (insets.top === 0) return null;
-  return (
-    <LinearGradient
-      pointerEvents="none"
-      colors={[color, `${color}e6`, 'transparent']}
-      style={{ position: 'absolute', top: 0, left: 0, right: 0, height: insets.top + 6 }}
-    />
-  );
-}
-
 export function ScreenBackground({ children, style }: { children?: React.ReactNode; style?: StyleProp<ViewStyle> }) {
   const C = useC();
   return (
@@ -416,13 +394,12 @@ export function ScreenBackground({ children, style }: { children?: React.ReactNo
       {/* Kept separate: this one runs diagonally, so it cannot fold into a
           vertical ramp. */}
       <LinearGradient
-        colors={[`${C.p600}3a`, 'transparent']}
+        colors={[`${C.p600}3a`, `${C.p600}00`]}
         start={{ x: 0.15, y: 0 }}
         end={{ x: 0.85, y: 0.45 }}
         style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 380 }}
       />
       {children}
-      <TopScrim color={C.bg} />
     </View>
   );
 }
@@ -444,13 +421,12 @@ export function BizBackground({ children, style }: { children?: React.ReactNode;
       />
       {/* one calm accent wash near the top */}
       <LinearGradient
-        colors={[`${B.accent}22`, 'transparent']}
+        colors={[`${B.accent}22`, `${B.accent}00`]}
         start={{ x: 0.1, y: 0 }}
         end={{ x: 0.9, y: 0.5 }}
         style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 320 }}
       />
       {children}
-      <TopScrim color={B.bg} />
     </View>
   );
 }
