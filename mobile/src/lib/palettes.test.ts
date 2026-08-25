@@ -124,16 +124,15 @@ describe('mix', () => {
     expect(mix('#0c0716', '#4c1d95', 1)).toBe('#4c1d95');
   });
 
-  it('composites the page-foot wash to what the stacked layers produced', () => {
-    // ScreenBackground used to paint `${C.p800}26` as a second full-width layer
-    // over C.bgFoot. Folding it into the gradient's last stop has to land on
-    // the same pixel or the background visibly shifts.
-    //
-    // The old layer's alpha was the hex byte 0x26 (0.14902); the call site now
-    // passes 0.15, which lands one unit higher on blue — #1b0d32 against the
-    // stacked #1b0d31. Both are asserted so a real drift is still caught.
-    expect(mix('#120a20', '#4c1d95', 0x26 / 255)).toBe('#1b0d31');
-    expect(mix('#120a20', '#4c1d95', 0.15)).toBe('#1b0d32');
+  it('produces the page-gradient stops ScreenBackground depends on', () => {
+    // ScreenBackground folded a second full-width wash into this gradient's
+    // last stop. The alphas are fitted to what the two-layer version actually
+    // rendered rather than to its nominal geometry — its box is taller than
+    // the visible screen, so the wash never reached its end colour. Pinning
+    // both stops here means a change to mix() cannot silently shift the
+    // background out from under that measurement.
+    expect(mix('#0c0716', '#120a20', 0.67)).toBe('#10091d');
+    expect(mix('#120a20', '#4c1d95', 0.086)).toBe('#170c2a');
   });
 
   it('clamps alpha rather than producing out-of-range channels', () => {
