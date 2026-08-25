@@ -7,7 +7,7 @@ import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Mail, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react-native';
+import { Mail, Lock, Eye, EyeOff, ArrowRight, Wallet } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import * as SecureStore from 'expo-secure-store';
 import { authClient } from '@/lib/auth/auth-client';
@@ -172,7 +172,7 @@ export default function LoginScreen() {
                 marginBottom: 24,
               }}
             >
-              <Text style={{ fontSize: 32 }}>💰</Text>
+              <Wallet size={30} color="#a855f7" />
             </View>
             <Text className="text-4xl font-bold text-white mb-2">{t('auth.welcomeBack')}</Text>
             <Text className="text-white/55 text-base leading-6">

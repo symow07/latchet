@@ -18,7 +18,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { C, R, glow } from '@/lib/design';
-import { Txt, GlassCard, IconBubble, BubbleButton, ScreenBackground } from '@/components/ui';
+import { Txt, GlassCard, IconBubble, BubbleButton, ScreenBackground, Emoji } from '@/components/ui';
 import { getCategories, DEFAULT_CATEGORIES, CATEGORY_EMOJIS, CATEGORY_COLORS, categoryLabel } from '@/lib/categories';
 import { t } from '@/lib/i18n/core';
 
@@ -275,7 +275,7 @@ export default function AddTransactionScreen() {
               return (
                 <Pressable key={cat.name} onPress={() => handleCategoryChange(cat.name)}>
                   <View style={{ paddingVertical: 12, paddingHorizontal: 16, borderRadius: R.pill, flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: isSelected ? `${cat.color}26` : C.glass, borderWidth: 1.5, borderColor: isSelected ? `${cat.color}77` : 'transparent' }}>
-                    <Txt size={14}>{cat.icon}</Txt>
+                    <Emoji size={14}>{cat.icon}</Emoji>
                     <Txt weight="semibold" size={13} color={isSelected ? cat.color : C.textFaint}>{categoryLabel(cat.name, categories)}</Txt>
                   </View>
                 </Pressable>
@@ -302,7 +302,7 @@ export default function AddTransactionScreen() {
 
               {/* Live preview */}
               <View style={{ alignSelf: 'flex-start', paddingVertical: 12, paddingHorizontal: 16, borderRadius: R.pill, flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: `${newCatColor}26`, borderWidth: 1.5, borderColor: `${newCatColor}77`, marginBottom: 18 }}>
-                <Txt size={16}>{newCatEmoji}</Txt>
+                <Emoji size={16}>{newCatEmoji}</Emoji>
                 <Txt weight="semibold" size={14} color={newCatColor}>{newCatName.trim() || 'Category name'}</Txt>
               </View>
 
@@ -321,7 +321,7 @@ export default function AddTransactionScreen() {
                 {CATEGORY_EMOJIS.map(e => (
                   <Pressable key={e} onPress={() => setNewCatEmoji(e)}>
                     <View style={{ width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: newCatEmoji === e ? `${C.p500}30` : C.glass, borderWidth: 1.5, borderColor: newCatEmoji === e ? C.p400 : 'transparent' }}>
-                      <Txt size={18}>{e}</Txt>
+                      <Emoji size={18}>{e}</Emoji>
                     </View>
                   </Pressable>
                 ))}
@@ -384,7 +384,7 @@ export default function AddTransactionScreen() {
           <TextInput
             value={note}
             onChangeText={setNote}
-            placeholder="What did you spend on? 🤔"
+            placeholder="What did you spend on?"
             placeholderTextColor={C.textFaint}
             multiline
             numberOfLines={3}
@@ -411,7 +411,7 @@ export default function AddTransactionScreen() {
         {/* ── Submit ── */}
         <View style={{ paddingHorizontal: 20, paddingTop: 28 }}>
           <BubbleButton
-            label={mutation.isPending ? 'Logging…' : 'Log it! 🎉'}
+            label={mutation.isPending ? 'Logging…' : 'Log it!'}
             onPress={() => mutation.mutate()}
             disabled={!canSubmit}
           />

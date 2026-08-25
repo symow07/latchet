@@ -258,6 +258,22 @@ export function BubbleButton({
  * Full-screen atmospheric background: deep plum gradient + soft floating purple
  * blobs. Place as the first child of a screen with `flex: 1`.
  */
+/**
+ * Emoji, rendered in the system emoji font.
+ *
+ * Every other text component sets an explicit fontFamily (Plus Jakarta Sans),
+ * and a font with no glyph for a codepoint renders a missing-glyph box rather
+ * than falling back — which is why every emoji in the app showed as a tofu
+ * square on device. Leaving fontFamily unset lets iOS pick Apple Color Emoji.
+ *
+ * Use this for emoji that are *data* — the category icons, and the palette a
+ * user picks from when creating their own category. Decorative emoji in copy
+ * were removed rather than wrapped.
+ */
+export function Emoji({ children, size = 15, style }: { children?: React.ReactNode; size?: number; style?: StyleProp<TextStyle> }) {
+  return <RNText style={[{ fontSize: size }, style]}>{children}</RNText>;
+}
+
 export function ScreenBackground({ children, style }: { children?: React.ReactNode; style?: StyleProp<ViewStyle> }) {
   return (
     <View style={[{ flex: 1, backgroundColor: C.bg }, style]}>

@@ -124,7 +124,7 @@ async function performInit(): Promise<SQLite.SQLiteDatabase> {
 
     CREATE TABLE IF NOT EXISTS custom_categories (
       name TEXT PRIMARY KEY,
-      icon TEXT NOT NULL DEFAULT '🏷️',
+      icon TEXT NOT NULL DEFAULT '',
       color TEXT NOT NULL DEFAULT '#94a3b8',
       createdAt TEXT NOT NULL
     );

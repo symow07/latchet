@@ -23,6 +23,7 @@ import {
   ChevronRight,
   Lightbulb,
   BarChart3,
+  Info,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInUp } from 'react-native-reanimated';
@@ -243,7 +244,7 @@ export default function HealthScoreScreen() {
         {transactions.length < 5 && (
           <View className="px-4 mb-4">
             <View style={{ backgroundColor: 'rgba(251,191,36,0.1)', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: 'rgba(251,191,36,0.25)', flexDirection: 'row', gap: 10 }}>
-              <Text style={{ fontSize: 16 }}>ℹ️</Text>
+              <Info size={16} color="rgba(255,255,255,0.45)" />
               <Text style={{ color: '#fcd34d', fontSize: 13, lineHeight: 19, flex: 1 }}>
                 This is an <Text style={{ fontWeight: '700' }}>estimate</Text> — you have {transactions.length} transaction{transactions.length === 1 ? '' : 's'} so far. Log a few weeks of spending and income for a score that actually reflects your habits.
               </Text>

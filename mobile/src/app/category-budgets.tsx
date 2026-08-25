@@ -45,12 +45,12 @@ interface CategoryConfig {
 // --- Category configuration ---
 
 const CATEGORIES: CategoryConfig[] = [
-  { name: 'Food', emoji: '🍔', color: '#f97316', bg: 'rgba(249,115,22,0.15)', barColor: '#f97316' },
-  { name: 'Gym', emoji: '💪', color: '#a855f7', bg: 'rgba(168,85,247,0.15)', barColor: '#a855f7' },
-  { name: 'Transport', emoji: '🚗', color: '#3b82f6', bg: 'rgba(59,130,246,0.15)', barColor: '#3b82f6' },
-  { name: 'Shopping', emoji: '🛍️', color: '#ec4899', bg: 'rgba(236,72,153,0.15)', barColor: '#ec4899' },
-  { name: 'Subscriptions', emoji: '📱', color: '#22c55e', bg: 'rgba(34,197,94,0.15)', barColor: '#22c55e' },
-  { name: 'Other', emoji: '📦', color: '#6b7280', bg: 'rgba(107,114,128,0.15)', barColor: '#6b7280' },
+  { name: 'Food', emoji: '', color: '#f97316', bg: 'rgba(249,115,22,0.15)', barColor: '#f97316' },
+  { name: 'Gym', emoji: '', color: '#a855f7', bg: 'rgba(168,85,247,0.15)', barColor: '#a855f7' },
+  { name: 'Transport', emoji: '', color: '#3b82f6', bg: 'rgba(59,130,246,0.15)', barColor: '#3b82f6' },
+  { name: 'Shopping', emoji: '', color: '#ec4899', bg: 'rgba(236,72,153,0.15)', barColor: '#ec4899' },
+  { name: 'Subscriptions', emoji: '', color: '#22c55e', bg: 'rgba(34,197,94,0.15)', barColor: '#22c55e' },
+  { name: 'Other', emoji: '', color: '#6b7280', bg: 'rgba(107,114,128,0.15)', barColor: '#6b7280' },
 ];
 
 // --- API helpers ---

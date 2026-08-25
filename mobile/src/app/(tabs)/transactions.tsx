@@ -11,7 +11,7 @@ import { format, parseISO, startOfMonth, endOfMonth } from 'date-fns';
 import { getTransactions, deleteTransaction, getSettings } from '@/lib/db';
 import { getCategories, categoryMeta, DEFAULT_CATEGORIES, categoryLabel } from '@/lib/categories';
 import { formatCurrency, formatTimeCost, calculateTimeCost } from '@/lib/calculations';
-import { Trash2, Filter, Zap, Clock } from 'lucide-react-native';
+import { Trash2, Filter, Zap, Clock, Inbox } from 'lucide-react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
@@ -110,16 +110,16 @@ export default function TransactionsScreen() {
       >
         {/* ── Header ── */}
         <View style={{ paddingTop: insets.top + 16, paddingHorizontal: 20 }}>
-          <Txt weight="bold" size={30} color={C.text}>History 📖</Txt>
+<Txt weight="bold" size={30} color={C.text}>History </Txt>
           <Txt weight="medium" size={13} color={C.textDim} style={{ marginTop: 2 }}>
-            {filtered.length > 0 ? `${filtered.length} records found ✨` : 'No records yet — start tracking!'}
+{filtered.length > 0? `${filtered.length} records found `: 'No records yet — start tracking!'}
           </Txt>
 
           {/* Date range */}
           <View className="flex-row" style={{ gap: 12, marginTop: 16 }}>
             {([
-              { label: 'From 📅', val: startDate, onPress: () => setShowStartPicker(true) },
-              { label: 'To 📅', val: endDate, onPress: () => setShowEndPicker(true) },
+              { label: 'From', val: startDate, onPress: () => setShowStartPicker(true) },
+              { label: 'To', val: endDate, onPress: () => setShowEndPicker(true) },
             ]).map((d, i) => (
               <Pressable key={i} onPress={d.onPress} style={{ flex: 1 }}>
                 <GlassCard padding={12} radius={R.md} tint={`${C.p500}14`} border={`${C.p500}2e`}>
@@ -143,7 +143,7 @@ export default function TransactionsScreen() {
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, marginBottom: 12 }} contentContainerStyle={{ gap: 8 }}>
             <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setFilterCategory(null); }}>
               <View style={{ paddingVertical: 10, paddingHorizontal: 16, borderRadius: R.pill, backgroundColor: filterCategory === null ? `${C.p500}2a` : C.glass, borderWidth: 1.5, borderColor: filterCategory === null ? `${C.p500}88` : 'transparent' }}>
-                <Txt weight="semibold" size={13} color={filterCategory === null ? C.p400 : C.textFaint}>All ✨</Txt>
+<Txt weight="semibold" size={13} color={filterCategory === null? C.p400: C.textFaint}>All </Txt>
               </View>
             </Pressable>
             {categories.map(cat => {
@@ -164,7 +164,7 @@ export default function TransactionsScreen() {
             <View style={{ paddingVertical: 13, paddingHorizontal: 16, borderRadius: R.md, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: filterImpulseOnly ? `${C.rose}16` : C.glass, borderWidth: 1.5, borderColor: filterImpulseOnly ? `${C.rose}55` : 'transparent' }}>
               <Zap size={16} color={filterImpulseOnly ? C.rose : C.textFaint} />
               <Txt weight="semibold" size={13} color={filterImpulseOnly ? C.rose : C.textFaint}>
-                {filterImpulseOnly ? 'Showing impulse only ⚡' : 'Show impulse only'}
+                {filterImpulseOnly ? 'Showing impulse only' : 'Show impulse only'}
               </Txt>
             </View>
           </Pressable>
@@ -174,11 +174,11 @@ export default function TransactionsScreen() {
         {groupedArray.length === 0 ? (
           <View className="items-center justify-center" style={{ paddingVertical: 70 }}>
             <View style={{ width: 84, height: 84, borderRadius: 28, alignItems: 'center', justifyContent: 'center', marginBottom: 16, backgroundColor: `${C.p700}26` }}>
-              <Txt size={40}>📭</Txt>
+              <Inbox size={38} color={C.textFaint} />
             </View>
             <Txt weight="bold" size={18} color={C.text} style={{ marginBottom: 6 }}>{t('common.nothingYet')}</Txt>
             <Txt size={13} color={C.textFaint} style={{ textAlign: 'center', paddingHorizontal: 40 }}>
-              Try adjusting your filters, or add your first transaction 👆
+Try adjusting your filters, or add your first transaction
             </Txt>
           </View>
         ) : (
@@ -206,7 +206,7 @@ export default function TransactionsScreen() {
                           <View className="flex-1">
                             <View className="flex-row items-center flex-wrap" style={{ gap: 6 }}>
                               <Txt weight="semibold" size={15} color={C.text}>{categoryLabel(tx.category, allCategories)}</Txt>
-                              {tx.isImpulse ? <Pill label="⚡ Impulse" color={C.rose} /> : null}
+                              {tx.isImpulse ? <Pill label="Impulse" color={C.rose} /> : null}
                             </View>
                             {tx.note ? <Txt size={13} color={C.textFaint} style={{ marginTop: 2 }}>{tx.note}</Txt> : null}
                             {!!settings?.showTimeCost && settings?.hourlyValue > 0 && tx.type === 'Expense' && (

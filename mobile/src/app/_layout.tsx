@@ -29,6 +29,7 @@ import {
 } from '@expo-google-fonts/plus-jakarta-sans';
 import { patchDefaultFont } from '@/lib/design';
 import { t } from '@/lib/i18n/core';
+import { Lock } from 'lucide-react-native';
 
 // Silence verbose console.log in release builds (startup/gate/api tracing stays
 // available in dev via expo.log). warn/error still surface for crash reporting.
@@ -114,7 +115,7 @@ function LockScreen({ onUnlock }: { onUnlock: () => void }) {
             alignItems: 'center', justifyContent: 'center',
             marginBottom: 24,
           }}>
-            <Text style={{ fontSize: 48 }}>🔒</Text>
+            <Lock size={44} color="#a855f7" />
           </View>
           <Text style={{ color: '#fff', fontSize: 26, fontWeight: '700', marginBottom: 8 }}>
             Budget

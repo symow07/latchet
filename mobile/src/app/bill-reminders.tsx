@@ -69,18 +69,18 @@ interface CreateBillBody {
 // ─── Constants ───────────────────────────────────────────────────────────────
 
 const CATEGORIES: { label: Category; emoji: string }[] = [
-  { label: 'Food', emoji: '🍔' },
-  { label: 'Gym', emoji: '💪' },
-  { label: 'Transport', emoji: '🚗' },
-  { label: 'Shopping', emoji: '🛍️' },
-  { label: 'Subscriptions', emoji: '📱' },
-  { label: 'Other', emoji: '📦' },
+  { label: 'Food', emoji: '' },
+  { label: 'Gym', emoji: '' },
+  { label: 'Transport', emoji: '' },
+  { label: 'Shopping', emoji: '' },
+  { label: 'Subscriptions', emoji: '' },
+  { label: 'Other', emoji: '' },
 ];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function getCategoryEmoji(category: Category): string {
-  return CATEGORIES.find((c) => c.label === category)?.emoji ?? '📦';
+  return CATEGORIES.find((c) => c.label === category)?.emoji ?? '';
 }
 
 function computeNextDueDate(dueDay: number): string {

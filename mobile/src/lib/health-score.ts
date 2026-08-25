@@ -402,42 +402,42 @@ export function getPersonalityDescription(personality: SpendingPersonality): {
       return {
         title: 'The Saver',
         description: 'You prioritize saving and are great at building wealth over time.',
-        icon: '🏦',
+        icon: '',
         color: '#22c55e',
       };
     case 'balanced':
       return {
         title: 'The Balanced',
         description: 'You maintain a healthy balance between spending and saving.',
-        icon: '⚖️',
+        icon: '',
         color: '#3b82f6',
       };
     case 'spender':
       return {
         title: 'The Spender',
         description: 'You enjoy spending but may need to focus more on savings.',
-        icon: '💳',
+        icon: '',
         color: '#f59e0b',
       };
     case 'impulsive':
       return {
         title: 'The Spontaneous',
         description: 'You make quick decisions. Try pausing before purchases.',
-        icon: '⚡',
+        icon: '',
         color: '#f472b6',
       };
     case 'disciplined':
       return {
         title: 'The Disciplined',
         description: 'You stick to your budget consistently. Great self-control!',
-        icon: '🎯',
+        icon: '',
         color: '#a855f7',
       };
     case 'inconsistent':
       return {
         title: 'The Variable',
         description: 'Your spending varies. Try creating more predictable patterns.',
-        icon: '📊',
+        icon: '',
         color: '#6b7280',
       };
   }

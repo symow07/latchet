@@ -35,10 +35,10 @@ import { t } from '@/lib/i18n/core';
 
 function getGreeting(): string {
   const hour = new Date().getHours();
-  if (hour < 12) return 'Good morning ☀️';
-  if (hour < 17) return 'Good afternoon 🌤️';
-  if (hour < 21) return 'Good evening 🌆';
-  return 'Good night 🌙';
+  if (hour < 12) return 'Good morning';
+  if (hour < 17) return 'Good afternoon';
+  if (hour < 21) return 'Good evening';
+  return 'Good night';
 }
 
 // Small staggered reveal wrapper to keep the screen feeling alive & bubbly.
@@ -158,16 +158,16 @@ export default function DashboardScreen() {
       return { icon: Zap, color: C.rose, title: 'High Impulse Purchases', message: `${impulsePercent}% of your purchases were impulse buys. Try waiting 24 hours before non-essential purchases.` };
     }
     if (onTrackForSavings && savingsGoal > 0) {
-      return { icon: Sparkles, color: C.green, title: 'On Track for Savings! 🎉', message: `Great job! You're on track to save ${formatCurrency(currentSavings)} this month, exceeding your goal!` };
+      return { icon: Sparkles, color: C.green, title: 'On Track for Savings!', message: `Great job! You're on track to save ${formatCurrency(currentSavings)} this month, exceeding your goal!` };
     }
     if (isUnderspending) {
-      return { icon: Sparkles, color: C.green, title: 'Great Spending Control! 💚', message: `You're spending less than expected. Keep it up to maximize your savings!` };
+      return { icon: Sparkles, color: C.green, title: 'Great Spending Control!', message: `You're spending less than expected. Keep it up to maximize your savings!` };
     }
     if (streak >= 7) {
-      return { icon: Flame, color: C.p400, title: `${streak}-Day Streak! 🔥`, message: `Amazing! You've been tracking your finances consistently. Keep building this habit!` };
+return { icon: Flame, color: C.p400, title: `${streak}-Day Streak! `, message: `Amazing! You've been tracking your finances consistently. Keep building this habit!` };
     }
     if (disciplineGrade === 'A') {
-      return { icon: Award, color: C.p400, title: 'Excellent Discipline! ⭐', message: `You're using only ${budgetUsedPercent}% of your budget. You're a budgeting pro!` };
+      return { icon: Award, color: C.p400, title: 'Excellent Discipline!', message: `You're using only ${budgetUsedPercent}% of your budget. You're a budgeting pro!` };
     }
     return null;
   };
@@ -188,7 +188,7 @@ export default function DashboardScreen() {
           <View className="flex-row items-center justify-between mt-1">
             {/* The app name, deliberately untranslated. */}
             <Txt weight="bold" size={32} color={C.text}>Budget</Txt>
-            <Pill label="💜 You're doing great" color={C.p400} />
+<Pill label=" You're doing great" color={C.p400} />
           </View>
           <Txt weight="medium" size={13} color={C.textFaint} style={{ marginTop: 4 }}>
             {format(new Date(), 'EEEE, MMMM d')}
@@ -364,7 +364,7 @@ export default function DashboardScreen() {
             <View className="flex-row items-center justify-between">
               <View className="flex-row items-center" style={{ gap: 12 }}>
                 <LinearGradient colors={[C.p600, C.p400]} style={[{ width: 52, height: 52, borderRadius: 20, alignItems: 'center', justifyContent: 'center' }, glow(C.p500, 0.4, 12)]}>
-                  <Txt size={24}>🔥</Txt>
+                  <Flame size={22} color={C.p400} />
                 </LinearGradient>
                 <View>
                   <Txt size={11} color={C.textDim}>{t('dashboard.loggingStreak')}</Txt>
@@ -372,7 +372,7 @@ export default function DashboardScreen() {
                   {streak >= 3 && <Txt size={11} color={C.p300} style={{ marginTop: 1 }}>{t('dashboard.keepItUp')}</Txt>}
                 </View>
               </View>
-              {badges.length > 0 && <Pill label={`🏆 ${badges.length} badges`} color={C.p400} />}
+{badges.length > 0 && <Pill label={` ${badges.length} badges`} color={C.p400} />}
             </View>
           </GlassCard>
         </Section>
@@ -387,7 +387,7 @@ export default function DashboardScreen() {
               </View>
               <View className="flex-row flex-wrap" style={{ gap: 8 }}>
                 {badges.map((badge, idx) => (
-                  <Pill key={idx} label={`🌟 ${badge}`} color={C.p400} />
+<Pill key={idx} label={` ${badge}`} color={C.p400} />
                 ))}
               </View>
             </GlassCard>
@@ -409,11 +409,11 @@ export default function DashboardScreen() {
                 })
               ) : (
                 <View className="flex-1 items-center justify-center">
-                  <Txt size={13} color={C.textFaint} style={{ textAlign: 'center' }}>No data yet{'\n'}Start tracking! 📝</Txt>
+<Txt size={13} color={C.textFaint} style={{ textAlign: 'center' }}>No data yet{'\n'}Start tracking! </Txt>
                 </View>
               )}
             </View>
-            {dailyData.length > 0 && <Txt size={11} color={C.textFaint} style={{ textAlign: 'center', marginTop: 12 }}>Peak: {formatCurrency(maxDaily)} 📈</Txt>}
+{dailyData.length > 0 && <Txt size={11} color={C.textFaint} style={{ textAlign: 'center', marginTop: 12 }}>Peak: {formatCurrency(maxDaily)} </Txt>}
           </GlassCard>
         </Section>
 
@@ -480,7 +480,7 @@ export default function DashboardScreen() {
                 {upcomingCharges.length > 0 && (
                   <View style={{ borderRadius: R.md, padding: 12, backgroundColor: `${C.p500}16` }}>
                     <Txt weight="semibold" size={11} color={C.p400} style={{ marginBottom: 3 }}>
-                      ⏰ {upcomingCharges.length} charge{upcomingCharges.length > 1 ? 's' : ''} due in 7 days
+{upcomingCharges.length} charge{upcomingCharges.length > 1? 's': ''} due in 7 days
                     </Txt>
                     {upcomingCharges.slice(0, 2).map(s => (
                       <Txt key={s.id} size={11} color={C.textDim}>{s.merchantDisplay} · {formatCurrency(s.typicalAmount)}</Txt>
@@ -512,7 +512,7 @@ export default function DashboardScreen() {
 
         {/* ── CTA ── */}
         <Section delay={350} style={{ paddingHorizontal: 20, marginTop: 18 }}>
-          <BubbleButton label="Let's track that 💜" onPress={() => router.push('/add')} />
+<BubbleButton label="Let's track that " onPress={() => router.push('/add')} />
         </Section>
       </ScrollView>
     </ScreenBackground>

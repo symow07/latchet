@@ -528,9 +528,9 @@ export default function ImportScreen() {
             <Text className="text-gray-400 text-xs font-semibold mb-3 ml-1">{t('importExtra.chooseSource')}</Text>
             <View className="gap-3">
               {([
-                { source: 'bank' as ImportSource, emoji: '🏦', title: 'Bank statement', sub: 'CIH, Attijariwafa, or any bank — export a CSV', color: '#3b82f6' },
-                { source: 'alipay' as ImportSource, emoji: '💙', title: 'Alipay 支付宝', sub: 'Export your bill: Me → 账单 → export (UTF-8 CSV)', color: '#1677ff' },
-                { source: 'wechat' as ImportSource, emoji: '💚', title: 'WeChat Pay 微信', sub: 'Me → Wallet → 账单 → 下载账单 (emailed CSV)', color: '#22c55e' },
+                { source: 'bank' as ImportSource, emoji: '', title: 'Bank statement', sub: 'CIH, Attijariwafa, or any bank — export a CSV', color: '#3b82f6' },
+                { source: 'alipay' as ImportSource, emoji: '', title: 'Alipay 支付宝', sub: 'Export your bill: Me → 账单 → export (UTF-8 CSV)', color: '#1677ff' },
+                { source: 'wechat' as ImportSource, emoji: '', title: 'WeChat Pay 微信', sub: 'Me → Wallet → 账单 → 下载账单 (emailed CSV)', color: '#22c55e' },
               ]).map((s) => (
                 <Pressable key={s.source} onPress={() => pickFile(s.source)}>
                   <View

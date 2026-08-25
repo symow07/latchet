@@ -529,33 +529,33 @@ export function getQuickInsights(analysis: SpendingAnalysis, settings: Settings)
   const monthlyBudgetSafe = Number(settings.monthlyBudget) || 0;
 
   if (analysis.budgetUsagePercentage >= 100) {
-    insights.push(`⚠️ You've exceeded your monthly budget by ${currencySymbol}${(analysis.budgetUsagePercentage / 100 * monthlyBudgetSafe - monthlyBudgetSafe).toFixed(2)}`);
+insights.push(` You've exceeded your monthly budget by ${currencySymbol}${(analysis.budgetUsagePercentage / 100 * monthlyBudgetSafe - monthlyBudgetSafe).toFixed(2)}`);
   } else if (analysis.budgetUsagePercentage >= 80) {
-    insights.push(`⚡ ${(100 - analysis.budgetUsagePercentage).toFixed(0)}% budget remaining - spend carefully!`);
+insights.push(` ${(100 - analysis.budgetUsagePercentage).toFixed(0)}% budget remaining - spend carefully!`);
   }
 
   if (analysis.impulsePercentage > 30) {
-    insights.push(`🛍️ ${analysis.impulsePercentage.toFixed(0)}% impulse purchases - consider a 24hr wait rule`);
+insights.push(` ${analysis.impulsePercentage.toFixed(0)}% impulse purchases - consider a 24hr wait rule`);
   }
 
   if (analysis.overspendingCategories.length > 0) {
-    insights.push(`📈 Spending up in: ${analysis.overspendingCategories.join(', ')}`);
+insights.push(` Spending up in: ${analysis.overspendingCategories.join(', ')}`);
   }
 
   if (analysis.underspendingCategories.length > 0) {
-    insights.push(`✅ Great savings in: ${analysis.underspendingCategories.join(', ')}`);
+insights.push(` Great savings in: ${analysis.underspendingCategories.join(', ')}`);
   }
 
   if (analysis.savingsRate > 20) {
-    insights.push(`💰 Excellent ${analysis.savingsRate.toFixed(0)}% savings rate!`);
+insights.push(` Excellent ${analysis.savingsRate.toFixed(0)}% savings rate!`);
   } else if (analysis.savingsRate < 0) {
-    insights.push(`⚠️ Spending more than earning this month`);
+insights.push(` Spending more than earning this month`);
   }
 
   if (analysis.weekOverWeekChange > 20) {
-    insights.push(`📊 Spending up ${analysis.weekOverWeekChange.toFixed(0)}% vs last week`);
+insights.push(` Spending up ${analysis.weekOverWeekChange.toFixed(0)}% vs last week`);
   } else if (analysis.weekOverWeekChange < -20) {
-    insights.push(`🎉 Spending down ${Math.abs(analysis.weekOverWeekChange).toFixed(0)}% vs last week!`);
+insights.push(` Spending down ${Math.abs(analysis.weekOverWeekChange).toFixed(0)}% vs last week!`);
   }
 
   return insights.slice(0, 4); // Max 4 quick insights

@@ -222,8 +222,8 @@ export default function SettingsScreen() {
       <ScrollView className="flex-1" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
         {/* ── Header ── */}
         <View style={{ paddingTop: insets.top + 16, paddingHorizontal: 20 }}>
-          <Txt weight="bold" size={30} color={C.text}>Settings ⚙️</Txt>
-          <Txt weight="medium" size={13} color={C.textDim} style={{ marginTop: 2 }}>Make it yours — we won't judge! 😄</Txt>
+<Txt weight="bold" size={30} color={C.text}>Settings </Txt>
+<Txt weight="medium" size={13} color={C.textDim} style={{ marginTop: 2 }}>Make it yours — we won't judge! </Txt>
         </View>
 
         {/* ── Accounts ── */}
@@ -235,7 +235,7 @@ export default function SettingsScreen() {
         {/* ── Import ── */}
         <Animated.View entering={FadeInUp.delay(70).springify().damping(16)} style={{ paddingHorizontal: 20, paddingTop: 20 }}>
           <SectionLabel>{t('settings.sections.import')}</SectionLabel>
-          <NavRow icon={<Upload size={20} color={C.lilac} />} color={C.lilac} label={t('settings.importTransactions')} desc="Upload CSV from your bank 🔒" onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/import'); }} />
+          <NavRow icon={<Upload size={20} color={C.lilac} />} color={C.lilac} label={t('settings.importTransactions')} desc="Upload CSV from your bank" onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/import'); }} />
         </Animated.View>
 
         {/* ── Tools ── */}
@@ -254,15 +254,15 @@ export default function SettingsScreen() {
           <SectionLabel>{t('settings.sections.numbers')}</SectionLabel>
           <MoneyInput icon={<Wallet size={15} color={C.p400} />} color={C.p400} label={t('settings.monthlyBudget')} hint={t('settings.monthlyBudgetHint')} value={monthlyBudget} onChangeText={setMonthlyBudget} placeholder="5000" />
           <MoneyInput icon={<Wallet size={15} color={C.green} />} color={C.green} label={t('settings.startingBalance')} hint={t('settings.startingBalanceHint')} value={startingBalance} onChangeText={setStartingBalance} placeholder="0" />
-          <MoneyInput icon={<Clock size={15} color={C.lilac} />} color={C.lilac} label={t('settings.hourlyRate')} hint="Used to calculate time cost of purchases ⏱️" value={hourlyValue} onChangeText={setHourlyValue} placeholder="0" suffix="/hr" />
+          <MoneyInput icon={<Clock size={15} color={C.lilac} />} color={C.lilac} label={t('settings.hourlyRate')} hint="Used to calculate time cost of purchases" value={hourlyValue} onChangeText={setHourlyValue} placeholder="0" suffix="/hr" />
         </Animated.View>
 
         {/* ── Preferences ── */}
         <Animated.View entering={FadeInUp.delay(160).springify().damping(16)} style={{ paddingHorizontal: 20, paddingTop: 20 }}>
           <SectionLabel>{t('settings.sections.preferences')}</SectionLabel>
           <View style={{ gap: 12 }}>
-            <ToggleRow icon={<Eye size={20} color={C.lilac} />} color={C.lilac} label="Show Time Cost ⏱️" desc={t('settings.hourlyRateHint')} value={showTimeCost} onValueChange={(val) => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setShowTimeCost(val); }} />
-            <ToggleRow icon={<Fingerprint size={20} color={C.p400} />} color={C.p400} label="Biometric Lock 🔒" desc="Require Face ID / Fingerprint on open" value={biometricEnabled} onValueChange={handleBiometricToggle} />
+            <ToggleRow icon={<Eye size={20} color={C.lilac} />} color={C.lilac} label="Show Time Cost" desc={t('settings.hourlyRateHint')} value={showTimeCost} onValueChange={(val) => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setShowTimeCost(val); }} />
+            <ToggleRow icon={<Fingerprint size={20} color={C.p400} />} color={C.p400} label="Biometric Lock" desc="Require Face ID / Fingerprint on open" value={biometricEnabled} onValueChange={handleBiometricToggle} />
           </View>
         </Animated.View>
 
@@ -270,7 +270,7 @@ export default function SettingsScreen() {
         {hourlyValue && parseFloat(hourlyValue) > 0 && showTimeCost && (
           <View style={{ paddingHorizontal: 20, paddingTop: 18 }}>
             <GlassCard tint={`${C.p700}16`} border={`${C.p700}2e`}>
-              <Txt size={11} color={C.textDim} style={{ marginBottom: 3 }}>Example 💡</Txt>
+<Txt size={11} color={C.textDim} style={{ marginBottom: 3 }}>Example </Txt>
               <Txt size={14} color={C.text}>$50 purchase = <Txt weight="bold" size={14} color={C.p400}>{Math.round((50 / parseFloat(hourlyValue)) * 60)} minutes</Txt> of work</Txt>
             </GlassCard>
           </View>
@@ -281,10 +281,10 @@ export default function SettingsScreen() {
           {saved ? (
             <LinearGradient colors={[C.green, '#059669']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={[{ borderRadius: R.md, paddingVertical: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }, glow(C.green, 0.4, 18)]}>
               <Check size={20} color="#fff" />
-              <Txt weight="bold" size={16} color="#fff">Saved! 🎉</Txt>
+<Txt weight="bold" size={16} color="#fff">Saved! </Txt>
             </LinearGradient>
           ) : (
-            <BubbleButton label={mutation.isPending ? 'Saving…' : 'Save! ✨'} onPress={() => mutation.mutate()} disabled={mutation.isPending} />
+            <BubbleButton label={mutation.isPending ? 'Saving…' : 'Save!'} onPress={() => mutation.mutate()} disabled={mutation.isPending} />
           )}
         </View>
 
@@ -293,9 +293,9 @@ export default function SettingsScreen() {
           <SectionLabel>{t('settings.sections.features')}</SectionLabel>
           <View style={{ gap: 12 }}>
             {[
-              { Icon: Flame, color: C.lilac, label: 'Logging Streak 🔥', desc: 'Build streaks by logging transactions daily' },
-              { Icon: Award, color: C.p400, label: 'Achievement Badges 🏆', desc: 'Unlock badges for good financial habits' },
-              { Icon: Cloud, color: C.p600, label: 'Cloud Synced ☁️', desc: 'Data backed up securely to the cloud' },
+              { Icon: Flame, color: C.lilac, label: 'Logging Streak', desc: 'Build streaks by logging transactions daily' },
+              { Icon: Award, color: C.p400, label: 'Achievement Badges', desc: 'Unlock badges for good financial habits' },
+              { Icon: Cloud, color: C.p600, label: 'Cloud Synced', desc: 'Data backed up securely to the cloud' },
             ].map((f) => (
               <GlassCard key={f.label} padding={14} tint={`${f.color}12`} border={`${f.color}24`}>
                 <View className="flex-row items-center" style={{ gap: 14 }}>
