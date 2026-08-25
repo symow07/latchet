@@ -110,15 +110,32 @@ export function glow(color: string = C.p500, opacity = 0.45, radius = 22) {
  * Screens needing specific weights use <Txt> or an explicit fontFamily.
  * Called once at startup after the fonts are loaded.
  *
- * This used to set Text.defaultProps, which does nothing here. React 19 still
- * honours defaultProps via createElement, but JSX compiles to jsx() from
- * react/jsx-runtime — the app is on the automatic runtime, since babel.config
- * sets jsxImportSource — and jsx() ignores them. Verified against the project's
- * own React 19.0.0: createElement applies them, jsx() does not. So the font
- * rollout only ever reached components that set fontFamily themselves.
+ * This used to set Text.defaultProps, which does nothing here.
  *
- * Wrapping the forwardRef's render is the path that actually runs. The default
- * goes first in the style array so any caller-supplied style still wins.
+ * React 19 did not remove defaultProps outright — createElement still applies
+ * them. What changed is the path JSX takes: babel.config sets jsxImportSource,
+ * so JSX compiles to jsx() from react/jsx-runtime, and jsx() ignores
+ * defaultProps. Verified against this project's own React 19.0.0, both ways:
+ * createElement applies them, jsx() does not. On the classic runtime the old
+ * code would have worked. So the font rollout only ever reached components
+ * setting fontFamily themselves — which is <Txt>, and roughly half the text in
+ * the app is a plain <Text>.
+ *
+ * Wrapping the forwardRef's render is the path that actually runs, because
+ * updateForwardRef reads `Component = Component.render` on every render rather
+ * than capturing it when the component is defined — see
+ * ReactNativeRenderer-prod.js, which is the bundle this app ships (Paper, since
+ * app.json sets newArchEnabled: false; release builds use the prod bundle). The
+ * same line is present in all six renderer bundles, so this does not depend on
+ * which renderer or build type is in play.
+ *
+ * The default goes first in the style array so any caller-supplied style still
+ * wins.
+ *
+ * The fragile assumption is that RN's Text stays a bare forwardRef. If a future
+ * version wraps it in memo, T.render is undefined, the guard below turns this
+ * into a silent no-op, and mixed typography returns with no error. Migrating
+ * plain <Text> to <Txt> is the version of this that cannot rot that way.
  */
 export function patchDefaultFont() {
   const T = RNText as unknown as {
