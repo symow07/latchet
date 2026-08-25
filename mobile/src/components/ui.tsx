@@ -391,12 +391,16 @@ export function ScreenBackground({ children, style }: { children?: React.ReactNo
         end={{ x: 0, y: 1 }}
         style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
       />
-      {/* Kept separate: this one runs diagonally, so it cannot fold into a
-          vertical ramp. */}
+      {/* Kept as its own layer because it covers only the top of the page.
+          The axis must stay vertical: with a diagonal one the bottom-left of
+          this box sits only 44% along the fade, so the layer ended while still
+          tinted and drew a hard line across every screen at exactly 380pt. No
+          diagonal axis can avoid that — the corner nearest the start always
+          lags — so the sweep is top-down. */}
       <LinearGradient
         colors={[`${C.p600}3a`, `${C.p600}00`]}
-        start={{ x: 0.15, y: 0 }}
-        end={{ x: 0.85, y: 0.45 }}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 1 }}
         style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 380 }}
       />
       {children}
@@ -419,11 +423,13 @@ export function BizBackground({ children, style }: { children?: React.ReactNode;
         end={{ x: 0, y: 1 }}
         style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
       />
-      {/* one calm accent wash near the top */}
+      {/* One calm accent wash near the top. Vertical axis for the same reason
+          as the personal one — a diagonal left this box tinted at its bottom
+          edge and drew a line across every business screen at 320pt. */}
       <LinearGradient
         colors={[`${B.accent}22`, `${B.accent}00`]}
-        start={{ x: 0.1, y: 0 }}
-        end={{ x: 0.9, y: 0.5 }}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 1 }}
         style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 320 }}
       />
       {children}
