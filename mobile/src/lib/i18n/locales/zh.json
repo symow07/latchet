@@ -202,7 +202,8 @@
     "viewAll": "查看全部",
     "budget": "预算",
     "percentUsed": "已用 {{percent}}%",
-    "peak": "峰值：{{amount}}"
+    "peak": "峰值：{{amount}}",
+    "doingGreat": "你做得很好"
   },
   "onboarding": {
     "chooseCurrency": "选择你的货币",

@@ -207,7 +207,8 @@
     "viewAll": "Tout voir",
     "budget": "Budget",
     "percentUsed": "{{percent}} % utilisé",
-    "peak": "Pic : {{amount}}"
+    "peak": "Pic : {{amount}}",
+    "doingGreat": "Vous vous en sortez bien"
   },
   "onboarding": {
     "chooseCurrency": "Choisissez votre devise",

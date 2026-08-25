@@ -209,7 +209,9 @@ return { icon: Flame, color: C.p400, title: `${streak}-Day Streak! `, message: `
           <View className="flex-row items-center justify-between mt-1">
             {/* The app name, deliberately untranslated. */}
             <Txt weight="bold" size={32} color={C.text}>Budget</Txt>
-<Pill label=" You're doing great" color={C.p400} />
+{/* Unconditional praise reads as noise on an account with nothing in
+                it — same reason the feedback banner is gated. */}
+            {scorable && <Pill label={t('dashboard.doingGreat')} color={C.p400} />}
           </View>
           <Txt weight="medium" size={13} color={C.textFaint} style={{ marginTop: 4 }}>
             {format(new Date(), 'EEEE, MMMM d')}
