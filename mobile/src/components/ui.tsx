@@ -16,7 +16,7 @@ import Animated, {
   useSharedValue,
   withSpring,
 } from 'react-native-reanimated';
-import { F, R, glow, useB, useC } from '@/lib/design';
+import { F, R, glow, mix, useB, useC } from '@/lib/design';
 
 /**
  * Reusable "bubbly modern" UI primitives. Purple-forward, rounded, frosted.
@@ -307,26 +307,27 @@ function TopScrim({ color }: { color: string }) {
 export function ScreenBackground({ children, style }: { children?: React.ReactNode; style?: StyleProp<ViewStyle> }) {
   const C = useC();
   return (
-    <View style={[{ flex: 1, backgroundColor: C.bg }, style]}>
+    // No backgroundColor: the gradient below covers the same box, so painting a
+    // fill first is a whole extra screen of overdraw nothing ever sees.
+    <View style={[{ flex: 1 }, style]}>
+      {/* Purple atmosphere via static gradient washes — no per-frame shadow
+          rasterization (large shadowRadius blobs caused scroll jank on device).
+          The lower wash used to be a second full-width layer stacked on this
+          one; it is now folded into the last stop, which is the same pixels
+          with one less layer to composite while the page scrolls under it. */}
       <LinearGradient
-        colors={[C.bgDeep, C.bg, C.scheme === 'light' ? C.bgRaise : '#120a20']}
+        colors={[C.bgDeep, C.bg, mix(C.bgFoot, C.p800, 0.15)]}
         start={{ x: 0, y: 0 }}
         end={{ x: 0, y: 1 }}
         style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
       />
-      {/* Purple atmosphere via static gradient washes — no per-frame shadow
-          rasterization (large shadowRadius blobs caused scroll jank on device). */}
+      {/* Kept separate: this one runs diagonally, so it cannot fold into a
+          vertical ramp. */}
       <LinearGradient
         colors={[`${C.p600}3a`, 'transparent']}
         start={{ x: 0.15, y: 0 }}
         end={{ x: 0.85, y: 0.45 }}
         style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 380 }}
-      />
-      <LinearGradient
-        colors={['transparent', `${C.p800}26`]}
-        start={{ x: 0.5, y: 0.5 }}
-        end={{ x: 0.5, y: 1 }}
-        style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 420 }}
       />
       {children}
       <TopScrim color={C.bg} />
@@ -342,7 +343,7 @@ export function ScreenBackground({ children, style }: { children?: React.ReactNo
 export function BizBackground({ children, style }: { children?: React.ReactNode; style?: StyleProp<ViewStyle> }) {
   const B = useB();
   return (
-    <View style={[{ flex: 1, backgroundColor: B.bg }, style]}>
+    <View style={[{ flex: 1 }, style]}>
       <LinearGradient
         colors={[B.slate900, B.bg, B.bgDeep]}
         start={{ x: 0, y: 0 }}

@@ -1,6 +1,8 @@
 import { cloneElement, type ReactElement } from 'react';
-import { C_DARK, C_LIGHT, B_DARK, B_LIGHT, type Palette, type BizPalette } from './palettes';
 import { Text as RNText, useColorScheme } from 'react-native';
+import { C_DARK, C_LIGHT, B_DARK, B_LIGHT, type Palette, type BizPalette } from './palettes';
+
+export { mix } from './palettes';
 
 /**
  * Shared design language. Generous radii, frosted surfaces, Plus Jakarta Sans.

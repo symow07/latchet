@@ -8,6 +8,8 @@
 export type Palette = {
   scheme: 'light' | 'dark';
   bg: string; bgDeep: string; bgRaise: string;
+  /** Foot of the page gradient, below bg. */
+  bgFoot: string;
   p950: string; p900: string; p800: string; p700: string; p600: string;
   p500: string; p400: string; p300: string; p200: string; lilac: string;
   rose: string; amber: string; green: string; sky: string;
@@ -19,7 +21,7 @@ export type Palette = {
 
 export const C_DARK: Palette = {
   scheme: 'dark',
-  bg: '#0c0716', bgDeep: '#080411', bgRaise: '#150d24',
+  bg: '#0c0716', bgDeep: '#080411', bgRaise: '#150d24', bgFoot: '#120a20',
   p950: '#2e1065', p900: '#3b0764', p800: '#4c1d95', p700: '#6d28d9', p600: '#7c3aed',
   p500: '#a855f7', p400: '#c084fc', p300: '#d8b4fe', p200: '#e9d5ff', lilac: '#b794f6',
   rose: '#fb7185', amber: '#fbbf24', green: '#34d399', sky: '#7dd3fc',
@@ -31,7 +33,7 @@ export const C_DARK: Palette = {
 
 export const C_LIGHT: Palette = {
   scheme: 'light',
-  bg: '#ffffff', bgDeep: '#f2eef8', bgRaise: '#faf7fd',
+  bg: '#ffffff', bgDeep: '#f2eef8', bgRaise: '#faf7fd', bgFoot: '#f4eefb',
   p950: '#2e1065', p900: '#3b0764', p800: '#4c1d95', p700: '#581c87', p600: '#6b21a8',
   p500: '#7e22ce', p400: '#9333ea', p300: '#a855f7', p200: '#c084fc', lilac: '#8b5cf6',
   rose: '#e11d48', amber: '#b45309', green: '#047857', sky: '#0369a1',
@@ -75,3 +77,29 @@ export const B_LIGHT: BizPalette = {
   glassBorder: 'rgba(15,35,80,0.12)',
   glowScale: 0.25,
 };
+
+/**
+ * Composite `overlay` at `alpha` over opaque `base`, returning an opaque hex.
+ *
+ * Lets a translucent wash be folded into the gradient stop underneath it
+ * instead of being painted as a second full-width layer on top. Same pixels,
+ * one less layer to composite per frame.
+ *
+ * Both arguments must be 6-digit hex; alpha is 0..1.
+ */
+export function mix(base: string, overlay: string, alpha: number): string {
+  const parse = (h: string) => {
+    const v = h.replace('#', '');
+    return [
+      parseInt(v.slice(0, 2), 16),
+      parseInt(v.slice(2, 4), 16),
+      parseInt(v.slice(4, 6), 16),
+    ];
+  };
+  const [br, bg, bb] = parse(base);
+  const [or, og, ob] = parse(overlay);
+  const a = Math.min(1, Math.max(0, alpha));
+  const ch = (o: number, b: number) =>
+    Math.round(o * a + b * (1 - a)).toString(16).padStart(2, '0');
+  return `#${ch(or, br)}${ch(og, bg)}${ch(ob, bb)}`;
+}

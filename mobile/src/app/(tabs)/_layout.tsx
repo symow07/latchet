@@ -75,15 +75,20 @@ export default function TabLayout() {
         tabBarInactiveTintColor: C.textFaint,
         headerShown: useClientOnlyValue(false, true),
         tabBarBackground: () => (
+          // The bar is pinned over the scroll view, so iOS re-blurs whatever
+          // passes behind it on every frame — and the fill on top is ~85%
+          // opaque, so only a sixth of that blur was ever visible. Intensity
+          // drops and the fill rises slightly to compensate: near-identical
+          // composite, a much smaller blur radius to sample each frame.
           <BlurView
-            intensity={Platform.OS === 'ios' ? 40 : 24}
+            intensity={Platform.OS === 'ios' ? 18 : 12}
             tint={C.scheme === 'light' ? 'light' : 'dark'}
             style={{
               flex: 1,
               borderTopLeftRadius: 28,
               borderTopRightRadius: 28,
               overflow: 'hidden',
-              backgroundColor: C.scheme === 'light' ? 'rgba(255,255,255,0.86)' : 'rgba(18,10,32,0.82)',
+              backgroundColor: C.scheme === 'light' ? 'rgba(255,255,255,0.88)' : 'rgba(18,10,32,0.85)',
               borderTopWidth: 1,
               borderColor: C.glassBorder,
             }}

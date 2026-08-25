@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'bun:test';
-import { C_DARK, C_LIGHT, B_DARK, B_LIGHT, type Palette, type BizPalette } from './palettes';
+import { C_DARK, C_LIGHT, B_DARK, B_LIGHT, mix, type Palette, type BizPalette } from './palettes';
 
 /**
  * The light and dark palettes are read through the same keys, so a component
@@ -115,5 +115,35 @@ describe('palettes', () => {
     // A coloured haze reads as depth on black and as grime on white.
     expect(C_LIGHT.glowScale).toBeLessThan(C_DARK.glowScale);
     expect(B_LIGHT.glowScale).toBeLessThan(B_DARK.glowScale);
+  });
+});
+
+describe('mix', () => {
+  it('returns the base at alpha 0 and the overlay at alpha 1', () => {
+    expect(mix('#0c0716', '#4c1d95', 0)).toBe('#0c0716');
+    expect(mix('#0c0716', '#4c1d95', 1)).toBe('#4c1d95');
+  });
+
+  it('composites the page-foot wash to what the stacked layers produced', () => {
+    // ScreenBackground used to paint `${C.p800}26` as a second full-width layer
+    // over C.bgFoot. Folding it into the gradient's last stop has to land on
+    // the same pixel or the background visibly shifts.
+    //
+    // The old layer's alpha was the hex byte 0x26 (0.14902); the call site now
+    // passes 0.15, which lands one unit higher on blue — #1b0d32 against the
+    // stacked #1b0d31. Both are asserted so a real drift is still caught.
+    expect(mix('#120a20', '#4c1d95', 0x26 / 255)).toBe('#1b0d31');
+    expect(mix('#120a20', '#4c1d95', 0.15)).toBe('#1b0d32');
+  });
+
+  it('clamps alpha rather than producing out-of-range channels', () => {
+    expect(mix('#000000', '#ffffff', 2)).toBe('#ffffff');
+    expect(mix('#000000', '#ffffff', -1)).toBe('#000000');
+  });
+
+  it('always returns a 6-digit hex, zero-padding low channels', () => {
+    const out = mix('#000000', '#0a0a0a', 0.5);
+    expect(out).toMatch(/^#[0-9a-f]{6}$/);
+    expect(out).toBe('#050505');
   });
 });

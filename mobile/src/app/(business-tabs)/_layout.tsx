@@ -40,15 +40,18 @@ export default function BusinessTabLayout() {
         tabBarActiveTintColor: B.accentSoft,
         tabBarInactiveTintColor: B.textFaint,
         tabBarBackground: () => (
+          // Same reasoning as the personal bar: the fill above it is ~87%
+          // opaque, so most of this blur was never visible, and it re-samples
+          // every frame the page scrolls beneath.
           <BlurView
-            intensity={Platform.OS === 'ios' ? 40 : 24}
+            intensity={Platform.OS === 'ios' ? 18 : 12}
             tint={B.scheme === 'light' ? 'light' : 'dark'}
             style={{
               flex: 1,
               borderTopLeftRadius: 22,
               borderTopRightRadius: 22,
               overflow: 'hidden',
-              backgroundColor: B.scheme === 'light' ? 'rgba(255,255,255,0.88)' : 'rgba(12,18,30,0.86)',
+              backgroundColor: B.scheme === 'light' ? 'rgba(255,255,255,0.90)' : 'rgba(12,18,30,0.89)',
               borderTopWidth: 1,
               borderColor: B.glassBorder,
             }}
