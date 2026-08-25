@@ -178,7 +178,7 @@ function EditModal({
                       category: categoryLabel(category.name),
                     })}
                   </Text>
-                  <Text style={{ color: '#9ca3af', fontSize: 13, marginTop: 2 }}>
+                  <Text style={{ color: C.textDim, fontSize: 13, marginTop: 2 }}>
                     {t('categoryBudgets.monthlyLimit')}
                   </Text>
                 </View>
@@ -228,7 +228,7 @@ function EditModal({
                     backgroundColor: C.glass,
                   }}
                 >
-                  <Text style={{ color: '#9ca3af', fontWeight: '600', fontSize: 15 }}>{t('common.cancel')}</Text>
+                  <Text style={{ color: C.textDim, fontWeight: '600', fontSize: 15 }}>{t('common.cancel')}</Text>
                 </Pressable>
                 <Pressable
                   onPress={onSave}
@@ -390,7 +390,7 @@ export default function CategoryBudgetsScreen() {
         contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 20, paddingBottom: 100 }}
       >
         {/* Current month label */}
-        <Text style={{ color: '#6b7280', fontSize: 12, fontWeight: '600', marginBottom: 14, marginLeft: 2 }}>
+        <Text style={{ color: C.textFaint, fontSize: 12, fontWeight: '600', marginBottom: 14, marginLeft: 2 }}>
           {new Date().toLocaleString('default', { month: 'long', year: 'numeric' }).toUpperCase()}
         </Text>
 
@@ -435,7 +435,7 @@ export default function CategoryBudgetsScreen() {
                   <View style={{ flex: 1 }}>
                     <Text style={{ color: C.text, fontSize: 16, fontWeight: '700' }}>{categoryLabel(cat.name)}</Text>
                     {hasLimit ? (
-                      <Text style={{ color: '#9ca3af', fontSize: 12, marginTop: 2 }}>
+                      <Text style={{ color: C.textDim, fontSize: 12, marginTop: 2 }}>
                         ${spent.toFixed(0)} spent
                         {overBudget
                           ? ` · `
@@ -447,7 +447,7 @@ export default function CategoryBudgetsScreen() {
                         )}
                       </Text>
                     ) : (
-                      <Text style={{ color: '#6b7280', fontSize: 12, marginTop: 2 }}>
+                      <Text style={{ color: C.textFaint, fontSize: 12, marginTop: 2 }}>
                         No limit set · ${spent.toFixed(0)} spent
                       </Text>
                     )}
@@ -488,10 +488,10 @@ export default function CategoryBudgetsScreen() {
                       overBudget={overBudget}
                     />
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 5 }}>
-                      <Text style={{ color: '#6b7280', fontSize: 10 }}>
+                      <Text style={{ color: C.textFaint, fontSize: 10 }}>
                         {Math.round(Math.min(progress, 1) * 100)}% used
                       </Text>
-                      <Text style={{ color: '#6b7280', fontSize: 10 }}>
+                      <Text style={{ color: C.textFaint, fontSize: 10 }}>
                         ${budget.amount.toFixed(0)} limit
                       </Text>
                     </View>

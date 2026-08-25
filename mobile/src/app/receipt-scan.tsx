@@ -291,7 +291,7 @@ export default function ReceiptScanScreen() {
               <Text style={{ color: 'white', fontSize: 22, fontWeight: 'bold', marginBottom: 8 }}>
                 Scan a Receipt
               </Text>
-              <Text style={{ color: '#9ca3af', fontSize: 14, textAlign: 'center', lineHeight: 20 }}>
+              <Text style={{ color: C.textDim, fontSize: 14, textAlign: 'center', lineHeight: 20 }}>
                 Point your camera at any receipt. AI will automatically extract the amount, category, and merchant.
               </Text>
             </View>
@@ -369,7 +369,7 @@ export default function ReceiptScanScreen() {
                   <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 17, marginBottom: 2 }}>
                     Choose Photo
                   </Text>
-                  <Text style={{ color: '#9ca3af', fontSize: 13 }}>
+                  <Text style={{ color: C.textDim, fontSize: 13 }}>
                     Pick an existing receipt from your library
                   </Text>
                 </View>
@@ -378,7 +378,7 @@ export default function ReceiptScanScreen() {
 
             {/* Tips */}
             <View style={{ marginTop: 32 }}>
-              <Text style={{ color: '#6b7280', fontSize: 11, fontWeight: '600', marginBottom: 12, marginLeft: 4 }}>
+              <Text style={{ color: C.textFaint, fontSize: 11, fontWeight: '600', marginBottom: 12, marginLeft: 4 }}>
                 TIPS FOR BEST RESULTS
               </Text>
               {[
@@ -410,7 +410,7 @@ export default function ReceiptScanScreen() {
                   >
                     <Text style={{ color: C.p500, fontSize: 11, fontWeight: 'bold' }}>{i + 1}</Text>
                   </View>
-                  <Text style={{ color: '#9ca3af', fontSize: 13, flex: 1 }}>{tip}</Text>
+                  <Text style={{ color: C.textDim, fontSize: 13, flex: 1 }}>{tip}</Text>
                 </View>
               ))}
             </View>
@@ -472,7 +472,7 @@ export default function ReceiptScanScreen() {
             <Text style={{ color: 'white', fontSize: 20, fontWeight: 'bold', marginBottom: 8 }}>
               Analyzing Receipt...
             </Text>
-            <Text style={{ color: '#9ca3af', fontSize: 14, textAlign: 'center', lineHeight: 20 }}>
+            <Text style={{ color: C.textDim, fontSize: 14, textAlign: 'center', lineHeight: 20 }}>
               AI is reading the receipt and extracting transaction details for you.
             </Text>
 
@@ -554,7 +554,7 @@ export default function ReceiptScanScreen() {
 
             {/* Amount */}
             <View style={{ marginBottom: 14 }}>
-              <Text style={{ color: '#9ca3af', fontSize: 11, fontWeight: '600', marginBottom: 8, marginLeft: 4 }}>
+              <Text style={{ color: C.textDim, fontSize: 11, fontWeight: '600', marginBottom: 8, marginLeft: 4 }}>
                 AMOUNT
               </Text>
               <View
@@ -584,7 +584,7 @@ export default function ReceiptScanScreen() {
 
             {/* Category */}
             <View style={{ marginBottom: 14 }}>
-              <Text style={{ color: '#9ca3af', fontSize: 11, fontWeight: '600', marginBottom: 8, marginLeft: 4 }}>
+              <Text style={{ color: C.textDim, fontSize: 11, fontWeight: '600', marginBottom: 8, marginLeft: 4 }}>
                 CATEGORY
               </Text>
               <ScrollView
@@ -635,7 +635,7 @@ export default function ReceiptScanScreen() {
 
             {/* Note */}
             <View style={{ marginBottom: 14 }}>
-              <Text style={{ color: '#9ca3af', fontSize: 11, fontWeight: '600', marginBottom: 8, marginLeft: 4 }}>
+              <Text style={{ color: C.textDim, fontSize: 11, fontWeight: '600', marginBottom: 8, marginLeft: 4 }}>
                 NOTE / MERCHANT
               </Text>
               <View
@@ -665,7 +665,7 @@ export default function ReceiptScanScreen() {
 
             {/* Type toggle */}
             <View style={{ marginBottom: 14 }}>
-              <Text style={{ color: '#9ca3af', fontSize: 11, fontWeight: '600', marginBottom: 8, marginLeft: 4 }}>
+              <Text style={{ color: C.textDim, fontSize: 11, fontWeight: '600', marginBottom: 8, marginLeft: 4 }}>
                 TYPE
               </Text>
               <View style={{ flexDirection: 'row', gap: 10 }}>
@@ -716,7 +716,7 @@ export default function ReceiptScanScreen() {
 
             {/* Date */}
             <View style={{ marginBottom: 14 }}>
-              <Text style={{ color: '#9ca3af', fontSize: 11, fontWeight: '600', marginBottom: 8, marginLeft: 4 }}>
+              <Text style={{ color: C.textDim, fontSize: 11, fontWeight: '600', marginBottom: 8, marginLeft: 4 }}>
                 DATE
               </Text>
               <View
@@ -774,7 +774,7 @@ export default function ReceiptScanScreen() {
                 </View>
                 <View>
                   <Text style={{ color: 'white', fontWeight: '600', fontSize: 15 }}>{t('receiptScan.impulseBuy')}</Text>
-                  <Text style={{ color: '#6b7280', fontSize: 12, marginTop: 1 }}>
+                  <Text style={{ color: C.textFaint, fontSize: 12, marginTop: 1 }}>
                     Mark as an unplanned purchase
                   </Text>
                 </View>
@@ -816,7 +816,7 @@ export default function ReceiptScanScreen() {
             <Text style={{ color: 'white', fontSize: 26, fontWeight: 'bold', marginBottom: 10 }}>
               Transaction Saved!
             </Text>
-            <Text style={{ color: '#9ca3af', fontSize: 15, textAlign: 'center', lineHeight: 22, marginBottom: 36 }}>
+            <Text style={{ color: C.textDim, fontSize: 15, textAlign: 'center', lineHeight: 22, marginBottom: 36 }}>
               Your receipt has been scanned and saved to your transaction history.
             </Text>
 

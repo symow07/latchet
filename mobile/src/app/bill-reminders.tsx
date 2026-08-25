@@ -244,7 +244,7 @@ function BillCard({
                 >
                   {bill.name}
                 </Text>
-                <Text style={{ color: '#6b7280', fontSize: 12, marginTop: 1 }}>
+                <Text style={{ color: C.textFaint, fontSize: 12, marginTop: 1 }}>
                   {categoryLabel(bill.category)} · Due {bill.dueDay}{getDaySuffix(bill.dueDay)} of month
                 </Text>
               </View>
@@ -252,7 +252,7 @@ function BillCard({
 
             {/* Right: amount + badge */}
             <View style={{ alignItems: 'flex-end', marginLeft: 8 }}>
-              <Text style={{ color: '#f3f4f6', fontSize: 16, fontWeight: '700' }}>
+              <Text style={{ color: C.text, fontSize: 16, fontWeight: '700' }}>
                 {formatAmount(bill.amount)}
               </Text>
               {!bill.isPaid && (
@@ -280,7 +280,7 @@ function BillCard({
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <Calendar size={12} color="#6b7280" />
-              <Text style={{ color: '#6b7280', fontSize: 12, marginLeft: 4 }}>
+              <Text style={{ color: C.textFaint, fontSize: 12, marginLeft: 4 }}>
                 {formatDate(bill.nextDueDate)}
               </Text>
               {bill.isRecurring && (
@@ -425,7 +425,7 @@ function AddBillModal({
 
               {/* Header */}
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
-                <Text style={{ color: '#f3f4f6', fontSize: 20, fontWeight: '700' }}>
+                <Text style={{ color: C.text, fontSize: 20, fontWeight: '700' }}>
                   New Bill Reminder
                 </Text>
                 <Pressable onPress={handleClose} hitSlop={8}>
@@ -460,7 +460,7 @@ function AddBillModal({
               ) : null}
 
               {/* Name */}
-              <Text style={{ color: '#9ca3af', fontSize: 12, fontWeight: '600', marginBottom: 6 }}>
+              <Text style={{ color: C.textDim, fontSize: 12, fontWeight: '600', marginBottom: 6 }}>
                 BILL NAME
               </Text>
               <View
@@ -480,14 +480,14 @@ function AddBillModal({
                   onChangeText={setName}
                   placeholder="e.g. Netflix, Rent, Gym…"
                   placeholderTextColor="#4b5563"
-                  style={{ flex: 1, color: '#f3f4f6', fontSize: 15, marginLeft: 10 }}
+                  style={{ flex: 1, color: C.text, fontSize: 15, marginLeft: 10 }}
                 />
               </View>
 
               {/* Amount + Due Day row */}
               <View style={{ flexDirection: 'row', gap: 12, marginBottom: 16 }}>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ color: '#9ca3af', fontSize: 12, fontWeight: '600', marginBottom: 6 }}>
+                  <Text style={{ color: C.textDim, fontSize: 12, fontWeight: '600', marginBottom: 6 }}>
                     AMOUNT
                   </Text>
                   <View
@@ -507,13 +507,13 @@ function AddBillModal({
                       placeholder="0.00"
                       placeholderTextColor="#4b5563"
                       keyboardType="decimal-pad"
-                      style={{ flex: 1, color: '#f3f4f6', fontSize: 15, marginLeft: 6 }}
+                      style={{ flex: 1, color: C.text, fontSize: 15, marginLeft: 6 }}
                     />
                   </View>
                 </View>
 
                 <View style={{ flex: 1 }}>
-                  <Text style={{ color: '#9ca3af', fontSize: 12, fontWeight: '600', marginBottom: 6 }}>
+                  <Text style={{ color: C.textDim, fontSize: 12, fontWeight: '600', marginBottom: 6 }}>
                     DUE DAY
                   </Text>
                   <View
@@ -533,14 +533,14 @@ function AddBillModal({
                       placeholder="1–31"
                       placeholderTextColor="#4b5563"
                       keyboardType="number-pad"
-                      style={{ flex: 1, color: '#f3f4f6', fontSize: 15, marginLeft: 6 }}
+                      style={{ flex: 1, color: C.text, fontSize: 15, marginLeft: 6 }}
                     />
                   </View>
                 </View>
               </View>
 
               {/* Category */}
-              <Text style={{ color: '#9ca3af', fontSize: 12, fontWeight: '600', marginBottom: 6 }}>
+              <Text style={{ color: C.textDim, fontSize: 12, fontWeight: '600', marginBottom: 6 }}>
                 CATEGORY
               </Text>
               <Pressable
@@ -560,7 +560,7 @@ function AddBillModal({
                   <Text style={{ fontSize: 18, marginRight: 10 }}>
                     {getCategoryEmoji(category)}
                   </Text>
-                  <Text style={{ color: '#f3f4f6', fontSize: 15 }}>{category}</Text>
+                  <Text style={{ color: C.text, fontSize: 15 }}>{category}</Text>
                 </View>
                 <ChevronDown
                   size={18}
@@ -577,7 +577,7 @@ function AddBillModal({
                     marginBottom: 16,
                     overflow: 'hidden',
                     borderWidth: 1,
-                    borderColor: '#27272a',
+                    borderColor: C.glassBorder,
                   }}
                 >
                   {CATEGORIES.map((cat, idx) => (
@@ -595,7 +595,7 @@ function AddBillModal({
                         paddingHorizontal: 14,
                         backgroundColor: category === cat.label ? `${C.p500}18` : 'transparent',
                         borderTopWidth: idx === 0 ? 0 : 1,
-                        borderColor: '#27272a',
+                        borderColor: C.glassBorder,
                       }}
                     >
                       <Text style={{ fontSize: 18, marginRight: 12 }}>{cat.emoji}</Text>
@@ -630,10 +630,10 @@ function AddBillModal({
                 }}
               >
                 <View>
-                  <Text style={{ color: '#f3f4f6', fontSize: 15, fontWeight: '500' }}>
+                  <Text style={{ color: C.text, fontSize: 15, fontWeight: '500' }}>
                     Recurring monthly
                   </Text>
-                  <Text style={{ color: '#6b7280', fontSize: 12, marginTop: 1 }}>
+                  <Text style={{ color: C.textFaint, fontSize: 12, marginTop: 1 }}>
                     Auto-reset on the next cycle
                   </Text>
                 </View>
@@ -854,7 +854,7 @@ export default function BillRemindersScreen() {
           </View>
         ) : isError ? (
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 }}>
-            <Text style={{ color: '#9ca3af', textAlign: 'center', fontSize: 15 }}>
+            <Text style={{ color: C.textDim, textAlign: 'center', fontSize: 15 }}>
               Could not load bill reminders. Check your connection.
             </Text>
           </View>
@@ -873,10 +873,10 @@ export default function BillRemindersScreen() {
             >
               <Bell size={32} color={C.p500} />
             </View>
-            <Text style={{ color: '#f3f4f6', fontSize: 18, fontWeight: '700', marginBottom: 6 }}>
+            <Text style={{ color: C.text, fontSize: 18, fontWeight: '700', marginBottom: 6 }}>
               No Bill Reminders
             </Text>
-            <Text style={{ color: '#6b7280', fontSize: 14, textAlign: 'center' }}>
+            <Text style={{ color: C.textFaint, fontSize: 14, textAlign: 'center' }}>
               Tap the + button to add your first bill reminder and never miss a due date.
             </Text>
           </View>
@@ -894,7 +894,7 @@ export default function BillRemindersScreen() {
               <>
                 <Text
                   style={{
-                    color: '#6b7280',
+                    color: C.textFaint,
                     fontSize: 11,
                     fontWeight: '700',
                     letterSpacing: 1,
@@ -923,7 +923,7 @@ export default function BillRemindersScreen() {
               <>
                 <Text
                   style={{
-                    color: '#6b7280',
+                    color: C.textFaint,
                     fontSize: 11,
                     fontWeight: '700',
                     letterSpacing: 1,

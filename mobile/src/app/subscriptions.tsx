@@ -6,7 +6,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useState } from 'react';
-import { useC } from '@/lib/design';
+import { useC, type Palette } from '@/lib/design';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -52,7 +52,7 @@ function cadenceLabel(cadence: Subscription['cadence']): string {
   }
 }
 
-function nextChargeMeta(nextExpectedAt: string | null): { label: string; color: string } | null {
+function nextChargeMeta(nextExpectedAt: string | null, C: Palette): { label: string; color: string } | null {
   if (!nextExpectedAt) return null;
   const today = new Date();
   const nextDate = parseISO(nextExpectedAt);
@@ -65,7 +65,7 @@ function nextChargeMeta(nextExpectedAt: string | null): { label: string; color: 
   if (daysUntil <= 7) {
     return { label: `Next: ${formatted}`, color: '#f59e0b' };
   }
-  return { label: `Next: ${formatted}`, color: '#9ca3af' };
+  return { label: `Next: ${formatted}`, color: C.textDim };
 }
 
 function SkeletonCard() {
@@ -99,7 +99,7 @@ function SubscriptionCard({
   onPress: () => void;
 }) {
   const C = useC();
-  const nextMeta = nextChargeMeta(sub.nextExpectedAt);
+  const nextMeta = nextChargeMeta(sub.nextExpectedAt, C);
 
   const statusIcon =
     sub.status === 'confirmed' ? (
@@ -193,7 +193,7 @@ function SubscriptionCard({
             {segment === 'possible' && (
               <View className="mt-2 gap-1">
                 <View className="flex-row justify-between">
-                  <Text className="text-xs" style={{ color: '#9ca3af' }}>
+                  <Text className="text-xs" style={{ color: C.textDim }}>
                     Confidence
                   </Text>
                   <Text className="text-xs font-semibold" style={{ color: '#f59e0b' }}>
@@ -252,7 +252,7 @@ function EmptyState({ segment }: { segment: SegmentKey }) {
         {icon}
       </View>
       <Text style={{ color: C.text }} className="font-bold text-lg text-center mb-2">{title}</Text>
-      <Text className="text-center text-sm leading-5" style={{ color: '#9ca3af' }}>
+      <Text className="text-center text-sm leading-5" style={{ color: C.textDim }}>
         {subtitle}
       </Text>
     </Animated.View>
@@ -428,7 +428,7 @@ export default function SubscriptionsScreen() {
                     </Text>
                   </LinearGradient>
                 </Pressable>
-                <Text className="text-center text-xs mt-3" style={{ color: '#9ca3af' }}>
+                <Text className="text-center text-xs mt-3" style={{ color: C.textDim }}>
                   Analyzes your transaction history to detect recurring charges
                 </Text>
               </Animated.View>

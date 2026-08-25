@@ -212,13 +212,13 @@ function NetWorthChart({ entries }: { entries: NetWorthEntry[] }) {
 
       {/* X-axis labels: first and last */}
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 }}>
-        <Text style={{ color: '#6b7280', fontSize: 10 }}>
+        <Text style={{ color: C.textFaint, fontSize: 10 }}>
           {new Date(data[0].date + 'T00:00:00').toLocaleDateString('en-US', {
             month: 'short',
             year: '2-digit',
           })}
         </Text>
-        <Text style={{ color: '#6b7280', fontSize: 10 }}>
+        <Text style={{ color: C.textFaint, fontSize: 10 }}>
           {new Date(data[data.length - 1].date + 'T00:00:00').toLocaleDateString('en-US', {
             month: 'short',
             year: '2-digit',

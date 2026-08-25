@@ -59,7 +59,7 @@ export function EmailScanCard({ accent }: { accent?: string }) {
               </Text>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 2 }}>
                 {verified && <CheckCircle2 size={12} color="#22c55e" />}
-                <Text style={{ color: '#9ca3af', fontFamily: 'PlusJakartaSans_500Medium', fontSize: 12, flex: 1 }} numberOfLines={1}>
+                <Text style={{ color: C.textDim, fontFamily: 'PlusJakartaSans_500Medium', fontSize: 12, flex: 1 }} numberOfLines={1}>
                   {subtitle}
                 </Text>
               </View>

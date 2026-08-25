@@ -282,7 +282,7 @@ function RecurringCard({
                   </Text>
                 </View>
               </View>
-              <Text style={{ color: '#6b7280', fontSize: 12, marginTop: 2 }}>
+              <Text style={{ color: C.textFaint, fontSize: 12, marginTop: 2 }}>
                 {categoryLabel(item.category)} · {item.type}
               </Text>
             </View>
@@ -326,7 +326,7 @@ function RecurringCard({
           >
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <Calendar size={12} color="#6b7280" />
-              <Text style={{ color: '#6b7280', fontSize: 12, marginLeft: 5 }}>
+              <Text style={{ color: C.textFaint, fontSize: 12, marginLeft: 5 }}>
                 Next: {formatDateShort(item.nextDate)}
               </Text>
             </View>
@@ -466,7 +466,7 @@ function AddRecurringModal({
   };
 
   const labelStyle = {
-    color: '#9ca3af',
+    color: C.textDim,
     fontSize: 11,
     fontWeight: '600' as const,
     letterSpacing: 0.8,
@@ -516,10 +516,10 @@ function AddRecurringModal({
                 }}
               >
                 <View>
-                  <Text style={{ color: '#f3f4f6', fontSize: 20, fontWeight: '700' }}>
+                  <Text style={{ color: C.text, fontSize: 20, fontWeight: '700' }}>
                     New Recurring
                   </Text>
-                  <Text style={{ color: '#6b7280', fontSize: 13, marginTop: 2 }}>
+                  <Text style={{ color: C.textFaint, fontSize: 13, marginTop: 2 }}>
                     Auto-runs on a schedule
                   </Text>
                 </View>
@@ -608,7 +608,7 @@ function AddRecurringModal({
                   onChangeText={setName}
                   placeholder="e.g. Netflix, Salary, Gym…"
                   placeholderTextColor="#4b5563"
-                  style={{ flex: 1, color: '#f3f4f6', fontSize: 15, marginLeft: 10 }}
+                  style={{ flex: 1, color: C.text, fontSize: 15, marginLeft: 10 }}
                 />
               </View>
 
@@ -622,7 +622,7 @@ function AddRecurringModal({
                   placeholder="0.00"
                   placeholderTextColor="#4b5563"
                   keyboardType="decimal-pad"
-                  style={{ flex: 1, color: '#f3f4f6', fontSize: 15, marginLeft: 6 }}
+                  style={{ flex: 1, color: C.text, fontSize: 15, marginLeft: 6 }}
                 />
               </View>
 
@@ -643,7 +643,7 @@ function AddRecurringModal({
                   <Text style={{ fontSize: 18, marginRight: 10 }}>
                     {getCategoryEmoji(category)}
                   </Text>
-                  <Text style={{ color: '#f3f4f6', fontSize: 15 }}>{category}</Text>
+                  <Text style={{ color: C.text, fontSize: 15 }}>{category}</Text>
                 </View>
                 <ChevronDown
                   size={18}
@@ -660,7 +660,7 @@ function AddRecurringModal({
                     marginBottom: 14,
                     overflow: 'hidden',
                     borderWidth: 1,
-                    borderColor: '#27272a',
+                    borderColor: C.glassBorder,
                   }}
                 >
                   {CATEGORIES.map((cat, idx) => (
@@ -678,7 +678,7 @@ function AddRecurringModal({
                         paddingHorizontal: 14,
                         backgroundColor: category === cat.label ? '#22c55e15' : 'transparent',
                         borderTopWidth: idx === 0 ? 0 : 1,
-                        borderColor: '#27272a',
+                        borderColor: C.glassBorder,
                       }}
                     >
                       <Text style={{ fontSize: 18, marginRight: 12 }}>{cat.emoji}</Text>
@@ -714,7 +714,7 @@ function AddRecurringModal({
               >
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                   <Repeat size={16} color="#6b7280" style={{ marginRight: 10 }} />
-                  <Text style={{ color: '#f3f4f6', fontSize: 15 }}>
+                  <Text style={{ color: C.text, fontSize: 15 }}>
                     {getFrequencyLabel(frequency)}
                   </Text>
                 </View>
@@ -733,7 +733,7 @@ function AddRecurringModal({
                     marginBottom: 22,
                     overflow: 'hidden',
                     borderWidth: 1,
-                    borderColor: '#27272a',
+                    borderColor: C.glassBorder,
                   }}
                 >
                   {FREQUENCIES.map((freq, idx) => (
@@ -751,7 +751,7 @@ function AddRecurringModal({
                         paddingHorizontal: 14,
                         backgroundColor: frequency === freq.value ? '#22c55e15' : 'transparent',
                         borderTopWidth: idx === 0 ? 0 : 1,
-                        borderColor: '#27272a',
+                        borderColor: C.glassBorder,
                       }}
                     >
                       <Text
@@ -1048,7 +1048,7 @@ export default function RecurringScreen() {
               paddingHorizontal: 32,
             }}
           >
-            <Text style={{ color: '#9ca3af', textAlign: 'center', fontSize: 15 }}>
+            <Text style={{ color: C.textDim, textAlign: 'center', fontSize: 15 }}>
               Could not load recurring transactions. Check your connection.
             </Text>
           </View>
@@ -1076,7 +1076,7 @@ export default function RecurringScreen() {
             </View>
             <Text
               style={{
-                color: '#f3f4f6',
+                color: C.text,
                 fontSize: 18,
                 fontWeight: '700',
                 marginBottom: 6,
@@ -1085,7 +1085,7 @@ export default function RecurringScreen() {
             >
               No Recurring Transactions
             </Text>
-            <Text style={{ color: '#6b7280', fontSize: 14, textAlign: 'center' }}>
+            <Text style={{ color: C.textFaint, fontSize: 14, textAlign: 'center' }}>
               Tap the + button to add subscriptions, bills, or regular income that repeat on a schedule.
             </Text>
           </View>
@@ -1103,7 +1103,7 @@ export default function RecurringScreen() {
               <>
                 <Text
                   style={{
-                    color: '#6b7280',
+                    color: C.textFaint,
                     fontSize: 11,
                     fontWeight: '700',
                     letterSpacing: 1,
@@ -1132,7 +1132,7 @@ export default function RecurringScreen() {
               <>
                 <Text
                   style={{
-                    color: '#6b7280',
+                    color: C.textFaint,
                     fontSize: 11,
                     fontWeight: '700',
                     letterSpacing: 1,

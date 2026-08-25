@@ -128,7 +128,7 @@ function StatCard({
           {icon}
         </View>
         <Text style={{ color: C.text }} className="font-bold text-base text-center">{value}</Text>
-        <Text className="text-xs text-center" style={{ color: '#9ca3af' }}>
+        <Text className="text-xs text-center" style={{ color: C.textDim }}>
           {label}
         </Text>
       </View>
@@ -292,7 +292,7 @@ export default function SubscriptionDetailScreen() {
         style={{ backgroundColor: C.bg }}
       >
         <Text style={{ color: C.text }} className="text-lg font-bold mb-2">{t('subscriptionDetail.notFound')}</Text>
-        <Text className="text-center text-sm" style={{ color: '#9ca3af' }}>
+        <Text className="text-center text-sm" style={{ color: C.textDim }}>
           This subscription could not be found.
         </Text>
         <Pressable onPress={() => router.back()} className="mt-6">
@@ -426,7 +426,7 @@ export default function SubscriptionDetailScreen() {
               </Pressable>
             )}
             {subscription.status !== 'canceled' && cancelEntry && (
-              <Text className="text-center text-xs -mt-1 mb-1" style={{ color: '#6b7280' }}>
+              <Text className="text-center text-xs -mt-1 mb-1" style={{ color: C.textFaint }}>
                 Opens {cancelEntry.native === 'apple' ? 'your iPhone Subscriptions settings' : `the ${cancelEntry.displayName} cancel page`} directly
               </Text>
             )}
@@ -511,7 +511,7 @@ export default function SubscriptionDetailScreen() {
           <Animated.View entering={FadeInUp.delay(160).springify()} className="mx-4 mb-4">
             <View className="flex-row items-center justify-between mb-3">
               <Text style={{ color: C.text }} className="font-bold text-base">{t('subscriptionDetail.history')}</Text>
-              <Text className="text-xs" style={{ color: '#9ca3af' }}>
+              <Text className="text-xs" style={{ color: C.textDim }}>
                 {occurrences.length} occurrence{occurrences.length !== 1 ? 's' : ''}
               </Text>
             </View>
@@ -523,7 +523,7 @@ export default function SubscriptionDetailScreen() {
               {occurrences.length === 0 ? (
                 <View className="items-center py-10 gap-2">
                   <Clock size={28} color="#4b5563" />
-                  <Text className="text-sm" style={{ color: '#6b7280' }}>
+                  <Text className="text-sm" style={{ color: C.textFaint }}>
                     No occurrences recorded
                   </Text>
                 </View>
@@ -565,7 +565,7 @@ export default function SubscriptionDetailScreen() {
                     }}
                   />
                 </View>
-                <Text className="text-xs mt-2 leading-4" style={{ color: '#9ca3af' }}>
+                <Text className="text-xs mt-2 leading-4" style={{ color: C.textDim }}>
                   Based on {occurrences.length} recurring charge{occurrences.length !== 1 ? 's' : ''} detected in your transaction history.
                 </Text>
               </View>
@@ -703,7 +703,7 @@ export default function SubscriptionDetailScreen() {
                     <Text style={{ color: C.text }} className="font-semibold text-sm mb-1">
                       Not in our directory
                     </Text>
-                    <Text className="text-sm leading-5" style={{ color: '#9ca3af' }}>
+                    <Text className="text-sm leading-5" style={{ color: C.textDim }}>
                       We don't have specific steps for {subscription.merchantDisplay} yet. Try searching online.
                     </Text>
                   </View>
@@ -761,7 +761,7 @@ export default function SubscriptionDetailScreen() {
                     })}
                   >
                     <ExternalLink size={16} color="#9ca3af" />
-                    <Text className="font-semibold text-sm" style={{ color: '#9ca3af' }}>
+                    <Text className="font-semibold text-sm" style={{ color: C.textDim }}>
                       Draft cancellation email
                     </Text>
                   </Pressable>
