@@ -156,7 +156,7 @@ function SubscriptionCard({
           <View className="flex-1 gap-1">
             <View className="flex-row items-center gap-2">
               <Text
-                className="text-white font-bold text-base"
+                className="font-bold text-base"
                 numberOfLines={1}
                 style={{ flex: 1 }}
               >
@@ -177,7 +177,7 @@ function SubscriptionCard({
               </View>
 
               {/* Amount */}
-              <Text className="text-white font-semibold text-sm">
+              <Text style={{ color: C.text }} className="font-semibold text-sm">
                 {formatCurrency(sub.typicalAmount)}
               </Text>
 
@@ -251,7 +251,7 @@ function EmptyState({ segment }: { segment: SegmentKey }) {
       >
         {icon}
       </View>
-      <Text className="text-white font-bold text-lg text-center mb-2">{title}</Text>
+      <Text style={{ color: C.text }} className="font-bold text-lg text-center mb-2">{title}</Text>
       <Text className="text-center text-sm leading-5" style={{ color: '#9ca3af' }}>
         {subtitle}
       </Text>
@@ -294,7 +294,7 @@ export default function SubscriptionsScreen() {
     <ScreenBackground>
       {/* Header */}
       <LinearGradient
-        colors={[C.p600, C.p500, C.p400, '#1e1b2e']}
+        colors={[C.p600, C.p500, C.p400, C.scheme === 'light' ? C.p300 : '#1e1b2e']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={{

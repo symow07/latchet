@@ -38,17 +38,17 @@ export default function BusinessTabLayout() {
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: B.accentSoft,
-        tabBarInactiveTintColor: '#56627e',
+        tabBarInactiveTintColor: B.textFaint,
         tabBarBackground: () => (
           <BlurView
             intensity={Platform.OS === 'ios' ? 40 : 24}
-            tint="dark"
+            tint={B.scheme === 'light' ? 'light' : 'dark'}
             style={{
               flex: 1,
               borderTopLeftRadius: 22,
               borderTopRightRadius: 22,
               overflow: 'hidden',
-              backgroundColor: 'rgba(12,18,30,0.86)',
+              backgroundColor: B.scheme === 'light' ? 'rgba(255,255,255,0.88)' : 'rgba(12,18,30,0.86)',
               borderTopWidth: 1,
               borderColor: B.glassBorder,
             }}

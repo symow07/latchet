@@ -417,7 +417,7 @@ function AddBillModal({
                   width: 36,
                   height: 4,
                   borderRadius: 2,
-                  backgroundColor: '#374151',
+                  backgroundColor: C.glassStrong,
                   alignSelf: 'center',
                   marginBottom: 20,
                 }}
@@ -434,7 +434,7 @@ function AddBillModal({
                       width: 32,
                       height: 32,
                       borderRadius: 16,
-                      backgroundColor: '#1f2937',
+                      backgroundColor: C.glassStrong,
                       alignItems: 'center',
                       justifyContent: 'center',
                     }}
@@ -465,7 +465,7 @@ function AddBillModal({
               </Text>
               <View
                 style={{
-                  backgroundColor: '#1f2937',
+                  backgroundColor: C.glassStrong,
                   borderRadius: 12,
                   paddingHorizontal: 14,
                   paddingVertical: 12,
@@ -492,7 +492,7 @@ function AddBillModal({
                   </Text>
                   <View
                     style={{
-                      backgroundColor: '#1f2937',
+                      backgroundColor: C.glassStrong,
                       borderRadius: 12,
                       paddingHorizontal: 14,
                       paddingVertical: 12,
@@ -518,7 +518,7 @@ function AddBillModal({
                   </Text>
                   <View
                     style={{
-                      backgroundColor: '#1f2937',
+                      backgroundColor: C.glassStrong,
                       borderRadius: 12,
                       paddingHorizontal: 14,
                       paddingVertical: 12,
@@ -546,7 +546,7 @@ function AddBillModal({
               <Pressable
                 onPress={() => setShowCategoryPicker((p) => !p)}
                 style={{
-                  backgroundColor: '#1f2937',
+                  backgroundColor: C.glassStrong,
                   borderRadius: 12,
                   paddingHorizontal: 14,
                   paddingVertical: 12,
@@ -622,7 +622,7 @@ function AddBillModal({
                   flexDirection: 'row',
                   alignItems: 'center',
                   justifyContent: 'space-between',
-                  backgroundColor: '#1f2937',
+                  backgroundColor: C.glassStrong,
                   borderRadius: 12,
                   paddingHorizontal: 14,
                   paddingVertical: 14,

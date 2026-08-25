@@ -156,7 +156,7 @@ function EditModal({
           onPress={onCancel}
         >
           <Pressable onPress={() => {}} style={{ borderRadius: 20, overflow: 'hidden' }}>
-            <View style={{ backgroundColor: '#1a1a2e', borderRadius: 20, padding: 24 }}>
+            <View style={{ backgroundColor: C.bgRaise, borderRadius: 20, padding: 24 }}>
               {/* Header */}
               <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 20 }}>
                 <View
@@ -348,7 +348,7 @@ export default function CategoryBudgetsScreen() {
     <View style={{ flex: 1, backgroundColor: C.bg }}>
       {/* Header */}
       <LinearGradient
-        colors={[C.p800, C.p600, C.p500, '#1e1b2e']}
+        colors={[C.p800, C.p600, C.p500, C.scheme === 'light' ? C.p300 : '#1e1b2e']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={{

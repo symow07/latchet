@@ -69,18 +69,18 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: C.p400,
-        tabBarInactiveTintColor: '#6b5f86',
+        tabBarInactiveTintColor: C.textFaint,
         headerShown: useClientOnlyValue(false, true),
         tabBarBackground: () => (
           <BlurView
             intensity={Platform.OS === 'ios' ? 40 : 24}
-            tint="dark"
+            tint={C.scheme === 'light' ? 'light' : 'dark'}
             style={{
               flex: 1,
               borderTopLeftRadius: 28,
               borderTopRightRadius: 28,
               overflow: 'hidden',
-              backgroundColor: 'rgba(18,10,32,0.82)',
+              backgroundColor: C.scheme === 'light' ? 'rgba(255,255,255,0.86)' : 'rgba(18,10,32,0.82)',
               borderTopWidth: 1,
               borderColor: C.glassBorder,
             }}

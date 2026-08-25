@@ -192,7 +192,7 @@ export default function LoginScreen() {
 
             {/* Email */}
             <View className="mb-4">
-              <Text className="text-gray-400 text-xs font-semibold mb-2.5 ml-1 tracking-wider uppercase">
+              <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-2.5 ml-1 tracking-wider uppercase">
                 Email
               </Text>
               <View
@@ -209,7 +209,7 @@ export default function LoginScreen() {
                   autoCapitalize="none"
                   autoCorrect={false}
                   autoComplete="email"
-                  className="flex-1 ml-3 text-white text-base"
+                  className="flex-1 ml-3 text-base"
                   selectionColor={C.p500}
                   returnKeyType="next"
                 />
@@ -218,7 +218,7 @@ export default function LoginScreen() {
 
             {/* Password */}
             <View className="mb-7">
-              <Text className="text-gray-400 text-xs font-semibold mb-2.5 ml-1 tracking-wider uppercase">
+              <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-2.5 ml-1 tracking-wider uppercase">
                 Password
               </Text>
               <View
@@ -232,7 +232,7 @@ export default function LoginScreen() {
                   placeholder="Your password"
                   placeholderTextColor="#4b5563"
                   secureTextEntry={!showPassword}
-                  className="flex-1 ml-3 text-white text-base"
+                  className="flex-1 ml-3 text-base"
                   selectionColor={C.p500}
                   returnKeyType="done"
                   onSubmitEditing={handleLogin}
@@ -273,7 +273,7 @@ export default function LoginScreen() {
 
             {/* Sign up link */}
             <View className="flex-row justify-center mt-7">
-              <Text className="text-gray-500 text-sm">{t('auth.noAccount')}</Text>
+              <Text style={{ color: C.textFaint }} className="text-sm">{t('auth.noAccount')}</Text>
               <Pressable onPress={() => router.push('/signup')}>
                 <Text className="text-purple-400 font-semibold text-sm">{t('auth.createOne')}</Text>
               </Pressable>

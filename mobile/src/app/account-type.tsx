@@ -93,10 +93,10 @@ export default function AccountTypeScreen() {
         <Text style={{ color: C.p500, fontSize: 13, fontWeight: '700', letterSpacing: 2, marginBottom: 10 }}>
           STEP 1 OF 2
         </Text>
-        <Text className="text-white font-bold" style={{ fontSize: 32, lineHeight: 40, marginBottom: 8 }}>
+        <Text className="font-bold" style={{ color: C.text, fontSize: 32, lineHeight: 40, marginBottom: 8 }}>
           How will you{'\n'}use Budget?
         </Text>
-        <Text className="text-gray-400 text-base leading-6">
+        <Text style={{ color: C.textDim }} className="text-base leading-6">
           Choose the account type that fits your needs. You can't change this later.
         </Text>
       </View>

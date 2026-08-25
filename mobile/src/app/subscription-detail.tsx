@@ -127,7 +127,7 @@ function StatCard({
         >
           {icon}
         </View>
-        <Text className="text-white font-bold text-base text-center">{value}</Text>
+        <Text style={{ color: C.text }} className="font-bold text-base text-center">{value}</Text>
         <Text className="text-xs text-center" style={{ color: '#9ca3af' }}>
           {label}
         </Text>
@@ -291,7 +291,7 @@ export default function SubscriptionDetailScreen() {
         className="flex-1 items-center justify-center px-8"
         style={{ backgroundColor: C.bg }}
       >
-        <Text className="text-white text-lg font-bold mb-2">{t('subscriptionDetail.notFound')}</Text>
+        <Text style={{ color: C.text }} className="text-lg font-bold mb-2">{t('subscriptionDetail.notFound')}</Text>
         <Text className="text-center text-sm" style={{ color: '#9ca3af' }}>
           This subscription could not be found.
         </Text>
@@ -316,7 +316,7 @@ export default function SubscriptionDetailScreen() {
       >
         {/* Header */}
         <LinearGradient
-          colors={[C.p600, C.p500, C.p400, '#1e1b2e']}
+          colors={[C.p600, C.p500, C.p400, C.scheme === 'light' ? C.p300 : '#1e1b2e']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={{
@@ -420,7 +420,7 @@ export default function SubscriptionDetailScreen() {
                 })}
               >
                 <ExternalLink size={18} color="white" />
-                <Text className="font-bold text-base text-white">
+                <Text style={{ color: C.text }} className="font-bold text-base">
                   {cancelLink ? cancelLink.label : 'Cancel Subscription'}
                 </Text>
               </Pressable>
@@ -510,7 +510,7 @@ export default function SubscriptionDetailScreen() {
           {/* Transaction history */}
           <Animated.View entering={FadeInUp.delay(160).springify()} className="mx-4 mb-4">
             <View className="flex-row items-center justify-between mb-3">
-              <Text className="text-white font-bold text-base">{t('subscriptionDetail.history')}</Text>
+              <Text style={{ color: C.text }} className="font-bold text-base">{t('subscriptionDetail.history')}</Text>
               <Text className="text-xs" style={{ color: '#9ca3af' }}>
                 {occurrences.length} occurrence{occurrences.length !== 1 ? 's' : ''}
               </Text>
@@ -543,7 +543,7 @@ export default function SubscriptionDetailScreen() {
                 style={{ backgroundColor: C.glass }}
               >
                 <View className="flex-row justify-between mb-2">
-                  <Text className="text-white font-semibold text-sm">{t('subscriptionDetail.confidence')}</Text>
+                  <Text style={{ color: C.text }} className="font-semibold text-sm">{t('subscriptionDetail.confidence')}</Text>
                   <Text className="font-bold text-sm" style={{ color: '#f59e0b' }}>
                     {Math.round(subscription.confidenceScore)}%
                   </Text>
@@ -603,7 +603,7 @@ export default function SubscriptionDetailScreen() {
               bottom: 0,
               left: 0,
               right: 0,
-              backgroundColor: '#18181b',
+              backgroundColor: C.bgRaise,
               borderTopLeftRadius: 28,
               borderTopRightRadius: 28,
               paddingBottom: insets.bottom + 20,
@@ -626,7 +626,7 @@ export default function SubscriptionDetailScreen() {
                 borderBottomColor: C.glassBorder,
               }}
             >
-              <Text className="text-white font-bold text-lg">
+              <Text style={{ color: C.text }} className="font-bold text-lg">
                 How to Cancel
               </Text>
               <Pressable
@@ -648,7 +648,7 @@ export default function SubscriptionDetailScreen() {
                 <>
                   {/* Steps */}
                   <View className="gap-3">
-                    <Text className="text-white font-semibold text-sm mb-1">
+                    <Text style={{ color: C.text }} className="font-semibold text-sm mb-1">
                       Steps to cancel {cancelEntry.displayName}
                     </Text>
                     {cancelEntry.steps.map((step, i) => (
@@ -700,7 +700,7 @@ export default function SubscriptionDetailScreen() {
                     className="rounded-2xl p-4"
                     style={{ backgroundColor: C.glass }}
                   >
-                    <Text className="text-white font-semibold text-sm mb-1">
+                    <Text style={{ color: C.text }} className="font-semibold text-sm mb-1">
                       Not in our directory
                     </Text>
                     <Text className="text-sm leading-5" style={{ color: '#9ca3af' }}>
@@ -770,7 +770,7 @@ export default function SubscriptionDetailScreen() {
 
               {/* Cancel notes */}
               <View className="gap-3">
-                <Text className="text-white font-semibold text-sm">{t('subscriptionDetail.yourNotes')}</Text>
+                <Text style={{ color: C.text }} className="font-semibold text-sm">{t('subscriptionDetail.yourNotes')}</Text>
                 <TextInput
                   value={cancelNotes}
                   onChangeText={setCancelNotes}
@@ -804,7 +804,7 @@ export default function SubscriptionDetailScreen() {
                   {isSavingNotes ? (
                     <ActivityIndicator color="white" />
                   ) : (
-                    <Text className="text-white font-bold text-sm">{t('subscriptionDetail.saveNotes')}</Text>
+                    <Text style={{ color: C.text }} className="font-bold text-sm">{t('subscriptionDetail.saveNotes')}</Text>
                   )}
                 </Pressable>
               </View>

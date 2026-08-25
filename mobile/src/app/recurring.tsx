@@ -456,7 +456,7 @@ function AddRecurringModal({
   };
 
   const inputStyle = {
-    backgroundColor: '#1f2937',
+    backgroundColor: C.glassStrong,
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 13,
@@ -500,7 +500,7 @@ function AddRecurringModal({
                   width: 36,
                   height: 4,
                   borderRadius: 2,
-                  backgroundColor: '#374151',
+                  backgroundColor: C.glassStrong,
                   alignSelf: 'center',
                   marginBottom: 20,
                 }}
@@ -529,7 +529,7 @@ function AddRecurringModal({
                       width: 32,
                       height: 32,
                       borderRadius: 16,
-                      backgroundColor: '#1f2937',
+                      backgroundColor: C.glassStrong,
                       alignItems: 'center',
                       justifyContent: 'center',
                     }}
@@ -560,7 +560,7 @@ function AddRecurringModal({
               <View
                 style={{
                   flexDirection: 'row',
-                  backgroundColor: '#1f2937',
+                  backgroundColor: C.glassStrong,
                   borderRadius: 12,
                   padding: 4,
                   marginBottom: 14,

@@ -122,8 +122,8 @@ export default function OnboardingScreen() {
       case 'currency':
         return (
           <View className="flex-1">
-            <Text className="text-2xl font-bold text-white mb-2">{t('onboarding.chooseCurrency')}</Text>
-            <Text className="text-gray-400 mb-6">{t('onboarding.chooseCurrencyHint')}</Text>
+            <Text style={{ color: C.text }} className="text-2xl font-bold mb-2">{t('onboarding.chooseCurrency')}</Text>
+            <Text style={{ color: C.textDim }} className="mb-6">{t('onboarding.chooseCurrencyHint')}</Text>
 
             {/* Selected Currency */}
             <Pressable
@@ -137,8 +137,8 @@ export default function OnboardingScreen() {
                 <View className="flex-row items-center">
                   <Text className="text-3xl mr-3">{currency.symbol}</Text>
                   <View>
-                    <Text className="text-white font-semibold">{currency.code}</Text>
-                    <Text className="text-gray-400 text-sm">{currency.name}</Text>
+                    <Text style={{ color: C.text }} className="font-semibold">{currency.code}</Text>
+                    <Text style={{ color: C.textDim }} className="text-sm">{currency.name}</Text>
                   </View>
                 </View>
                 <ChevronDown size={20} color={C.p500} />
@@ -148,7 +148,7 @@ export default function OnboardingScreen() {
             {/* Currency List */}
             {showCurrencyPicker && (
               <ScrollView className="max-h-64 mb-4" showsVerticalScrollIndicator={false}>
-                <Text className="text-gray-500 text-xs mb-2 ml-1">{t('onboarding.popular')}</Text>
+                <Text style={{ color: C.textFaint }} className="text-xs mb-2 ml-1">{t('onboarding.popular')}</Text>
                 {popularCurrencies.map((c) => (
                   <Pressable
                     key={c.code}
@@ -167,14 +167,14 @@ export default function OnboardingScreen() {
                     >
                       <View className="flex-row items-center">
                         <Text className="text-xl mr-3 w-8">{c.symbol}</Text>
-                        <Text className="text-white">{c.code} - {c.name}</Text>
+                        <Text style={{ color: C.text }} >{c.code} - {c.name}</Text>
                       </View>
                       {currency.code === c.code && <Check size={18} color={C.p500} />}
                     </View>
                   </Pressable>
                 ))}
 
-                <Text className="text-gray-500 text-xs mb-2 mt-4 ml-1">{t('onboarding.allCurrencies')}</Text>
+                <Text style={{ color: C.textFaint }} className="text-xs mb-2 mt-4 ml-1">{t('onboarding.allCurrencies')}</Text>
                 {CURRENCIES.filter(c => !popularCurrencies.find(p => p.code === c.code)).map((c) => (
                   <Pressable
                     key={c.code}
@@ -193,7 +193,7 @@ export default function OnboardingScreen() {
                     >
                       <View className="flex-row items-center">
                         <Text className="text-xl mr-3 w-8">{c.symbol}</Text>
-                        <Text className="text-white text-sm">{c.code} - {c.name}</Text>
+                        <Text style={{ color: C.text }} className="text-sm">{c.code} - {c.name}</Text>
                       </View>
                       {currency.code === c.code && <Check size={18} color={C.p500} />}
                     </View>
@@ -207,11 +207,11 @@ export default function OnboardingScreen() {
       case 'income':
         return (
           <View className="flex-1">
-            <Text className="text-2xl font-bold text-white mb-2">{t('onboarding.yourIncome')}</Text>
-            <Text className="text-gray-400 mb-6">{t('onboarding.incomeHint')}</Text>
+            <Text style={{ color: C.text }} className="text-2xl font-bold mb-2">{t('onboarding.yourIncome')}</Text>
+            <Text style={{ color: C.textDim }} className="mb-6">{t('onboarding.incomeHint')}</Text>
 
             <View className="mb-6">
-              <Text className="text-gray-400 text-sm mb-2 ml-1">{t('onboarding.monthlyIncome')}</Text>
+              <Text style={{ color: C.textDim }} className="text-sm mb-2 ml-1">{t('onboarding.monthlyIncome')}</Text>
               <View
                 className="flex-row items-center rounded-2xl px-4 py-4"
                 style={{ backgroundColor: C.glass }}
@@ -219,7 +219,7 @@ export default function OnboardingScreen() {
                 <View className="w-10 h-10 rounded-xl bg-green-500/20 items-center justify-center mr-3">
                   <DollarSign size={20} color="#22c55e" />
                 </View>
-                <Text className="text-white text-xl mr-1">{currency.symbol}</Text>
+                <Text style={{ color: C.text }} className="text-xl mr-1">{currency.symbol}</Text>
                 <TextInput
                   value={monthlyIncome}
                   onChangeText={setMonthlyIncome}
@@ -229,14 +229,14 @@ export default function OnboardingScreen() {
                   returnKeyType="done"
                   onSubmitEditing={Keyboard.dismiss}
                   blurOnSubmit
-                  className="flex-1 text-white text-xl font-semibold"
+                  className="flex-1 text-xl font-semibold"
                   selectionColor={C.p500}
                 />
               </View>
             </View>
 
             <View>
-              <Text className="text-gray-400 text-sm mb-2 ml-1">{t('onboarding.savingsGoal')}</Text>
+              <Text style={{ color: C.textDim }} className="text-sm mb-2 ml-1">{t('onboarding.savingsGoal')}</Text>
               <View
                 className="flex-row items-center rounded-2xl px-4 py-4"
                 style={{ backgroundColor: C.glass }}
@@ -244,7 +244,7 @@ export default function OnboardingScreen() {
                 <View className="w-10 h-10 rounded-xl bg-purple-500/20 items-center justify-center mr-3">
                   <Target size={20} color={C.p500} />
                 </View>
-                <Text className="text-white text-xl mr-1">{currency.symbol}</Text>
+                <Text style={{ color: C.text }} className="text-xl mr-1">{currency.symbol}</Text>
                 <TextInput
                   value={savingsGoal}
                   onChangeText={setSavingsGoal}
@@ -254,7 +254,7 @@ export default function OnboardingScreen() {
                   returnKeyType="done"
                   onSubmitEditing={Keyboard.dismiss}
                   blurOnSubmit
-                  className="flex-1 text-white text-xl font-semibold"
+                  className="flex-1 text-xl font-semibold"
                   selectionColor={C.p500}
                 />
               </View>
@@ -265,8 +265,8 @@ export default function OnboardingScreen() {
       case 'goal':
         return (
           <View className="flex-1">
-            <Text className="text-2xl font-bold text-white mb-2">{t('onboarding.primaryGoal')}</Text>
-            <Text className="text-gray-400 mb-6">{t('onboarding.primaryGoalHint')}</Text>
+            <Text style={{ color: C.text }} className="text-2xl font-bold mb-2">{t('onboarding.primaryGoal')}</Text>
+            <Text style={{ color: C.textDim }} className="mb-6">{t('onboarding.primaryGoalHint')}</Text>
 
             <View className="gap-3">
               {PRIMARY_GOALS.map((goal) => (
@@ -286,8 +286,8 @@ export default function OnboardingScreen() {
                     }}
                   >
                     <View className="flex-1">
-                      <Text className="text-white font-semibold text-lg">{goal.label}</Text>
-                      <Text className="text-gray-500 text-sm">{goal.desc}</Text>
+                      <Text style={{ color: C.text }} className="font-semibold text-lg">{goal.label}</Text>
+                      <Text style={{ color: C.textFaint }} className="text-sm">{goal.desc}</Text>
                     </View>
                     {primaryGoal === goal.id && (
                       <View className="w-6 h-6 rounded-full bg-purple-500 items-center justify-center">
@@ -304,8 +304,8 @@ export default function OnboardingScreen() {
       case 'style':
         return (
           <View className="flex-1">
-            <Text className="text-2xl font-bold text-white mb-2">{t('onboarding.spendingStyle')}</Text>
-            <Text className="text-gray-400 mb-6">{t('onboarding.spendingStyleHint')}</Text>
+            <Text style={{ color: C.text }} className="text-2xl font-bold mb-2">{t('onboarding.spendingStyle')}</Text>
+            <Text style={{ color: C.textDim }} className="mb-6">{t('onboarding.spendingStyleHint')}</Text>
 
             <View className="gap-3">
               {SPENDING_STYLES.map((style) => {
@@ -330,8 +330,8 @@ export default function OnboardingScreen() {
                         <Icon size={24} color={C.p500} />
                       </View>
                       <View className="flex-1">
-                        <Text className="text-white font-semibold text-lg">{style.label}</Text>
-                        <Text className="text-gray-500 text-sm">{style.desc}</Text>
+                        <Text style={{ color: C.text }} className="font-semibold text-lg">{style.label}</Text>
+                        <Text style={{ color: C.textFaint }} className="text-sm">{style.desc}</Text>
                       </View>
                       {spendingStyle === style.id && (
                         <View className="w-6 h-6 rounded-full bg-purple-500 items-center justify-center">
@@ -352,7 +352,7 @@ export default function OnboardingScreen() {
     <ScreenBackground>
       {/* Header */}
       <LinearGradient
-        colors={[C.p600, C.p500, C.p400, '#1e1b2e']}
+        colors={[C.p600, C.p500, C.p400, C.scheme === 'light' ? C.p300 : '#1e1b2e']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={{
@@ -402,7 +402,7 @@ export default function OnboardingScreen() {
                 style={{ backgroundColor: C.glass }}
               >
                 <ArrowLeft size={20} color="#9ca3af" />
-                <Text className="text-gray-400 font-semibold ml-2">{t('common.back')}</Text>
+                <Text style={{ color: C.textDim }} className="font-semibold ml-2">{t('common.back')}</Text>
               </Pressable>
             )}
 

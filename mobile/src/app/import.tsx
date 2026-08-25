@@ -516,7 +516,7 @@ export default function ImportScreen() {
             </View>
             <View className="flex-1">
               <Text className="text-green-400 font-semibold mb-1">{t('importExtra.privateTitle')}</Text>
-              <Text className="text-gray-400 text-xs leading-4">
+              <Text style={{ color: C.textDim }} className="text-xs leading-4">
                 We do not store your banking credentials. Files are processed locally on your device
                 and never uploaded to external servers.
               </Text>
@@ -527,7 +527,7 @@ export default function ImportScreen() {
         {/* Upload Step */}
         {step === 'upload' && (
           <Animated.View entering={FadeInUp.delay(200).duration(400)} className="px-4 pt-6">
-            <Text className="text-gray-400 text-xs font-semibold mb-3 ml-1">{t('importExtra.chooseSource')}</Text>
+            <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-3 ml-1">{t('importExtra.chooseSource')}</Text>
             <View className="gap-3">
               {([
                 { source: 'bank' as ImportSource, emoji: '', title: 'Bank statement', sub: 'CIH, Attijariwafa, or any bank — export a CSV', color: '#3b82f6' },
@@ -543,8 +543,8 @@ export default function ImportScreen() {
                       <Text style={{ fontSize: 24 }}>{s.emoji}</Text>
                     </View>
                     <View className="flex-1">
-                      <Text className="text-white font-bold" style={{ fontSize: 15 }}>{s.title}</Text>
-                      <Text className="text-gray-400 text-xs mt-0.5">{s.sub}</Text>
+                      <Text className="font-bold" style={{ color: C.text, fontSize: 15 }}>{s.title}</Text>
+                      <Text style={{ color: C.textDim }} className="text-xs mt-0.5">{s.sub}</Text>
                     </View>
                     <Upload size={18} color={s.color} />
                   </View>
@@ -552,30 +552,30 @@ export default function ImportScreen() {
               ))}
             </View>
 
-            <Text className="text-gray-500 text-xs mt-4 ml-1 leading-4">
+            <Text style={{ color: C.textFaint }} className="text-xs mt-4 ml-1 leading-4">
               Alipay & WeChat Pay have no way to connect directly — this imports the bill you export from each app. For your bank, export a CSV statement from online banking.
             </Text>
 
             {/* Supported Formats */}
             <View className="mt-6">
-              <Text className="text-gray-400 text-xs font-semibold mb-3 ml-1">{t('import.supportedFormats')}</Text>
+              <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-3 ml-1">{t('import.supportedFormats')}</Text>
               <View
                 className="rounded-xl p-4"
                 style={{ backgroundColor: C.glass }}
               >
                 <View className="flex-row items-center">
                   <FileText size={20} color="#6b7280" />
-                  <Text className="text-gray-300 ml-3">{t('import.csvTitle')}</Text>
+                  <Text style={{ color: C.textDim }} className="ml-3">{t('import.csvTitle')}</Text>
                 </View>
-                <Text className="text-gray-500 text-xs mt-2">
+                <Text style={{ color: C.textFaint }} className="text-xs mt-2">
                   Processed entirely on your device. If we can&apos;t recognise the columns,
                   you&apos;ll be asked to point them out — no file is ever a dead end.
                 </Text>
                 <View className="flex-row items-center mt-4">
                   <FileText size={20} color="#6b7280" />
-                  <Text className="text-gray-300 ml-3">{t('import.pdfTitle')}</Text>
+                  <Text style={{ color: C.textDim }} className="ml-3">{t('import.pdfTitle')}</Text>
                 </View>
-                <Text className="text-gray-500 text-xs mt-2">
+                <Text style={{ color: C.textFaint }} className="text-xs mt-2">
                   For banks that only offer PDF. Read by AI on our server, so it leaves your
                   device — we ask first. CSV is always more accurate where your bank offers it.
                 </Text>
@@ -588,8 +588,8 @@ export default function ImportScreen() {
         {analyzingPdf && (
           <View className="px-4 pt-6 items-center">
             <ActivityIndicator color="#3b82f6" />
-            <Text className="text-gray-300 mt-3 font-semibold">{t('import.analysing')}</Text>
-            <Text className="text-gray-500 text-xs mt-1 text-center">
+            <Text style={{ color: C.textDim }} className="mt-3 font-semibold">{t('import.analysing')}</Text>
+            <Text style={{ color: C.textFaint }} className="text-xs mt-1 text-center">
 {t('import.analysingHint')}
             </Text>
           </View>
@@ -605,7 +605,7 @@ export default function ImportScreen() {
               <Text className="text-amber-300 font-semibold mb-1">
 {t('import.mappingTitle')}
               </Text>
-              <Text className="text-gray-300 text-xs leading-5">
+              <Text style={{ color: C.textDim }} className="text-xs leading-5">
                 Tell us which column holds what and we&apos;ll take it from there. Your
                 bank&apos;s wording is shown with a sample value from the file.
               </Text>
@@ -619,7 +619,7 @@ export default function ImportScreen() {
               const current = mapping[field.key] ?? inspection.mapping[field.key];
               return (
                 <View key={field.key} className="mb-5">
-                  <Text className="text-gray-400 text-xs font-semibold mb-2 ml-1">
+                  <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-2 ml-1">
                     {field.label.toUpperCase()}
                     {field.required ? ' (required)' : ' (optional)'}
                   </Text>
@@ -646,12 +646,12 @@ export default function ImportScreen() {
                         >
                           <Text
                             numberOfLines={1}
-                            className={active ? 'text-white font-semibold' : 'text-gray-300'}
+                            className={active ? ' font-semibold' : 'text-gray-300'}
                           >
                             {header || `Column ${idx + 1}`}
                           </Text>
                           {!!sample && (
-                            <Text numberOfLines={1} className="text-gray-500 text-xs mt-0.5">
+                            <Text style={{ color: C.textFaint }} numberOfLines={1} className="text-xs mt-0.5">
                               {sample}
                             </Text>
                           )}
@@ -674,7 +674,7 @@ export default function ImportScreen() {
                     : '#3b82f6',
               }}
             >
-              <Text className="text-white font-semibold">
+              <Text style={{ color: C.text }} className="font-semibold">
                 {missingColumns({ ...inspection.mapping, ...mapping } as ColumnMapping).length > 0
                   ? 'Pick a date and an amount column'
                   : 'Continue'}
@@ -689,7 +689,7 @@ export default function ImportScreen() {
               }}
               className="rounded-xl py-3 items-center mt-2"
             >
-              <Text className="text-gray-400">{t('import.chooseDifferentFile')}</Text>
+              <Text style={{ color: C.textDim }} >{t('import.chooseDifferentFile')}</Text>
             </Pressable>
           </Animated.View>
         )}
@@ -703,26 +703,26 @@ export default function ImportScreen() {
                 className="rounded-2xl p-4"
                 style={{ backgroundColor: C.glass }}
               >
-                <Text className="text-gray-400 text-xs mb-3">{t('import.summary')}</Text>
+                <Text style={{ color: C.textDim }} className="text-xs mb-3">{t('import.summary')}</Text>
                 <View className="flex-row justify-between mb-2">
-                  <Text className="text-gray-400">{t('importExtra.transactions')}</Text>
-                  <Text className="text-white font-semibold">{transactions.length}</Text>
+                  <Text style={{ color: C.textDim }} >{t('importExtra.transactions')}</Text>
+                  <Text style={{ color: C.text }} className="font-semibold">{transactions.length}</Text>
                 </View>
                 <View className="flex-row justify-between mb-2">
-                  <Text className="text-gray-400">{t('import.totalExpenses')}</Text>
+                  <Text style={{ color: C.textDim }} >{t('import.totalExpenses')}</Text>
                   <Text className="text-red-400 font-semibold">
                     {formatCurrency(transactions.filter(t => t.type === 'Expense').reduce((s, t) => s + t.amount, 0))}
                   </Text>
                 </View>
                 <View className="flex-row justify-between mb-2">
-                  <Text className="text-gray-400">{t('import.totalIncome')}</Text>
+                  <Text style={{ color: C.textDim }} >{t('import.totalIncome')}</Text>
                   <Text className="text-green-400 font-semibold">
                     {formatCurrency(transactions.filter(t => t.type === 'Income').reduce((s, t) => s + t.amount, 0))}
                   </Text>
                 </View>
                 {preview.duplicatesFound > 0 && (
                   <View className="flex-row justify-between">
-                    <Text className="text-gray-400">{t('import.duplicatesSkipped')}</Text>
+                    <Text style={{ color: C.textDim }} >{t('import.duplicatesSkipped')}</Text>
                     <Text className="text-amber-400 font-semibold">{preview.duplicatesFound}</Text>
                   </View>
                 )}
@@ -737,10 +737,10 @@ export default function ImportScreen() {
                   className="rounded-2xl p-4"
                   style={{ backgroundColor: C.glass }}
                 >
-                  <Text className="text-gray-400 text-xs mb-1">
+                  <Text style={{ color: C.textDim }} className="text-xs mb-1">
                     {rememberedBank ? t('import.formatRemembered') : t('import.format')}
                   </Text>
-                  <Text className="text-gray-500 text-xs mb-3 leading-4">
+                  <Text style={{ color: C.textFaint }} className="text-xs mb-3 leading-4">
                     {rememberedBank
                       ? 'Reusing the settings from your last import from this bank. Change them if anything looks wrong.'
                       : format.dateAmbiguous || format.signAmbiguous
@@ -748,7 +748,7 @@ export default function ImportScreen() {
                         : 'Detected from your file. Change these if anything looks wrong.'}
                   </Text>
 
-                  <Text className="text-gray-400 text-xs mb-2">{t('import.dateOrder')}</Text>
+                  <Text style={{ color: C.textDim }} className="text-xs mb-2">{t('import.dateOrder')}</Text>
                   <View className="flex-row mb-4" style={{ gap: 8 }}>
                     {([
                       { value: 'dmy' as DateConvention, label: t('import.dayFirst'), hint: '31/12/2026' },
@@ -766,16 +766,16 @@ export default function ImportScreen() {
                             borderColor: '#3b82f6',
                           }}
                         >
-                          <Text className={active ? 'text-white font-semibold' : 'text-gray-400'}>
+                          <Text style={{ color: C.text }} className={active ? ' font-semibold' : 'text-gray-400'}>
                             {opt.label}
                           </Text>
-                          <Text className="text-gray-500 text-xs mt-0.5">{opt.hint}</Text>
+                          <Text style={{ color: C.textFaint }} className="text-xs mt-0.5">{opt.hint}</Text>
                         </Pressable>
                       );
                     })}
                   </View>
 
-                  <Text className="text-gray-400 text-xs mb-2">{t('import.amountsAre')}</Text>
+                  <Text style={{ color: C.textDim }} className="text-xs mb-2">{t('import.amountsAre')}</Text>
                   <View className="flex-row" style={{ gap: 8 }}>
                     {([
                       { value: 'signed' as SignConvention, label: t('import.signed'), hint: t('import.signedHint') },
@@ -795,11 +795,11 @@ export default function ImportScreen() {
                           }}
                         >
                           <Text
-                            className={active ? 'text-white font-semibold text-xs' : 'text-gray-400 text-xs'}
+                            className={active ? ' font-semibold text-xs' : 'text-gray-400 text-xs'}
                           >
                             {opt.label}
                           </Text>
-                          <Text className="text-gray-500 text-xs mt-0.5">{opt.hint}</Text>
+                          <Text style={{ color: C.textFaint }} className="text-xs mt-0.5">{opt.hint}</Text>
                         </Pressable>
                       );
                     })}
@@ -810,7 +810,7 @@ export default function ImportScreen() {
 
             {/* Transaction List */}
             <View className="px-4">
-              <Text className="text-gray-400 text-xs font-semibold mb-3 ml-1">
+              <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-3 ml-1">
                 TRANSACTIONS ({transactions.length})
               </Text>
               {transactions.map((tx, idx) => (
@@ -829,11 +829,11 @@ export default function ImportScreen() {
                       {/* Main Row */}
                       <View className="flex-row items-center justify-between">
                         <View className="flex-1 mr-3">
-                          <Text className="text-white font-medium" numberOfLines={1}>
+                          <Text style={{ color: C.text }} className="font-medium" numberOfLines={1}>
                             {tx.description}
                           </Text>
                           <View className="flex-row items-center mt-1">
-                            <Text className="text-gray-500 text-xs">{tx.date}</Text>
+                            <Text style={{ color: C.textFaint }} className="text-xs">{tx.date}</Text>
                             <View className="w-1 h-1 rounded-full bg-gray-600 mx-2" />
                             <View className="bg-purple-500/20 rounded-full px-2 py-0.5">
                               <Text className="text-purple-400 text-xs">{categoryLabel(tx.suggestedCategory)}</Text>
@@ -864,7 +864,7 @@ export default function ImportScreen() {
                       {expandedTx === tx.id && (
                         <Animated.View entering={FadeInDown.duration(200)} className="mt-4 pt-4 border-t border-gray-800">
                           {/* Category Selector */}
-                          <Text className="text-gray-400 text-xs mb-2">{t('importExtra.category')}</Text>
+                          <Text style={{ color: C.textDim }} className="text-xs mb-2">{t('importExtra.category')}</Text>
                           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }}>
                             <View className="flex-row gap-2">
                               {CATEGORIES.map(cat => (
@@ -882,8 +882,8 @@ export default function ImportScreen() {
                                     <Text
                                       className={`text-xs ${
                                         tx.suggestedCategory === cat
-                                          ? 'text-white font-semibold'
-                                          : 'text-gray-400'
+                                          ? ' font-semibold'
+                                          : ''
                                       }`}
                                     >
                                       {categoryLabel(cat)}
@@ -906,7 +906,7 @@ export default function ImportScreen() {
                                 }`}
                               >
                                 <Edit3 size={16} color={tx.isImpulse ? '#ec4899' : '#9ca3af'} />
-                                <Text className={`ml-2 text-sm ${tx.isImpulse ? 'text-pink-400' : 'text-gray-400'}`}>
+                                <Text style={{ color: C.textDim }} className={`ml-2 text-sm ${tx.isImpulse ? 'text-pink-400' : ''}`}>
                                   {tx.isImpulse ? 'Impulse' : 'Mark Impulse'}
                                 </Text>
                               </View>
@@ -933,8 +933,8 @@ export default function ImportScreen() {
             <View className="w-24 h-24 rounded-full bg-green-500/20 items-center justify-center mb-6">
               <Check size={48} color="#22c55e" />
             </View>
-            <Text className="text-white text-2xl font-bold mb-2">{t('importExtra.complete')}</Text>
-            <Text className="text-gray-400 text-center mb-6">
+            <Text style={{ color: C.text }} className="text-2xl font-bold mb-2">{t('importExtra.complete')}</Text>
+            <Text style={{ color: C.textDim }} className="text-center mb-6">
               Successfully imported {importedCount} transactions into your budget tracker.
             </Text>
             <Pressable

@@ -99,7 +99,7 @@ export default function HealthScoreScreen() {
   if (!healthScore || !settings) {
     return (
       <View className="flex-1 items-center justify-center" style={{ backgroundColor: C.bg }}>
-        <Text className="text-gray-400">{t('common.loading')}</Text>
+        <Text style={{ color: C.textDim }} >{t('common.loading')}</Text>
       </View>
     );
   }
@@ -267,8 +267,8 @@ export default function HealthScoreScreen() {
             <View className="flex-row items-center mb-3">
               <Text className="text-3xl mr-3">{personality.icon}</Text>
               <View className="flex-1">
-                <Text className="text-white text-lg font-bold">{personality.title}</Text>
-                <Text className="text-gray-400 text-sm" numberOfLines={2}>
+                <Text style={{ color: C.text }} className="text-lg font-bold">{personality.title}</Text>
+                <Text style={{ color: C.textDim }} className="text-sm" numberOfLines={2}>
                   {personality.description}
                 </Text>
               </View>
@@ -278,7 +278,7 @@ export default function HealthScoreScreen() {
 
         {/* Score Breakdown */}
         <View className="px-4 mb-4">
-          <Text className="text-gray-400 text-xs font-semibold mb-3 ml-1">{t('healthScore.breakdown')}</Text>
+          <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-3 ml-1">{t('healthScore.breakdown')}</Text>
 
           {breakdownItems.map((item, idx) => (
             <Animated.View
@@ -298,11 +298,11 @@ export default function HealthScoreScreen() {
                       <item.icon size={20} color={item.color} />
                     </View>
                     <View>
-                      <Text className="text-white font-medium">{item.label}</Text>
-                      <Text className="text-gray-500 text-xs">{item.value}</Text>
+                      <Text style={{ color: C.text }} className="font-medium">{item.label}</Text>
+                      <Text style={{ color: C.textFaint }} className="text-xs">{item.value}</Text>
                     </View>
                   </View>
-                  <Text className="text-white font-bold text-lg">
+                  <Text style={{ color: C.text }} className="font-bold text-lg">
                     {item.score}/{item.max}
                   </Text>
                 </View>
@@ -325,7 +325,7 @@ export default function HealthScoreScreen() {
         {/* Suggestions */}
         {healthScore.suggestions.length > 0 && (
           <View className="px-4 mb-4">
-            <Text className="text-gray-400 text-xs font-semibold mb-3 ml-1">
+            <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-3 ml-1">
               HOW TO IMPROVE YOUR SCORE
             </Text>
 
@@ -343,7 +343,7 @@ export default function HealthScoreScreen() {
                   }}
                 >
                   <Lightbulb size={18} color="#f59e0b" style={{ marginTop: 2 }} />
-                  <Text className="text-gray-300 text-sm ml-3 flex-1">{suggestion}</Text>
+                  <Text style={{ color: C.textDim }} className="text-sm ml-3 flex-1">{suggestion}</Text>
                 </View>
               </Animated.View>
             ))}

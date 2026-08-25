@@ -115,6 +115,7 @@ function todayISO(): string {
 // ─── Net Worth Chart ──────────────────────────────────────────────────────────
 
 function NetWorthChart({ entries }: { entries: NetWorthEntry[] }) {
+  const C = useC();
   const data = useMemo(() => {
     const sorted = [...entries].sort(
       (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
@@ -129,7 +130,7 @@ function NetWorthChart({ entries }: { entries: NetWorthEntry[] }) {
         className="items-center justify-center"
       >
         <BarChart3 size={32} color="#374151" />
-        <Text className="text-gray-600 text-xs mt-2">{t('netWorth.noHistory')}</Text>
+        <Text style={{ color: C.textFaint }} className="text-xs mt-2">{t('netWorth.noHistory')}</Text>
       </View>
     );
   }
@@ -140,7 +141,7 @@ function NetWorthChart({ entries }: { entries: NetWorthEntry[] }) {
         style={{ height: CHART_HEIGHT, width: CHART_WIDTH }}
         className="items-center justify-center"
       >
-        <Text className="text-gray-500 text-xs">{t('netWorth.needMore')}</Text>
+        <Text style={{ color: C.textFaint }} className="text-xs">{t('netWorth.needMore')}</Text>
       </View>
     );
   }
@@ -245,12 +246,12 @@ function InputRow({ label, value, onChange, iconComponent, placeholder }: InputR
       <View className="w-9 h-9 rounded-xl items-center justify-center mr-3" style={{ backgroundColor: C.glassStrong }}>
         {iconComponent}
       </View>
-      <Text className="text-gray-300 text-sm flex-1">{label}</Text>
+      <Text style={{ color: C.textDim }} className="text-sm flex-1">{label}</Text>
       <View
         className="flex-row items-center rounded-xl px-3 py-2"
         style={{ backgroundColor: C.glassStrong, minWidth: 110 }}
       >
-        <Text className="text-gray-500 text-sm mr-1">$</Text>
+        <Text style={{ color: C.textFaint }} className="text-sm mr-1">$</Text>
         <TextInput
           value={value}
           onChangeText={onChange}
@@ -348,8 +349,8 @@ function AddModal({ visible, onClose, onSubmit, isSubmitting }: AddModalProps) {
           className="flex-row items-center justify-between border-b border-gray-800"
         >
           <View>
-            <Text className="text-white text-xl font-bold">{t('netWorth.newSnapshot')}</Text>
-            <Text className="text-gray-500 text-xs mt-0.5">{formatDate(todayISO())}</Text>
+            <Text style={{ color: C.text }} className="text-xl font-bold">{t('netWorth.newSnapshot')}</Text>
+            <Text style={{ color: C.textFaint }} className="text-xs mt-0.5">{formatDate(todayISO())}</Text>
           </View>
           <Pressable
             onPress={onClose}
@@ -556,13 +557,13 @@ function SnapshotRow({ entry, prevEntry, index }: SnapshotRowProps) {
         />
 
         <View style={{ flex: 1 }}>
-          <Text className="text-white font-semibold text-sm">{formatDate(entry.date)}</Text>
+          <Text style={{ color: C.text }} className="font-semibold text-sm">{formatDate(entry.date)}</Text>
           <View className="flex-row items-center mt-1">
-            <Text className="text-gray-500 text-xs mr-2">
+            <Text style={{ color: C.textFaint }} className="text-xs mr-2">
               Assets {formatCurrency(entry.assets)}
             </Text>
-            <Text className="text-gray-700 text-xs mr-2">·</Text>
-            <Text className="text-gray-500 text-xs">
+            <Text style={{ color: C.textFaint }} className="text-xs mr-2">·</Text>
+            <Text style={{ color: C.textFaint }} className="text-xs">
               Liabilities {formatCurrency(entry.liabilities)}
             </Text>
           </View>
@@ -776,10 +777,10 @@ export default function NetWorthScreen() {
               style={{ backgroundColor: C.glass, borderWidth: 1, borderColor: C.glassBorder }}
             >
               <View className="flex-row items-center justify-between mb-4">
-                <Text className="text-gray-400 text-xs font-semibold tracking-widest">
+                <Text style={{ color: C.textDim }} className="text-xs font-semibold tracking-widest">
                   NET WORTH HISTORY
                 </Text>
-                <Text className="text-gray-600 text-xs">Last {Math.min(entries.length, 12)} snapshots</Text>
+                <Text style={{ color: C.textFaint }} className="text-xs">Last {Math.min(entries.length, 12)} snapshots</Text>
               </View>
               <NetWorthChart entries={entries} />
             </View>
@@ -793,7 +794,7 @@ export default function NetWorthScreen() {
               className="rounded-2xl p-4"
               style={{ backgroundColor: C.glass, borderWidth: 1, borderColor: C.glassBorder }}
             >
-              <Text className="text-gray-400 text-xs font-semibold tracking-widest mb-4">
+              <Text style={{ color: C.textDim }} className="text-xs font-semibold tracking-widest mb-4">
                 LATEST BREAKDOWN
               </Text>
 
@@ -833,7 +834,7 @@ export default function NetWorthScreen() {
 
         {/* Snapshots list */}
         <View className="mx-4">
-          <Text className="text-gray-400 text-xs font-semibold tracking-widest mb-3">
+          <Text style={{ color: C.textDim }} className="text-xs font-semibold tracking-widest mb-3">
             SNAPSHOT HISTORY
           </Text>
 
@@ -860,8 +861,8 @@ export default function NetWorthScreen() {
               >
                 <PiggyBank size={30} color="#3b82f6" />
               </View>
-              <Text className="text-white font-semibold text-base mb-1">{t('netWorth.noSnapshots')}</Text>
-              <Text className="text-gray-500 text-sm text-center px-8">
+              <Text style={{ color: C.text }} className="font-semibold text-base mb-1">{t('netWorth.noSnapshots')}</Text>
+              <Text style={{ color: C.textFaint }} className="text-sm text-center px-8">
                 Tap the + button to record your first net worth snapshot.
               </Text>
             </View>
@@ -932,6 +933,7 @@ interface BreakdownLineProps {
 }
 
 function BreakdownLine({ icon, label, value, color, negate }: BreakdownLineProps) {
+  const C = useC();
   return (
     <View className="flex-row items-center justify-between mb-2">
       <View className="flex-row items-center">
@@ -941,7 +943,7 @@ function BreakdownLine({ icon, label, value, color, negate }: BreakdownLineProps
         >
           {icon}
         </View>
-        <Text className="text-gray-400 text-sm">{label}</Text>
+        <Text style={{ color: C.textDim }} className="text-sm">{label}</Text>
       </View>
       <Text style={{ color, fontSize: 13, fontWeight: '600' }}>
         {negate ? '-' : '+'}{formatCurrencyFull(value)}

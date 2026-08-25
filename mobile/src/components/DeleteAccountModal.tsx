@@ -91,7 +91,7 @@ export function DeleteAccountModal({
       <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'flex-end' }}>
         <View
           style={{
-            backgroundColor: '#0b0b0f',
+            backgroundColor: C.bgRaise,
             borderTopLeftRadius: 24,
             borderTopRightRadius: 24,
             paddingBottom: insets.bottom + 16,
@@ -247,13 +247,14 @@ export function UnrevokedGrantsNotice({
   grants: UnrevokedGrant[];
   onDismiss: () => void;
 }) {
+  const C = useC();
   const insets = useSafeAreaInsets();
   if (grants.length === 0) return null;
 
   return (
     <Modal visible animationType="fade" transparent onRequestClose={onDismiss}>
       <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'center', padding: 24 }}>
-        <View style={{ backgroundColor: '#0b0b0f', borderRadius: 20, padding: 20, paddingBottom: insets.bottom + 20 }}>
+        <View style={{ backgroundColor: C.bgRaise, borderRadius: 20, padding: 20, paddingBottom: insets.bottom + 20 }}>
           <Txt weight="bold" size={18} color="#fff">{t('deleteAccount.deletedTitle')}</Txt>
           <Txt size={14} color="rgba(255,255,255,0.7)" style={{ marginTop: 10, lineHeight: 20 }}>
             Your account and data are gone. We couldn&apos;t automatically revoke everything

@@ -171,13 +171,13 @@ export default function VerifyOTPScreen() {
           {isLoading && (
             <View className="items-center mt-8">
               <ActivityIndicator color={C.p500} size="large" />
-              <Text className="text-gray-500 text-sm mt-3">{t('auth.verifying')}</Text>
+              <Text style={{ color: C.textFaint }} className="text-sm mt-3">{t('auth.verifying')}</Text>
             </View>
           )}
 
           {/* Resend */}
           <View className="flex-row justify-center mt-8">
-            <Text className="text-gray-500 text-sm">{t('auth.didntGet')}</Text>
+            <Text style={{ color: C.textFaint }} className="text-sm">{t('auth.didntGet')}</Text>
             <Pressable onPress={handleResend}>
               <Text className="text-purple-400 text-sm font-semibold">{t('auth.resend')}</Text>
             </Pressable>

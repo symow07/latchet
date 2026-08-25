@@ -12,7 +12,7 @@ export function Text(props: TextProps) {
   const { className, ...otherProps } = props;
   return (
     <DefaultText
-      className={`text-black dark:text-white ${className ?? ''}`}
+      className={` dark:text-white ${className ?? ''}`}
       {...otherProps}
     />
   );

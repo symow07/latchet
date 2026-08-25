@@ -148,14 +148,14 @@ export default function AnalyticsScreen() {
               <tab.icon size={16} color={activeTab === tab.id ? 'white' : '#9ca3af'} />
               <Text
                 className={`ml-2 text-sm font-medium ${
-                  activeTab === tab.id ? 'text-white' : 'text-gray-400'
+                  activeTab === tab.id ? '' : 'text-gray-400'
                 }`}
               >
                 {tab.label}
               </Text>
               {tab.id === 'alerts' && analytics && analytics.alertCount > 0 && (
                 <View className="ml-2 bg-red-500 rounded-full w-5 h-5 items-center justify-center">
-                  <Text className="text-white text-xs font-bold">{analytics.alertCount}</Text>
+                  <Text style={{ color: C.text }} className="text-xs font-bold">{analytics.alertCount}</Text>
                 </View>
               )}
             </View>
@@ -172,7 +172,7 @@ export default function AnalyticsScreen() {
         {activeTab === 'overview' && analytics && (
           <Animated.View entering={FadeInUp.duration(400)} className="px-4 pt-4">
             {/* Top Waste Categories */}
-            <Text className="text-gray-400 text-xs font-semibold mb-3 ml-1">
+            <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-3 ml-1">
               TOP WASTE CATEGORIES THIS MONTH
             </Text>
             {analytics.wasteCategories.map((waste, idx) => (
@@ -182,7 +182,7 @@ export default function AnalyticsScreen() {
             {/* Spending Patterns */}
             {analytics.spendingPatterns.length > 0 && (
               <>
-                <Text className="text-gray-400 text-xs font-semibold mb-3 ml-1 mt-6">
+                <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-3 ml-1 mt-6">
                   SPENDING PATTERNS DETECTED
                 </Text>
                 {analytics.spendingPatterns.map((pattern, idx) => (
@@ -203,8 +203,8 @@ export default function AnalyticsScreen() {
                       <RefreshCw size={20} color={C.p500} />
                     </View>
                     <View>
-                      <Text className="text-gray-400 text-xs">{t('analytics.monthlySubscriptions')}</Text>
-                      <Text className="text-white text-xl font-bold">
+                      <Text style={{ color: C.textDim }} className="text-xs">{t('analytics.monthlySubscriptions')}</Text>
+                      <Text style={{ color: C.text }} className="text-xl font-bold">
                         {formatCurrency(analytics.totalMonthlySubscriptions)}
                       </Text>
                     </View>
@@ -226,7 +226,7 @@ export default function AnalyticsScreen() {
         {/* Subscriptions Tab */}
         {activeTab === 'subscriptions' && analytics && (
           <Animated.View entering={FadeInUp.duration(400)} className="px-4 pt-4">
-            <Text className="text-gray-400 text-xs font-semibold mb-3 ml-1">
+            <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-3 ml-1">
               DETECTED RECURRING CHARGES ({analytics.subscriptions.length})
             </Text>
             {analytics.subscriptions.length === 0 ? (
@@ -235,7 +235,7 @@ export default function AnalyticsScreen() {
                 style={{ backgroundColor: C.glass }}
               >
                 <RefreshCw size={32} color="#6b7280" />
-                <Text className="text-gray-400 mt-3 text-center">
+                <Text style={{ color: C.textDim }} className="mt-3 text-center">
                   No recurring subscriptions detected yet.{'\n'}Keep tracking to find patterns.
                 </Text>
               </View>
@@ -251,7 +251,7 @@ export default function AnalyticsScreen() {
         {activeTab === 'insights' && analytics && (
           <Animated.View entering={FadeInUp.duration(400)} className="px-4 pt-4">
             {/* Waste Category Tips */}
-            <Text className="text-gray-400 text-xs font-semibold mb-3 ml-1">
+            <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-3 ml-1">
               PERSONALIZED SAVINGS TIPS
             </Text>
             {analytics.wasteCategories.map((waste, idx) => (
@@ -269,8 +269,8 @@ export default function AnalyticsScreen() {
                       <Lightbulb size={16} color="#f59e0b" />
                     </View>
                     <View className="flex-1">
-                      <Text className="text-white font-medium">{categoryLabel(waste.category)}</Text>
-                      <Text className="text-gray-400 text-sm mt-1">{waste.tip}</Text>
+                      <Text style={{ color: C.text }} className="font-medium">{categoryLabel(waste.category)}</Text>
+                      <Text style={{ color: C.textDim }} className="text-sm mt-1">{waste.tip}</Text>
                       <Text className="text-amber-400 text-xs mt-2">
                         Potential savings: {formatCurrency(waste.potentialSavings)}/month
                       </Text>
@@ -283,7 +283,7 @@ export default function AnalyticsScreen() {
             {/* Spending Patterns Insights */}
             {analytics.spendingPatterns.length > 0 && (
               <>
-                <Text className="text-gray-400 text-xs font-semibold mb-3 ml-1 mt-6">
+                <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-3 ml-1 mt-6">
                   BEHAVIORAL INSIGHTS
                 </Text>
                 {analytics.spendingPatterns.map((pattern, idx) => (
@@ -301,10 +301,10 @@ export default function AnalyticsScreen() {
                         )}
                       </View>
                       <View className="flex-1">
-                        <Text className="text-white font-medium">
+                        <Text style={{ color: C.text }} className="font-medium">
                           {pattern.type === 'weekend' ? 'Weekend Spending' : 'Seasonal Trend'}
                         </Text>
-                        <Text className="text-gray-400 text-sm mt-1">{pattern.insight}</Text>
+                        <Text style={{ color: C.textDim }} className="text-sm mt-1">{pattern.insight}</Text>
                       </View>
                     </View>
                   </View>
@@ -320,7 +320,7 @@ export default function AnalyticsScreen() {
             {/* Duplicate Charges */}
             {analytics.duplicateCharges.length > 0 && (
               <>
-                <Text className="text-gray-400 text-xs font-semibold mb-3 ml-1">
+                <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-3 ml-1">
                   POSSIBLE DUPLICATE CHARGES
                 </Text>
                 {analytics.duplicateCharges.map((dup, idx) => (
@@ -333,8 +333,8 @@ export default function AnalyticsScreen() {
                       <AlertCircle size={16} color="#ef4444" />
                       <Text className="text-red-400 font-medium ml-2">{t('analytics.duplicateDetected')}</Text>
                     </View>
-                    <Text className="text-white">{dup.description}</Text>
-                    <Text className="text-gray-400 text-sm">
+                    <Text style={{ color: C.text }} >{dup.description}</Text>
+                    <Text style={{ color: C.textDim }} className="text-sm">
                       {dup.transactions.length} charges of {formatCurrency(dup.amount)} on {dup.date}
                     </Text>
                     <Text className="text-amber-400 text-xs mt-2">
@@ -348,7 +348,7 @@ export default function AnalyticsScreen() {
             {/* Unusual Transactions */}
             {analytics.unusualTransactions.length > 0 && (
               <>
-                <Text className="text-gray-400 text-xs font-semibold mb-3 ml-1 mt-4">
+                <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-3 ml-1 mt-4">
                   UNUSUAL TRANSACTIONS
                 </Text>
                 {analytics.unusualTransactions.map((unusual, idx) => (
@@ -371,7 +371,7 @@ export default function AnalyticsScreen() {
                   <Zap size={24} color="#22c55e" />
                 </View>
                 <Text className="text-green-400 font-semibold text-lg">{t('analytics.allClear')}</Text>
-                <Text className="text-gray-400 text-center mt-2">
+                <Text style={{ color: C.textDim }} className="text-center mt-2">
                   No suspicious activity or duplicate charges detected.
                 </Text>
               </View>
@@ -414,25 +414,25 @@ function WasteCategoryCard({
             >
               <Text style={{ color, fontWeight: 'bold' }}>#{index + 1}</Text>
             </View>
-            <Text className="text-white font-semibold">{categoryLabel(waste.category)}</Text>
+            <Text style={{ color: C.text }} className="font-semibold">{categoryLabel(waste.category)}</Text>
           </View>
-          <Text className="text-white font-bold">{formatCurrency(waste.totalSpent)}</Text>
+          <Text style={{ color: C.text }} className="font-bold">{formatCurrency(waste.totalSpent)}</Text>
         </View>
 
         <View className="flex-row justify-between">
           <View>
-            <Text className="text-gray-500 text-xs">{t('importExtra.impulse')}</Text>
+            <Text style={{ color: C.textFaint }} className="text-xs">{t('importExtra.impulse')}</Text>
             <Text className="text-pink-400 font-medium">
               {formatCurrency(waste.impulseSpent)} ({Math.round(waste.impulsePercentage)}%)
             </Text>
           </View>
           <View>
-            <Text className="text-gray-500 text-xs">{t('analytics.transactions')}</Text>
-            <Text className="text-gray-300 font-medium">{waste.transactionCount}</Text>
+            <Text style={{ color: C.textFaint }} className="text-xs">{t('analytics.transactions')}</Text>
+            <Text style={{ color: C.textDim }} className="font-medium">{waste.transactionCount}</Text>
           </View>
           <View>
-            <Text className="text-gray-500 text-xs">Avg</Text>
-            <Text className="text-gray-300 font-medium">
+            <Text style={{ color: C.textFaint }} className="text-xs">Avg</Text>
+            <Text style={{ color: C.textDim }} className="font-medium">
               {formatCurrency(waste.averageTransaction)}
             </Text>
           </View>
@@ -456,7 +456,7 @@ function SubscriptionCard({
       style={{ backgroundColor: C.glass }}
     >
       <View className="flex-row items-center justify-between mb-2">
-        <Text className="text-white font-semibold flex-1" numberOfLines={1}>
+        <Text style={{ color: C.text }} className="font-semibold flex-1" numberOfLines={1}>
           {subscription.description}
         </Text>
         <View className="bg-purple-500/20 rounded-full px-2 py-0.5 ml-2">
@@ -466,17 +466,17 @@ function SubscriptionCard({
 
       <View className="flex-row justify-between items-center">
         <View>
-          <Text className="text-gray-500 text-xs">{t('analytics.amount')}</Text>
-          <Text className="text-white font-bold text-lg">
+          <Text style={{ color: C.textFaint }} className="text-xs">{t('analytics.amount')}</Text>
+          <Text style={{ color: C.text }} className="font-bold text-lg">
             {formatCurrency(subscription.amount)}
           </Text>
         </View>
         <View>
-          <Text className="text-gray-500 text-xs">{t('analytics.totalSpent')}</Text>
-          <Text className="text-gray-300">{formatCurrency(subscription.totalSpent)}</Text>
+          <Text style={{ color: C.textFaint }} className="text-xs">{t('analytics.totalSpent')}</Text>
+          <Text style={{ color: C.textDim }} >{formatCurrency(subscription.totalSpent)}</Text>
         </View>
         <View>
-          <Text className="text-gray-500 text-xs">{t('analytics.nextDue')}</Text>
+          <Text style={{ color: C.textFaint }} className="text-xs">{t('analytics.nextDue')}</Text>
           <Text className="text-amber-400">{subscription.nextExpected}</Text>
         </View>
       </View>
@@ -491,6 +491,7 @@ function SpendingPatternCard({
   pattern: SpendingPattern;
   formatCurrency: (n: number) => string;
 }) {
+  const C = useC();
   return (
     <View
       className="rounded-xl p-4 mb-3"
@@ -506,7 +507,7 @@ function SpendingPatternCard({
           {pattern.type === 'weekend' ? 'Weekend Spike' : 'Seasonal Change'}
         </Text>
       </View>
-      <Text className="text-gray-300 text-sm">{pattern.insight}</Text>
+      <Text style={{ color: C.textDim }} className="text-sm">{pattern.insight}</Text>
       <View className="flex-row mt-2">
         {pattern.topCategories.map((cat, idx) => (
           <View key={idx} className="bg-blue-500/20 rounded-full px-2 py-1 mr-2">
@@ -527,6 +528,7 @@ function UnusualTransactionCard({
   unusual: UnusualTransaction;
   formatCurrency: (n: number) => string;
 }) {
+  const C = useC();
   const severityColors = {
     low: { bg: 'rgba(234, 179, 8, 0.1)', border: 'rgba(234, 179, 8, 0.2)', text: '#eab308' },
     medium: { bg: 'rgba(249, 115, 22, 0.1)', border: 'rgba(249, 115, 22, 0.2)', text: '#f97316' },
@@ -547,15 +549,15 @@ function UnusualTransactionCard({
             {unusual.severity} Priority
           </Text>
         </View>
-        <Text className="text-white font-bold">
+        <Text style={{ color: C.text }} className="font-bold">
           {formatCurrency(unusual.transaction.amount)}
         </Text>
       </View>
-      <Text className="text-white" numberOfLines={1}>
+      <Text style={{ color: C.text }}  numberOfLines={1}>
         {unusual.transaction.note || unusual.transaction.category}
       </Text>
-      <Text className="text-gray-400 text-sm mt-1">{unusual.reason}</Text>
-      <Text className="text-gray-500 text-xs mt-1">
+      <Text style={{ color: C.textDim }} className="text-sm mt-1">{unusual.reason}</Text>
+      <Text style={{ color: C.textFaint }} className="text-xs mt-1">
         Avg for {unusual.transaction.category}: {formatCurrency(unusual.averageForCategory)}
       </Text>
     </View>

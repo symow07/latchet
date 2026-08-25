@@ -156,7 +156,7 @@ export default function AccountsScreen() {
     <View className="flex-1" style={{ backgroundColor: C.bg }}>
       {/* Header */}
       <LinearGradient
-        colors={[C.p600, C.p500, C.p400, '#1e1b2e']}
+        colors={[C.p600, C.p500, C.p400, C.scheme === 'light' ? C.p300 : '#1e1b2e']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={{
@@ -211,7 +211,7 @@ export default function AccountsScreen() {
         {accounts.length === 0 ? (
           <View className="items-center py-12">
             <Wallet size={48} color="#4b5563" />
-            <Text className="text-gray-500 text-center mt-4">
+            <Text style={{ color: C.textFaint }} className="text-center mt-4">
               No accounts yet.{'\n'}Tap + to add your first account.
             </Text>
           </View>
@@ -235,13 +235,13 @@ export default function AccountsScreen() {
                     <Icon size={24} color={account.color} />
                   </View>
                   <View className="flex-1">
-                    <Text className="text-white font-semibold text-lg">{account.name}</Text>
-                    <Text className="text-gray-500 text-sm capitalize">{account.type}</Text>
+                    <Text style={{ color: C.text }} className="font-semibold text-lg">{account.name}</Text>
+                    <Text style={{ color: C.textFaint }} className="text-sm capitalize">{account.type}</Text>
                   </View>
                   <View className="items-end">
                     <Text
                       className={`text-lg font-bold ${
-                        account.type === 'credit' ? 'text-red-400' : 'text-white'
+                        account.type === 'credit' ? 'text-red-400' : ''
                       }`}
                     >
                       {account.type === 'credit' ? '-' : ''}
@@ -286,7 +286,7 @@ export default function AccountsScreen() {
             >
               <X size={24} color="#9ca3af" />
             </Pressable>
-            <Text className="text-white text-lg font-semibold">
+            <Text style={{ color: C.text }} className="text-lg font-semibold">
               {editingAccount ? 'Edit Account' : 'Add Account'}
             </Text>
             <Pressable
@@ -295,7 +295,7 @@ export default function AccountsScreen() {
             >
               <Text
                 className={`text-lg font-semibold ${
-                  name.trim() ? 'text-purple-400' : 'text-gray-600'
+                  name.trim() ? 'text-purple-400' : ''
                 }`}
               >
                 Save
@@ -306,7 +306,7 @@ export default function AccountsScreen() {
           <ScrollView className="flex-1 px-5 py-6">
             {/* Account Name */}
             <View className="mb-6">
-              <Text className="text-gray-400 text-sm mb-2 ml-1">{t('accounts.accountName')}</Text>
+              <Text style={{ color: C.textDim }} className="text-sm mb-2 ml-1">{t('accounts.accountName')}</Text>
               <View
                 className="rounded-2xl px-4 py-4"
                 style={{ backgroundColor: C.glass }}
@@ -316,7 +316,7 @@ export default function AccountsScreen() {
                   onChangeText={setName}
                   placeholder={t('accounts.namePlaceholder')}
                   placeholderTextColor="#555"
-                  className="text-white text-lg"
+                  className="text-lg"
                   selectionColor={C.p500}
                 />
               </View>
@@ -324,7 +324,7 @@ export default function AccountsScreen() {
 
             {/* Account Type */}
             <View className="mb-6">
-              <Text className="text-gray-400 text-sm mb-2 ml-1">{t('accounts.accountType')}</Text>
+              <Text style={{ color: C.textDim }} className="text-sm mb-2 ml-1">{t('accounts.accountType')}</Text>
               <View className="flex-row flex-wrap gap-2">
                 {ACCOUNT_TYPES.map((t) => {
                   const Icon = t.icon;
@@ -351,7 +351,7 @@ export default function AccountsScreen() {
                       >
                         <Icon size={18} color={isSelected ? C.p500 : '#9ca3af'} />
                         <Text
-                          className={`ml-2 ${isSelected ? 'text-purple-400' : 'text-gray-400'}`}
+                          className={`ml-2 ${isSelected ? 'text-purple-400' : ''}`}
                         >
                           {t.label}
                         </Text>
@@ -364,21 +364,21 @@ export default function AccountsScreen() {
 
             {/* Current Balance */}
             <View className="mb-6">
-              <Text className="text-gray-400 text-sm mb-2 ml-1">
+              <Text style={{ color: C.textDim }} className="text-sm mb-2 ml-1">
                 {type === 'credit' ? 'Current Balance (Amount Owed)' : 'Current Balance'}
               </Text>
               <View
                 className="flex-row items-center rounded-2xl px-4 py-4"
                 style={{ backgroundColor: C.glass }}
               >
-                <Text className="text-white text-xl mr-1">{settings?.currencySymbol || '$'}</Text>
+                <Text style={{ color: C.text }} className="text-xl mr-1">{settings?.currencySymbol || '$'}</Text>
                 <TextInput
                   value={balance}
                   onChangeText={setBalance}
                   placeholder="0.00"
                   placeholderTextColor="#555"
                   keyboardType="decimal-pad"
-                  className="flex-1 text-white text-xl font-semibold"
+                  className="flex-1 text-xl font-semibold"
                   selectionColor={C.p500}
                 />
               </View>
@@ -386,7 +386,7 @@ export default function AccountsScreen() {
 
             {/* Color */}
             <View className="mb-6">
-              <Text className="text-gray-400 text-sm mb-2 ml-1">{t('accounts.color')}</Text>
+              <Text style={{ color: C.textDim }} className="text-sm mb-2 ml-1">{t('accounts.color')}</Text>
               <View className="flex-row flex-wrap gap-3">
                 {ACCOUNT_COLORS.map((c) => (
                   <Pressable

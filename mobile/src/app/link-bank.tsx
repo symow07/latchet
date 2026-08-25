@@ -185,7 +185,7 @@ export default function LinkBankScreen() {
           <Shield size={18} color="#22c55e" />
           <Text className="text-green-400 font-semibold ml-2">{t('bankExtra.security')}</Text>
         </View>
-        <Text className="text-gray-400 text-sm leading-5">
+        <Text style={{ color: C.textDim }} className="text-sm leading-5">
           We use OAuth authentication and never store your banking credentials.
           Your data is encrypted and you can disconnect anytime.
         </Text>
@@ -201,7 +201,7 @@ export default function LinkBankScreen() {
       {linkedBanks.length > 0 && (
         <View className="px-4 mb-6">
           <View className="flex-row items-center justify-between mb-3">
-            <Text className="text-gray-400 text-xs font-semibold">{t('bankExtra.linkedAccounts')}</Text>
+            <Text style={{ color: C.textDim }} className="text-xs font-semibold">{t('bankExtra.linkedAccounts')}</Text>
             <Pressable
               onPress={handleSync}
               disabled={isSyncing}
@@ -212,7 +212,7 @@ export default function LinkBankScreen() {
                 color={isSyncing ? '#6b7280' : '#3b82f6'}
                 style={isSyncing ? { transform: [{ rotate: '45deg' }] } : undefined}
               />
-              <Text className={`text-xs ml-1 ${isSyncing ? 'text-gray-500' : 'text-blue-400'}`}>
+              <Text style={{ color: C.textFaint }} className={`text-xs ml-1 ${isSyncing ? '' : 'text-blue-400'}`}>
                 {isSyncing ? 'Syncing...' : 'Sync All'}
               </Text>
             </Pressable>
@@ -256,8 +256,8 @@ export default function LinkBankScreen() {
                           <Text className="text-2xl">{bank.institutionLogo}</Text>
                         </View>
                         <View className="flex-1">
-                          <Text className="text-white font-semibold">{bank.institutionName}</Text>
-                          <Text className="text-gray-400 text-xs mt-0.5">
+                          <Text style={{ color: C.text }} className="font-semibold">{bank.institutionName}</Text>
+                          <Text style={{ color: C.textDim }} className="text-xs mt-0.5">
                             {bankAccounts.length} account{bankAccounts.length !== 1 ? 's' : ''} •
                             Last synced {new Date(bank.lastSynced).toLocaleDateString()}
                           </Text>
@@ -286,10 +286,10 @@ export default function LinkBankScreen() {
                           key={acc.id}
                           className="flex-1 bg-black/30 rounded-lg p-2"
                         >
-                          <Text className="text-gray-500 text-xs" numberOfLines={1}>
+                          <Text style={{ color: C.textFaint }} className="text-xs" numberOfLines={1}>
                             {acc.name}
                           </Text>
-                          <Text className="text-white font-semibold">
+                          <Text style={{ color: C.text }} className="font-semibold">
                             ${acc.balance.toLocaleString()}
                           </Text>
                         </View>
@@ -336,9 +336,9 @@ export default function LinkBankScreen() {
         >
           <View className="flex-row items-center mb-2">
             <Info size={16} color="#6b7280" />
-            <Text className="text-gray-500 text-sm ml-2">{t('bankExtra.preferManual')}</Text>
+            <Text style={{ color: C.textFaint }} className="text-sm ml-2">{t('bankExtra.preferManual')}</Text>
           </View>
-          <Text className="text-gray-600 text-xs">
+          <Text style={{ color: C.textFaint }} className="text-xs">
             You can continue adding transactions manually in the Dashboard.
             Bank linking is optional and can be set up later.
           </Text>
@@ -350,7 +350,7 @@ export default function LinkBankScreen() {
   const renderAddBankView = () => (
     <>
       <View className="px-4 mb-4">
-        <Text className="text-gray-400 text-xs font-semibold mb-3">{t('bank.connectSection')}</Text>
+        <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-3">{t('bank.connectSection')}</Text>
 
         {/* One entry point, not a bank list. Choosing the institution happens in
             the provider's own secure flow, against the real, country-appropriate
@@ -369,8 +369,8 @@ export default function LinkBankScreen() {
                   <Building2 size={22} color={C.p500} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text className="text-white font-medium">{t('bank.findYourBank')}</Text>
-                  <Text className="text-gray-500 text-xs mt-0.5">
+                  <Text style={{ color: C.text }} className="font-medium">{t('bank.findYourBank')}</Text>
+                  <Text style={{ color: C.textFaint }} className="text-xs mt-0.5">
 {t('bank.findYourBankHint')}
                   </Text>
                 </View>
@@ -385,7 +385,7 @@ export default function LinkBankScreen() {
         </Animated.View>
 
         {linkedBanks.length > 0 && (
-          <Text className="text-gray-500 text-xs mt-3">
+          <Text style={{ color: C.textFaint }} className="text-xs mt-3">
             {linkedBanks.length} bank{linkedBanks.length === 1 ? '' : 's'} already connected.
           </Text>
         )}
@@ -403,20 +403,20 @@ export default function LinkBankScreen() {
           </View>
           <View className="gap-2">
             <View className="flex-row items-start">
-              <Text className="text-gray-400 text-xs mr-2">1.</Text>
-              <Text className="text-gray-400 text-xs flex-1">
+              <Text style={{ color: C.textDim }} className="text-xs mr-2">1.</Text>
+              <Text style={{ color: C.textDim }} className="text-xs flex-1">
                 You'll be redirected to your bank's secure login page
               </Text>
             </View>
             <View className="flex-row items-start">
-              <Text className="text-gray-400 text-xs mr-2">2.</Text>
-              <Text className="text-gray-400 text-xs flex-1">
+              <Text style={{ color: C.textDim }} className="text-xs mr-2">2.</Text>
+              <Text style={{ color: C.textDim }} className="text-xs flex-1">
                 Authorize read-only access to your transactions
               </Text>
             </View>
             <View className="flex-row items-start">
-              <Text className="text-gray-400 text-xs mr-2">3.</Text>
-              <Text className="text-gray-400 text-xs flex-1">
+              <Text style={{ color: C.textDim }} className="text-xs mr-2">3.</Text>
+              <Text style={{ color: C.textDim }} className="text-xs flex-1">
                 We sync your transactions automatically
               </Text>
             </View>
@@ -448,8 +448,8 @@ export default function LinkBankScreen() {
                 <Text className="text-3xl">{selectedBank.institutionLogo}</Text>
               </View>
               <View className="flex-1">
-                <Text className="text-white text-lg font-bold">{selectedBank.institutionName}</Text>
-                <Text className="text-gray-400 text-sm">
+                <Text style={{ color: C.text }} className="text-lg font-bold">{selectedBank.institutionName}</Text>
+                <Text style={{ color: C.textDim }} className="text-sm">
                   Connected since {new Date(selectedBank.lastSynced).toLocaleDateString()}
                 </Text>
               </View>
@@ -463,7 +463,7 @@ export default function LinkBankScreen() {
               >
                 <View className="bg-blue-600 rounded-lg py-3 flex-row items-center justify-center">
                   <RefreshCw size={16} color="white" />
-                  <Text className="text-white font-semibold ml-2">
+                  <Text style={{ color: C.text }} className="font-semibold ml-2">
                     {isSyncing ? 'Syncing...' : 'Sync Now'}
                   </Text>
                 </View>
@@ -487,7 +487,7 @@ export default function LinkBankScreen() {
 
         {/* Accounts */}
         <View className="px-4 mb-4">
-          <Text className="text-gray-400 text-xs font-semibold mb-3">{t('bankExtra.linkedAccounts')}</Text>
+          <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-3">{t('bankExtra.linkedAccounts')}</Text>
 
           {bankAccounts.map((account, idx) => (
             <Animated.View
@@ -500,8 +500,8 @@ export default function LinkBankScreen() {
               >
                 <View className="flex-row items-center justify-between mb-2">
                   <View>
-                    <Text className="text-white font-medium">{account.name}</Text>
-                    <Text className="text-gray-500 text-xs">{account.maskedNumber}</Text>
+                    <Text style={{ color: C.text }} className="font-medium">{account.name}</Text>
+                    <Text style={{ color: C.textFaint }} className="text-xs">{account.maskedNumber}</Text>
                   </View>
                   <Pressable
                     onPress={() => handleToggleAccount(account.id, !account.isEnabled)}
@@ -521,10 +521,10 @@ export default function LinkBankScreen() {
                 </View>
 
                 <View className="flex-row justify-between items-center">
-                  <Text className="text-gray-400 text-xs">
+                  <Text style={{ color: C.textDim }} className="text-xs">
                     {account.type.charAt(0).toUpperCase() + account.type.slice(1)}
                   </Text>
-                  <Text className="text-white text-lg font-bold">
+                  <Text style={{ color: C.text }} className="text-lg font-bold">
                     ${account.balance.toLocaleString()}
                   </Text>
                 </View>
@@ -535,18 +535,18 @@ export default function LinkBankScreen() {
 
         {/* Consent Info */}
         <View className="px-4">
-          <Text className="text-gray-400 text-xs font-semibold mb-3">{t('bankExtra.dataAccess')}</Text>
+          <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-3">{t('bankExtra.dataAccess')}</Text>
 
           <View
             className="rounded-xl p-4"
             style={{ backgroundColor: C.glass }}
           >
             <View className="mb-3">
-              <Text className="text-gray-300 text-sm font-medium mb-2">What we can access:</Text>
+              <Text style={{ color: C.textDim }} className="text-sm font-medium mb-2">What we can access:</Text>
               {consent.dataAccessed.map((item, idx) => (
                 <View key={idx} className="flex-row items-center mb-1">
                   <Check size={14} color="#22c55e" />
-                  <Text className="text-gray-400 text-sm ml-2">{item}</Text>
+                  <Text style={{ color: C.textDim }} className="text-sm ml-2">{item}</Text>
                 </View>
               ))}
             </View>
@@ -583,14 +583,14 @@ export default function LinkBankScreen() {
               >
                 <Building2 size={30} color={C.p500} />
               </View>
-              <Text className="text-white text-xl font-bold">{t('bank.consentTitle')}</Text>
-              <Text className="text-gray-400 text-sm mt-1 text-center">
+              <Text style={{ color: C.text }} className="text-xl font-bold">{t('bank.consentTitle')}</Text>
+              <Text style={{ color: C.textDim }} className="text-sm mt-1 text-center">
 {t('bank.consentSubtitle')}
               </Text>
             </View>
 
             <View className="mb-6">
-              <Text className="text-gray-400 text-sm text-center mb-4">
+              <Text style={{ color: C.textDim }} className="text-sm text-center mb-4">
                 By connecting, you authorize Budget to:
               </Text>
 
@@ -599,21 +599,21 @@ export default function LinkBankScreen() {
                   <View className="w-8 h-8 rounded-full bg-green-500/20 items-center justify-center mr-3">
                     <Check size={16} color="#22c55e" />
                   </View>
-                  <Text className="text-gray-300 flex-1">{t('bankExtra.viewBalances')}</Text>
+                  <Text style={{ color: C.textDim }} className="flex-1">{t('bankExtra.viewBalances')}</Text>
                 </View>
 
                 <View className="flex-row items-center">
                   <View className="w-8 h-8 rounded-full bg-green-500/20 items-center justify-center mr-3">
                     <Check size={16} color="#22c55e" />
                   </View>
-                  <Text className="text-gray-300 flex-1">{t('bankExtra.readHistory')}</Text>
+                  <Text style={{ color: C.textDim }} className="flex-1">{t('bankExtra.readHistory')}</Text>
                 </View>
 
                 <View className="flex-row items-center">
                   <View className="w-8 h-8 rounded-full bg-red-500/20 items-center justify-center mr-3">
                     <AlertTriangle size={16} color="#ef4444" />
                   </View>
-                  <Text className="text-gray-500 flex-1">{t('bankExtra.noPayments')}</Text>
+                  <Text style={{ color: C.textFaint }} className="flex-1">{t('bankExtra.noPayments')}</Text>
                 </View>
               </View>
             </View>
@@ -636,7 +636,7 @@ export default function LinkBankScreen() {
                 className="flex-1"
               >
                 <View className="bg-gray-800 rounded-xl py-4 items-center">
-                  <Text className="text-gray-300 font-semibold">{t('common.cancel')}</Text>
+                  <Text style={{ color: C.textDim }} className="font-semibold">{t('common.cancel')}</Text>
                 </View>
               </Pressable>
 

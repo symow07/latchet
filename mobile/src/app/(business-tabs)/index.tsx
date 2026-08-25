@@ -68,7 +68,7 @@ export default function BusinessDashboardTab() {
         {/* Business balance banner */}
         <Animated.View entering={FadeInUp.delay(40).springify().damping(16)} style={{ marginHorizontal: 20, marginBottom: 20 }}>
           <LinearGradient
-            colors={[B.slate800, '#16365f']}
+            colors={[B.slate800, B.scheme === 'light' ? B.slate700 : '#16365f']}
             start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
             style={[{ borderRadius: R.lg, padding: 22, borderWidth: 1, borderColor: `${B.accent}33` }, glow(B.accentDeep, 0.3, 22, B.glowScale)]}
           >
