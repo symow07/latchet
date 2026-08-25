@@ -191,7 +191,8 @@
     "linkBank": "关联银行账户",
     "linkBankHint": "安全地自动同步交易",
     "viewAll": "查看全部",
-    "budget": "预算"
+    "budget": "预算",
+    "percentUsed": "已用 {{percent}}%"
   },
   "onboarding": {
     "chooseCurrency": "选择你的货币",

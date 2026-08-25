@@ -341,9 +341,9 @@ return { icon: Flame, color: C.p400, title: `${streak}-Day Streak! `, message: `
                 </View>
                 <View className="flex-1">
                   <View style={{ height: 8, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.1)', overflow: 'hidden' }}>
-                    <View style={{ height: '100%', borderRadius: 999, width: `${Math.min(((monthSpent / (settings?.monthlyBudget ?? 1)) * 100), 100)}%`, backgroundColor: C.p500 }} />
+                    <View style={{ height: '100%', borderRadius: 999, width: `${Math.min(budgetUsedPercent, 100)}%`, backgroundColor: C.p500 }} />
                   </View>
-                  <Txt size={11} color={C.textFaint} style={{ marginTop: 5 }}>{Math.round((monthSpent / (settings?.monthlyBudget ?? 1)) * 100)}% used</Txt>
+                  <Txt size={11} color={C.textFaint} style={{ marginTop: 5 }}>{t('dashboard.percentUsed', { percent: budgetUsedPercent })}</Txt>
                 </View>
               </View>
             </GlassCard>

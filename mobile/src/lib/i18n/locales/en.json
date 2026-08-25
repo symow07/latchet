@@ -196,7 +196,8 @@
     "linkBank": "Link Bank Account",
     "linkBankHint": "Auto-sync transactions securely",
     "viewAll": "View All",
-    "budget": "Budget"
+    "budget": "Budget",
+    "percentUsed": "{{percent}}% used"
   },
   "onboarding": {
     "chooseCurrency": "Choose Your Currency",

@@ -196,7 +196,8 @@
     "linkBank": "Lier un compte bancaire",
     "linkBankHint": "Synchronisez vos transactions en toute sécurité",
     "viewAll": "Tout voir",
-    "budget": "Budget"
+    "budget": "Budget",
+    "percentUsed": "{{percent}} % utilisé"
   },
   "onboarding": {
     "chooseCurrency": "Choisissez votre devise",
