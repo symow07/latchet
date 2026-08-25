@@ -269,24 +269,24 @@ export default function CategoryBudgetsScreen() {
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
 
-  const [refreshKey, setRefreshKey] = useState<number>(0);
   const [editingCategory, setEditingCategory] = useState<CategoryConfig | null>(null);
   const [editAmount, setEditAmount] = useState<string>('');
 
-  // Refetch on focus
+  // Refetch on focus without changing the query key — see the note in the
+  // dashboard.
   useFocusEffect(
     useCallback(() => {
-      setRefreshKey((k) => k + 1);
-    }, [])
+      queryClient.invalidateQueries({ queryKey: ['category-budgets'] });
+    }, [queryClient])
   );
 
   const { data: budgets = [] } = useQuery<CategoryBudget[]>({
-    queryKey: ['category-budgets', refreshKey],
+    queryKey: ['category-budgets'],
     queryFn: fetchCategoryBudgets,
   });
 
   const { data: transactions = [] } = useQuery({
-    queryKey: ['transactions', refreshKey],
+    queryKey: ['transactions'],
     queryFn: getTransactions,
   });
 
@@ -299,7 +299,6 @@ export default function CategoryBudgetsScreen() {
     onSuccess: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       queryClient.invalidateQueries({ queryKey: ['category-budgets'] });
-      setRefreshKey((k) => k + 1);
       setEditingCategory(null);
       setEditAmount('');
     },
@@ -315,7 +314,6 @@ export default function CategoryBudgetsScreen() {
     onSuccess: () => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       queryClient.invalidateQueries({ queryKey: ['category-budgets'] });
-      setRefreshKey((k) => k + 1);
     },
   });
 

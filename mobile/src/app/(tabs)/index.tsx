@@ -1,5 +1,5 @@
 import { View, ScrollView, Pressable } from 'react-native';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { getTransactions, getSettings, getAccounts, getSubscriptions } from '@/lib/db';
 import {
@@ -21,7 +21,7 @@ import {
 import { calculateHealthScore } from '@/lib/health-score';
 import { getUpcomingCharges, monthlySubscriptionTotal } from '@/lib/subscription-detection';
 import { useFocusEffect } from '@react-navigation/native';
-import { useCallback, useState, useRef, useEffect } from 'react';
+import { useCallback, useRef, useEffect } from 'react';
 import { syncAchievements } from '@/lib/achievementsApi';
 import { presentBadgeEarned } from '@/lib/notifications';
 import { Flame, Zap, TrendingDown, Calendar, Award, Target, AlertTriangle, Sparkles, Wallet, ChevronRight, BarChart3, Heart, Building2, CreditCard } from 'lucide-react-native';
@@ -55,36 +55,44 @@ export default function DashboardScreen() {
   const C = useC();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const [refreshKey, setRefreshKey] = useState(0);
   const hasMounted = useRef(false);
+  const queryClient = useQueryClient();
 
+  // Refetch on focus, but do not change the query keys to do it.
+  // Keying on a counter mints a brand-new query with no cache, so
+  // every return to this screen rendered once with empty data before
+  // the rows came back — a visible flash, and now a flash of the
+  // first-run empty state. Invalidating keeps the last data on screen
+  // while the refetch runs.
   useFocusEffect(
     useCallback(() => {
-      if (hasMounted.current) {
-        setRefreshKey(prev => prev + 1);
-      } else {
+      if (!hasMounted.current) {
         hasMounted.current = true;
+        return;
       }
-    }, [])
+      for (const key of ['accounts', 'settings', 'subscriptions', 'transactions']) {
+        queryClient.invalidateQueries({ queryKey: [key] });
+      }
+    }, [queryClient])
   );
 
   const { data: transactions = [] } = useQuery({
-    queryKey: ['transactions', refreshKey],
+    queryKey: ['transactions'],
     queryFn: getTransactions,
   });
 
   const { data: settings } = useQuery({
-    queryKey: ['settings', refreshKey],
+    queryKey: ['settings'],
     queryFn: getSettings,
   });
 
   const { data: accounts = [] } = useQuery({
-    queryKey: ['accounts', refreshKey],
+    queryKey: ['accounts'],
     queryFn: getAccounts,
   });
 
   const { data: allSubscriptions = [] } = useQuery({
-    queryKey: ['subscriptions', refreshKey],
+    queryKey: ['subscriptions'],
     queryFn: () => getSubscriptions(),
   });
 

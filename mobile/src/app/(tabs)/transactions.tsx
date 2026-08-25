@@ -35,7 +35,6 @@ interface Transaction {
 export default function TransactionsScreen() {
   const C = useC();
   const insets = useSafeAreaInsets();
-  const [refreshKey, setRefreshKey] = useState(0);
   const [filterCategory, setFilterCategory] = useState<string | null>(null);
   const [filterImpulseOnly, setFilterImpulseOnly] = useState(false);
   const [startDate, setStartDate] = useState(startOfMonth(new Date()));
@@ -45,15 +44,23 @@ export default function TransactionsScreen() {
   const queryClient = useQueryClient();
   const hasMounted = useRef(false);
 
+  // Refetch on focus without changing the query keys — see the note in the
+  // dashboard. Keying on a counter dropped the cache and rendered the empty
+  // state for a frame on every return to the tab.
   useFocusEffect(
     useCallback(() => {
-      if (hasMounted.current) setRefreshKey(prev => prev + 1);
-      else hasMounted.current = true;
-    }, [])
+      if (!hasMounted.current) {
+        hasMounted.current = true;
+        return;
+      }
+      for (const key of ['transactions', 'settings', 'categories']) {
+        queryClient.invalidateQueries({ queryKey: [key] });
+      }
+    }, [queryClient])
   );
 
-  const { data: transactions = [] } = useQuery({ queryKey: ['transactions', refreshKey], queryFn: getTransactions });
-  const { data: settings } = useQuery({ queryKey: ['settings', refreshKey], queryFn: getSettings });
+  const { data: transactions = [] } = useQuery({ queryKey: ['transactions'], queryFn: getTransactions });
+  const { data: settings } = useQuery({ queryKey: ['settings'], queryFn: getSettings });
   const { data: allCategories = DEFAULT_CATEGORIES } = useQuery({ queryKey: ['categories'], queryFn: getCategories });
   const meta = (name: string) => categoryMeta(name, allCategories);
 
@@ -62,7 +69,6 @@ export default function TransactionsScreen() {
     onSuccess: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
-      setRefreshKey(prev => prev + 1);
     },
   });
 
