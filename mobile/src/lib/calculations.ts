@@ -116,6 +116,25 @@ export function hasEnoughHistory(transactions: Transaction[]): boolean {
   return getHistorySpanDays(transactions) >= MIN_HISTORY_DAYS;
 }
 
+/**
+ * True once the user has recorded spending worth scoring.
+ *
+ * Every scored metric measures spending behaviour, so with no expenses on
+ * record they do not come out low — they come out *flattering*, which is
+ * worse. A brand-new account scores 70 (B+) on the health score, because
+ * "saved 100% of income" and "spent 0% of budget" are literally true of
+ * someone who has recorded nothing. Discipline lands on C and the dashboard
+ * congratulates them on "Great Spending Control".
+ *
+ * A number a user cannot distinguish from a real one is worse than no number,
+ * so the screens gate on this and show an empty state instead. Same reasoning
+ * as MIN_HISTORY_DAYS above, one step earlier: that one asks whether there is
+ * enough history to extrapolate from, this asks whether there is any at all.
+ */
+export function hasScorableActivity(transactions: Transaction[]): boolean {
+  return transactions.some((tx) => tx.type === 'Expense');
+}
+
 export function calculateAverageDailySpend(transactions: Transaction[]): number {
   const { start, end } = getDateRange(30);
   const filtered = transactions.filter(

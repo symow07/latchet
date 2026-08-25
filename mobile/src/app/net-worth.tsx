@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useState, useMemo } from 'react';
+import { EmptyState } from '@/components/ui';
 import { useC } from '@/lib/design';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
@@ -854,18 +855,13 @@ export default function NetWorthScreen() {
           )}
 
           {!isLoading && !isError && entries.length === 0 && (
-            <View className="items-center py-12">
-              <View
-                className="w-16 h-16 rounded-2xl items-center justify-center mb-4"
-                style={{ backgroundColor: 'rgba(59,130,246,0.12)' }}
-              >
-                <PiggyBank size={30} color="#3b82f6" />
-              </View>
-              <Text style={{ color: C.text }} className="font-semibold text-base mb-1">{t('netWorth.noSnapshots')}</Text>
-              <Text style={{ color: C.textFaint }} className="text-sm text-center px-8">
-                Tap the + button to record your first net worth snapshot.
-              </Text>
-            </View>
+            <EmptyState
+              compact
+              accent="#3b82f6"
+              icon={<PiggyBank size={26} color="#3b82f6" />}
+              title={t('netWorth.noSnapshots')}
+              body={t('common.netWorthEmptyBody')}
+            />
           )}
 
           {entries.map((entry, index) => (

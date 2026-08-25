@@ -24,7 +24,16 @@
     "resetHint": "Supprimer toutes les transactions et repartir de zéro",
     "noLimit": "Aucune limite",
     "nothingYet": "Rien pour l'instant !",
-    "goHome": "Aller à l'écran d'accueil !"
+    "goHome": "Aller à l'écran d'accueil !",
+    "firstRunTitle": "Rien à suivre pour l’instant",
+    "firstRunBody": "Ajoutez une transaction ou importez un relevé : votre solde, votre budget et votre score se rempliront ensuite.",
+    "firstRunAction": "Ajouter votre première transaction",
+    "firstRunImport": "Importer un relevé",
+    "scoreLocked": "Votre score apparaîtra ici",
+    "scoreLockedBody": "Il lui faut de vraies dépenses pour avoir un sens : il reste vide tant que vous n’en enregistrez pas.",
+    "noChartData": "Aucune dépense à afficher",
+    "transactionsEmptyBody": "Ajustez vos filtres ou ajoutez votre première transaction.",
+    "netWorthEmptyBody": "Touchez le bouton + pour enregistrer votre premier bilan patrimonial."
   },
   "settings": {
     "title": "Réglages",
@@ -197,7 +206,8 @@
     "linkBankHint": "Synchronisez vos transactions en toute sécurité",
     "viewAll": "Tout voir",
     "budget": "Budget",
-    "percentUsed": "{{percent}} % utilisé"
+    "percentUsed": "{{percent}} % utilisé",
+    "peak": "Pic : {{amount}}"
   },
   "onboarding": {
     "chooseCurrency": "Choisissez votre devise",

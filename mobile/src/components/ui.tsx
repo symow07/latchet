@@ -284,6 +284,86 @@ export function Emoji({ children, size = 15, style }: { children?: React.ReactNo
 }
 
 /**
+ * The panel a screen shows instead of a list, a chart or a score when there is
+ * nothing to put in it.
+ *
+ * Every screen grew its own version of this — same icon bubble, same bold
+ * title, same dim body, five slightly different paddings and two of them with
+ * untranslated English baked in. One component means the copy is the only
+ * thing a screen has to decide.
+ *
+ * `action` matters more than it looks: an empty state that only apologises
+ * leaves the user to work out what to do next, which on a finance app's first
+ * run is the whole job.
+ */
+export function EmptyState({
+  icon,
+  title,
+  body,
+  actionLabel,
+  onAction,
+  accent,
+  compact = false,
+  style,
+}: {
+  /** A lucide icon element, e.g. <Inbox size={38} color={C.textFaint} />. */
+  icon: React.ReactNode;
+  title: string;
+  body?: string;
+  actionLabel?: string;
+  onAction?: () => void;
+  accent?: string;
+  /** Tighter spacing, for an empty card rather than an empty screen. */
+  compact?: boolean;
+  style?: StyleProp<ViewStyle>;
+}) {
+  const C = useC();
+  const hue = accent ?? C.p500;
+  const bubble = compact ? 56 : 84;
+  return (
+    <View
+      className="items-center justify-center"
+      style={[{ paddingVertical: compact ? 28 : 70, paddingHorizontal: 24 }, style]}
+    >
+      <View
+        style={{
+          width: bubble,
+          height: bubble,
+          borderRadius: bubble / 3,
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginBottom: compact ? 12 : 16,
+          backgroundColor: `${hue}1f`,
+          borderWidth: 1,
+          borderColor: `${hue}2e`,
+        }}
+      >
+        {icon}
+      </View>
+      <Txt weight="bold" size={compact ? 15 : 18} color={C.text} style={{ marginBottom: 6, textAlign: 'center' }}>
+        {title}
+      </Txt>
+      {body ? (
+        <Txt size={13} color={C.textFaint} style={{ textAlign: 'center', lineHeight: 19 }}>
+          {body}
+        </Txt>
+      ) : null}
+      {actionLabel && onAction ? (
+        <BubbleButton
+          label={actionLabel}
+          onPress={onAction}
+          variant="soft"
+          full={false}
+          glowColor={hue}
+          accentColor={hue}
+          style={{ marginTop: compact ? 14 : 20 }}
+        />
+      ) : null}
+    </View>
+  );
+}
+
+/**
  * A scrim the height of the status bar, drawn over scrolled content.
  *
  * These screens are full-bleed: the ScrollView starts at y=0 and its header

@@ -17,7 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { R, useC } from '@/lib/design';
-import { Txt, GlassCard, Pill, ScreenBackground } from '@/components/ui';
+import { Txt, GlassCard, Pill, ScreenBackground, EmptyState } from '@/components/ui';
 import { t } from '@/lib/i18n/core';
 
 interface Transaction {
@@ -173,15 +173,11 @@ export default function TransactionsScreen() {
 
         {/* ── List ── */}
         {groupedArray.length === 0 ? (
-          <View className="items-center justify-center" style={{ paddingVertical: 70 }}>
-            <View style={{ width: 84, height: 84, borderRadius: 28, alignItems: 'center', justifyContent: 'center', marginBottom: 16, backgroundColor: `${C.p700}26` }}>
-              <Inbox size={38} color={C.textFaint} />
-            </View>
-            <Txt weight="bold" size={18} color={C.text} style={{ marginBottom: 6 }}>{t('common.nothingYet')}</Txt>
-            <Txt size={13} color={C.textFaint} style={{ textAlign: 'center', paddingHorizontal: 40 }}>
-Try adjusting your filters, or add your first transaction
-            </Txt>
-          </View>
+          <EmptyState
+            icon={<Inbox size={38} color={C.textFaint} />}
+            title={t('common.nothingYet')}
+            body={t('common.transactionsEmptyBody')}
+          />
         ) : (
           <View style={{ paddingHorizontal: 20, paddingTop: 16 }}>
             {groupedArray.map((group, gi) => (

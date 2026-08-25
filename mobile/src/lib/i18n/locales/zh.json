@@ -22,7 +22,16 @@
     "resetHint": "删除所有交易并归零",
     "noLimit": "无上限",
     "nothingYet": "这里还没有内容！",
-    "goHome": "返回主屏幕！"
+    "goHome": "返回主屏幕！",
+    "firstRunTitle": "还没有任何记录",
+    "firstRunBody": "添加一笔交易或导入对账单，余额、预算和评分都会随之生成。",
+    "firstRunAction": "添加第一笔交易",
+    "firstRunImport": "导入对账单",
+    "scoreLocked": "评分将显示在这里",
+    "scoreLockedBody": "评分需要真实的支出才有意义，在你记录之前会一直空着。",
+    "noChartData": "暂无支出可供图表显示",
+    "transactionsEmptyBody": "调整筛选条件，或添加第一笔交易。",
+    "netWorthEmptyBody": "点击 + 按钮记录第一份净资产快照。"
   },
   "settings": {
     "title": "设置",
@@ -192,7 +201,8 @@
     "linkBankHint": "安全地自动同步交易",
     "viewAll": "查看全部",
     "budget": "预算",
-    "percentUsed": "已用 {{percent}}%"
+    "percentUsed": "已用 {{percent}}%",
+    "peak": "峰值：{{amount}}"
   },
   "onboarding": {
     "chooseCurrency": "选择你的货币",

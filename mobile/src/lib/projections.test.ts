@@ -5,6 +5,7 @@ import {
   calculateSurvivalDays,
   getHistorySpanDays,
   hasEnoughHistory,
+  hasScorableActivity,
   MIN_HISTORY_DAYS,
 } from './calculations';
 import { daysAgoISO, todayISO } from './dates';
@@ -134,4 +135,36 @@ test('survival days floors to whole days', () => {
 
 test('an overdrawn balance has no runway left', () => {
   expect(calculateSurvivalDays(-50, 30)).toBe(0);
+});
+
+// ── Scorable activity ────────────────────────────────────────────────────────
+// The bug this guards is a flattering score, not a missing one: with nothing
+// recorded, "saved 100% of income" and "used 0% of budget" are both true, so
+// the health score comes out at 70 (B+) for an account that has never been
+// used. See the note on hasScorableActivity.
+
+test('a brand-new account has nothing worth scoring', () => {
+  expect(hasScorableActivity([])).toBe(false);
+});
+
+test('one recorded expense is enough to score', () => {
+  expect(hasScorableActivity([expense(todayISO(), 12)])).toBe(true);
+});
+
+test('income alone is not scorable — every metric measures spending', () => {
+  const income = {
+    ...expense(todayISO(), 5000),
+    type: 'Income' as const,
+  };
+  expect(hasScorableActivity([income])).toBe(false);
+});
+
+test('scorable and extrapolable are different questions', () => {
+  // hasEnoughHistory asks whether there is enough spread to extrapolate from;
+  // this asks only whether anything is there at all. A day-old account has
+  // something to score and nothing to project, and conflating the two would
+  // either fabricate a forecast or withhold a legitimate score.
+  const fresh = [expense(daysAgoISO(1), 40)];
+  expect(hasScorableActivity(fresh)).toBe(true);
+  expect(hasEnoughHistory(fresh)).toBe(false);
 });

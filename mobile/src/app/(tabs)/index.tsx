@@ -16,6 +16,7 @@ import {
   calculateLoggingStreak,
   getUnlockedBadges,
   formatCurrency,
+  hasScorableActivity,
 } from '@/lib/calculations';
 import { calculateHealthScore } from '@/lib/health-score';
 import { getUpcomingCharges, monthlySubscriptionTotal } from '@/lib/subscription-detection';
@@ -30,7 +31,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { R, glow, useC } from '@/lib/design';
-import { Txt, GlassCard, IconBubble, Pill, BubbleButton, ScreenBackground } from '@/components/ui';
+import { Txt, GlassCard, IconBubble, Pill, BubbleButton, ScreenBackground, EmptyState } from '@/components/ui';
 import { t } from '@/lib/i18n/core';
 
 function getGreeting(): string {
@@ -127,10 +128,18 @@ export default function DashboardScreen() {
       .catch(() => {});
   }, [badges, streak]);
 
+  // getDailySpendingData always returns the full 14-day window, zero-filled,
+  // so its length says nothing about whether anything was spent.
+  const hasChartData = dailyData.some((d) => d.amount > 0);
   const maxDaily = Math.max(...dailyData.map(d => d.amount), 1);
   const maxSpending = Math.max(100, maxDaily * 1.2);
 
-  const healthScore = settings ? calculateHealthScore(transactions, settings) : null;
+  // Every scored metric below measures spending behaviour, so with nothing
+  // recorded they do not read low — they read *well*: a fresh account scores
+  // 70 (B+) because it has "saved" 100% of its income and used 0% of its
+  // budget. Gate them rather than congratulate someone who has done nothing.
+  const scorable = hasScorableActivity(transactions);
+  const healthScore = settings && scorable ? calculateHealthScore(transactions, settings) : null;
 
   const budgetUsedPercent = settings?.monthlyBudget
     ? Math.round((monthSpent / settings.monthlyBudget) * 100)
@@ -146,6 +155,9 @@ export default function DashboardScreen() {
   const isUnderspending = budgetUsedPercent < expectedBudgetUsed - 10;
 
   const getFeedback = () => {
+    // isUnderspending is trivially true at 0% of budget, so without this the
+    // first thing a new account is told is that its spending control is great.
+    if (!scorable) return null;
     if (budgetUsedPercent >= 100) {
       return { icon: AlertTriangle, color: C.rose, title: 'Budget Exceeded!', message: `You've spent ${budgetUsedPercent}% of your monthly budget. Try to limit spending for the rest of the month.` };
     }
@@ -236,6 +248,22 @@ return { icon: Flame, color: C.p400, title: `${streak}-Day Streak! `, message: `
             </LinearGradient>
           </Section>
         </View>
+
+        {/* ── First run ── */}
+        {!scorable && (
+          <Section delay={80} style={{ paddingHorizontal: 20, marginTop: 16 }}>
+            <GlassCard radius={R.lg}>
+              <EmptyState
+                compact
+                icon={<Sparkles size={26} color={C.p400} />}
+                title={t('common.firstRunTitle')}
+                body={t('common.firstRunBody')}
+                actionLabel={t('common.firstRunAction')}
+                onAction={() => go('/(tabs)/add')}
+              />
+            </GlassCard>
+          </Section>
+        )}
 
         {/* ── Feedback banner ── */}
         {feedback && (
@@ -328,7 +356,10 @@ return { icon: Flame, color: C.p400, title: `${streak}-Day Streak! `, message: `
           </GlassCard>
         </Section>
 
-        {/* ── Discipline + impulse ── */}
+        {/* ── Discipline + impulse ──
+            Both are verdicts on spending. With none recorded, the grade is an
+            arbitrary C and impulse is a confident 0%. */}
+        {scorable && (
         <Section delay={170} style={{ paddingHorizontal: 20, marginTop: 12 }}>
           <View className="flex-row" style={{ gap: 12 }}>
             <GlassCard style={{ flex: 1 }} tint={`${C.p500}14`} border={`${C.p500}2a`} radius={R.lg}>
@@ -358,6 +389,7 @@ return { icon: Flame, color: C.p400, title: `${streak}-Day Streak! `, message: `
             </GlassCard>
           </View>
         </Section>
+        )}
 
         {/* ── Streak ── */}
         <Section delay={200} style={{ paddingHorizontal: 20, marginTop: 12 }}>
@@ -388,7 +420,7 @@ return { icon: Flame, color: C.p400, title: `${streak}-Day Streak! `, message: `
               </View>
               <View className="flex-row flex-wrap" style={{ gap: 8 }}>
                 {badges.map((badge, idx) => (
-<Pill key={idx} label={` ${badge}`} color={C.p400} />
+<Pill key={idx} label={badge} color={C.p400} />
                 ))}
               </View>
             </GlassCard>
@@ -400,7 +432,7 @@ return { icon: Flame, color: C.p400, title: `${streak}-Day Streak! `, message: `
           <GlassCard>
             <Txt size={12} color={C.textDim} style={{ marginBottom: 14 }}>{t('dashboard.last14Days')}</Txt>
             <View style={{ height: 112, flexDirection: 'row', alignItems: 'flex-end', gap: 5 }}>
-              {dailyData.length > 0 ? (
+              {hasChartData ? (
                 dailyData.map((day, idx) => {
                   const height = (day.amount / maxSpending) * 100;
                   const isToday = idx === dailyData.length - 1;
@@ -410,11 +442,11 @@ return { icon: Flame, color: C.p400, title: `${streak}-Day Streak! `, message: `
                 })
               ) : (
                 <View className="flex-1 items-center justify-center">
-<Txt size={13} color={C.textFaint} style={{ textAlign: 'center' }}>No data yet{'\n'}Start tracking! </Txt>
+                  <Txt size={13} color={C.textFaint} style={{ textAlign: 'center' }}>{t('common.noChartData')}</Txt>
                 </View>
               )}
             </View>
-{dailyData.length > 0 && <Txt size={11} color={C.textFaint} style={{ textAlign: 'center', marginTop: 12 }}>Peak: {formatCurrency(maxDaily)} </Txt>}
+{hasChartData && <Txt size={11} color={C.textFaint} style={{ textAlign: 'center', marginTop: 12 }}>{t('dashboard.peak', { amount: formatCurrency(maxDaily) })}</Txt>}
           </GlassCard>
         </Section>
 

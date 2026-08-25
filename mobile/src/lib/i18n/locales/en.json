@@ -24,7 +24,16 @@
     "resetHint": "Delete all transactions & reset to zero",
     "noLimit": "No limit",
     "nothingYet": "Nothing here yet!",
-    "goHome": "Go to home screen!"
+    "goHome": "Go to home screen!",
+    "firstRunTitle": "Nothing tracked yet",
+    "firstRunBody": "Add a transaction or import a statement, and your balance, budget and score fill in from there.",
+    "firstRunAction": "Add your first transaction",
+    "firstRunImport": "Import a statement",
+    "scoreLocked": "Your score appears here",
+    "scoreLockedBody": "It needs real spending to mean anything, so it stays blank until you record some.",
+    "noChartData": "No spending to chart yet",
+    "transactionsEmptyBody": "Try adjusting your filters, or add your first transaction.",
+    "netWorthEmptyBody": "Tap the + button to record your first net worth snapshot."
   },
   "settings": {
     "title": "Settings",
@@ -197,7 +206,8 @@
     "linkBankHint": "Auto-sync transactions securely",
     "viewAll": "View All",
     "budget": "Budget",
-    "percentUsed": "{{percent}}% used"
+    "percentUsed": "{{percent}}% used",
+    "peak": "Peak: {{amount}}"
   },
   "onboarding": {
     "chooseCurrency": "Choose Your Currency",
