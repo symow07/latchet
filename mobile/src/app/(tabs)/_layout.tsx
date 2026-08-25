@@ -26,7 +26,10 @@ function TabBarIcon({ name, color, focused }: { name: string; color: string; foc
             justifyContent: 'center',
             marginTop: -22,
             borderWidth: 4,
-            borderColor: C.bgDeep,
+            // Matches the tab bar's own fill so the ring punches the button out
+            // of the bar. C.bgDeep is darker than the bar and read as a black
+            // square sitting behind it.
+            borderColor: C.scheme === 'light' ? '#ffffff' : '#120a20',
           },
           glow(C.p500, focused ? 0.7 : 0.45, 14, C.glowScale),
         ]}

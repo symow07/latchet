@@ -18,7 +18,8 @@ const ACCOUNT_TYPES: {
   subtitle: string;
   description: string;
   icon: React.ComponentType<{ size: number; color: string }>;
-  colors: [string, string];
+  colors: readonly [string, string];
+  colorsLight: readonly [string, string];
   accent: string;
 }[] = [
   {
@@ -27,7 +28,8 @@ const ACCOUNT_TYPES: {
     subtitle: 'For individuals',
     description: 'Track daily spending, budgets, savings goals, and build healthy money habits.',
     icon: User,
-    colors: ['#1a0840', '#2d1260'],
+    colors: ['#1a0840', '#2d1260'] as const,
+    colorsLight: ['#f6f0ff', '#ece0ff'] as const,
     accent: '#9333ea',
   },
   {
@@ -36,7 +38,8 @@ const ACCOUNT_TYPES: {
     subtitle: 'For companies',
     description: 'Manage business expenses, revenue, and financial reporting.',
     icon: Briefcase,
-    colors: ['#031526', '#05283f'],
+    colors: ['#031526', '#05283f'] as const,
+    colorsLight: ['#eef5fd', '#dfebfb'] as const,
     accent: '#3b82f6',
   },
 ];
@@ -119,14 +122,14 @@ export default function AccountTypeScreen() {
                 style={({ pressed }) => ({ opacity: pressed ? 0.92 : 1 })}
               >
                 <LinearGradient
-                  colors={type.colors}
+                  colors={C.scheme === 'light' ? type.colorsLight : type.colors}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                   style={{
                     borderRadius: 24,
                     padding: 24,
                     borderWidth: isSelected ? 2 : 1.5,
-                    borderColor: isSelected ? type.accent : 'rgba(255,255,255,0.08)',
+                    borderColor: isSelected ? type.accent : C.glassBorder,
                   }}
                 >
                   <View className="flex-row items-start justify-between mb-4">
@@ -145,7 +148,7 @@ export default function AccountTypeScreen() {
                     <View
                       style={{
                         width: 28, height: 28, borderRadius: 14,
-                        backgroundColor: isSelected ? type.accent : 'rgba(255,255,255,0.08)',
+                        backgroundColor: isSelected ? type.accent : C.glass,
                         borderWidth: isSelected ? 0 : 1.5,
                         borderColor: C.glassBorder,
                         alignItems: 'center', justifyContent: 'center',
@@ -155,13 +158,13 @@ export default function AccountTypeScreen() {
                     </View>
                   </View>
 
-                  <Text className="text-white font-bold mb-1" style={{ fontSize: 22 }}>
+                  <Text className="font-bold mb-1" style={{ color: C.text, fontSize: 22 }}>
                     {type.label}
                   </Text>
                   <Text style={{ color: type.accent, fontWeight: '600', fontSize: 13, marginBottom: 10 }}>
                     {type.subtitle}
                   </Text>
-                  <Text className="text-gray-400 text-sm leading-5">
+                  <Text className="text-sm leading-5" style={{ color: C.textDim }}>
                     {type.description}
                   </Text>
                 </LinearGradient>
@@ -181,7 +184,7 @@ export default function AccountTypeScreen() {
           <LinearGradient
             colors={
               !selected
-                ? ['#1a1130', '#1a1130']
+                ? ([C.glassStrong, C.glassStrong] as const)
                 : selected === 'personal'
                   ? [C.p600, C.p500]
                   : ['#1d4ed8', '#3b82f6']

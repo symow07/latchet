@@ -9,6 +9,7 @@ import {
   type TextStyle,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import Animated, {
   useAnimatedStyle,
@@ -282,6 +283,27 @@ export function Emoji({ children, size = 15, style }: { children?: React.ReactNo
   return <RNText style={[{ fontSize: size }, style]}>{children}</RNText>;
 }
 
+/**
+ * A scrim the height of the status bar, drawn over scrolled content.
+ *
+ * These screens are full-bleed: the ScrollView starts at y=0 and its header
+ * carries the top inset as padding. That looks right at rest, but once you
+ * scroll, list content passes under the clock and the battery with nothing
+ * between them. The tab bar already solves the same problem at the bottom with
+ * a blur; this is that treatment at the top.
+ */
+function TopScrim({ color }: { color: string }) {
+  const insets = useSafeAreaInsets();
+  if (insets.top === 0) return null;
+  return (
+    <LinearGradient
+      pointerEvents="none"
+      colors={[color, `${color}e6`, 'transparent']}
+      style={{ position: 'absolute', top: 0, left: 0, right: 0, height: insets.top + 6 }}
+    />
+  );
+}
+
 export function ScreenBackground({ children, style }: { children?: React.ReactNode; style?: StyleProp<ViewStyle> }) {
   const C = useC();
   return (
@@ -307,6 +329,7 @@ export function ScreenBackground({ children, style }: { children?: React.ReactNo
         style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 420 }}
       />
       {children}
+      <TopScrim color={C.bg} />
     </View>
   );
 }
@@ -334,6 +357,7 @@ export function BizBackground({ children, style }: { children?: React.ReactNode;
         style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 320 }}
       />
       {children}
+      <TopScrim color={B.bg} />
     </View>
   );
 }
