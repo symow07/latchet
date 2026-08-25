@@ -5,7 +5,7 @@ import {
   Pressable,
 } from 'react-native';
 import { useState, useEffect } from 'react';
-import { C } from '@/lib/design';
+import { useC } from '@/lib/design';
 import { useQuery } from '@tanstack/react-query';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -39,6 +39,7 @@ import {
 type TabType = 'overview' | 'subscriptions' | 'insights' | 'alerts';
 
 export default function AnalyticsScreen() {
+  const C = useC();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<TabType>('overview');
@@ -76,7 +77,7 @@ export default function AnalyticsScreen() {
   ];
 
   return (
-    <View className="flex-1 bg-[#0c0716]">
+    <View className="flex-1" style={{ backgroundColor: C.bg }}>
       {/* Header */}
       <LinearGradient
         colors={['#f59e0b', '#d97706', '#b45309']}
@@ -231,7 +232,7 @@ export default function AnalyticsScreen() {
             {analytics.subscriptions.length === 0 ? (
               <View
                 className="rounded-2xl p-6 items-center"
-                style={{ backgroundColor: 'rgba(255,255,255,0.05)' }}
+                style={{ backgroundColor: C.glass }}
               >
                 <RefreshCw size={32} color="#6b7280" />
                 <Text className="text-gray-400 mt-3 text-center">
@@ -261,7 +262,7 @@ export default function AnalyticsScreen() {
               >
                 <View
                   className="rounded-xl p-4"
-                  style={{ backgroundColor: 'rgba(255,255,255,0.05)' }}
+                  style={{ backgroundColor: C.glass }}
                 >
                   <View className="flex-row items-start">
                     <View className="w-8 h-8 rounded-lg bg-amber-500/20 items-center justify-center mr-3">
@@ -289,7 +290,7 @@ export default function AnalyticsScreen() {
                   <View
                     key={idx}
                     className="rounded-xl p-4 mb-3"
-                    style={{ backgroundColor: 'rgba(255,255,255,0.05)' }}
+                    style={{ backgroundColor: C.glass }}
                   >
                     <View className="flex-row items-start">
                       <View className="w-8 h-8 rounded-lg bg-blue-500/20 items-center justify-center mr-3">
@@ -392,6 +393,7 @@ function WasteCategoryCard({
   formatCurrency: (n: number) => string;
   index: number;
 }) {
+  const C = useC();
   const colors = ['#ef4444', '#f59e0b', '#eab308'];
   const color = colors[index] || '#6b7280';
 
@@ -402,7 +404,7 @@ function WasteCategoryCard({
     >
       <View
         className="rounded-xl p-4"
-        style={{ backgroundColor: 'rgba(255,255,255,0.05)' }}
+        style={{ backgroundColor: C.glass }}
       >
         <View className="flex-row items-center justify-between mb-3">
           <View className="flex-row items-center">
@@ -447,10 +449,11 @@ function SubscriptionCard({
   subscription: DetectedSubscription;
   formatCurrency: (n: number) => string;
 }) {
+  const C = useC();
   return (
     <View
       className="rounded-xl p-4 mb-3"
-      style={{ backgroundColor: 'rgba(255,255,255,0.05)' }}
+      style={{ backgroundColor: C.glass }}
     >
       <View className="flex-row items-center justify-between mb-2">
         <Text className="text-white font-semibold flex-1" numberOfLines={1}>

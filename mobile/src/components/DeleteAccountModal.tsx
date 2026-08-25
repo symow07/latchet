@@ -5,6 +5,7 @@ import { AlertTriangle, X, ExternalLink } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { Txt, GlassCard } from '@/components/ui';
 import { t } from '@/lib/i18n/core';
+import { useC } from '@/lib/design';
 import {
   fetchDeletionPreview,
   deleteAccount,
@@ -28,6 +29,7 @@ export function DeleteAccountModal({
   onClose: () => void;
   onDeleted: (unrevoked: UnrevokedGrant[]) => void;
 }) {
+  const C = useC();
   const insets = useSafeAreaInsets();
   const [preview, setPreview] = useState<DeletionPreview | null>(null);
   const [loading, setLoading] = useState(true);
@@ -187,7 +189,7 @@ export function DeleteAccountModal({
                     paddingVertical: 12,
                     color: '#fff',
                     fontSize: 15,
-                    backgroundColor: 'rgba(255,255,255,0.05)',
+                    backgroundColor: C.glass,
                     borderWidth: 1,
                     borderColor: confirmed ? '#ef4444' : 'rgba(255,255,255,0.1)',
                   }}

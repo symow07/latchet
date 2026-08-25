@@ -11,7 +11,7 @@ import {
   Platform,
 } from 'react-native';
 import { useState } from 'react';
-import { C } from '@/lib/design';
+import { useC } from '@/lib/design';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -208,6 +208,7 @@ function RecurringCard({
   onRunNow: (item: RecurringTransaction) => void;
   isRunning: boolean;
 }) {
+  const C = useC();
   const isExpense = item.type === 'Expense';
   const accentColor = !item.isActive
     ? '#4b5563'
@@ -408,6 +409,7 @@ function AddRecurringModal({
   onSubmit: (data: CreateRecurringBody) => void;
   isLoading: boolean;
 }) {
+  const C = useC();
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState<Category>('Subscriptions');
@@ -814,6 +816,7 @@ function AddRecurringModal({
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function RecurringScreen() {
+  const C = useC();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();

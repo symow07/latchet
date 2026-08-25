@@ -17,22 +17,24 @@ import {
   getBusiness, getMembers, getInviteCode, refreshInviteCode,
   joinBusiness, updateMemberRole, removeMember, type TeamMember,
 } from '@/lib/businessApi';
-import { B, R, glow } from '@/lib/design';
+import { R, glow, useB } from '@/lib/design';
 import { Txt, GlassCard, IconBubble, Pill, BizBackground, BubbleButton } from '@/components/ui';
 import { t } from '@/lib/i18n/core';
 
 const ROLE_META: Record<string, { label: string; color: string; icon: React.ComponentType<{ size: number; color: string }> }> = {
-  owner: { label: 'Owner', color: B.amber, icon: Crown },
-  manager: { label: 'Manager', color: B.accent, icon: Shield },
-  employee: { label: 'Employee', color: B.teal, icon: User2 },
+  owner: { label: 'Owner', color: '#f59e0b', icon: Crown },
+  manager: { label: 'Manager', color: '#3b82f6', icon: Shield },
+  employee: { label: 'Employee', color: '#14b8a6', icon: User2 },
 };
 
 function Label({ children }: { children: string }) {
+  const B = useB();
   return <Txt weight="bold" size={11} color={B.textFaint} style={{ letterSpacing: 1.4, marginBottom: 10 }}>{children}</Txt>;
 }
 
 // ─── Invite Code Panel ───────────────────────────────────────────────────────────
 function InviteCodePanel() {
+  const B = useB();
   const qc = useQueryClient();
   const [copied, setCopied] = useState(false);
   const { data, isLoading } = useQuery({ queryKey: ['invite-code'], queryFn: getInviteCode });
@@ -73,6 +75,7 @@ function InviteCodePanel() {
 
 // ─── Join Modal ──────────────────────────────────────────────────────────────────
 function JoinModal({ visible, onClose, onJoined }: { visible: boolean; onClose: () => void; onJoined: () => void }) {
+  const B = useB();
   const [code, setCode] = useState('');
   const [err, setErr] = useState('');
 
@@ -108,6 +111,7 @@ function JoinModal({ visible, onClose, onJoined }: { visible: boolean; onClose: 
 
 // ─── Member Row ──────────────────────────────────────────────────────────────────
 function MemberRow({ member, isMe, isOwner, onRemove, onChangeRole }: { member: TeamMember; isMe: boolean; isOwner: boolean; onRemove: (id: string) => void; onChangeRole: (id: string, role: 'manager' | 'employee') => void }) {
+  const B = useB();
   const [roleOpen, setRoleOpen] = useState(false);
   const meta = ROLE_META[member.role] ?? ROLE_META.employee;
   const RoleIcon = meta.icon;
@@ -167,6 +171,7 @@ function MemberRow({ member, isMe, isOwner, onRemove, onChangeRole }: { member: 
 
 // ─── Main Screen ─────────────────────────────────────────────────────────────────
 export default function TeamScreen() {
+  const B = useB();
   const insets = useSafeAreaInsets();
   const qc = useQueryClient();
   const { data: session } = useSession();
@@ -214,7 +219,7 @@ export default function TeamScreen() {
 
         {/* Team summary */}
         <View style={{ marginHorizontal: 20, marginBottom: 20 }}>
-          <LinearGradient colors={[B.slate800, '#16365f']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[{ borderRadius: R.lg, padding: 20, borderWidth: 1, borderColor: `${B.accent}2a`, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, glow(B.accentDeep, 0.25, 18)]}>
+          <LinearGradient colors={[B.slate800, '#16365f']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[{ borderRadius: R.lg, padding: 20, borderWidth: 1, borderColor: `${B.accent}2a`, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, glow(B.accentDeep, 0.25, 18, B.glowScale)]}>
             <View>
               <Txt size={13} color="rgba(255,255,255,0.5)" style={{ marginBottom: 4 }}>{t('businessTeam.members')}</Txt>
               <Txt weight="bold" size={36} color="#fff">{membersLoading ? '—' : members.length}</Txt>

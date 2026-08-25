@@ -29,7 +29,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInUp } from 'react-native-reanimated';
-import { C, R, glow } from '@/lib/design';
+import { R, glow, useC } from '@/lib/design';
 import { Txt, GlassCard, IconBubble, Pill, BubbleButton, ScreenBackground } from '@/components/ui';
 import { t } from '@/lib/i18n/core';
 
@@ -51,6 +51,7 @@ function Section({ children, delay = 0, style }: { children: React.ReactNode; de
 }
 
 export default function DashboardScreen() {
+  const C = useC();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [refreshKey, setRefreshKey] = useState(0);
@@ -200,14 +201,14 @@ return { icon: Flame, color: C.p400, title: `${streak}-Day Streak! `, message: `
               colors={[C.p700, C.p600, C.p800]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
-              style={[{ borderRadius: R.xl, padding: 22, marginTop: 18, overflow: 'hidden' }, glow(C.p600, 0.45, 26)]}
+              style={[{ borderRadius: R.xl, padding: 22, marginTop: 18, overflow: 'hidden' }, glow(C.p600, 0.45, 26, C.glowScale)]}
             >
               <View
-                style={{ position: 'absolute', top: -40, right: -30, width: 160, height: 160, borderRadius: 80, backgroundColor: 'rgba(255,255,255,0.10)' }}
+                style={{ position: 'absolute', top: -40, right: -30, width: 160, height: 160, borderRadius: 80, backgroundColor: C.glassStrong }}
               />
               <View className="flex-row items-center justify-between">
                 <Txt weight="semibold" size={13} color="rgba(255,255,255,0.8)">{t('dashboard.currentBalance')}</Txt>
-                <IconBubble color="#ffffff" size={36} radius={14} style={{ backgroundColor: 'rgba(255,255,255,0.18)', borderColor: 'rgba(255,255,255,0.25)' }}>
+                <IconBubble color="#ffffff" size={36} radius={14} style={{ backgroundColor: 'rgba(255,255,255,0.18)', borderColor: C.glassBorder }}>
                   <Wallet size={18} color="#fff" />
                 </IconBubble>
               </View>
@@ -215,7 +216,7 @@ return { icon: Flame, color: C.p400, title: `${streak}-Day Streak! `, message: `
 
               <View className="flex-row justify-between items-end" style={{ marginTop: 18 }}>
                 <View className="flex-row items-center" style={{ gap: 10 }}>
-                  <IconBubble color="#ffffff" size={40} style={{ backgroundColor: 'rgba(255,255,255,0.16)', borderColor: 'rgba(255,255,255,0.2)' }}>
+                  <IconBubble color="#ffffff" size={40} style={{ backgroundColor: 'rgba(255,255,255,0.16)', borderColor: C.glassBorder }}>
                     <Calendar size={19} color="#fff" />
                   </IconBubble>
                   <View>
@@ -340,7 +341,7 @@ return { icon: Flame, color: C.p400, title: `${streak}-Day Streak! `, message: `
                   <Txt weight="bold" size={28} color={C.text}>{disciplineGrade}</Txt>
                 </View>
                 <View className="flex-1">
-                  <View style={{ height: 8, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.1)', overflow: 'hidden' }}>
+                  <View style={{ height: 8, borderRadius: 999, backgroundColor: C.glassStrong, overflow: 'hidden' }}>
                     <View style={{ height: '100%', borderRadius: 999, width: `${Math.min(budgetUsedPercent, 100)}%`, backgroundColor: C.p500 }} />
                   </View>
                   <Txt size={11} color={C.textFaint} style={{ marginTop: 5 }}>{t('dashboard.percentUsed', { percent: budgetUsedPercent })}</Txt>
@@ -363,7 +364,7 @@ return { icon: Flame, color: C.p400, title: `${streak}-Day Streak! `, message: `
           <GlassCard tint={`${C.p700}1f`} border={`${C.p700}40`}>
             <View className="flex-row items-center justify-between">
               <View className="flex-row items-center" style={{ gap: 12 }}>
-                <LinearGradient colors={[C.p600, C.p400]} style={[{ width: 52, height: 52, borderRadius: 20, alignItems: 'center', justifyContent: 'center' }, glow(C.p500, 0.4, 12)]}>
+                <LinearGradient colors={[C.p600, C.p400]} style={[{ width: 52, height: 52, borderRadius: 20, alignItems: 'center', justifyContent: 'center' }, glow(C.p500, 0.4, 12, C.glowScale)]}>
                   <Flame size={22} color={C.p400} />
                 </LinearGradient>
                 <View>
@@ -439,7 +440,7 @@ return { icon: Flame, color: C.p400, title: `${streak}-Day Streak! `, message: `
         {healthScore && (
           <Section delay={290} style={{ paddingHorizontal: 20, marginTop: 12 }}>
             <Pressable onPress={() => go('/health-score')}>
-              <LinearGradient colors={[C.p800, C.p600, C.p400]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[{ borderRadius: R.lg, padding: 18 }, glow(C.p500, 0.4, 20)]}>
+              <LinearGradient colors={[C.p800, C.p600, C.p400]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[{ borderRadius: R.lg, padding: 18 }, glow(C.p500, 0.4, 20, C.glowScale)]}>
                 <View className="flex-row items-center justify-between">
                   <View className="flex-row items-center" style={{ gap: 12 }}>
                     <View style={{ width: 54, height: 54, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.18)' }}>

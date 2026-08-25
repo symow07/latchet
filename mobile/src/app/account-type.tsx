@@ -1,5 +1,5 @@
 import { ScreenBackground } from '@/components/ui';
-import { C } from '@/lib/design';
+import { useC } from '@/lib/design';
 import { View, Text, Pressable, ActivityIndicator, ScrollView } from 'react-native';
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
@@ -28,7 +28,7 @@ const ACCOUNT_TYPES: {
     description: 'Track daily spending, budgets, savings goals, and build healthy money habits.',
     icon: User,
     colors: ['#1a0840', '#2d1260'],
-    accent: C.p500,
+    accent: '#9333ea',
   },
   {
     id: 'business',
@@ -42,6 +42,7 @@ const ACCOUNT_TYPES: {
 ];
 
 export default function AccountTypeScreen() {
+  const C = useC();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { data: session } = useSession();
@@ -146,7 +147,7 @@ export default function AccountTypeScreen() {
                         width: 28, height: 28, borderRadius: 14,
                         backgroundColor: isSelected ? type.accent : 'rgba(255,255,255,0.08)',
                         borderWidth: isSelected ? 0 : 1.5,
-                        borderColor: 'rgba(255,255,255,0.15)',
+                        borderColor: C.glassBorder,
                         alignItems: 'center', justifyContent: 'center',
                       }}
                     >

@@ -50,7 +50,7 @@ import {
 } from '@/lib/db';
 import { findCancelEntry, getCancelLink } from '@/lib/cancel-directory';
 import { formatCurrency } from '@/lib/calculations';
-import { C } from '@/lib/design';
+import { useC } from '@/lib/design';
 import { ScreenBackground } from '@/components/ui';
 import { t } from '@/lib/i18n/core';
 
@@ -114,11 +114,12 @@ function StatCard({
   color: string;
   delay: number;
 }) {
+  const C = useC();
   return (
     <Animated.View entering={FadeInUp.delay(delay).springify()} className="flex-1">
       <View
         className="rounded-2xl items-center p-4 gap-2"
-        style={{ backgroundColor: 'rgba(255,255,255,0.05)' }}
+        style={{ backgroundColor: C.glass }}
       >
         <View
           className="w-10 h-10 rounded-xl items-center justify-center"
@@ -136,6 +137,7 @@ function StatCard({
 }
 
 function OccurrenceRow({ occ, index }: { occ: SubscriptionOccurrence; index: number }) {
+  const C = useC();
   const date = parseISO(occ.chargedAt);
   return (
     <Animated.View entering={FadeInUp.delay(index * 40).springify()}>
@@ -143,7 +145,7 @@ function OccurrenceRow({ occ, index }: { occ: SubscriptionOccurrence; index: num
         className="flex-row items-center justify-between py-3 px-4"
         style={{
           borderBottomWidth: 1,
-          borderBottomColor: 'rgba(255,255,255,0.05)',
+          borderBottomColor: C.glassBorder,
         }}
       >
         <View className="flex-row items-center gap-3">
@@ -162,6 +164,7 @@ function OccurrenceRow({ occ, index }: { occ: SubscriptionOccurrence; index: num
 }
 
 export default function SubscriptionDetailScreen() {
+  const C = useC();
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -515,7 +518,7 @@ export default function SubscriptionDetailScreen() {
 
             <View
               className="rounded-2xl overflow-hidden"
-              style={{ backgroundColor: 'rgba(255,255,255,0.05)' }}
+              style={{ backgroundColor: C.glass }}
             >
               {occurrences.length === 0 ? (
                 <View className="items-center py-10 gap-2">
@@ -537,7 +540,7 @@ export default function SubscriptionDetailScreen() {
             <Animated.View entering={FadeInUp.delay(220).springify()} className="mx-4 mb-4">
               <View
                 className="rounded-2xl p-4"
-                style={{ backgroundColor: 'rgba(255,255,255,0.05)' }}
+                style={{ backgroundColor: C.glass }}
               >
                 <View className="flex-row justify-between mb-2">
                   <Text className="text-white font-semibold text-sm">{t('subscriptionDetail.confidence')}</Text>
@@ -547,7 +550,7 @@ export default function SubscriptionDetailScreen() {
                 </View>
                 <View
                   className="h-2 rounded-full overflow-hidden"
-                  style={{ backgroundColor: 'rgba(255,255,255,0.1)' }}
+                  style={{ backgroundColor: C.glassStrong }}
                 >
                   <View
                     className="h-full rounded-full"
@@ -620,7 +623,7 @@ export default function SubscriptionDetailScreen() {
               className="flex-row items-center justify-between px-5 py-4"
               style={{
                 borderBottomWidth: 1,
-                borderBottomColor: 'rgba(255,255,255,0.07)',
+                borderBottomColor: C.glassBorder,
               }}
             >
               <Text className="text-white font-bold text-lg">
@@ -629,7 +632,7 @@ export default function SubscriptionDetailScreen() {
               <Pressable
                 onPress={closeSheet}
                 className="w-8 h-8 rounded-full items-center justify-center"
-                style={{ backgroundColor: 'rgba(255,255,255,0.1)' }}
+                style={{ backgroundColor: C.glassStrong }}
               >
                 <X size={16} color="white" />
               </Pressable>
@@ -695,7 +698,7 @@ export default function SubscriptionDetailScreen() {
                 <View className="gap-4">
                   <View
                     className="rounded-2xl p-4"
-                    style={{ backgroundColor: 'rgba(255,255,255,0.05)' }}
+                    style={{ backgroundColor: C.glass }}
                   >
                     <Text className="text-white font-semibold text-sm mb-1">
                       Not in our directory
@@ -754,7 +757,7 @@ export default function SubscriptionDetailScreen() {
                       borderRadius: 14,
                       backgroundColor: pressed ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.05)',
                       borderWidth: 1,
-                      borderColor: 'rgba(255,255,255,0.12)',
+                      borderColor: C.glassBorder,
                     })}
                   >
                     <ExternalLink size={16} color="#9ca3af" />
@@ -776,7 +779,7 @@ export default function SubscriptionDetailScreen() {
                   multiline
                   numberOfLines={4}
                   style={{
-                    backgroundColor: 'rgba(255,255,255,0.07)',
+                    backgroundColor: C.glassStrong,
                     borderRadius: 14,
                     padding: 14,
                     color: 'white',
@@ -785,7 +788,7 @@ export default function SubscriptionDetailScreen() {
                     minHeight: 100,
                     textAlignVertical: 'top',
                     borderWidth: 1,
-                    borderColor: 'rgba(255,255,255,0.1)',
+                    borderColor: C.glassBorder,
                   }}
                 />
                 <Pressable

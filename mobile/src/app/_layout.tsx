@@ -27,7 +27,7 @@ import {
   PlusJakartaSans_600SemiBold,
   PlusJakartaSans_700Bold,
 } from '@expo-google-fonts/plus-jakarta-sans';
-import { C, patchDefaultFont } from '@/lib/design';
+import { patchDefaultFont, useC } from '@/lib/design';
 import { t } from '@/lib/i18n/core';
 import { Lock } from 'lucide-react-native';
 
@@ -69,8 +69,9 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise
 }
 
 function StartupScreen({ stage }: { stage: string }) {
+  const C = useC();
   return (
-    <View style={{ flex: 1, backgroundColor: '#000', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+    <View style={{ flex: 1, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
       <ActivityIndicator size="large" color={C.amber} />
       <Text style={{ color: '#fff', fontSize: 18, fontWeight: '600', marginTop: 24 }}>
         Starting Budget…
@@ -83,6 +84,7 @@ function StartupScreen({ stage }: { stage: string }) {
 }
 
 function LockScreen({ onUnlock }: { onUnlock: () => void }) {
+  const C = useC();
   const insets = useSafeAreaInsets();
   const [authenticating, setAuthenticating] = useState(false);
   const authenticatingRef = useRef(false);
@@ -145,6 +147,7 @@ function LockScreen({ onUnlock }: { onUnlock: () => void }) {
 }
 
 function RootLayoutNav({ colorScheme }: { colorScheme: 'light' | 'dark' | null | undefined }) {
+  const C = useC();
   const { data: session, isLoading: sessionLoading, error: sessionError } = useSession();
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -257,16 +260,16 @@ function RootLayoutNav({ colorScheme }: { colorScheme: 'light' | 'dark' | null |
   // as the final escape hatch ("Continue offline" → fall through to public stack).
   if (!sessionLoading && sessionError && !sessionTimedOut) {
     return (
-      <View style={{ flex: 1, backgroundColor: '#000', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-        <Text style={{ color: '#ef4444', fontSize: 20, fontWeight: '700', marginBottom: 8 }}>
+      <View style={{ flex: 1, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+        <Text style={{ color: C.rose, fontSize: 20, fontWeight: '700', marginBottom: 8 }}>
           Couldn&apos;t reach the server
         </Text>
-        <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 14, textAlign: 'center', marginBottom: 24 }}>
+        <Text style={{ color: C.textDim, fontSize: 14, textAlign: 'center', marginBottom: 24 }}>
           {sessionError instanceof Error ? sessionError.message : 'Unknown error'}
         </Text>
         <Pressable
           onPress={() => queryClient.invalidateQueries({ queryKey: SESSION_QUERY_KEY })}
-          style={{ paddingHorizontal: 32, paddingVertical: 14, borderRadius: 16, backgroundColor: '#2563eb' }}
+          style={{ paddingHorizontal: 32, paddingVertical: 14, borderRadius: 16, backgroundColor: C.p600 }}
         >
           <Text style={{ color: '#fff', fontWeight: '600', fontSize: 16 }}>{t('startup.retry')}</Text>
         </Pressable>
@@ -274,7 +277,7 @@ function RootLayoutNav({ colorScheme }: { colorScheme: 'light' | 'dark' | null |
           onPress={() => setSessionTimedOut(true)}
           style={{ marginTop: 12, paddingHorizontal: 32, paddingVertical: 14 }}
         >
-          <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14 }}>{t('startup.continueOffline')}</Text>
+          <Text style={{ color: C.textFaint, fontSize: 14 }}>{t('startup.continueOffline')}</Text>
         </Pressable>
       </View>
     );
@@ -319,6 +322,7 @@ function RootLayoutNav({ colorScheme }: { colorScheme: 'light' | 'dark' | null |
 }
 
 export default function RootLayout() {
+  const C = useC();
   const colorScheme = useColorScheme();
   const [dbReady, setDbReady] = useState(false);
   const [dbError, setDbError] = useState<string | null>(null);
@@ -396,16 +400,16 @@ export default function RootLayout() {
   if (dbError) {
     return (
       <SafeAreaProvider>
-        <View style={{ flex: 1, backgroundColor: '#000', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+        <View style={{ flex: 1, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
           <Text style={{ color: '#ef4444', fontSize: 20, fontWeight: '700', marginBottom: 12 }}>
             Startup Error
           </Text>
-          <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 14, textAlign: 'center', marginBottom: 24 }}>
+          <Text style={{ color: C.textDim, fontSize: 14, textAlign: 'center', marginBottom: 24 }}>
             {dbError}
           </Text>
           <Pressable
             onPress={initApp}
-            style={{ paddingHorizontal: 32, paddingVertical: 14, borderRadius: 16, backgroundColor: '#2563eb' }}
+            style={{ paddingHorizontal: 32, paddingVertical: 14, borderRadius: 16, backgroundColor: C.p600 }}
           >
             <Text style={{ color: '#fff', fontWeight: '600', fontSize: 16 }}>{t('startup.retry')}</Text>
           </Pressable>

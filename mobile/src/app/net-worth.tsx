@@ -11,7 +11,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useState, useMemo } from 'react';
-import { C } from '@/lib/design';
+import { useC } from '@/lib/design';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -239,15 +239,16 @@ interface InputRowProps {
 }
 
 function InputRow({ label, value, onChange, iconComponent, placeholder }: InputRowProps) {
+  const C = useC();
   return (
     <View className="flex-row items-center mb-3">
-      <View className="w-9 h-9 rounded-xl items-center justify-center mr-3" style={{ backgroundColor: 'rgba(255,255,255,0.07)' }}>
+      <View className="w-9 h-9 rounded-xl items-center justify-center mr-3" style={{ backgroundColor: C.glassStrong }}>
         {iconComponent}
       </View>
       <Text className="text-gray-300 text-sm flex-1">{label}</Text>
       <View
         className="flex-row items-center rounded-xl px-3 py-2"
-        style={{ backgroundColor: 'rgba(255,255,255,0.07)', minWidth: 110 }}
+        style={{ backgroundColor: C.glassStrong, minWidth: 110 }}
       >
         <Text className="text-gray-500 text-sm mr-1">$</Text>
         <TextInput
@@ -279,6 +280,7 @@ interface AddModalProps {
 }
 
 function AddModal({ visible, onClose, onSubmit, isSubmitting }: AddModalProps) {
+  const C = useC();
   const insets = useSafeAreaInsets();
   const [form, setForm] = useState<FormState>({
     cashSavings: '',
@@ -531,6 +533,7 @@ interface SnapshotRowProps {
 }
 
 function SnapshotRow({ entry, prevEntry, index }: SnapshotRowProps) {
+  const C = useC();
   const isPositive = entry.netWorth >= 0;
   const delta = prevEntry != null ? entry.netWorth - prevEntry.netWorth : null;
   const deltaPositive = delta != null && delta >= 0;
@@ -539,7 +542,7 @@ function SnapshotRow({ entry, prevEntry, index }: SnapshotRowProps) {
     <Animated.View entering={FadeInUp.delay(index * 60).duration(350)}>
       <View
         className="flex-row items-center rounded-2xl px-4 py-3 mb-2"
-        style={{ backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)' }}
+        style={{ backgroundColor: C.glass, borderWidth: 1, borderColor: C.glassBorder }}
       >
         {/* Left color bar */}
         <View
@@ -602,6 +605,7 @@ function SnapshotRow({ entry, prevEntry, index }: SnapshotRowProps) {
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function NetWorthScreen() {
+  const C = useC();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
@@ -703,7 +707,7 @@ export default function NetWorthScreen() {
               {netWorthDelta !== null && (
                 <View
                   className="flex-row items-center mt-2 px-3 py-1 rounded-full"
-                  style={{ backgroundColor: 'rgba(255,255,255,0.12)' }}
+                  style={{ backgroundColor: C.glassStrong }}
                 >
                   {deltaPositive ? (
                     <TrendingUp size={13} color={deltaPositive ? '#4ade80' : '#f87171'} />
@@ -769,7 +773,7 @@ export default function NetWorthScreen() {
           <Animated.View entering={FadeInUp.delay(100).duration(400)} className="mx-4 mb-4">
             <View
               className="rounded-2xl p-4"
-              style={{ backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)' }}
+              style={{ backgroundColor: C.glass, borderWidth: 1, borderColor: C.glassBorder }}
             >
               <View className="flex-row items-center justify-between mb-4">
                 <Text className="text-gray-400 text-xs font-semibold tracking-widest">
@@ -787,7 +791,7 @@ export default function NetWorthScreen() {
           <Animated.View entering={FadeInUp.delay(200).duration(400)} className="mx-4 mb-4">
             <View
               className="rounded-2xl p-4"
-              style={{ backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)' }}
+              style={{ backgroundColor: C.glass, borderWidth: 1, borderColor: C.glassBorder }}
             >
               <Text className="text-gray-400 text-xs font-semibold tracking-widest mb-4">
                 LATEST BREAKDOWN
@@ -809,7 +813,7 @@ export default function NetWorthScreen() {
                 )}
               </View>
 
-              <View style={{ height: 1, backgroundColor: 'rgba(255,255,255,0.06)', marginBottom: 12 }} />
+              <View style={{ height: 1, backgroundColor: C.glass, marginBottom: 12 }} />
 
               {latestEntry.breakdown.creditCardDebt != null && latestEntry.breakdown.creditCardDebt > 0 && (
                 <BreakdownLine icon={<CreditCard size={14} color="#f87171" />} label="Credit Card Debt" value={latestEntry.breakdown.creditCardDebt} color="#f87171" negate />

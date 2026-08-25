@@ -16,7 +16,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInUp } from 'react-native-reanimated';
-import { C, R } from '@/lib/design';
+import { R, useC } from '@/lib/design';
 import { Txt, GlassCard, Pill, ScreenBackground } from '@/components/ui';
 import { t } from '@/lib/i18n/core';
 
@@ -33,6 +33,7 @@ interface Transaction {
 
 
 export default function TransactionsScreen() {
+  const C = useC();
   const insets = useSafeAreaInsets();
   const [refreshKey, setRefreshKey] = useState(0);
   const [filterCategory, setFilterCategory] = useState<string | null>(null);

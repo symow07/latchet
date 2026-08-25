@@ -8,7 +8,7 @@ import {
   Alert,
 } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
-import { C } from '@/lib/design';
+import { useC } from '@/lib/design';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -51,6 +51,7 @@ import { t } from '@/lib/i18n/core';
 type ViewMode = 'main' | 'add-bank' | 'bank-detail' | 'consent';
 
 export default function LinkBankScreen() {
+  const C = useC();
   const { handleUpgradeRequired } = useEntitlement();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -331,7 +332,7 @@ export default function LinkBankScreen() {
       <View className="px-4 mt-4">
         <View
           className="rounded-xl p-4"
-          style={{ backgroundColor: 'rgba(255,255,255,0.03)' }}
+          style={{ backgroundColor: C.glass }}
         >
           <View className="flex-row items-center mb-2">
             <Info size={16} color="#6b7280" />
@@ -358,7 +359,7 @@ export default function LinkBankScreen() {
           <Pressable onPress={handleAddBank} disabled={isLoading}>
             <View
               className="rounded-xl p-4 flex-row items-center justify-between"
-              style={{ backgroundColor: 'rgba(255,255,255,0.05)' }}
+              style={{ backgroundColor: C.glass }}
             >
               <View className="flex-row items-center flex-1">
                 <View
@@ -437,7 +438,7 @@ export default function LinkBankScreen() {
         <View className="px-4 mb-4">
           <View
             className="rounded-xl p-4"
-            style={{ backgroundColor: 'rgba(255,255,255,0.05)' }}
+            style={{ backgroundColor: C.glass }}
           >
             <View className="flex-row items-center mb-4">
               <View
@@ -495,7 +496,7 @@ export default function LinkBankScreen() {
             >
               <View
                 className="rounded-xl p-4 mb-2"
-                style={{ backgroundColor: 'rgba(255,255,255,0.05)' }}
+                style={{ backgroundColor: C.glass }}
               >
                 <View className="flex-row items-center justify-between mb-2">
                   <View>
@@ -538,7 +539,7 @@ export default function LinkBankScreen() {
 
           <View
             className="rounded-xl p-4"
-            style={{ backgroundColor: 'rgba(255,255,255,0.05)' }}
+            style={{ backgroundColor: C.glass }}
           >
             <View className="mb-3">
               <Text className="text-gray-300 text-sm font-medium mb-2">What we can access:</Text>
@@ -574,7 +575,7 @@ export default function LinkBankScreen() {
         animationType="slide"
       >
         <View className="flex-1 justify-end bg-black/60">
-          <View className="bg-[#150d24] rounded-t-3xl p-6" style={{ paddingBottom: insets.bottom + 20 }}>
+          <View className="rounded-t-3xl p-6" style={{ backgroundColor: C.bgRaise, paddingBottom: insets.bottom + 20 }}>
             <View className="items-center mb-6">
               <View
                 className="w-16 h-16 rounded-2xl items-center justify-center mb-4"
@@ -658,7 +659,7 @@ export default function LinkBankScreen() {
   };
 
   return (
-    <View className="flex-1 bg-[#0c0716]">
+    <View className="flex-1" style={{ backgroundColor: C.bg }}>
       {/* Header */}
       <LinearGradient
         colors={['#3b82f6', '#2563eb', '#1d4ed8']}

@@ -20,7 +20,7 @@ import {
 } from '@/lib/expenseApi';
 import { getBusiness } from '@/lib/businessApi';
 import { useSession } from '@/lib/auth/use-session';
-import { B, R, glow } from '@/lib/design';
+import { R, glow, useB } from '@/lib/design';
 import { Txt, GlassCard, IconBubble, Pill, BizBackground, BubbleButton } from '@/components/ui';
 import { t } from '@/lib/i18n/core';
 import { expenseCategoryLabel, expenseStatusLabel } from '@/lib/expense-meta';
@@ -29,9 +29,9 @@ type CatMeta = { label: ExpenseCategory; icon: React.ComponentType<{ size: numbe
 
 const CATEGORIES: CatMeta[] = [
   { label: 'Travel', icon: Plane, color: '#818cf8' },
-  { label: 'Software', icon: Laptop, color: B.teal },
-  { label: 'Meals', icon: Coffee, color: B.amber },
-  { label: 'Transport', icon: Car, color: B.accent },
+  { label: 'Software', icon: Laptop, color: '#14b8a6' },
+  { label: 'Meals', icon: Coffee, color: '#f59e0b' },
+  { label: 'Transport', icon: Car, color: '#3b82f6' },
   { label: 'Office', icon: Building, color: '#f472b6' },
   { label: 'Other', icon: Tag, color: '#a78bfa' },
 ];
@@ -43,18 +43,20 @@ const STATUS_FILTERS: { value: ExpenseStatus | 'all' }[] = [
   { value: 'rejected' },
 ];
 
-const STATUS_COLOR: Record<ExpenseStatus, string> = { pending: B.amber, approved: B.teal, rejected: B.red };
+const STATUS_COLOR: Record<ExpenseStatus, string> = { pending: '#f59e0b', approved: '#14b8a6', rejected: '#ef4444' };
 
 function catMeta(cat: string): CatMeta {
   return CATEGORIES.find(c => c.label === cat) ?? CATEGORIES[5];
 }
 
 function FieldLabel({ children }: { children: string }) {
+  const B = useB();
   return <Txt weight="bold" size={11} color={B.textFaint} style={{ letterSpacing: 1.2, marginBottom: 8 }}>{children}</Txt>;
 }
 
 // ─── Submit Modal ──────────────────────────────────────────────────────────────
 function SubmitModal({ visible, onClose, onDone }: { visible: boolean; onClose: () => void; onDone: () => void }) {
+  const B = useB();
   const [amount, setAmount] = useState('');
   const [desc, setDesc] = useState('');
   const [cat, setCat] = useState<ExpenseCategory>('Other');
@@ -190,6 +192,7 @@ function SubmitModal({ visible, onClose, onDone }: { visible: boolean; onClose: 
 
 // ─── Expense Card ────────────────────────────────────────────────────────────────
 function ExpenseCard({ expense, canReview, onApprove, onReject }: { expense: Expense; canReview: boolean; onApprove: (id: string) => void; onReject: (id: string) => void }) {
+  const B = useB();
   const [showImage, setShowImage] = useState(false);
   const meta = catMeta(expense.category);
   const CatIcon = meta.icon;
@@ -246,6 +249,7 @@ function ExpenseCard({ expense, canReview, onApprove, onReject }: { expense: Exp
 
 // ─── Main Screen ─────────────────────────────────────────────────────────────────
 export default function ExpensesScreen() {
+  const B = useB();
   const insets = useSafeAreaInsets();
   const qc = useQueryClient();
   const { data: session } = useSession();

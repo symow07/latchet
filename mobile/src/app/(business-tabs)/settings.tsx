@@ -9,7 +9,7 @@ import * as Haptics from 'expo-haptics';
 import { authClient } from '@/lib/auth/auth-client';
 import { useInvalidateSession, useSession } from '@/lib/auth/use-session';
 import { useAccountTypeStore } from '@/lib/account-type-store';
-import { B, R, glow } from '@/lib/design';
+import { R, glow, useB } from '@/lib/design';
 import { Txt, GlassCard, IconBubble, Pill, BizBackground } from '@/components/ui';
 import { t } from '@/lib/i18n/core';
 
@@ -17,27 +17,28 @@ const SECTIONS = [
   {
     title: 'Business',
     items: [
-      { icon: Building2, label: 'Company Profile', sub: 'Name, logo, address', color: B.accent },
-      { icon: FileText, label: 'Tax Settings', sub: 'VAT, tax ID, fiscal year', color: B.teal },
-      { icon: Globe, label: 'Currency & Region', sub: 'USD · United States', color: B.amber },
+      { icon: Building2, label: 'Company Profile', sub: 'Name, logo, address', color: '#3b82f6' },
+      { icon: FileText, label: 'Tax Settings', sub: 'VAT, tax ID, fiscal year', color: '#14b8a6' },
+      { icon: Globe, label: 'Currency & Region', sub: 'USD · United States', color: '#f59e0b' },
     ],
   },
   {
     title: 'Preferences',
     items: [
       { icon: Bell, label: 'Notifications', sub: 'Alerts and reminders', color: '#a78bfa' },
-      { icon: Shield, label: 'Security', sub: 'Password, 2FA', color: B.red },
+      { icon: Shield, label: 'Security', sub: 'Password, 2FA', color: '#ef4444' },
     ],
   },
   {
     title: 'Support',
     items: [
-      { icon: HelpCircle, label: 'Help & Feedback', sub: 'Get support or report an issue', color: B.textDim },
+      { icon: HelpCircle, label: 'Help & Feedback', sub: 'Get support or report an issue', color: '#94a3b8' },
     ],
   },
 ];
 
 export default function BusinessSettingsScreen() {
+  const B = useB();
   const insets = useSafeAreaInsets();
   const { data: session } = useSession();
   const invalidateSession = useInvalidateSession();
@@ -61,7 +62,7 @@ export default function BusinessSettingsScreen() {
 
         {/* Profile card */}
         <View style={{ marginHorizontal: 20, marginBottom: 22 }}>
-          <LinearGradient colors={[B.slate800, '#16365f']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[{ borderRadius: R.lg, padding: 18, borderWidth: 1, borderColor: `${B.accent}30`, flexDirection: 'row', alignItems: 'center', gap: 14 }, glow(B.accentDeep, 0.25, 18)]}>
+          <LinearGradient colors={[B.slate800, '#16365f']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[{ borderRadius: R.lg, padding: 18, borderWidth: 1, borderColor: `${B.accent}30`, flexDirection: 'row', alignItems: 'center', gap: 14 }, glow(B.accentDeep, 0.25, 18, B.glowScale)]}>
             <View style={{ width: 54, height: 54, borderRadius: 18, backgroundColor: `${B.accent}2e`, borderWidth: 1.5, borderColor: `${B.accent}55`, alignItems: 'center', justifyContent: 'center' }}>
               <Briefcase size={24} color={B.accent} />
             </View>

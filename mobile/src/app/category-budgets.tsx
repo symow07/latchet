@@ -9,7 +9,7 @@ import {
   Platform,
 } from 'react-native';
 import { useState, useCallback } from 'react';
-import { C } from '@/lib/design';
+import { useC } from '@/lib/design';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -47,7 +47,7 @@ interface CategoryConfig {
 
 const CATEGORIES: CategoryConfig[] = [
   { name: 'Food', emoji: '', color: '#f97316', bg: 'rgba(249,115,22,0.15)', barColor: '#f97316' },
-  { name: 'Gym', emoji: '', color: C.p500, bg: 'rgba(168,85,247,0.15)', barColor: C.p500 },
+  { name: 'Gym', emoji: '', color: '#9333ea', bg: 'rgba(168,85,247,0.15)', barColor: '#9333ea' },
   { name: 'Transport', emoji: '', color: '#3b82f6', bg: 'rgba(59,130,246,0.15)', barColor: '#3b82f6' },
   { name: 'Shopping', emoji: '', color: '#ec4899', bg: 'rgba(236,72,153,0.15)', barColor: '#ec4899' },
   { name: 'Subscriptions', emoji: '', color: '#22c55e', bg: 'rgba(34,197,94,0.15)', barColor: '#22c55e' },
@@ -101,12 +101,13 @@ function ProgressBar({
   color: string;
   overBudget: boolean;
 }) {
+  const C = useC();
   const clamped = Math.min(progress, 1);
   const barColor = overBudget ? '#ef4444' : color;
 
   return (
     <View
-      style={{ height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}
+      style={{ height: 6, borderRadius: 3, backgroundColor: C.glassStrong, overflow: 'hidden' }}
     >
       <View
         style={{
@@ -141,6 +142,7 @@ function EditModal({
   onCancel,
   isSaving,
 }: EditModalProps) {
+  const C = useC();
   if (!category) return null;
 
   return (
@@ -187,7 +189,7 @@ function EditModal({
                 style={{
                   flexDirection: 'row',
                   alignItems: 'center',
-                  backgroundColor: 'rgba(255,255,255,0.06)',
+                  backgroundColor: C.glass,
                   borderRadius: 14,
                   paddingHorizontal: 16,
                   paddingVertical: 14,
@@ -223,7 +225,7 @@ function EditModal({
                     paddingVertical: 14,
                     borderRadius: 12,
                     alignItems: 'center',
-                    backgroundColor: 'rgba(255,255,255,0.06)',
+                    backgroundColor: C.glass,
                   }}
                 >
                   <Text style={{ color: '#9ca3af', fontWeight: '600', fontSize: 15 }}>{t('common.cancel')}</Text>
@@ -262,6 +264,7 @@ function EditModal({
 // --- Main screen ---
 
 export default function CategoryBudgetsScreen() {
+  const C = useC();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
@@ -404,7 +407,7 @@ export default function CategoryBudgetsScreen() {
               <View
                 key={cat.name}
                 style={{
-                  backgroundColor: 'rgba(255,255,255,0.05)',
+                  backgroundColor: C.glass,
                   borderRadius: 20,
                   padding: 16,
                   borderWidth: 1,

@@ -15,7 +15,7 @@ import Animated, {
   useSharedValue,
   withSpring,
 } from 'react-native-reanimated';
-import { C, B, F, R, glow } from '@/lib/design';
+import { F, R, glow, useB, useC } from '@/lib/design';
 
 /**
  * Reusable "bubbly modern" UI primitives. Purple-forward, rounded, frosted.
@@ -32,7 +32,7 @@ const FAMILY: Record<Weight, string> = {
 export function Txt({
   weight = 'medium',
   size = 14,
-  color = C.text,
+  color,
   style,
   children,
   ...rest
@@ -41,10 +41,11 @@ export function Txt({
   size?: number;
   color?: string;
 }) {
+  const C = useC();
   return (
     <RNText
       {...rest}
-      style={[{ fontFamily: FAMILY[weight], fontSize: size, color, letterSpacing: 0.1 }, style]}
+      style={[{ fontFamily: FAMILY[weight], fontSize: size, color: color ?? C.text, letterSpacing: 0.1 }, style]}
     >
       {children}
     </RNText>
@@ -57,8 +58,8 @@ export function GlassCard({
   style,
   radius = R.lg,
   padding = 18,
-  tint = C.glass,
-  border = C.glassBorder,
+  tint,
+  border,
   glowColor,
   ...rest
 }: ViewProps & {
@@ -68,18 +69,19 @@ export function GlassCard({
   border?: string;
   glowColor?: string;
 }) {
+  const C = useC();
   return (
     <View
       {...rest}
       style={[
         {
-          backgroundColor: tint,
+          backgroundColor: tint ?? C.glass,
           borderRadius: radius,
           padding,
           borderWidth: 1,
-          borderColor: border,
+          borderColor: border ?? C.glassBorder,
         },
-        glowColor ? glow(glowColor, 0.25, 24) : null,
+        glowColor ? glow(glowColor, 0.25, 24, C.glowScale) : null,
         style,
       ]}
     >
@@ -91,7 +93,7 @@ export function GlassCard({
 /** A rounded "squircle" icon chip. */
 export function IconBubble({
   children,
-  color = C.p500,
+  color,
   size = 44,
   radius = 16,
   style,
@@ -102,6 +104,7 @@ export function IconBubble({
   radius?: number;
   style?: StyleProp<ViewStyle>;
 }) {
+  const C = useC();
   return (
     <View
       style={[
@@ -111,9 +114,9 @@ export function IconBubble({
           borderRadius: radius,
           alignItems: 'center',
           justifyContent: 'center',
-          backgroundColor: `${color}22`,
+          backgroundColor: `${color ?? C.p500}22`,
           borderWidth: 1,
-          borderColor: `${color}33`,
+          borderColor: `${color ?? C.p500}33`,
         },
         style,
       ]}
@@ -126,7 +129,7 @@ export function IconBubble({
 /** Small rounded label/tag. */
 export function Pill({
   label,
-  color = C.p400,
+  color,
   filled = false,
   style,
   textStyle,
@@ -137,6 +140,7 @@ export function Pill({
   style?: StyleProp<ViewStyle>;
   textStyle?: StyleProp<TextStyle>;
 }) {
+  const C = useC();
   return (
     <View
       style={[
@@ -144,14 +148,14 @@ export function Pill({
           paddingHorizontal: 10,
           paddingVertical: 4,
           borderRadius: R.pill,
-          backgroundColor: filled ? color : `${color}1f`,
+          backgroundColor: filled ? (color ?? C.p400) : `${color ?? C.p400}1f`,
           borderWidth: filled ? 0 : 1,
-          borderColor: `${color}33`,
+          borderColor: `${color ?? C.p400}33`,
         },
         style,
       ]}
     >
-      <Txt weight="bold" size={11} color={filled ? '#1a0b2e' : color} style={textStyle}>
+      <Txt weight="bold" size={11} color={filled ? C.bgDeep : (color ?? C.p400)} style={textStyle}>
         {label}
       </Txt>
     </View>
@@ -174,9 +178,9 @@ export function BubbleButton({
   disabled = false,
   full = true,
   radius = R.md,
-  colors = [C.p600, C.p500, C.p400],
-  glowColor = C.p500,
-  accentColor = C.p300,
+  colors,
+  glowColor,
+  accentColor,
   style,
 }: {
   label: string;
@@ -194,6 +198,10 @@ export function BubbleButton({
   accentColor?: string;
   style?: StyleProp<ViewStyle>;
 }) {
+  const C = useC();
+  const fill = colors ?? ([C.p600, C.p500, C.p400] as const);
+  const halo = glowColor ?? C.p500;
+  const ink = accentColor ?? C.p300;
   const scale = useSharedValue(1);
   const aStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
 
@@ -215,7 +223,7 @@ export function BubbleButton({
       }}
     >
       {icon}
-      <Txt weight="bold" size={16} color={variant === 'solid' ? '#fff' : accentColor}>
+      <Txt weight="bold" size={16} color={variant === 'solid' ? '#fff' : ink}>
         {label}
       </Txt>
     </View>
@@ -230,10 +238,10 @@ export function BubbleButton({
       >
         {variant === 'solid' ? (
           <LinearGradient
-            colors={colors}
+            colors={fill}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
-            style={[{ borderRadius: radius }, glow(glowColor, 0.5, 20)]}
+            style={[{ borderRadius: radius }, glow(halo, 0.5, 20, C.glowScale)]}
           >
             {inner}
           </LinearGradient>
@@ -241,9 +249,9 @@ export function BubbleButton({
           <View
             style={{
               borderRadius: radius,
-              backgroundColor: variant === 'soft' ? `${glowColor}24` : 'transparent',
+              backgroundColor: variant === 'soft' ? `${halo}24` : 'transparent',
               borderWidth: 1.5,
-              borderColor: `${glowColor}55`,
+              borderColor: `${halo}55`,
             }}
           >
             {inner}
@@ -275,10 +283,11 @@ export function Emoji({ children, size = 15, style }: { children?: React.ReactNo
 }
 
 export function ScreenBackground({ children, style }: { children?: React.ReactNode; style?: StyleProp<ViewStyle> }) {
+  const C = useC();
   return (
     <View style={[{ flex: 1, backgroundColor: C.bg }, style]}>
       <LinearGradient
-        colors={[C.bgDeep, C.bg, '#120a20']}
+        colors={[C.bgDeep, C.bg, C.scheme === 'light' ? C.bgRaise : '#120a20']}
         start={{ x: 0, y: 0 }}
         end={{ x: 0, y: 1 }}
         style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
@@ -308,6 +317,7 @@ export function ScreenBackground({ children, style }: { children?: React.ReactNo
  * personal ScreenBackground.
  */
 export function BizBackground({ children, style }: { children?: React.ReactNode; style?: StyleProp<ViewStyle> }) {
+  const B = useB();
   return (
     <View style={[{ flex: 1, backgroundColor: B.bg }, style]}>
       <LinearGradient

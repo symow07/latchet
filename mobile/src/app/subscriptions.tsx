@@ -6,7 +6,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useState } from 'react';
-import { C } from '@/lib/design';
+import { useC } from '@/lib/design';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -69,10 +69,11 @@ function nextChargeMeta(nextExpectedAt: string | null): { label: string; color: 
 }
 
 function SkeletonCard() {
+  const C = useC();
   return (
     <View
       className="mx-4 mb-3 rounded-2xl overflow-hidden"
-      style={{ backgroundColor: 'rgba(255,255,255,0.05)', padding: 16 }}
+      style={{ backgroundColor: C.glass, padding: 16 }}
     >
       <View className="flex-row items-center gap-3">
         <View className="w-11 h-11 rounded-xl bg-white/10" />
@@ -97,6 +98,7 @@ function SubscriptionCard({
   index: number;
   onPress: () => void;
 }) {
+  const C = useC();
   const nextMeta = nextChargeMeta(sub.nextExpectedAt);
 
   const statusIcon =
@@ -200,7 +202,7 @@ function SubscriptionCard({
                 </View>
                 <View
                   className="h-1.5 rounded-full overflow-hidden"
-                  style={{ backgroundColor: 'rgba(255,255,255,0.1)' }}
+                  style={{ backgroundColor: C.glassStrong }}
                 >
                   <View
                     className="h-full rounded-full"
@@ -221,6 +223,7 @@ function SubscriptionCard({
 }
 
 function EmptyState({ segment }: { segment: SegmentKey }) {
+  const C = useC();
   const configs: Record<SegmentKey, { icon: React.ReactNode; title: string; subtitle: string }> = {
     confirmed: {
       icon: <CheckCircle size={36} color="#22c55e" />,
@@ -244,7 +247,7 @@ function EmptyState({ segment }: { segment: SegmentKey }) {
     <Animated.View entering={FadeInDown.delay(100).springify()} className="items-center py-14 px-8">
       <View
         className="w-20 h-20 rounded-full items-center justify-center mb-4"
-        style={{ backgroundColor: 'rgba(255,255,255,0.05)' }}
+        style={{ backgroundColor: C.glass }}
       >
         {icon}
       </View>
@@ -257,6 +260,7 @@ function EmptyState({ segment }: { segment: SegmentKey }) {
 }
 
 export default function SubscriptionsScreen() {
+  const C = useC();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();

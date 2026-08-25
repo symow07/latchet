@@ -1,5 +1,5 @@
 import { View, Text, Pressable, ActivityIndicator } from 'react-native';
-import { C } from '@/lib/design';
+import { useC } from '@/lib/design';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -14,7 +14,9 @@ import { getEmailStatus, type EmailStatus } from '@/lib/emailSubscriptionApi';
  * both the purple personal subscriptions screen and the navy business tools
  * screen, so it styles with the passed `accent` and plain Plus Jakarta Sans text.
  */
-export function EmailScanCard({ accent = C.p500 }: { accent?: string }) {
+export function EmailScanCard({ accent }: { accent?: string }) {
+  const C = useC();
+  const hue = accent ?? C.p500;
   const router = useRouter();
 
   const { data: status, isLoading } = useQuery<EmailStatus>({
@@ -41,15 +43,15 @@ export function EmailScanCard({ accent = C.p500 }: { accent?: string }) {
           router.push('/email-inbox');
         }}
       >
-        <View className="rounded-2xl overflow-hidden" style={{ borderWidth: 1, borderColor: `${accent}33`, backgroundColor: 'rgba(255,255,255,0.04)' }}>
+        <View className="rounded-2xl overflow-hidden" style={{ borderWidth: 1, borderColor: `${hue}33`, backgroundColor: C.glass }}>
           <LinearGradient
-            colors={[`${accent}22`, 'transparent']}
+            colors={[`${hue}22`, 'transparent']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={{ padding: 16, flexDirection: 'row', alignItems: 'center', gap: 12 }}
           >
-            <View className="w-11 h-11 rounded-xl items-center justify-center" style={{ backgroundColor: `${accent}26` }}>
-              {count > 0 ? <Inbox size={22} color={accent} /> : <Mail size={22} color={accent} />}
+            <View className="w-11 h-11 rounded-xl items-center justify-center" style={{ backgroundColor: `${hue}26` }}>
+              {count > 0 ? <Inbox size={22} color={hue} /> : <Mail size={22} color={hue} />}
             </View>
             <View className="flex-1">
               <Text style={{ color: C.text, fontFamily: 'PlusJakartaSans_700Bold', fontSize: 15 }}>
@@ -62,7 +64,7 @@ export function EmailScanCard({ accent = C.p500 }: { accent?: string }) {
                 </Text>
               </View>
             </View>
-            {isLoading ? <ActivityIndicator size="small" color={accent} /> : <ChevronRight size={20} color={accent} />}
+            {isLoading ? <ActivityIndicator size="small" color={hue} /> : <ChevronRight size={20} color={hue} />}
           </LinearGradient>
         </View>
       </Pressable>

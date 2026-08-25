@@ -13,16 +13,18 @@ import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { detectSubscriptions } from '@/lib/business-subscription-detection';
-import { B, R, glow } from '@/lib/design';
+import { R, glow, useB } from '@/lib/design';
 import { Txt, GlassCard, IconBubble, Pill, BizBackground } from '@/components/ui';
 import { t } from '@/lib/i18n/core';
 import { expenseCategoryLabel } from '@/lib/expense-meta';
 
 function Label({ children }: { children: string }) {
+  const B = useB();
   return <Txt weight="bold" size={11} color={B.textFaint} style={{ letterSpacing: 1.4, marginBottom: 12 }}>{children}</Txt>;
 }
 
 export default function BusinessDashboardTab() {
+  const B = useB();
   const insets = useSafeAreaInsets();
   const { data: session } = useSession();
   const firstName = session?.user?.name?.split(' ')[0] ?? 'there';
@@ -68,7 +70,7 @@ export default function BusinessDashboardTab() {
           <LinearGradient
             colors={[B.slate800, '#16365f']}
             start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-            style={[{ borderRadius: R.lg, padding: 22, borderWidth: 1, borderColor: `${B.accent}33` }, glow(B.accentDeep, 0.3, 22)]}
+            style={[{ borderRadius: R.lg, padding: 22, borderWidth: 1, borderColor: `${B.accent}33` }, glow(B.accentDeep, 0.3, 22, B.glowScale)]}
           >
             <Txt weight="semibold" size={12} color="rgba(255,255,255,0.5)" style={{ letterSpacing: 1, marginBottom: 6 }}>
               {business?.name?.toUpperCase() ?? 'YOUR BUSINESS'}

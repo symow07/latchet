@@ -23,7 +23,7 @@ import {
   getQuickInsights,
   type SpendingAnalysis,
 } from '@/lib/ai-analysis';
-import { C, R, glow } from '@/lib/design';
+import { R, glow, useC } from '@/lib/design';
 import { Txt, GlassCard, IconBubble, ScreenBackground } from '@/components/ui';
 import { useEntitlement } from '@/lib/useEntitlement';
 import { isUpgradeRequired } from '@/lib/entitlementApi';
@@ -37,13 +37,14 @@ interface Message {
 }
 
 const SUGGESTED_PROMPTS = [
-  { icon: TrendingUp, text: 'How am I doing this month?', color: C.p400 },
-  { icon: PiggyBank, text: 'How can I save more money?', color: C.green },
-  { icon: AlertCircle, text: 'Where am I overspending?', color: C.amber },
-  { icon: Lightbulb, text: 'Give me personalized tips', color: C.sky },
+  { icon: TrendingUp, text: 'How am I doing this month?', color: '#a855f7' },
+  { icon: PiggyBank, text: 'How can I save more money?', color: '#10b981' },
+  { icon: AlertCircle, text: 'Where am I overspending?', color: '#f59e0b' },
+  { icon: Lightbulb, text: 'Give me personalized tips', color: '#0ea5e9' },
 ];
 
 export default function AdvisorTab() {
+  const C = useC();
   const { handleUpgradeRequired } = useEntitlement();
   const insets = useSafeAreaInsets();
   const scrollViewRef = useRef<ScrollView>(null);
@@ -117,7 +118,7 @@ export default function AdvisorTab() {
       {/* ── Header ── */}
       <View style={{ paddingTop: insets.top + 12, paddingBottom: 6, paddingHorizontal: 20, alignItems: 'center' }}>
         <View className="flex-row items-center" style={{ gap: 10 }}>
-          <LinearGradient colors={[C.p600, C.p400]} style={[{ width: 38, height: 38, borderRadius: 14, alignItems: 'center', justifyContent: 'center' }, glow(C.p500, 0.45, 12)]}>
+          <LinearGradient colors={[C.p600, C.p400]} style={[{ width: 38, height: 38, borderRadius: 14, alignItems: 'center', justifyContent: 'center' }, glow(C.p500, 0.45, 12, C.glowScale)]}>
             <Bot size={20} color="#fff" />
           </LinearGradient>
           <View>
@@ -196,7 +197,7 @@ export default function AdvisorTab() {
                 {isUser ? (
                   <LinearGradient
                     colors={[C.p600, C.p500]}
-                    style={[{ maxWidth: '86%', borderRadius: R.lg, borderBottomRightRadius: 8, padding: 14 }, glow(C.p500, 0.3, 14)]}
+                    style={[{ maxWidth: '86%', borderRadius: R.lg, borderBottomRightRadius: 8, padding: 14 }, glow(C.p500, 0.3, 14, C.glowScale)]}
                   >
                     <View className="flex-row items-center mb-2" style={{ gap: 6 }}>
                       <View style={{ width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.2)' }}>
@@ -254,7 +255,7 @@ export default function AdvisorTab() {
             <Pressable onPress={handleSend} disabled={!canSend}>
               <LinearGradient
                 colors={canSend ? [C.p600, C.p400] : ['#2a2138', '#2a2138']}
-                style={[{ width: 50, height: 50, borderRadius: 18, alignItems: 'center', justifyContent: 'center' }, canSend ? glow(C.p500, 0.5, 14) : null]}
+                style={[{ width: 50, height: 50, borderRadius: 18, alignItems: 'center', justifyContent: 'center' }, canSend ? glow(C.p500, 0.5, 14, C.glowScale) : null]}
               >
                 <Send size={20} color={canSend ? '#fff' : C.textFaint} />
               </LinearGradient>

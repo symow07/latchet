@@ -1,5 +1,5 @@
 import { View, Text, Pressable, ScrollView, TextInput, Modal } from 'react-native';
-import { C } from '@/lib/design';
+import { useC } from '@/lib/design';
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -26,18 +26,19 @@ import { t } from '@/lib/i18n/core';
 const ACCOUNT_TYPES = [
   { id: 'cash', label: 'Cash', icon: Wallet, color: '#22c55e' },
   { id: 'checking', label: 'Checking', icon: Building2, color: '#3b82f6' },
-  { id: 'savings', label: 'Savings', icon: PiggyBank, color: C.p500 },
+  { id: 'savings', label: 'Savings', icon: PiggyBank, color: '#9333ea' },
   { id: 'credit', label: 'Credit Card', icon: CreditCard, color: '#ef4444' },
   { id: 'investment', label: 'Investment', icon: TrendingUp, color: '#f59e0b' },
   { id: 'other', label: 'Other', icon: MoreHorizontal, color: '#6b7280' },
 ];
 
 const ACCOUNT_COLORS = [
-  '#22c55e', '#3b82f6', C.p500, '#ef4444', '#f59e0b',
+  '#22c55e', '#3b82f6', '#9333ea', '#ef4444', '#f59e0b',
   '#06b6d4', '#ec4899', '#84cc16', '#f97316', '#6366f1',
 ];
 
 export default function AccountsScreen() {
+  const C = useC();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
@@ -152,7 +153,7 @@ export default function AccountsScreen() {
   };
 
   return (
-    <View className="flex-1 bg-[#0c0716]">
+    <View className="flex-1" style={{ backgroundColor: C.bg }}>
       {/* Header */}
       <LinearGradient
         colors={[C.p600, C.p500, C.p400, '#1e1b2e']}
@@ -225,7 +226,7 @@ export default function AccountsScreen() {
               >
                 <View
                   className="rounded-2xl p-4 flex-row items-center"
-                  style={{ backgroundColor: 'rgba(255,255,255,0.05)' }}
+                  style={{ backgroundColor: C.glass }}
                 >
                   <View
                     className="w-12 h-12 rounded-xl items-center justify-center mr-4"
@@ -271,7 +272,7 @@ export default function AccountsScreen() {
           setEditingAccount(null);
         }}
       >
-        <View className="flex-1 bg-[#0c0716]">
+        <View className="flex-1" style={{ backgroundColor: C.bg }}>
           <View
             className="flex-row items-center justify-between px-5 py-4 border-b border-gray-800"
             style={{ paddingTop: 16 }}
@@ -308,7 +309,7 @@ export default function AccountsScreen() {
               <Text className="text-gray-400 text-sm mb-2 ml-1">{t('accounts.accountName')}</Text>
               <View
                 className="rounded-2xl px-4 py-4"
-                style={{ backgroundColor: 'rgba(255,255,255,0.05)' }}
+                style={{ backgroundColor: C.glass }}
               >
                 <TextInput
                   value={name}
@@ -368,7 +369,7 @@ export default function AccountsScreen() {
               </Text>
               <View
                 className="flex-row items-center rounded-2xl px-4 py-4"
-                style={{ backgroundColor: 'rgba(255,255,255,0.05)' }}
+                style={{ backgroundColor: C.glass }}
               >
                 <Text className="text-white text-xl mr-1">{settings?.currencySymbol || '$'}</Text>
                 <TextInput

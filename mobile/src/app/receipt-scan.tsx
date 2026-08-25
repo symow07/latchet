@@ -8,7 +8,7 @@ import {
   Switch,
 } from 'react-native';
 import { Image } from 'expo-image';
-import { C } from '@/lib/design';
+import { useC } from '@/lib/design';
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -64,6 +64,7 @@ async function analyzeReceiptWithAI(base64Image: string): Promise<ExtractedData>
 }
 
 export default function ReceiptScanScreen() {
+  const C = useC();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
@@ -346,9 +347,9 @@ export default function ReceiptScanScreen() {
                   padding: 20,
                   flexDirection: 'row',
                   alignItems: 'center',
-                  backgroundColor: 'rgba(255,255,255,0.06)',
+                  backgroundColor: C.glass,
                   borderWidth: 1,
-                  borderColor: 'rgba(255,255,255,0.1)',
+                  borderColor: C.glassBorder,
                 }}
               >
                 <View
@@ -390,7 +391,7 @@ export default function ReceiptScanScreen() {
                   style={{
                     flexDirection: 'row',
                     alignItems: 'center',
-                    backgroundColor: 'rgba(255,255,255,0.04)',
+                    backgroundColor: C.glass,
                     borderRadius: 12,
                     padding: 12,
                     marginBottom: 8,
@@ -560,7 +561,7 @@ export default function ReceiptScanScreen() {
                 style={{
                   flexDirection: 'row',
                   alignItems: 'center',
-                  backgroundColor: 'rgba(255,255,255,0.06)',
+                  backgroundColor: C.glass,
                   borderRadius: 16,
                   paddingHorizontal: 16,
                   paddingVertical: 14,
@@ -641,12 +642,12 @@ export default function ReceiptScanScreen() {
                 style={{
                   flexDirection: 'row',
                   alignItems: 'center',
-                  backgroundColor: 'rgba(255,255,255,0.06)',
+                  backgroundColor: C.glass,
                   borderRadius: 16,
                   paddingHorizontal: 16,
                   paddingVertical: 14,
                   borderWidth: 1,
-                  borderColor: 'rgba(255,255,255,0.08)',
+                  borderColor: C.glassBorder,
                 }}
               >
                 <FileText size={18} color="#6b7280" style={{ marginRight: 10 }} />
@@ -722,12 +723,12 @@ export default function ReceiptScanScreen() {
                 style={{
                   flexDirection: 'row',
                   alignItems: 'center',
-                  backgroundColor: 'rgba(255,255,255,0.06)',
+                  backgroundColor: C.glass,
                   borderRadius: 16,
                   paddingHorizontal: 16,
                   paddingVertical: 14,
                   borderWidth: 1,
-                  borderColor: 'rgba(255,255,255,0.08)',
+                  borderColor: C.glassBorder,
                 }}
               >
                 <Calendar size={18} color="#6b7280" style={{ marginRight: 10 }} />
@@ -876,7 +877,7 @@ export default function ReceiptScanScreen() {
             paddingBottom: Math.max(insets.bottom, 18),
             backgroundColor: C.bg,
             borderTopWidth: 1,
-            borderTopColor: 'rgba(255,255,255,0.07)',
+            borderTopColor: C.glassBorder,
           }}
         >
           <Pressable

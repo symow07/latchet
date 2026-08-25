@@ -2,9 +2,10 @@ import { Tabs } from 'expo-router';
 import { View, Platform } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { LayoutDashboard, Receipt, Users, Wallet, PieChart, Settings } from 'lucide-react-native';
-import { B } from '@/lib/design';
+import { useB } from '@/lib/design';
 
 function TabIcon({ name, color, focused }: { name: string; color: string; focused: boolean }) {
+  const B = useB();
   const props = { size: 21, color, strokeWidth: focused ? 2.5 : 2 };
   const icon = (() => {
     switch (name) {
@@ -31,6 +32,7 @@ function TabIcon({ name, color, focused }: { name: string; color: string; focuse
 }
 
 export default function BusinessTabLayout() {
+  const B = useB();
   return (
     <Tabs
       screenOptions={{

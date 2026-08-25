@@ -13,7 +13,7 @@ import {
   getEmailStatus, getInboxAddress, getInbox, importInboxSubscriptions,
   type EmailStatus, type InboxItem,
 } from '@/lib/emailSubscriptionApi';
-import { C, R } from '@/lib/design';
+import { R, useC } from '@/lib/design';
 import { Txt, GlassCard, IconBubble, Pill, BubbleButton, ScreenBackground } from '@/components/ui';
 import { t } from '@/lib/i18n/core';
 
@@ -25,6 +25,7 @@ const STEPS = [
 ];
 
 export default function EmailInboxScreen() {
+  const C = useC();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const qc = useQueryClient();
@@ -105,7 +106,7 @@ export default function EmailInboxScreen() {
                     : <Pill label="Awaiting first email" color={C.amber} />}
                 </View>
                 <View className="flex-row items-center" style={{ gap: 10 }}>
-                  <View style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: R.md, paddingHorizontal: 14, paddingVertical: 13, borderWidth: 1, borderColor: C.glassBorder }}>
+                  <View style={{ flex: 1, backgroundColor: C.glass, borderRadius: R.md, paddingHorizontal: 14, paddingVertical: 13, borderWidth: 1, borderColor: C.glassBorder }}>
                     <Txt weight="semibold" size={14} color={C.text} numberOfLines={1}>{addr?.address ?? '…'}</Txt>
                   </View>
                   <Pressable onPress={copyAddress} style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1, width: 48, height: 48, borderRadius: R.md, backgroundColor: copied ? `${C.green}26` : `${C.p500}26`, borderWidth: 1, borderColor: copied ? `${C.green}55` : `${C.p500}55`, alignItems: 'center', justifyContent: 'center' })}>

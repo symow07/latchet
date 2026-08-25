@@ -18,40 +18,43 @@ import { getBudget, setBudget, type BudgetCategory, type BudgetData } from '@/li
 import { getBusiness } from '@/lib/businessApi';
 import { useSession } from '@/lib/auth/use-session';
 import { useFocusEffect } from 'expo-router';
-import { B, R, glow } from '@/lib/design';
+import { R, glow, useB } from '@/lib/design';
 import { Txt, GlassCard, IconBubble, BizBackground, BubbleButton } from '@/components/ui';
 import { t } from '@/lib/i18n/core';
 
 const ALL_CATEGORIES: { key: BudgetCategory; label: string; icon: React.ComponentType<{ size: number; color: string }>; color: string }[] = [
   { key: 'Travel', label: 'Travel', icon: Plane, color: '#818cf8' },
-  { key: 'Software', label: 'Software', icon: Laptop, color: B.teal },
-  { key: 'Meals', label: 'Meals', icon: Coffee, color: B.amber },
-  { key: 'Transport', label: 'Transport', icon: Car, color: B.accent },
+  { key: 'Software', label: 'Software', icon: Laptop, color: '#14b8a6' },
+  { key: 'Meals', label: 'Meals', icon: Coffee, color: '#f59e0b' },
+  { key: 'Transport', label: 'Transport', icon: Car, color: '#3b82f6' },
   { key: 'Office', label: 'Office', icon: Building, color: '#f472b6' },
   { key: 'Other', label: 'Other', icon: Tag, color: '#a78bfa' },
 ];
 
 function pct(spent: number, budget: number) { if (budget <= 0) return 0; return Math.min((spent / budget) * 100, 100); }
-function barColor(p: number) { if (p >= 100) return B.red; if (p >= 80) return B.amber; return B.teal; }
+function barColor(p: number) { if (p >= 100) return '#ef4444'; if (p >= 80) return '#f59e0b'; return '#14b8a6'; }
 
 function ProgressBar({ pct: targetPct, color, delay = 0 }: { pct: number; color: string; delay?: number }) {
+  const B = useB();
   const width = useSharedValue(0);
   useFocusEffect(useCallback(() => {
     width.value = withDelay(delay, withTiming(targetPct, { duration: 700, easing: Easing.out(Easing.cubic) }));
   }, [targetPct, delay, width]));
   const barStyle = useAnimatedStyle(() => ({ width: `${width.value}%` }));
   return (
-    <View style={{ height: 7, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 4, overflow: 'hidden' }}>
+    <View style={{ height: 7, backgroundColor: B.glassStrong, borderRadius: 4, overflow: 'hidden' }}>
       <Animated.View style={[{ height: '100%', borderRadius: 4, backgroundColor: color }, barStyle]} />
     </View>
   );
 }
 
 function FieldLabel({ children }: { children: string }) {
+  const B = useB();
   return <Txt weight="bold" size={11} color={B.textFaint} style={{ letterSpacing: 1.2, marginBottom: 8 }}>{children}</Txt>;
 }
 
 function EditBudgetModal({ visible, onClose, currentData }: { visible: boolean; onClose: () => void; currentData: BudgetData | null | undefined }) {
+  const B = useB();
   const qc = useQueryClient();
   const [total, setTotal] = useState('');
   const [catVals, setCatVals] = useState<Partial<Record<BudgetCategory, string>>>({});
@@ -125,6 +128,7 @@ function EditBudgetModal({ visible, onClose, currentData }: { visible: boolean; 
 }
 
 function CategoryRow({ cat, spent, budget, index }: { cat: typeof ALL_CATEGORIES[number]; spent: number; budget: number; index: number }) {
+  const B = useB();
   const Icon = cat.icon;
   const p = pct(spent, budget);
   const color = barColor(p);
@@ -159,6 +163,7 @@ function CategoryRow({ cat, spent, budget, index }: { cat: typeof ALL_CATEGORIES
 }
 
 export default function BudgetScreen() {
+  const B = useB();
   const insets = useSafeAreaInsets();
   const qc = useQueryClient();
   const { data: session } = useSession();
@@ -216,7 +221,7 @@ export default function BudgetScreen() {
               <LinearGradient
                 colors={overBudget ? ['#220a0a', '#170808'] : overallWarn ? ['#221606', '#171005'] : [B.slate800, '#102a4a']}
                 start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-                style={[{ borderRadius: R.lg, padding: 22, borderWidth: 1, borderColor: overBudget ? `${B.red}44` : overallWarn ? `${B.amber}44` : `${B.accent}2a` }, glow(overBudget ? B.red : B.accentDeep, 0.25, 20)]}
+                style={[{ borderRadius: R.lg, padding: 22, borderWidth: 1, borderColor: overBudget ? `${B.red}44` : overallWarn ? `${B.amber}44` : `${B.accent}2a` }, glow(overBudget ? B.red : B.accentDeep, 0.25, 20, B.glowScale)]}
               >
                 {(overBudget || overallWarn) && (
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: overBudget ? `${B.red}1a` : `${B.amber}1a`, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, marginBottom: 14, borderWidth: 1, borderColor: overBudget ? `${B.red}33` : `${B.amber}33` }}>

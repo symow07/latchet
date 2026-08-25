@@ -17,7 +17,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInUp } from 'react-native-reanimated';
-import { C, R, glow } from '@/lib/design';
+import { R, glow, useC } from '@/lib/design';
 import { Txt, GlassCard, IconBubble, BubbleButton, ScreenBackground, Emoji } from '@/components/ui';
 import { getCategories, DEFAULT_CATEGORIES, CATEGORY_EMOJIS, CATEGORY_COLORS, categoryLabel } from '@/lib/categories';
 import { t } from '@/lib/i18n/core';
@@ -34,6 +34,7 @@ const getAccountIcon = (type: string) => {
 };
 
 function FieldLabel({ icon, label }: { icon: React.ReactNode; label: string }) {
+  const C = useC();
   return (
     <View className="flex-row items-center mb-3" style={{ gap: 8 }}>
       {icon}
@@ -43,6 +44,7 @@ function FieldLabel({ icon, label }: { icon: React.ReactNode; label: string }) {
 }
 
 export default function AddTransactionScreen() {
+  const C = useC();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [amount, setAmount] = useState('');
@@ -170,9 +172,9 @@ export default function AddTransactionScreen() {
               colors={[C.p700, C.p600, C.p800]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
-              style={[{ borderRadius: R.xl, padding: 22, marginTop: 18, overflow: 'hidden' }, glow(C.p600, 0.4, 24)]}
+              style={[{ borderRadius: R.xl, padding: 22, marginTop: 18, overflow: 'hidden' }, glow(C.p600, 0.4, 24, C.glowScale)]}
             >
-              <View style={{ position: 'absolute', top: -50, right: -40, width: 160, height: 160, borderRadius: 80, backgroundColor: 'rgba(255,255,255,0.10)' }} />
+              <View style={{ position: 'absolute', top: -50, right: -40, width: 160, height: 160, borderRadius: 80, backgroundColor: C.glassStrong }} />
               <View className="flex-row items-center mb-2" style={{ gap: 6 }}>
                 <DollarSign size={15} color="rgba(255,255,255,0.75)" />
                 <Txt weight="semibold" size={13} color="rgba(255,255,255,0.8)">{t('addTransaction.howMuch')}</Txt>

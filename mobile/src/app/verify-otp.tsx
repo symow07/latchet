@@ -1,5 +1,5 @@
 import { ScreenBackground } from '@/components/ui';
-import { C } from '@/lib/design';
+import { useC } from '@/lib/design';
 import { View, Text, TextInput, Pressable, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
 import { useState, useRef } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -15,6 +15,7 @@ import { t } from '@/lib/i18n/core';
 const OTP_LENGTH = 6;
 
 export default function VerifyOTPScreen() {
+  const C = useC();
   const { email } = useLocalSearchParams<{ email: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();

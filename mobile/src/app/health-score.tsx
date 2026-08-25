@@ -6,7 +6,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { useState, useEffect } from 'react';
-import { C } from '@/lib/design';
+import { useC } from '@/lib/design';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -45,6 +45,7 @@ const RADIUS = (CIRCLE_SIZE - STROKE_WIDTH) / 2;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
 export default function HealthScoreScreen() {
+  const C = useC();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [healthScore, setHealthScore] = useState<HealthScoreResult | null>(null);
@@ -97,7 +98,7 @@ export default function HealthScoreScreen() {
 
   if (!healthScore || !settings) {
     return (
-      <View className="flex-1 bg-[#0c0716] items-center justify-center">
+      <View className="flex-1 items-center justify-center" style={{ backgroundColor: C.bg }}>
         <Text className="text-gray-400">{t('common.loading')}</Text>
       </View>
     );
@@ -153,7 +154,7 @@ export default function HealthScoreScreen() {
   const TrendIcon = healthScore.trend === 'up' ? TrendingUp : healthScore.trend === 'down' ? TrendingDown : Minus;
 
   return (
-    <View className="flex-1 bg-[#0c0716]">
+    <View className="flex-1" style={{ backgroundColor: C.bg }}>
       {/* Header */}
       <LinearGradient
         colors={[healthScore.gradeColor, adjustColor(healthScore.gradeColor, -30)]}
@@ -258,7 +259,7 @@ export default function HealthScoreScreen() {
           <View
             className="rounded-2xl p-4"
             style={{
-              backgroundColor: 'rgba(255,255,255,0.05)',
+              backgroundColor: C.glass,
               borderWidth: 1,
               borderColor: `${personality.color}40`,
             }}
@@ -286,7 +287,7 @@ export default function HealthScoreScreen() {
             >
               <View
                 className="rounded-xl p-4 mb-2"
-                style={{ backgroundColor: 'rgba(255,255,255,0.05)' }}
+                style={{ backgroundColor: C.glass }}
               >
                 <View className="flex-row items-center justify-between mb-3">
                   <View className="flex-row items-center">

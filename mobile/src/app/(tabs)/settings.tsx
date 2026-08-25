@@ -22,7 +22,7 @@ import { useAccountTypeStore } from '@/lib/account-type-store';
 import { isBiometricAvailable } from '@/lib/biometric';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInUp } from 'react-native-reanimated';
-import { C, R, glow } from '@/lib/design';
+import { R, glow, useC } from '@/lib/design';
 import { DeleteAccountModal, UnrevokedGrantsNotice } from '@/components/DeleteAccountModal';
 import { useEntitlement } from '@/lib/useEntitlement';
 import { t, getLocale, SUPPORTED_LOCALES, LOCALE_LABELS, type AppLocale } from '@/lib/i18n/core';
@@ -31,10 +31,12 @@ import type { UnrevokedGrant } from '@/lib/accountApi';
 import { Txt, GlassCard, IconBubble, BubbleButton, ScreenBackground } from '@/components/ui';
 
 function SectionLabel({ children }: { children: string }) {
+  const C = useC();
   return <Txt weight="bold" size={11} color={C.lilac} style={{ marginBottom: 12, marginLeft: 4, letterSpacing: 1.2 }}>{children}</Txt>;
 }
 
 function NavRow({ icon, color, label, desc, onPress }: { icon: React.ReactNode; color: string; label: string; desc: string; onPress: () => void }) {
+  const C = useC();
   return (
     <Pressable onPress={onPress} style={({ pressed }) => ({ opacity: pressed ? 0.75 : 1 })}>
       <GlassCard padding={14} tint={`${color}14`} border={`${color}2a`}>
@@ -56,6 +58,7 @@ function NavRow({ icon, color, label, desc, onPress }: { icon: React.ReactNode; 
 function MoneyInput({ icon, color, label, hint, value, onChangeText, placeholder, suffix }: {
   icon: React.ReactNode; color: string; label: string; hint: string; value: string; onChangeText: (t: string) => void; placeholder: string; suffix?: string;
 }) {
+  const C = useC();
   return (
     <View style={{ marginBottom: 14 }}>
       <View className="flex-row items-center mb-2" style={{ gap: 8 }}>
@@ -83,6 +86,7 @@ function MoneyInput({ icon, color, label, hint, value, onChangeText, placeholder
 }
 
 function ToggleRow({ icon, color, label, desc, value, onValueChange }: { icon: React.ReactNode; color: string; label: string; desc: string; value: boolean; onValueChange: (v: boolean) => void }) {
+  const C = useC();
   return (
     <GlassCard padding={14} tint={`${color}12`} border={`${color}28`}>
       <View className="flex-row items-center justify-between">
@@ -105,6 +109,7 @@ function ToggleRow({ icon, color, label, desc, value, onValueChange }: { icon: R
 }
 
 export default function SettingsScreen() {
+  const C = useC();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
@@ -279,7 +284,7 @@ export default function SettingsScreen() {
         {/* ── Save ── */}
         <View style={{ paddingHorizontal: 20, paddingTop: 26 }}>
           {saved ? (
-            <LinearGradient colors={[C.green, '#059669']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={[{ borderRadius: R.md, paddingVertical: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }, glow(C.green, 0.4, 18)]}>
+            <LinearGradient colors={[C.green, '#059669']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={[{ borderRadius: R.md, paddingVertical: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }, glow(C.green, 0.4, 18, C.glowScale)]}>
               <Check size={20} color="#fff" />
 <Txt weight="bold" size={16} color="#fff">Saved! </Txt>
             </LinearGradient>
@@ -340,7 +345,7 @@ export default function SettingsScreen() {
                     paddingVertical: 12,
                     paddingHorizontal: 10,
                     borderBottomWidth: i < SUPPORTED_LOCALES.length - 1 ? 1 : 0,
-                    borderBottomColor: 'rgba(255,255,255,0.06)',
+                    borderBottomColor: C.glassBorder,
                   }}
                 >
                   <Txt size={15} color={active ? C.text : C.textFaint}>

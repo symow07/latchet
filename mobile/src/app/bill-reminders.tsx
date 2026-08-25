@@ -11,7 +11,7 @@ import {
   Platform,
 } from 'react-native';
 import { useState } from 'react';
-import { C } from '@/lib/design';
+import { useC } from '@/lib/design';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -193,6 +193,7 @@ function BillCard({
   onMarkPaid: (bill: BillReminder) => void;
   onDelete: (id: string) => void;
 }) {
+  const C = useC();
   const days = daysUntilDue(bill.nextDueDate);
   const color = bill.isPaid ? '#4b5563' : urgencyColor(days);
   const label = urgencyLabel(days);
@@ -347,6 +348,7 @@ function AddBillModal({
   onSubmit: (data: CreateBillBody) => void;
   isLoading: boolean;
 }) {
+  const C = useC();
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('');
   const [dueDay, setDueDay] = useState('1');
@@ -687,6 +689,7 @@ function AddBillModal({
 // ─── Main Screen ─────────────────────────────────────────────────────────────
 
 export default function BillRemindersScreen() {
+  const C = useC();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();

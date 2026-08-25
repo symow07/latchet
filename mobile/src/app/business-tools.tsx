@@ -21,13 +21,14 @@ import {
 } from '@/lib/business-subscription-detection';
 import { getEmailDetectedForBusiness } from '@/lib/emailSubscriptionApi';
 import { EmailScanCard } from '@/components/EmailScanCard';
-import { B, R, glow } from '@/lib/design';
+import { R, glow, useB } from '@/lib/design';
 import { Txt, GlassCard, IconBubble, BizBackground, BubbleButton } from '@/components/ui';
 import { t } from '@/lib/i18n/core';
 import { categoryLabel } from '@/lib/categories';
 
 // ─── Cancel Guide Modal ─────────────────────────────────────────────────────────
 function CancelGuideModal({ sub, visible, onClose }: { sub: DetectedSubscription | null; visible: boolean; onClose: () => void }) {
+  const B = useB();
   if (!sub) return null;
   const steps = [
     { t: 'Go to the billing page', d: sub.cancelInstructions },
@@ -98,6 +99,7 @@ function CancelGuideModal({ sub, visible, onClose }: { sub: DetectedSubscription
 
 // ─── Subscription Card ──────────────────────────────────────────────────────────
 function SubscriptionCard({ sub, onCancelGuide }: { sub: DetectedSubscription; onCancelGuide: (sub: DetectedSubscription) => void }) {
+  const B = useB();
   const [expanded, setExpanded] = useState(false);
   const daysUntil = Math.round((new Date(sub.nextChargeDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
   const isUrgent = daysUntil <= 7 && daysUntil >= 0;
@@ -134,7 +136,7 @@ function SubscriptionCard({ sub, onCancelGuide }: { sub: DetectedSubscription; o
       </Pressable>
 
       {expanded && (
-        <View style={{ borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.06)', paddingHorizontal: 16, paddingVertical: 14, backgroundColor: 'rgba(0,0,0,0.15)' }}>
+        <View style={{ borderTopWidth: 1, borderTopColor: B.glassBorder, paddingHorizontal: 16, paddingVertical: 14, backgroundColor: 'rgba(0,0,0,0.15)' }}>
           <View style={{ flexDirection: 'row', marginBottom: 14 }}>
             <View style={{ flex: 1 }}>
               <Txt weight="bold" size={10} color={B.textFaint} style={{ letterSpacing: 0.8, marginBottom: 4 }}>{t('businessTools.annualCost')}</Txt>
@@ -163,6 +165,7 @@ function SubscriptionCard({ sub, onCancelGuide }: { sub: DetectedSubscription; o
 
 // ─── Main Screen ────────────────────────────────────────────────────────────────
 export default function BusinessToolsScreen() {
+  const B = useB();
   const insets = useSafeAreaInsets();
   const [cancelSub, setCancelSub] = useState<DetectedSubscription | null>(null);
 
@@ -218,7 +221,7 @@ export default function BusinessToolsScreen() {
           <>
             {/* Summary banner */}
             <View style={{ marginHorizontal: 20, marginBottom: 20 }}>
-              <LinearGradient colors={[B.slate800, '#102a4a']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[{ borderRadius: R.lg, padding: 24, borderWidth: 1, borderColor: `${B.accent}2a` }, glow(B.accentDeep, 0.25, 22)]}>
+              <LinearGradient colors={[B.slate800, '#102a4a']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[{ borderRadius: R.lg, padding: 24, borderWidth: 1, borderColor: `${B.accent}2a` }, glow(B.accentDeep, 0.25, 22, B.glowScale)]}>
                 <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 }}>
                   <View>
                     <Txt weight="semibold" size={12} color="rgba(255,255,255,0.4)" style={{ letterSpacing: 1, marginBottom: 6 }}>{t('businessTools.monthlySpend')}</Txt>
@@ -238,7 +241,7 @@ export default function BusinessToolsScreen() {
                     { label: 'RECURRING', value: `${subscriptions.filter(s => s.isRecurring).length}`, color: B.teal },
                     { label: 'DUE SOON', value: `${upcoming.length}`, color: upcoming.length > 0 ? B.amber : B.textFaint },
                   ].map(stat => (
-                    <View key={stat.label} style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 14, padding: 12, alignItems: 'center' }}>
+                    <View key={stat.label} style={{ flex: 1, backgroundColor: B.glass, borderRadius: 14, padding: 12, alignItems: 'center' }}>
                       <Txt weight="bold" size={18} color={stat.color}>{stat.value}</Txt>
                       <Txt weight="bold" size={9} color={B.textFaint} style={{ letterSpacing: 0.8, marginTop: 2 }}>{stat.label}</Txt>
                     </View>

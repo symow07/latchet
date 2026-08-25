@@ -20,18 +20,20 @@ import {
   type SalaryRecord,
 } from '@/lib/salaryApi';
 import { type TeamMember } from '@/lib/businessApi';
-import { B, R, glow } from '@/lib/design';
+import { R, glow, useB } from '@/lib/design';
 import { Txt, GlassCard, IconBubble, Pill, BizBackground, BubbleButton } from '@/components/ui';
 import { t } from '@/lib/i18n/core';
 
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
 function FieldLabel({ children }: { children: string }) {
+  const B = useB();
   return <Txt weight="bold" size={11} color={B.textFaint} style={{ letterSpacing: 1.2, marginBottom: 8 }}>{children}</Txt>;
 }
 
 // ─── Add Salary Modal ──────────────────────────────────────────────────────────────
 function AddSalaryModal({ visible, onClose, members, existingUserIds }: { visible: boolean; onClose: () => void; members: TeamMember[]; existingUserIds: Set<string> }) {
+  const B = useB();
   const qc = useQueryClient();
   const [selectedUserId, setSelectedUserId] = useState('');
   const [amount, setAmount] = useState('');
@@ -138,6 +140,7 @@ function AddSalaryModal({ visible, onClose, members, existingUserIds }: { visibl
 
 // ─── Pay Toggle ──────────────────────────────────────────────────────────────────
 function PayToggle({ paid, onToggle, disabled }: { paid: boolean; onToggle: () => void; disabled: boolean }) {
+  const B = useB();
   const tx = useSharedValue(paid ? 22 : 2);
   const handleToggle = () => { if (disabled) return; const next = !paid; tx.value = withSpring(next ? 22 : 2, { damping: 18, stiffness: 200 }); onToggle(); };
   const thumbStyle = useAnimatedStyle(() => ({ transform: [{ translateX: tx.value }] }));
@@ -150,6 +153,7 @@ function PayToggle({ paid, onToggle, disabled }: { paid: boolean; onToggle: () =
 
 // ─── Employee Row ────────────────────────────────────────────────────────────────
 function EmployeeRow({ record, month, canEdit, onToggle, onDelete }: { record: SalaryRecord; month: number; year: number; canEdit: boolean; onToggle: (id: string, paid: boolean) => void; onDelete: (id: string, name: string) => void }) {
+  const B = useB();
   const paid = record.payment.status === 'paid';
   const initials = (record.user.name ?? '?').split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase();
 
@@ -174,7 +178,7 @@ function EmployeeRow({ record, month, canEdit, onToggle, onDelete }: { record: S
       </View>
 
       {(paid || canEdit) && (
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.06)' }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: B.glassBorder }}>
           <View style={{ flex: 1 }}>
             {paid && record.payment.paidAt && <Txt size={11} color={B.textFaint}>Paid {new Date(record.payment.paidAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</Txt>}
             {!paid && <Txt size={11} color={B.textFaint}>Pending payment for {MONTH_NAMES[month - 1]}</Txt>}
@@ -192,6 +196,7 @@ function EmployeeRow({ record, month, canEdit, onToggle, onDelete }: { record: S
 
 // ─── Main Screen ─────────────────────────────────────────────────────────────────
 export default function PayrollScreen() {
+  const B = useB();
   const insets = useSafeAreaInsets();
   const qc = useQueryClient();
   const { data: session } = useSession();
@@ -276,7 +281,7 @@ export default function PayrollScreen() {
           <>
             {/* Summary banner */}
             <View style={{ marginHorizontal: 20, marginBottom: 16 }}>
-              <LinearGradient colors={[B.slate800, '#102a4a']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[{ borderRadius: R.lg, padding: 22, borderWidth: 1, borderColor: `${B.accent}2a` }, glow(B.accentDeep, 0.25, 20)]}>
+              <LinearGradient colors={[B.slate800, '#102a4a']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[{ borderRadius: R.lg, padding: 22, borderWidth: 1, borderColor: `${B.accent}2a` }, glow(B.accentDeep, 0.25, 20, B.glowScale)]}>
                 <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 18 }}>
                   <View>
                     <Txt weight="semibold" size={12} color="rgba(255,255,255,0.4)" style={{ letterSpacing: 1, marginBottom: 4 }}>{t('businessPayroll.total')}</Txt>
@@ -292,7 +297,7 @@ export default function PayrollScreen() {
                 </View>
 
                 {salaries.length > 0 && (
-                  <View style={{ marginBottom: 14, height: 7, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 4, overflow: 'hidden' }}>
+                  <View style={{ marginBottom: 14, height: 7, backgroundColor: B.glassStrong, borderRadius: 4, overflow: 'hidden' }}>
                     <View style={{ height: '100%', width: `${paidPct}%`, borderRadius: 4, backgroundColor: paidPct === 100 ? B.teal : B.accent }} />
                   </View>
                 )}

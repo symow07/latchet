@@ -1,5 +1,5 @@
 import { ScreenBackground } from '@/components/ui';
-import { C } from '@/lib/design';
+import { useC } from '@/lib/design';
 import { View, Text, Pressable, ScrollView, TextInput, Keyboard } from 'react-native';
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
@@ -41,6 +41,7 @@ const PRIMARY_GOALS = [
 ];
 
 export default function OnboardingScreen() {
+  const C = useC();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [step, setStep] = useState(0);
@@ -213,7 +214,7 @@ export default function OnboardingScreen() {
               <Text className="text-gray-400 text-sm mb-2 ml-1">{t('onboarding.monthlyIncome')}</Text>
               <View
                 className="flex-row items-center rounded-2xl px-4 py-4"
-                style={{ backgroundColor: 'rgba(255,255,255,0.05)' }}
+                style={{ backgroundColor: C.glass }}
               >
                 <View className="w-10 h-10 rounded-xl bg-green-500/20 items-center justify-center mr-3">
                   <DollarSign size={20} color="#22c55e" />
@@ -238,7 +239,7 @@ export default function OnboardingScreen() {
               <Text className="text-gray-400 text-sm mb-2 ml-1">{t('onboarding.savingsGoal')}</Text>
               <View
                 className="flex-row items-center rounded-2xl px-4 py-4"
-                style={{ backgroundColor: 'rgba(255,255,255,0.05)' }}
+                style={{ backgroundColor: C.glass }}
               >
                 <View className="w-10 h-10 rounded-xl bg-purple-500/20 items-center justify-center mr-3">
                   <Target size={20} color={C.p500} />
@@ -398,7 +399,7 @@ export default function OnboardingScreen() {
               <Pressable
                 onPress={prevStep}
                 className="flex-row items-center justify-center px-6 py-4 rounded-2xl"
-                style={{ backgroundColor: 'rgba(255,255,255,0.05)' }}
+                style={{ backgroundColor: C.glass }}
               >
                 <ArrowLeft size={20} color="#9ca3af" />
                 <Text className="text-gray-400 font-semibold ml-2">{t('common.back')}</Text>

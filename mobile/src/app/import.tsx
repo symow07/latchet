@@ -7,7 +7,7 @@ import {
   Alert,
 } from 'react-native';
 import { useState, useCallback } from 'react';
-import { C } from '@/lib/design';
+import { useC } from '@/lib/design';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQueryClient } from '@tanstack/react-query';
@@ -66,6 +66,7 @@ interface StatementRow {
 type ImportStep = 'upload' | 'mapping' | 'preview' | 'success';
 
 export default function ImportScreen() {
+  const C = useC();
   const { handleUpgradeRequired } = useEntitlement();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -467,7 +468,7 @@ export default function ImportScreen() {
   const formatCurrency = (amount: number) => `$${amount.toFixed(2)}`;
 
   return (
-    <View className="flex-1 bg-[#0c0716]">
+    <View className="flex-1" style={{ backgroundColor: C.bg }}>
       {/* Header */}
       <LinearGradient
         colors={['#3b82f6', '#2563eb', '#1d4ed8']}
@@ -560,7 +561,7 @@ export default function ImportScreen() {
               <Text className="text-gray-400 text-xs font-semibold mb-3 ml-1">{t('import.supportedFormats')}</Text>
               <View
                 className="rounded-xl p-4"
-                style={{ backgroundColor: 'rgba(255,255,255,0.05)' }}
+                style={{ backgroundColor: C.glass }}
               >
                 <View className="flex-row items-center">
                   <FileText size={20} color="#6b7280" />
@@ -700,7 +701,7 @@ export default function ImportScreen() {
             <View className="px-4 mb-4">
               <View
                 className="rounded-2xl p-4"
-                style={{ backgroundColor: 'rgba(255,255,255,0.05)' }}
+                style={{ backgroundColor: C.glass }}
               >
                 <Text className="text-gray-400 text-xs mb-3">{t('import.summary')}</Text>
                 <View className="flex-row justify-between mb-2">
@@ -734,7 +735,7 @@ export default function ImportScreen() {
               <View className="px-4 mb-4">
                 <View
                   className="rounded-2xl p-4"
-                  style={{ backgroundColor: 'rgba(255,255,255,0.05)' }}
+                  style={{ backgroundColor: C.glass }}
                 >
                   <Text className="text-gray-400 text-xs mb-1">
                     {rememberedBank ? t('import.formatRemembered') : t('import.format')}
@@ -823,7 +824,7 @@ export default function ImportScreen() {
                   >
                     <View
                       className="rounded-xl p-4"
-                      style={{ backgroundColor: 'rgba(255,255,255,0.05)' }}
+                      style={{ backgroundColor: C.glass }}
                     >
                       {/* Main Row */}
                       <View className="flex-row items-center justify-between">

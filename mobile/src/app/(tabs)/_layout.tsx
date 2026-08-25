@@ -5,9 +5,10 @@ import { useClientOnlyValue } from '@/lib/useClientOnlyValue';
 import { BarChart3, PlusCircle, List, Settings, Bot } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
-import { C, glow } from '@/lib/design';
+import { glow, useC } from '@/lib/design';
 
 function TabBarIcon({ name, color, focused }: { name: string; color: string; focused: boolean }) {
+  const C = useC();
   const iconProps = { size: 23, color, strokeWidth: focused ? 2.6 : 2.1 };
 
   if (name === 'add') {
@@ -27,7 +28,7 @@ function TabBarIcon({ name, color, focused }: { name: string; color: string; foc
             borderWidth: 4,
             borderColor: C.bgDeep,
           },
-          glow(C.p500, focused ? 0.7 : 0.45, 14),
+          glow(C.p500, focused ? 0.7 : 0.45, 14, C.glowScale),
         ]}
       >
         <PlusCircle size={28} color="#fff" strokeWidth={2.4} />
@@ -63,6 +64,7 @@ function TabBarIcon({ name, color, focused }: { name: string; color: string; foc
 }
 
 export default function TabLayout() {
+  const C = useC();
   return (
     <Tabs
       screenOptions={{

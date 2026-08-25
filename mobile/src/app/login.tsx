@@ -1,5 +1,5 @@
 import { ScreenBackground } from '@/components/ui';
-import { C } from '@/lib/design';
+import { useC } from '@/lib/design';
 import {
   View, Text, TextInput, Pressable,
   KeyboardAvoidingView, Platform, ActivityIndicator, ScrollView,
@@ -49,6 +49,7 @@ async function probeSecureStore(label: string) {
 }
 
 export default function LoginScreen() {
+  const C = useC();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const invalidateSession = useInvalidateSession();
@@ -196,7 +197,7 @@ export default function LoginScreen() {
               </Text>
               <View
                 className="flex-row items-center rounded-2xl px-4 py-4"
-                style={{ backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' }}
+                style={{ backgroundColor: C.glass, borderWidth: 1, borderColor: C.glassBorder }}
               >
                 <Mail size={20} color="#6b7280" />
                 <TextInput
@@ -222,7 +223,7 @@ export default function LoginScreen() {
               </Text>
               <View
                 className="flex-row items-center rounded-2xl px-4 py-4"
-                style={{ backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' }}
+                style={{ backgroundColor: C.glass, borderWidth: 1, borderColor: C.glassBorder }}
               >
                 <Lock size={20} color="#6b7280" />
                 <TextInput
