@@ -316,7 +316,15 @@ export function ScreenBackground({ children, style }: { children?: React.ReactNo
           one; it is now folded into the last stop, which is the same pixels
           with one less layer to composite while the page scrolls under it. */}
       <LinearGradient
-        colors={[C.bgDeep, C.bg, mix(C.bgFoot, C.p800, 0.15)]}
+        colors={[C.bgDeep, C.bg, mix(C.bg, C.bgFoot, 0.52), mix(C.bgFoot, C.p800, 0.149)]}
+        // The wash it replaces lived in a 420pt box pinned to the bottom, and
+        // its own start/end were fractions of that box — so it held at zero
+        // until the box midpoint and only tinted the bottom ~24% of a phone
+        // screen. Folding it needs a stop there, not a ramp from halfway.
+        // Anchoring by fraction rather than a fixed 420pt also makes it
+        // consistent across screen heights instead of covering proportionally
+        // more of a short phone.
+        locations={[0, 0.5, 0.76, 1]}
         start={{ x: 0, y: 0 }}
         end={{ x: 0, y: 1 }}
         style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
