@@ -11,6 +11,7 @@ import {
   Platform,
 } from 'react-native';
 import { useState } from 'react';
+import { C } from '@/lib/design';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -223,7 +224,7 @@ function RecurringCard({
     <Animated.View entering={FadeInUp.delay(index * 55).duration(340)}>
       <View
         style={{
-          backgroundColor: '#150d24',
+          backgroundColor: C.bgRaise,
           borderRadius: 18,
           marginBottom: 10,
           overflow: 'hidden',
@@ -484,7 +485,7 @@ function AddRecurringModal({
             <Animated.View
               entering={FadeInDown.duration(280)}
               style={{
-                backgroundColor: '#150d24',
+                backgroundColor: C.bgRaise,
                 borderTopLeftRadius: 28,
                 borderTopRightRadius: 28,
                 padding: 24,
@@ -652,7 +653,7 @@ function AddRecurringModal({
               {showCategoryPicker && (
                 <View
                   style={{
-                    backgroundColor: '#150d24',
+                    backgroundColor: C.bgRaise,
                     borderRadius: 12,
                     marginBottom: 14,
                     overflow: 'hidden',
@@ -725,7 +726,7 @@ function AddRecurringModal({
               {showFrequencyPicker && (
                 <View
                   style={{
-                    backgroundColor: '#150d24',
+                    backgroundColor: C.bgRaise,
                     borderRadius: 12,
                     marginBottom: 22,
                     overflow: 'hidden',
@@ -913,7 +914,7 @@ export default function RecurringScreen() {
   // ── Render ───────────────────────────────────────────────────────────────
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#0c0716' }}>
+    <View style={{ flex: 1, backgroundColor: C.bg }}>
       {/* ── Gradient Header ── */}
       <LinearGradient
         colors={['#052e16', '#14532d', '#16a34a']}

@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useState, useMemo } from 'react';
+import { C } from '@/lib/design';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -338,7 +339,7 @@ function AddModal({ visible, onClose, onSubmit, isSubmitting }: AddModalProps) {
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
-      <View style={{ flex: 1, backgroundColor: '#0c0716' }}>
+      <View style={{ flex: 1, backgroundColor: C.bg }}>
         {/* Modal header */}
         <View
           style={{ paddingTop: insets.top + 8, paddingHorizontal: 16, paddingBottom: 12 }}
@@ -650,7 +651,7 @@ export default function NetWorthScreen() {
   });
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#0c0716' }}>
+    <View style={{ flex: 1, backgroundColor: C.bg }}>
       {/* ── Header gradient ── */}
       <LinearGradient
         colors={

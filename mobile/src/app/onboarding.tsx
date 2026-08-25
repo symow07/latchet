@@ -1,4 +1,5 @@
 import { ScreenBackground } from '@/components/ui';
+import { C } from '@/lib/design';
 import { View, Text, Pressable, ScrollView, TextInput, Keyboard } from 'react-native';
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
@@ -139,7 +140,7 @@ export default function OnboardingScreen() {
                     <Text className="text-gray-400 text-sm">{currency.name}</Text>
                   </View>
                 </View>
-                <ChevronDown size={20} color="#a855f7" />
+                <ChevronDown size={20} color={C.p500} />
               </View>
             </Pressable>
 
@@ -167,7 +168,7 @@ export default function OnboardingScreen() {
                         <Text className="text-xl mr-3 w-8">{c.symbol}</Text>
                         <Text className="text-white">{c.code} - {c.name}</Text>
                       </View>
-                      {currency.code === c.code && <Check size={18} color="#a855f7" />}
+                      {currency.code === c.code && <Check size={18} color={C.p500} />}
                     </View>
                   </Pressable>
                 ))}
@@ -193,7 +194,7 @@ export default function OnboardingScreen() {
                         <Text className="text-xl mr-3 w-8">{c.symbol}</Text>
                         <Text className="text-white text-sm">{c.code} - {c.name}</Text>
                       </View>
-                      {currency.code === c.code && <Check size={18} color="#a855f7" />}
+                      {currency.code === c.code && <Check size={18} color={C.p500} />}
                     </View>
                   </Pressable>
                 ))}
@@ -228,7 +229,7 @@ export default function OnboardingScreen() {
                   onSubmitEditing={Keyboard.dismiss}
                   blurOnSubmit
                   className="flex-1 text-white text-xl font-semibold"
-                  selectionColor="#a855f7"
+                  selectionColor={C.p500}
                 />
               </View>
             </View>
@@ -240,7 +241,7 @@ export default function OnboardingScreen() {
                 style={{ backgroundColor: 'rgba(255,255,255,0.05)' }}
               >
                 <View className="w-10 h-10 rounded-xl bg-purple-500/20 items-center justify-center mr-3">
-                  <Target size={20} color="#a855f7" />
+                  <Target size={20} color={C.p500} />
                 </View>
                 <Text className="text-white text-xl mr-1">{currency.symbol}</Text>
                 <TextInput
@@ -253,7 +254,7 @@ export default function OnboardingScreen() {
                   onSubmitEditing={Keyboard.dismiss}
                   blurOnSubmit
                   className="flex-1 text-white text-xl font-semibold"
-                  selectionColor="#a855f7"
+                  selectionColor={C.p500}
                 />
               </View>
             </View>
@@ -325,7 +326,7 @@ export default function OnboardingScreen() {
                       }}
                     >
                       <View className="w-12 h-12 rounded-xl bg-purple-500/20 items-center justify-center mr-4">
-                        <Icon size={24} color="#a855f7" />
+                        <Icon size={24} color={C.p500} />
                       </View>
                       <View className="flex-1">
                         <Text className="text-white font-semibold text-lg">{style.label}</Text>
@@ -350,7 +351,7 @@ export default function OnboardingScreen() {
     <ScreenBackground>
       {/* Header */}
       <LinearGradient
-        colors={['#7c3aed', '#a855f7', '#c084fc', '#1e1b2e']}
+        colors={[C.p600, C.p500, C.p400, '#1e1b2e']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={{
@@ -410,7 +411,7 @@ export default function OnboardingScreen() {
               className="flex-1 active:scale-98"
             >
               <LinearGradient
-                colors={saveMutation.isPending ? ['#374151', '#374151'] : ['#7c3aed', '#a855f7']}
+                colors={saveMutation.isPending ? ['#374151', '#374151'] : [C.p600, C.p500]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={{

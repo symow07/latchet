@@ -8,6 +8,7 @@ import {
   Alert,
 } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
+import { C } from '@/lib/design';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -364,7 +365,7 @@ export default function LinkBankScreen() {
                   className="w-12 h-12 rounded-xl items-center justify-center mr-3"
                   style={{ backgroundColor: 'rgba(168,85,247,0.15)' }}
                 >
-                  <Building2 size={22} color="#a855f7" />
+                  <Building2 size={22} color={C.p500} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text className="text-white font-medium">{t('bank.findYourBank')}</Text>
@@ -374,7 +375,7 @@ export default function LinkBankScreen() {
                 </View>
               </View>
               {isLoading ? (
-                <ActivityIndicator color="#a855f7" />
+                <ActivityIndicator color={C.p500} />
               ) : (
                 <ChevronRight size={20} color="#6b7280" />
               )}
@@ -396,7 +397,7 @@ export default function LinkBankScreen() {
           style={{ backgroundColor: 'rgba(168, 85, 247, 0.1)' }}
         >
           <View className="flex-row items-center mb-2">
-            <Lock size={16} color="#a855f7" />
+            <Lock size={16} color={C.p500} />
             <Text className="text-purple-400 font-semibold ml-2">{t('bankExtra.howItWorks')}</Text>
           </View>
           <View className="gap-2">
@@ -579,7 +580,7 @@ export default function LinkBankScreen() {
                 className="w-16 h-16 rounded-2xl items-center justify-center mb-4"
                 style={{ backgroundColor: 'rgba(168,85,247,0.15)' }}
               >
-                <Building2 size={30} color="#a855f7" />
+                <Building2 size={30} color={C.p500} />
               </View>
               <Text className="text-white text-xl font-bold">{t('bank.consentTitle')}</Text>
               <Text className="text-gray-400 text-sm mt-1 text-center">

@@ -1,4 +1,5 @@
 import { ScreenBackground } from '@/components/ui';
+import { C } from '@/lib/design';
 import { View, Text, Pressable, ActivityIndicator, ScrollView } from 'react-native';
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
@@ -27,7 +28,7 @@ const ACCOUNT_TYPES: {
     description: 'Track daily spending, budgets, savings goals, and build healthy money habits.',
     icon: User,
     colors: ['#1a0840', '#2d1260'],
-    accent: '#a855f7',
+    accent: C.p500,
   },
   {
     id: 'business',
@@ -88,7 +89,7 @@ export default function AccountTypeScreen() {
     <ScreenBackground style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}>
       {/* Header */}
       <View className="px-6 pt-8 pb-6">
-        <Text style={{ color: '#a855f7', fontSize: 13, fontWeight: '700', letterSpacing: 2, marginBottom: 10 }}>
+        <Text style={{ color: C.p500, fontSize: 13, fontWeight: '700', letterSpacing: 2, marginBottom: 10 }}>
           STEP 1 OF 2
         </Text>
         <Text className="text-white font-bold" style={{ fontSize: 32, lineHeight: 40, marginBottom: 8 }}>
@@ -181,7 +182,7 @@ export default function AccountTypeScreen() {
               !selected
                 ? ['#1a1130', '#1a1130']
                 : selected === 'personal'
-                  ? ['#7c3aed', '#a855f7']
+                  ? [C.p600, C.p500]
                   : ['#1d4ed8', '#3b82f6']
             }
             start={{ x: 0, y: 0 }}

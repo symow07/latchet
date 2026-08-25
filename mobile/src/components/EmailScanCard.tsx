@@ -1,4 +1,5 @@
 import { View, Text, Pressable, ActivityIndicator } from 'react-native';
+import { C } from '@/lib/design';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -13,7 +14,7 @@ import { getEmailStatus, type EmailStatus } from '@/lib/emailSubscriptionApi';
  * both the purple personal subscriptions screen and the navy business tools
  * screen, so it styles with the passed `accent` and plain Plus Jakarta Sans text.
  */
-export function EmailScanCard({ accent = '#a855f7' }: { accent?: string }) {
+export function EmailScanCard({ accent = C.p500 }: { accent?: string }) {
   const router = useRouter();
 
   const { data: status, isLoading } = useQuery<EmailStatus>({
@@ -51,7 +52,7 @@ export function EmailScanCard({ accent = '#a855f7' }: { accent?: string }) {
               {count > 0 ? <Inbox size={22} color={accent} /> : <Mail size={22} color={accent} />}
             </View>
             <View className="flex-1">
-              <Text style={{ color: '#f6f2ff', fontFamily: 'PlusJakartaSans_700Bold', fontSize: 15 }}>
+              <Text style={{ color: C.text, fontFamily: 'PlusJakartaSans_700Bold', fontSize: 15 }}>
                 Find subscriptions in your email
               </Text>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 2 }}>

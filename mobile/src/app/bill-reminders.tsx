@@ -11,6 +11,7 @@ import {
   Platform,
 } from 'react-native';
 import { useState } from 'react';
+import { C } from '@/lib/design';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -201,7 +202,7 @@ function BillCard({
     <Animated.View entering={FadeInUp.delay(index * 60).duration(350)}>
       <View
         style={{
-          backgroundColor: '#150d24',
+          backgroundColor: C.bgRaise,
           borderRadius: 16,
           marginBottom: 10,
           overflow: 'hidden',
@@ -288,10 +289,10 @@ function BillCard({
                     paddingHorizontal: 6,
                     paddingVertical: 1,
                     borderRadius: 4,
-                    backgroundColor: '#a855f720',
+                    backgroundColor: `${C.p500}20`,
                   }}
                 >
-                  <Text style={{ color: '#a855f7', fontSize: 10, fontWeight: '600' }}>{t('billReminders.recurring')}</Text>
+                  <Text style={{ color: C.p500, fontSize: 10, fontWeight: '600' }}>{t('billReminders.recurring')}</Text>
                 </View>
               )}
             </View>
@@ -401,7 +402,7 @@ function AddBillModal({
             <Animated.View
               entering={FadeInDown.duration(300)}
               style={{
-                backgroundColor: '#150d24',
+                backgroundColor: C.bgRaise,
                 borderTopLeftRadius: 24,
                 borderTopRightRadius: 24,
                 padding: 24,
@@ -569,7 +570,7 @@ function AddBillModal({
               {showCategoryPicker && (
                 <View
                   style={{
-                    backgroundColor: '#150d24',
+                    backgroundColor: C.bgRaise,
                     borderRadius: 12,
                     marginBottom: 16,
                     overflow: 'hidden',
@@ -590,7 +591,7 @@ function AddBillModal({
                         alignItems: 'center',
                         padding: 12,
                         paddingHorizontal: 14,
-                        backgroundColor: category === cat.label ? '#a855f718' : 'transparent',
+                        backgroundColor: category === cat.label ? `${C.p500}18` : 'transparent',
                         borderTopWidth: idx === 0 ? 0 : 1,
                         borderColor: '#27272a',
                       }}
@@ -598,7 +599,7 @@ function AddBillModal({
                       <Text style={{ fontSize: 18, marginRight: 12 }}>{cat.emoji}</Text>
                       <Text
                         style={{
-                          color: category === cat.label ? '#a855f7' : '#d1d5db',
+                          color: category === cat.label ? C.p500 : '#d1d5db',
                           fontSize: 15,
                           fontWeight: category === cat.label ? '600' : '400',
                         }}
@@ -606,7 +607,7 @@ function AddBillModal({
                         {cat.label}
                       </Text>
                       {category === cat.label && (
-                        <Check size={16} color="#a855f7" style={{ marginLeft: 'auto' }} />
+                        <Check size={16} color={C.p500} style={{ marginLeft: 'auto' }} />
                       )}
                     </Pressable>
                   ))}
@@ -637,8 +638,8 @@ function AddBillModal({
                 <Switch
                   value={isRecurring}
                   onValueChange={setIsRecurring}
-                  trackColor={{ false: '#374151', true: '#7c3aed' }}
-                  thumbColor={isRecurring ? '#a855f7' : '#9ca3af'}
+                  trackColor={{ false: '#374151', true: C.p600 }}
+                  thumbColor={isRecurring ? C.p500 : '#9ca3af'}
                 />
               </View>
 
@@ -652,7 +653,7 @@ function AddBillModal({
                 style={{ borderRadius: 14, overflow: 'hidden' }}
               >
                 <LinearGradient
-                  colors={isLoading ? ['#4b5563', '#374151'] : ['#7c3aed', '#a855f7']}
+                  colors={isLoading ? ['#4b5563', '#374151'] : [C.p600, C.p500]}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                   style={{
@@ -749,10 +750,10 @@ export default function BillRemindersScreen() {
   // ── Render ───────────────────────────────────────────────────────────────
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#0c0716' }}>
+    <View style={{ flex: 1, backgroundColor: C.bg }}>
       {/* ── Header gradient ── */}
       <LinearGradient
-        colors={['#4c1d95', '#7c3aed', '#a855f7']}
+        colors={[C.p800, C.p600, C.p500]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={{
@@ -846,7 +847,7 @@ export default function BillRemindersScreen() {
       <View style={{ flex: 1, marginTop: -20 }}>
         {isLoading ? (
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-            <ActivityIndicator color="#a855f7" size="large" />
+            <ActivityIndicator color={C.p500} size="large" />
           </View>
         ) : isError ? (
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 }}>
@@ -861,13 +862,13 @@ export default function BillRemindersScreen() {
                 width: 72,
                 height: 72,
                 borderRadius: 36,
-                backgroundColor: '#a855f715',
+                backgroundColor: `${C.p500}15`,
                 alignItems: 'center',
                 justifyContent: 'center',
                 marginBottom: 16,
               }}
             >
-              <Bell size={32} color="#a855f7" />
+              <Bell size={32} color={C.p500} />
             </View>
             <Text style={{ color: '#f3f4f6', fontSize: 18, fontWeight: '700', marginBottom: 6 }}>
               No Bill Reminders
@@ -964,7 +965,7 @@ export default function BillRemindersScreen() {
           style={{ borderRadius: 30, overflow: 'hidden', elevation: 8 }}
         >
           <LinearGradient
-            colors={['#7c3aed', '#a855f7']}
+            colors={[C.p600, C.p500]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={{
@@ -973,7 +974,7 @@ export default function BillRemindersScreen() {
               borderRadius: 30,
               alignItems: 'center',
               justifyContent: 'center',
-              shadowColor: '#a855f7',
+              shadowColor: C.p500,
               shadowOffset: { width: 0, height: 4 },
               shadowOpacity: 0.5,
               shadowRadius: 12,

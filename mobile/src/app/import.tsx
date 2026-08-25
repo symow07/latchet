@@ -7,6 +7,7 @@ import {
   Alert,
 } from 'react-native';
 import { useState, useCallback } from 'react';
+import { C } from '@/lib/design';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQueryClient } from '@tanstack/react-query';
@@ -963,7 +964,7 @@ export default function ImportScreen() {
           className="absolute bottom-0 left-0 right-0 px-4 pt-4 pb-2 border-t border-gray-800"
           style={{
             paddingBottom: Math.max(insets.bottom, 16),
-            backgroundColor: '#0c0716',
+            backgroundColor: C.bg,
           }}
         >
           <Pressable

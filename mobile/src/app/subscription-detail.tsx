@@ -149,7 +149,7 @@ function OccurrenceRow({ occ, index }: { occ: SubscriptionOccurrence; index: num
         <View className="flex-row items-center gap-3">
           <View
             className="w-2 h-2 rounded-full"
-            style={{ backgroundColor: '#a855f7' }}
+            style={{ backgroundColor: C.p500 }}
           />
           <Text className="text-white text-sm">{format(date, 'MMM d, yyyy')}</Text>
         </View>
@@ -277,7 +277,7 @@ export default function SubscriptionDetailScreen() {
         className="flex-1 items-center justify-center"
         style={{ backgroundColor: C.bg }}
       >
-        <ActivityIndicator size="large" color="#a855f7" />
+        <ActivityIndicator size="large" color={C.p500} />
       </View>
     );
   }
@@ -293,7 +293,7 @@ export default function SubscriptionDetailScreen() {
           This subscription could not be found.
         </Text>
         <Pressable onPress={() => router.back()} className="mt-6">
-          <Text className="font-semibold" style={{ color: '#a855f7' }}>
+          <Text className="font-semibold" style={{ color: C.p500 }}>
             Go Back
           </Text>
         </Pressable>
@@ -313,7 +313,7 @@ export default function SubscriptionDetailScreen() {
       >
         {/* Header */}
         <LinearGradient
-          colors={['#7c3aed', '#a855f7', '#c084fc', '#1e1b2e']}
+          colors={[C.p600, C.p500, C.p400, '#1e1b2e']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={{
@@ -354,10 +354,10 @@ export default function SubscriptionDetailScreen() {
               delay={0}
             />
             <StatCard
-              icon={<Repeat size={18} color="#a855f7" />}
+              icon={<Repeat size={18} color={C.p500} />}
               label="Cadence"
               value={cadenceLabel(subscription.cadence)}
-              color="#a855f7"
+              color={C.p500}
               delay={60}
             />
             <StatCard
@@ -496,11 +496,11 @@ export default function SubscriptionDetailScreen() {
                 borderColor: 'rgba(168,85,247,0.35)',
               })}
             >
-              <ExternalLink size={18} color="#a855f7" />
-              <Text className="font-bold text-sm" style={{ color: '#a855f7' }}>
+              <ExternalLink size={18} color={C.p500} />
+              <Text className="font-bold text-sm" style={{ color: C.p500 }}>
                 How to Cancel
               </Text>
-              <ChevronRight size={14} color="#a855f7" />
+              <ChevronRight size={14} color={C.p500} />
             </Pressable>
           </Animated.View>
 
@@ -654,7 +654,7 @@ export default function SubscriptionDetailScreen() {
                           className="w-6 h-6 rounded-full items-center justify-center shrink-0 mt-0.5"
                           style={{ backgroundColor: 'rgba(168,85,247,0.2)' }}
                         >
-                          <Text className="text-xs font-bold" style={{ color: '#a855f7' }}>
+                          <Text className="text-xs font-bold" style={{ color: C.p500 }}>
                             {i + 1}
                           </Text>
                         </View>
@@ -683,11 +683,11 @@ export default function SubscriptionDetailScreen() {
                       borderColor: 'rgba(168,85,247,0.4)',
                     })}
                   >
-                    <Globe size={16} color="#a855f7" />
-                    <Text className="font-bold text-sm" style={{ color: '#a855f7' }}>
+                    <Globe size={16} color={C.p500} />
+                    <Text className="font-bold text-sm" style={{ color: C.p500 }}>
                       Open Cancel Page
                     </Text>
-                    <ExternalLink size={13} color="#a855f7" />
+                    <ExternalLink size={13} color={C.p500} />
                   </Pressable>
                 </>
               ) : (
@@ -725,8 +725,8 @@ export default function SubscriptionDetailScreen() {
                       borderColor: 'rgba(168,85,247,0.3)',
                     })}
                   >
-                    <Globe size={16} color="#a855f7" />
-                    <Text className="font-semibold text-sm" style={{ color: '#a855f7' }}>
+                    <Globe size={16} color={C.p500} />
+                    <Text className="font-semibold text-sm" style={{ color: C.p500 }}>
                       Search how to cancel {subscription.merchantDisplay}
                     </Text>
                   </Pressable>
@@ -795,7 +795,7 @@ export default function SubscriptionDetailScreen() {
                     paddingVertical: 14,
                     borderRadius: 14,
                     alignItems: 'center',
-                    backgroundColor: pressed ? '#9333ea' : '#7c3aed',
+                    backgroundColor: pressed ? '#9333ea' : C.p600,
                   })}
                 >
                   {isSavingNotes ? (

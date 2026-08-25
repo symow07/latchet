@@ -1,4 +1,5 @@
 import { ScreenBackground } from '@/components/ui';
+import { C } from '@/lib/design';
 import {
   View, Text, TextInput, Pressable,
   KeyboardAvoidingView, Platform, ActivityIndicator, ScrollView,
@@ -172,7 +173,7 @@ export default function LoginScreen() {
                 marginBottom: 24,
               }}
             >
-              <Wallet size={30} color="#a855f7" />
+              <Wallet size={30} color={C.p500} />
             </View>
             <Text className="text-4xl font-bold text-white mb-2">{t('auth.welcomeBack')}</Text>
             <Text className="text-white/55 text-base leading-6">
@@ -208,7 +209,7 @@ export default function LoginScreen() {
                   autoCorrect={false}
                   autoComplete="email"
                   className="flex-1 ml-3 text-white text-base"
-                  selectionColor="#a855f7"
+                  selectionColor={C.p500}
                   returnKeyType="next"
                 />
               </View>
@@ -231,7 +232,7 @@ export default function LoginScreen() {
                   placeholderTextColor="#4b5563"
                   secureTextEntry={!showPassword}
                   className="flex-1 ml-3 text-white text-base"
-                  selectionColor="#a855f7"
+                  selectionColor={C.p500}
                   returnKeyType="done"
                   onSubmitEditing={handleLogin}
                 />
@@ -247,7 +248,7 @@ export default function LoginScreen() {
             {/* CTA */}
             <Pressable onPress={handleLogin} disabled={isLoading} className="active:opacity-80">
               <LinearGradient
-                colors={isLoading ? ['#374151', '#374151'] : ['#7c3aed', '#a855f7', '#c084fc']}
+                colors={isLoading ? ['#374151', '#374151'] : [C.p600, C.p500, C.p400]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={{

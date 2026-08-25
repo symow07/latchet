@@ -8,6 +8,7 @@ import {
   Switch,
 } from 'react-native';
 import { Image } from 'expo-image';
+import { C } from '@/lib/design';
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -177,10 +178,10 @@ export default function ReceiptScanScreen() {
   });
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#0c0716' }}>
+    <View style={{ flex: 1, backgroundColor: C.bg }}>
       {/* Header */}
       <LinearGradient
-        colors={['#6d28d9', '#7c3aed', '#a855f7']}
+        colors={[C.p700, C.p600, C.p500]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={{
@@ -284,7 +285,7 @@ export default function ReceiptScanScreen() {
                   borderColor: 'rgba(168,85,247,0.3)',
                 }}
               >
-                <Sparkles size={36} color="#a855f7" />
+                <Sparkles size={36} color={C.p500} />
               </View>
               <Text style={{ color: 'white', fontSize: 22, fontWeight: 'bold', marginBottom: 8 }}>
                 Scan a Receipt
@@ -300,7 +301,7 @@ export default function ReceiptScanScreen() {
               style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1, marginBottom: 14 })}
             >
               <LinearGradient
-                colors={['#7c3aed', '#a855f7']}
+                colors={[C.p600, C.p500]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={{
@@ -361,7 +362,7 @@ export default function ReceiptScanScreen() {
                     marginRight: 16,
                   }}
                 >
-                  <ImageIcon size={26} color="#a855f7" />
+                  <ImageIcon size={26} color={C.p500} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 17, marginBottom: 2 }}>
@@ -406,7 +407,7 @@ export default function ReceiptScanScreen() {
                       marginRight: 12,
                     }}
                   >
-                    <Text style={{ color: '#a855f7', fontSize: 11, fontWeight: 'bold' }}>{i + 1}</Text>
+                    <Text style={{ color: C.p500, fontSize: 11, fontWeight: 'bold' }}>{i + 1}</Text>
                   </View>
                   <Text style={{ color: '#9ca3af', fontSize: 13, flex: 1 }}>{tip}</Text>
                 </View>
@@ -465,7 +466,7 @@ export default function ReceiptScanScreen() {
                 borderColor: 'rgba(168,85,247,0.25)',
               }}
             >
-              <ActivityIndicator size="large" color="#a855f7" />
+              <ActivityIndicator size="large" color={C.p500} />
             </View>
             <Text style={{ color: 'white', fontSize: 20, fontWeight: 'bold', marginBottom: 8 }}>
               Analyzing Receipt...
@@ -495,8 +496,8 @@ export default function ReceiptScanScreen() {
                       marginBottom: i < 2 ? 10 : 0,
                     }}
                   >
-                    <ActivityIndicator size="small" color="#a855f7" style={{ marginRight: 10 }} />
-                    <Text style={{ color: '#c084fc', fontSize: 13 }}>{line}</Text>
+                    <ActivityIndicator size="small" color={C.p500} style={{ marginRight: 10 }} />
+                    <Text style={{ color: C.p400, fontSize: 13 }}>{line}</Text>
                   </View>
                 )
               )}
@@ -542,8 +543,8 @@ export default function ReceiptScanScreen() {
                     alignItems: 'center',
                   }}
                 >
-                  <Sparkles size={14} color="#a855f7" />
-                  <Text style={{ color: '#c084fc', fontSize: 12, marginLeft: 5, fontWeight: '600' }}>
+                  <Sparkles size={14} color={C.p500} />
+                  <Text style={{ color: C.p400, fontSize: 12, marginLeft: 5, fontWeight: '600' }}>
                     AI extracted — review before saving
                   </Text>
                 </View>
@@ -567,14 +568,14 @@ export default function ReceiptScanScreen() {
                   borderColor: 'rgba(168,85,247,0.2)',
                 }}
               >
-                <DollarSign size={20} color="#a855f7" style={{ marginRight: 10 }} />
+                <DollarSign size={20} color={C.p500} style={{ marginRight: 10 }} />
                 <TextInput
                   value={amount}
                   onChangeText={setAmount}
                   keyboardType="decimal-pad"
                   placeholder="0.00"
                   placeholderTextColor="#555"
-                  selectionColor="#a855f7"
+                  selectionColor={C.p500}
                   style={{ flex: 1, color: 'white', fontSize: 22, fontWeight: 'bold' }}
                 />
               </View>
@@ -654,7 +655,7 @@ export default function ReceiptScanScreen() {
                   onChangeText={(t) => setNote(t.slice(0, 50))}
                   placeholder="Merchant or description"
                   placeholderTextColor="#555"
-                  selectionColor="#a855f7"
+                  selectionColor={C.p500}
                   style={{ flex: 1, color: 'white', fontSize: 15 }}
                   returnKeyType="done"
                 />
@@ -735,7 +736,7 @@ export default function ReceiptScanScreen() {
                   onChangeText={setDateISO}
                   placeholder="YYYY-MM-DD"
                   placeholderTextColor="#555"
-                  selectionColor="#a855f7"
+                  selectionColor={C.p500}
                   style={{ flex: 1, color: 'white', fontSize: 15 }}
                   returnKeyType="done"
                 />
@@ -851,8 +852,8 @@ export default function ReceiptScanScreen() {
                     gap: 8,
                   }}
                 >
-                  <Camera size={18} color="#a855f7" />
-                  <Text style={{ color: '#a855f7', fontWeight: '700', fontSize: 16 }}>
+                  <Camera size={18} color={C.p500} />
+                  <Text style={{ color: C.p500, fontWeight: '700', fontSize: 16 }}>
                     Scan Another Receipt
                   </Text>
                 </View>
@@ -873,7 +874,7 @@ export default function ReceiptScanScreen() {
             paddingHorizontal: 16,
             paddingTop: 14,
             paddingBottom: Math.max(insets.bottom, 18),
-            backgroundColor: '#0c0716',
+            backgroundColor: C.bg,
             borderTopWidth: 1,
             borderTopColor: 'rgba(255,255,255,0.07)',
           }}
@@ -884,7 +885,7 @@ export default function ReceiptScanScreen() {
             style={({ pressed }) => ({ opacity: pressed ? 0.88 : 1 })}
           >
             <LinearGradient
-              colors={saveMutation.isPending ? ['#374151', '#374151'] : ['#7c3aed', '#a855f7']}
+              colors={saveMutation.isPending ? ['#374151', '#374151'] : [C.p600, C.p500]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={{

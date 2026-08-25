@@ -6,6 +6,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useState } from 'react';
+import { C } from '@/lib/design';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -168,7 +169,7 @@ function SubscriptionCard({
                 className="px-2 py-0.5 rounded-full"
                 style={{ backgroundColor: 'rgba(168,85,247,0.18)' }}
               >
-                <Text className="text-xs font-semibold" style={{ color: '#c084fc' }}>
+                <Text className="text-xs font-semibold" style={{ color: C.p400 }}>
                   {cadenceLabel(sub.cadence)}
                 </Text>
               </View>
@@ -289,7 +290,7 @@ export default function SubscriptionsScreen() {
     <ScreenBackground>
       {/* Header */}
       <LinearGradient
-        colors={['#7c3aed', '#a855f7', '#c084fc', '#1e1b2e']}
+        colors={[C.p600, C.p500, C.p400, '#1e1b2e']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={{
@@ -368,7 +369,7 @@ export default function SubscriptionsScreen() {
                 <View
                   className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full items-center justify-center"
                   style={{
-                    backgroundColor: segment === seg.key ? '#a855f7' : 'rgba(168,85,247,0.5)',
+                    backgroundColor: segment === seg.key ? C.p500 : 'rgba(168,85,247,0.5)',
                   }}
                 >
                   <Text className="text-white text-[9px] font-bold">
@@ -388,7 +389,7 @@ export default function SubscriptionsScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* Email scanner — find subscriptions from receipt emails */}
-        <EmailScanCard accent="#a855f7" />
+        <EmailScanCard accent={C.p500} />
 
         {isLoading ? (
           <>
@@ -408,7 +409,7 @@ export default function SubscriptionsScreen() {
                   className="rounded-2xl overflow-hidden"
                 >
                   <LinearGradient
-                    colors={['#7c3aed', '#a855f7']}
+                    colors={[C.p600, C.p500]}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
                     style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 16, gap: 10 }}
@@ -463,11 +464,11 @@ export default function SubscriptionsScreen() {
               }}
             >
               {isScanning ? (
-                <ActivityIndicator size="small" color="#a855f7" />
+                <ActivityIndicator size="small" color={C.p500} />
               ) : (
-                <Repeat size={16} color="#a855f7" />
+                <Repeat size={16} color={C.p500} />
               )}
-              <Text className="font-semibold text-sm" style={{ color: '#a855f7' }}>
+              <Text className="font-semibold text-sm" style={{ color: C.p500 }}>
                 {isScanning ? 'Scanning...' : 'Re-scan Transactions'}
               </Text>
             </Pressable>

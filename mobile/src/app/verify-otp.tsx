@@ -1,4 +1,5 @@
 import { ScreenBackground } from '@/components/ui';
+import { C } from '@/lib/design';
 import { View, Text, TextInput, Pressable, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
 import { useState, useRef } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -86,7 +87,7 @@ export default function VerifyOTPScreen() {
             borderRadius: 14,
             backgroundColor: char ? 'rgba(168, 85, 247, 0.2)' : 'rgba(255,255,255,0.06)',
             borderWidth: isActive ? 2 : 1,
-            borderColor: isActive ? '#a855f7' : char ? 'rgba(168, 85, 247, 0.4)' : 'rgba(255,255,255,0.1)',
+            borderColor: isActive ? C.p500 : char ? 'rgba(168, 85, 247, 0.4)' : 'rgba(255,255,255,0.1)',
             alignItems: 'center',
             justifyContent: 'center',
           }}
@@ -126,7 +127,7 @@ export default function VerifyOTPScreen() {
           </Pressable>
 
           <View className="w-14 h-14 rounded-2xl bg-purple-500/20 items-center justify-center mb-4">
-            <ShieldCheck size={28} color="#a855f7" />
+            <ShieldCheck size={28} color={C.p500} />
           </View>
           <Text className="text-3xl font-bold text-white mb-2">{t('auth.checkEmail')}</Text>
           <Text className="text-white/60 text-sm leading-5">
@@ -168,7 +169,7 @@ export default function VerifyOTPScreen() {
           {/* Loading */}
           {isLoading && (
             <View className="items-center mt-8">
-              <ActivityIndicator color="#a855f7" size="large" />
+              <ActivityIndicator color={C.p500} size="large" />
               <Text className="text-gray-500 text-sm mt-3">{t('auth.verifying')}</Text>
             </View>
           )}

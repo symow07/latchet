@@ -6,6 +6,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { useState, useEffect } from 'react';
+import { C } from '@/lib/design';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -129,7 +130,7 @@ export default function HealthScoreScreen() {
       max: breakdown.spendingConsistency.maxPoints,
       value: `${breakdown.spendingConsistency.value}%`,
       icon: BarChart3,
-      color: '#a855f7',
+      color: C.p500,
     },
     {
       label: 'Goal Progress',
@@ -357,7 +358,7 @@ export default function HealthScoreScreen() {
             }}
           >
             <LinearGradient
-              colors={['#7c3aed', '#a855f7']}
+              colors={[C.p600, C.p500]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={{ borderRadius: 16, padding: 16 }}

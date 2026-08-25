@@ -1,4 +1,5 @@
 import { ScreenBackground } from '@/components/ui';
+import { C } from '@/lib/design';
 import {
   View, Text, TextInput, Pressable,
   KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator,
@@ -191,7 +192,7 @@ export default function SignUpScreen() {
                   placeholderTextColor="#4b5563"
                   autoCapitalize="words"
                   className="flex-1 ml-3 text-white text-base"
-                  selectionColor="#a855f7"
+                  selectionColor={C.p500}
                 />
               </View>
             </View>
@@ -215,7 +216,7 @@ export default function SignUpScreen() {
                   autoCapitalize="none"
                   autoCorrect={false}
                   className="flex-1 ml-3 text-white text-base"
-                  selectionColor="#a855f7"
+                  selectionColor={C.p500}
                 />
               </View>
             </View>
@@ -237,7 +238,7 @@ export default function SignUpScreen() {
                   placeholderTextColor="#4b5563"
                   secureTextEntry={!showPassword}
                   className="flex-1 ml-3 text-white text-base"
-                  selectionColor="#a855f7"
+                  selectionColor={C.p500}
                 />
                 <Pressable onPress={() => setShowPassword(p => !p)} hitSlop={8}>
                   {showPassword ? <EyeOff size={20} color="#6b7280" /> : <Eye size={20} color="#6b7280" />}
@@ -262,7 +263,7 @@ export default function SignUpScreen() {
                   placeholderTextColor="#4b5563"
                   secureTextEntry={!showPassword}
                   className="flex-1 ml-3 text-white text-base"
-                  selectionColor="#a855f7"
+                  selectionColor={C.p500}
                   returnKeyType="done"
                   onSubmitEditing={() => signUpMutation.mutate()}
                 />
@@ -276,7 +277,7 @@ export default function SignUpScreen() {
               className="active:opacity-80"
             >
               <LinearGradient
-                colors={signUpMutation.isPending ? ['#374151', '#374151'] : ['#7c3aed', '#a855f7', '#c084fc']}
+                colors={signUpMutation.isPending ? ['#374151', '#374151'] : [C.p600, C.p500, C.p400]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={{

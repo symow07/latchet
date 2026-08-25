@@ -9,6 +9,7 @@ import {
   Platform,
 } from 'react-native';
 import { useState, useCallback } from 'react';
+import { C } from '@/lib/design';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -46,7 +47,7 @@ interface CategoryConfig {
 
 const CATEGORIES: CategoryConfig[] = [
   { name: 'Food', emoji: '', color: '#f97316', bg: 'rgba(249,115,22,0.15)', barColor: '#f97316' },
-  { name: 'Gym', emoji: '', color: '#a855f7', bg: 'rgba(168,85,247,0.15)', barColor: '#a855f7' },
+  { name: 'Gym', emoji: '', color: C.p500, bg: 'rgba(168,85,247,0.15)', barColor: C.p500 },
   { name: 'Transport', emoji: '', color: '#3b82f6', bg: 'rgba(59,130,246,0.15)', barColor: '#3b82f6' },
   { name: 'Shopping', emoji: '', color: '#ec4899', bg: 'rgba(236,72,153,0.15)', barColor: '#ec4899' },
   { name: 'Subscriptions', emoji: '', color: '#22c55e', bg: 'rgba(34,197,94,0.15)', barColor: '#22c55e' },
@@ -233,7 +234,7 @@ function EditModal({
                   style={{ flex: 2, borderRadius: 12, overflow: 'hidden' }}
                 >
                   <LinearGradient
-                    colors={isSaving ? ['#374151', '#374151'] : ['#7c3aed', '#a855f7']}
+                    colors={isSaving ? ['#374151', '#374151'] : [C.p600, C.p500]}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
                     style={{
@@ -341,10 +342,10 @@ export default function CategoryBudgetsScreen() {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#0c0716' }}>
+    <View style={{ flex: 1, backgroundColor: C.bg }}>
       {/* Header */}
       <LinearGradient
-        colors={['#4c1d95', '#7c3aed', '#a855f7', '#1e1b2e']}
+        colors={[C.p800, C.p600, C.p500, '#1e1b2e']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={{
@@ -468,7 +469,7 @@ export default function CategoryBudgetsScreen() {
                         backgroundColor: 'rgba(168,85,247,0.15)',
                       }}
                     >
-                      <Text style={{ color: '#a855f7', fontSize: 11, fontWeight: '600' }}>
+                      <Text style={{ color: C.p500, fontSize: 11, fontWeight: '600' }}>
                         {hasLimit ? 'Edit' : 'Set limit'}
                       </Text>
                     </Pressable>
@@ -530,7 +531,7 @@ export default function CategoryBudgetsScreen() {
             borderColor: 'rgba(168,85,247,0.18)',
           }}
         >
-          <Text style={{ color: '#c084fc', fontSize: 13, lineHeight: 20 }}>
+          <Text style={{ color: C.p400, fontSize: 13, lineHeight: 20 }}>
             Budgets are monthly. Progress bars reset at the start of each month. Over-budget categories show in red.
           </Text>
         </View>

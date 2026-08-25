@@ -27,7 +27,7 @@ import {
   PlusJakartaSans_600SemiBold,
   PlusJakartaSans_700Bold,
 } from '@expo-google-fonts/plus-jakarta-sans';
-import { patchDefaultFont } from '@/lib/design';
+import { C, patchDefaultFont } from '@/lib/design';
 import { t } from '@/lib/i18n/core';
 import { Lock } from 'lucide-react-native';
 
@@ -71,7 +71,7 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise
 function StartupScreen({ stage }: { stage: string }) {
   return (
     <View style={{ flex: 1, backgroundColor: '#000', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-      <ActivityIndicator size="large" color="#fbbf24" />
+      <ActivityIndicator size="large" color={C.amber} />
       <Text style={{ color: '#fff', fontSize: 18, fontWeight: '600', marginTop: 24 }}>
         Starting Budget…
       </Text>
@@ -115,7 +115,7 @@ function LockScreen({ onUnlock }: { onUnlock: () => void }) {
             alignItems: 'center', justifyContent: 'center',
             marginBottom: 24,
           }}>
-            <Lock size={44} color="#a855f7" />
+            <Lock size={44} color={C.p500} />
           </View>
           <Text style={{ color: '#fff', fontSize: 26, fontWeight: '700', marginBottom: 8 }}>
             Budget
@@ -135,7 +135,7 @@ function LockScreen({ onUnlock }: { onUnlock: () => void }) {
             borderWidth: 1.5, borderColor: 'rgba(251,191,36,0.5)',
           })}
         >
-          <Text style={{ color: '#fbbf24', fontWeight: '700', fontSize: 17 }}>
+          <Text style={{ color: C.amber, fontWeight: '700', fontSize: 17 }}>
             {authenticating ? 'Authenticating...' : 'Unlock with Biometrics'}
           </Text>
         </Pressable>

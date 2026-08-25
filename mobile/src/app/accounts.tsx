@@ -1,4 +1,5 @@
 import { View, Text, Pressable, ScrollView, TextInput, Modal } from 'react-native';
+import { C } from '@/lib/design';
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -25,14 +26,14 @@ import { t } from '@/lib/i18n/core';
 const ACCOUNT_TYPES = [
   { id: 'cash', label: 'Cash', icon: Wallet, color: '#22c55e' },
   { id: 'checking', label: 'Checking', icon: Building2, color: '#3b82f6' },
-  { id: 'savings', label: 'Savings', icon: PiggyBank, color: '#a855f7' },
+  { id: 'savings', label: 'Savings', icon: PiggyBank, color: C.p500 },
   { id: 'credit', label: 'Credit Card', icon: CreditCard, color: '#ef4444' },
   { id: 'investment', label: 'Investment', icon: TrendingUp, color: '#f59e0b' },
   { id: 'other', label: 'Other', icon: MoreHorizontal, color: '#6b7280' },
 ];
 
 const ACCOUNT_COLORS = [
-  '#22c55e', '#3b82f6', '#a855f7', '#ef4444', '#f59e0b',
+  '#22c55e', '#3b82f6', C.p500, '#ef4444', '#f59e0b',
   '#06b6d4', '#ec4899', '#84cc16', '#f97316', '#6366f1',
 ];
 
@@ -154,7 +155,7 @@ export default function AccountsScreen() {
     <View className="flex-1 bg-[#0c0716]">
       {/* Header */}
       <LinearGradient
-        colors={['#7c3aed', '#a855f7', '#c084fc', '#1e1b2e']}
+        colors={[C.p600, C.p500, C.p400, '#1e1b2e']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={{
@@ -315,7 +316,7 @@ export default function AccountsScreen() {
                   placeholder={t('accounts.namePlaceholder')}
                   placeholderTextColor="#555"
                   className="text-white text-lg"
-                  selectionColor="#a855f7"
+                  selectionColor={C.p500}
                 />
               </View>
             </View>
@@ -347,7 +348,7 @@ export default function AccountsScreen() {
                           borderColor: 'rgba(168, 85, 247, 0.5)',
                         }}
                       >
-                        <Icon size={18} color={isSelected ? '#a855f7' : '#9ca3af'} />
+                        <Icon size={18} color={isSelected ? C.p500 : '#9ca3af'} />
                         <Text
                           className={`ml-2 ${isSelected ? 'text-purple-400' : 'text-gray-400'}`}
                         >
@@ -377,7 +378,7 @@ export default function AccountsScreen() {
                   placeholderTextColor="#555"
                   keyboardType="decimal-pad"
                   className="flex-1 text-white text-xl font-semibold"
-                  selectionColor="#a855f7"
+                  selectionColor={C.p500}
                 />
               </View>
             </View>

@@ -5,6 +5,7 @@ import {
   Pressable,
 } from 'react-native';
 import { useState, useEffect } from 'react';
+import { C } from '@/lib/design';
 import { useQuery } from '@tanstack/react-query';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -198,7 +199,7 @@ export default function AnalyticsScreen() {
                 <View className="flex-row items-center justify-between">
                   <View className="flex-row items-center">
                     <View className="w-10 h-10 rounded-xl bg-purple-500/20 items-center justify-center mr-3">
-                      <RefreshCw size={20} color="#a855f7" />
+                      <RefreshCw size={20} color={C.p500} />
                     </View>
                     <View>
                       <Text className="text-gray-400 text-xs">{t('analytics.monthlySubscriptions')}</Text>
@@ -213,7 +214,7 @@ export default function AnalyticsScreen() {
                       setActiveTab('subscriptions');
                     }}
                   >
-                    <ChevronRight size={20} color="#a855f7" />
+                    <ChevronRight size={20} color={C.p500} />
                   </Pressable>
                 </View>
               </View>
