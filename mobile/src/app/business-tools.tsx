@@ -221,7 +221,7 @@ export default function BusinessToolsScreen() {
           <>
             {/* Summary banner */}
             <View style={{ marginHorizontal: 20, marginBottom: 20 }}>
-              <LinearGradient colors={[B.slate800, '#102a4a']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[{ borderRadius: R.lg, padding: 24, borderWidth: 1, borderColor: `${B.accent}2a` }, glow(B.accentDeep, 0.25, 22, B.glowScale)]}>
+              <LinearGradient colors={[B.heroFrom, '#102a4a']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[{ borderRadius: R.lg, padding: 24, borderWidth: 1, borderColor: `${B.accent}2a` }, glow(B.accentDeep, 0.25, 22, B.glowScale)]}>
                 <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 }}>
                   <View>
                     <Txt weight="semibold" size={12} color="rgba(255,255,255,0.4)" style={{ letterSpacing: 1, marginBottom: 6 }}>{t('businessTools.monthlySpend')}</Txt>

@@ -47,6 +47,8 @@ export type BizPalette = {
   scheme: 'light' | 'dark';
   bg: string; bgDeep: string; bgRaise: string;
   slate900: string; slate800: string; slate700: string;
+  /** A deliberately dark card that carries white text, in both schemes. */
+  heroFrom: string; heroTo: string;
   accent: string; accentDeep: string; accentSoft: string;
   teal: string; amber: string; red: string; green: string;
   text: string; textDim: string; textFaint: string;
@@ -58,6 +60,7 @@ export const B_DARK: BizPalette = {
   scheme: 'dark',
   bg: '#0a0e17', bgDeep: '#06090f', bgRaise: '#111928',
   slate900: '#0f1626', slate800: '#1a2336', slate700: '#27324a',
+  heroFrom: '#1a2336', heroTo: '#16365f',
   accent: '#5b8cff', accentDeep: '#3b6fe0', accentSoft: '#9fbbff',
   teal: '#2dd4bf', amber: '#f5b14c', red: '#f06a6a', green: '#34d399',
   text: '#eef2fb', textDim: '#9aa7c2', textFaint: '#5f6c86',
@@ -70,6 +73,7 @@ export const B_LIGHT: BizPalette = {
   scheme: 'light',
   bg: '#ffffff', bgDeep: '#eef1f7', bgRaise: '#f7f9fc',
   slate900: '#e8edf5', slate800: '#dde4ef', slate700: '#ccd6e5',
+  heroFrom: '#1e2b45', heroTo: '#1b3f6b',
   accent: '#2563eb', accentDeep: '#1d4ed8', accentSoft: '#3b82f6',
   teal: '#0f766e', amber: '#b45309', red: '#dc2626', green: '#047857',
   text: '#0b1220', textDim: '#475569', textFaint: '#7b8798',

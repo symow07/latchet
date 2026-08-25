@@ -111,6 +111,16 @@ describe('palettes', () => {
     }
   });
 
+  it('keeps the business hero dark enough for the white text on it', () => {
+    // These cards carry white text in both schemes, so unlike every other
+    // surface they must NOT invert. They were derived from slate800, which
+    // does invert, and light mode rendered white on #dde4ef at 1.28:1.
+    for (const p of [B_DARK, B_LIGHT]) {
+      expect(contrast('#ffffff', p.heroFrom)).toBeGreaterThanOrEqual(4.5);
+      expect(contrast('#ffffff', p.heroTo)).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
   it('fades the glow on light surfaces', () => {
     // A coloured haze reads as depth on black and as grime on white.
     expect(C_LIGHT.glowScale).toBeLessThan(C_DARK.glowScale);

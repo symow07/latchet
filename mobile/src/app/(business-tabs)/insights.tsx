@@ -219,7 +219,7 @@ export default function BudgetScreen() {
             {/* Total budget card */}
             <View style={{ marginHorizontal: 20, marginBottom: 20 }}>
               <LinearGradient
-                colors={overBudget ? ['#220a0a', '#170808'] : overallWarn ? ['#221606', '#171005'] : [B.slate800, '#102a4a']}
+                colors={overBudget ? ['#220a0a', '#170808'] : overallWarn ? ['#221606', '#171005'] : [B.heroFrom, '#102a4a']}
                 start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
                 style={[{ borderRadius: R.lg, padding: 22, borderWidth: 1, borderColor: overBudget ? `${B.red}44` : overallWarn ? `${B.amber}44` : `${B.accent}2a` }, glow(overBudget ? B.red : B.accentDeep, 0.25, 20, B.glowScale)]}
               >

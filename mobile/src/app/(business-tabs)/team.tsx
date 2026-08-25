@@ -219,7 +219,7 @@ export default function TeamScreen() {
 
         {/* Team summary */}
         <View style={{ marginHorizontal: 20, marginBottom: 20 }}>
-          <LinearGradient colors={[B.slate800, B.scheme === 'light' ? B.slate700 : '#16365f']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[{ borderRadius: R.lg, padding: 20, borderWidth: 1, borderColor: `${B.accent}2a`, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, glow(B.accentDeep, 0.25, 18, B.glowScale)]}>
+          <LinearGradient colors={[B.heroFrom, B.heroTo]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[{ borderRadius: R.lg, padding: 20, borderWidth: 1, borderColor: `${B.accent}2a`, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, glow(B.accentDeep, 0.25, 18, B.glowScale)]}>
             <View>
               <Txt size={13} color="rgba(255,255,255,0.5)" style={{ marginBottom: 4 }}>{t('businessTeam.members')}</Txt>
               <Txt weight="bold" size={36} color="#fff">{membersLoading ? '—' : members.length}</Txt>
