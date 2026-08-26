@@ -263,6 +263,19 @@ export function formatCurrencyAmount(amount: number, currencyCode: string): stri
   return `${currency.symbol}${amount.toFixed(decimals)}`;
 }
 
+/**
+ * The currency a new account starts on.
+ *
+ * Not CURRENCIES[0]: the list is generated in the provider's order, which is
+ * alphabetical, so indexing it silently made AED the default for every new
+ * user the moment the list was widened.
+ */
+export const DEFAULT_CURRENCY_CODE = 'USD';
+
+export function getDefaultCurrency(): Currency {
+  return getCurrencyByCode(DEFAULT_CURRENCY_CODE) ?? CURRENCIES[0]!;
+}
+
 export function getPopularCurrencies(): Currency[] {
   const popularCodes = ['USD', 'EUR', 'GBP', 'JPY', 'CNY', 'INR', 'CAD', 'AUD', 'AED', 'SAR'];
   return popularCodes.map(code => getCurrencyByCode(code)!).filter(Boolean);

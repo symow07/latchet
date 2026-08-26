@@ -22,7 +22,7 @@ import * as Haptics from 'expo-haptics';
 import { saveOnboardingData } from '@/lib/onboarding-storage';
 import { updateSettings } from '@/lib/db';
 import { scheduleCloudPush } from '@/lib/cloud-sync';
-import { CURRENCIES, getPopularCurrencies, type Currency } from '@/lib/currencies';
+import { CURRENCIES, getPopularCurrencies, getDefaultCurrency, type Currency } from '@/lib/currencies';
 import { t } from '@/lib/i18n/core';
 
 const STEPS = ['currency', 'income', 'goal', 'style'] as const;
@@ -48,7 +48,7 @@ export default function OnboardingScreen() {
   const [showCurrencyPicker, setShowCurrencyPicker] = useState(false);
 
   // Form state
-  const [currency, setCurrency] = useState<Currency>(CURRENCIES[0]);
+  const [currency, setCurrency] = useState<Currency>(getDefaultCurrency());
   const [monthlyIncome, setMonthlyIncome] = useState('');
   const [savingsGoal, setSavingsGoal] = useState('');
   const [spendingStyle, setSpendingStyle] = useState<'frugal' | 'moderate' | 'generous'>('moderate');
@@ -169,7 +169,7 @@ export default function OnboardingScreen() {
                       }}
                     >
                       <View className="flex-row items-center">
-                        <Text className="text-xl mr-3 w-8">{c.symbol}</Text>
+                        <Text numberOfLines={1} className="text-base mr-3 w-12">{c.symbol}</Text>
                         <Text style={{ color: C.text }} >{c.code} - {c.name}</Text>
                       </View>
                       {currency.code === c.code && <Check size={18} color={C.p500} />}
@@ -195,7 +195,7 @@ export default function OnboardingScreen() {
                       }}
                     >
                       <View className="flex-row items-center">
-                        <Text className="text-xl mr-3 w-8">{c.symbol}</Text>
+                        <Text numberOfLines={1} className="text-base mr-3 w-12">{c.symbol}</Text>
                         <Text style={{ color: C.text }} className="text-sm">{c.code} - {c.name}</Text>
                       </View>
                       {currency.code === c.code && <Check size={18} color={C.p500} />}

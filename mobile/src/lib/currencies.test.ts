@@ -7,6 +7,7 @@ import {
   formatCurrencyAmount,
   getCurrencyByCode,
   CURRENCIES,
+  getDefaultCurrency,
   BUNDLED_RATES_AS_OF,
 } from './currencies';
 
@@ -92,4 +93,11 @@ test('the popular shortlist still resolves against the widened list', () => {
   for (const code of ['USD', 'EUR', 'GBP', 'JPY', 'CNY', 'INR', 'CAD', 'AUD', 'AED', 'SAR']) {
     expect(getCurrencyByCode(code)).toBeDefined();
   }
+});
+
+test('a new account defaults to USD, not whatever sorts first', () => {
+  // The list is generated in the provider's alphabetical order, so indexing it
+  // made AED the default for every new user the moment it was widened.
+  expect(getDefaultCurrency().code).toBe('USD');
+  expect(CURRENCIES[0]!.code).not.toBe('USD');
 });
