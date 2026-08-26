@@ -9,6 +9,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getSettings, updateSettings } from '../db';
 import { deviceLocale } from './index';
 import { setLocale, normalizeLocale, type AppLocale } from './core';
+import { applyChosenLocale } from './apply';
 
 const CHOSEN_KEY = '@locale_chosen_v1';
 
@@ -38,7 +39,8 @@ export async function initLocale(): Promise<AppLocale> {
 
 /** Persist a language the user picked and apply it immediately. */
 export async function chooseLocale(locale: AppLocale): Promise<void> {
-  setLocale(locale);
-  await AsyncStorage.setItem(CHOSEN_KEY, '1').catch(() => {});
-  await updateSettings({ locale }).catch(() => {});
+  await applyChosenLocale(locale, async (chosen) => {
+    await AsyncStorage.setItem(CHOSEN_KEY, '1').catch(() => {});
+    await updateSettings({ locale: chosen }).catch(() => {});
+  });
 }

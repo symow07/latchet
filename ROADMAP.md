@@ -785,6 +785,24 @@ transaction in without opening a form.
 
   Verified on a French simulator end to end.
 
+- ☑ **Language in business mode — and the reason it never worked.** Business accounts had no
+  language row at all; the picker existed only on the personal settings screen. Adding one exposed
+  something bigger: choosing a language had never actually changed the interface, in either mode.
+
+  `getSettings()` applied the stored language as a side effect, and `updateSettings()` reads the row
+  before it writes. So picking French ran `setLocale('fr')`, then the read inside the write put it
+  straight back to `'en'` from a row that had not been written yet. The choice persisted correctly —
+  which is why every check of "did it save?" passed — while the interface stayed in the old
+  language. This is the defect behind the original "most of the texts do not change" report; the
+  remount key added earlier was necessary but not sufficient.
+
+  Language transitions now have exactly two owners, `initLocale()` at startup and `chooseLocale()`
+  on change, and `applyChosenLocale` in `i18n/apply.ts` re-applies the choice after the write so no
+  side effect in the persistence path can win that race again. It is a separate module purely so it
+  can be tested: bootstrap imports the database, which imports expo-sqlite.
+
+  Verified on the simulator switching English → French → English in business mode.
+
 Still open from the four speed-ups chosen:
 
 - **The share extension's own text** — `ShareViewController`'s placeholder is a plain Swift string

@@ -1,6 +1,5 @@
 import * as SQLite from 'expo-sqlite';
 import { setActiveCurrency } from './calculations';
-import { setLocale, normalizeLocale } from './i18n/core';
 
 const DB_NAME = 'real_budget.db';
 
@@ -711,13 +710,20 @@ export async function getSettings(): Promise<Settings> {
   const settings = await database.getFirstAsync(
     'SELECT * FROM settings WHERE id = 1'
   ) as Settings;
-  // Keep app-wide currency formatting in sync with the user's choice.
-  // Keep app-wide currency and language in sync with the user's choice, so
-  // every formatCurrency and t() call site follows without threading it through.
+  // Keep app-wide currency formatting in sync with the user's choice, so every
+  // formatCurrency call site follows without threading it through.
+  //
+  // The language is deliberately NOT applied here, though it used to be. Any
+  // read of the settings row would re-apply the *stored* language, and
+  // updateSettings() reads before it writes — so choosing French ran
+  // setLocale('fr'), then this line put it straight back to 'en' from the row
+  // that had not been written yet. The choice persisted but the interface
+  // never changed, which is exactly the bug this looked like from the outside.
+  //
+  // Language transitions have two owners and only two: initLocale() at startup
+  // and chooseLocale() when the user picks. Neither needs a hook here.
   if (settings) {
     setActiveCurrency(settings.currency, settings.currencySymbol);
-    const locale = normalizeLocale(settings.locale);
-    if (locale) setLocale(locale);
   }
   return settings;
 }
