@@ -52,7 +52,7 @@ import { findCancelEntry, getCancelLink } from '@/lib/cancel-directory';
 import { formatCurrency } from '@/lib/calculations';
 import { useC } from '@/lib/design';
 import { ScreenBackground } from '@/components/ui';
-import { t } from '@/lib/i18n/core';
+import { t, getDateFnsLocale } from '@/lib/i18n/core';
 
 function cadenceLabel(cadence: Subscription['cadence']): string {
   switch (cadence) {
@@ -153,7 +153,7 @@ function OccurrenceRow({ occ, index }: { occ: SubscriptionOccurrence; index: num
             className="w-2 h-2 rounded-full"
             style={{ backgroundColor: C.p500 }}
           />
-          <Text className="text-white text-sm">{format(date, 'MMM d, yyyy')}</Text>
+          <Text className="text-white text-sm">{format(date, 'MMM d, yyyy', { locale: getDateFnsLocale() })}</Text>
         </View>
         <Text className="font-semibold text-sm" style={{ color: '#22c55e' }}>
           {formatCurrency(occ.amount)}
@@ -305,7 +305,7 @@ export default function SubscriptionDetailScreen() {
   }
 
   const nextDateFormatted = subscription.nextExpectedAt
-    ? format(parseISO(subscription.nextExpectedAt), 'MMM d, yyyy')
+    ? format(parseISO(subscription.nextExpectedAt), 'MMM d, yyyy', { locale: getDateFnsLocale() })
     : '—';
 
   return (

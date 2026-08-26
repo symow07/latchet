@@ -20,7 +20,7 @@ import Animated, { FadeInUp } from 'react-native-reanimated';
 import { R, glow, useC } from '@/lib/design';
 import { Txt, GlassCard, IconBubble, BubbleButton, ScreenBackground, Emoji } from '@/components/ui';
 import { getCategories, DEFAULT_CATEGORIES, CATEGORY_EMOJIS, CATEGORY_COLORS, categoryLabel } from '@/lib/categories';
-import { t } from '@/lib/i18n/core';
+import { t, getDateFnsLocale } from '@/lib/i18n/core';
 
 const getAccountIcon = (type: string) => {
   switch (type) {
@@ -350,7 +350,7 @@ export default function AddTransactionScreen() {
             <GlassCard padding={14} radius={R.md}>
               <View className="flex-row items-center" style={{ gap: 12 }}>
                 <IconBubble color={C.p500} size={40}><Calendar size={19} color={C.p400} /></IconBubble>
-                <Txt weight="semibold" size={16} color={C.text}>{format(date, 'MMMM d, yyyy')}</Txt>
+                <Txt weight="semibold" size={16} color={C.text}>{format(date, 'MMMM d, yyyy', { locale: getDateFnsLocale() })}</Txt>
               </View>
             </GlassCard>
           </Pressable>

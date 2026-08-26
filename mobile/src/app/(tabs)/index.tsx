@@ -32,14 +32,14 @@ import * as Haptics from 'expo-haptics';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { R, glow, useC } from '@/lib/design';
 import { Txt, GlassCard, IconBubble, Pill, BubbleButton, ScreenBackground, EmptyState } from '@/components/ui';
-import { t } from '@/lib/i18n/core';
+import { t, getDateFnsLocale } from '@/lib/i18n/core';
 
 function getGreeting(): string {
   const hour = new Date().getHours();
-  if (hour < 12) return 'Good morning';
-  if (hour < 17) return 'Good afternoon';
-  if (hour < 21) return 'Good evening';
-  return 'Good night';
+  if (hour < 12) return t('greeting.morning');
+  if (hour < 17) return t('greeting.afternoon');
+  if (hour < 21) return t('greeting.evening');
+  return t('greeting.night');
 }
 
 // Small staggered reveal wrapper to keep the screen feeling alive & bubbly.
@@ -214,7 +214,7 @@ return { icon: Flame, color: C.p400, title: `${streak}-Day Streak! `, message: `
             {scorable && <Pill label={t('dashboard.doingGreat')} color={C.p400} />}
           </View>
           <Txt weight="medium" size={13} color={C.textFaint} style={{ marginTop: 4 }}>
-            {format(new Date(), 'EEEE, MMMM d')}
+            {format(new Date(), 'EEEE, MMMM d', { locale: getDateFnsLocale() })}
           </Txt>
 
           {/* Balance hero card */}

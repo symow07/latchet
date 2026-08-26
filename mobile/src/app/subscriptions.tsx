@@ -33,7 +33,7 @@ import {
   monthlySubscriptionTotal,
 } from '@/lib/subscription-detection';
 import { formatCurrency } from '@/lib/calculations';
-import { t } from '@/lib/i18n/core';
+import { t, getDateFnsLocale } from '@/lib/i18n/core';
 
 type SegmentKey = 'confirmed' | 'possible' | 'canceled';
 
@@ -57,7 +57,7 @@ function nextChargeMeta(nextExpectedAt: string | null, C: Palette): { label: str
   const today = new Date();
   const nextDate = parseISO(nextExpectedAt);
   const daysUntil = differenceInDays(nextDate, today);
-  const formatted = format(nextDate, 'MMM d');
+  const formatted = format(nextDate, 'MMM d', { locale: getDateFnsLocale() });
 
   if (daysUntil < 0) {
     return { label: `Overdue (${formatted})`, color: '#ef4444' };

@@ -512,5 +512,29 @@
     "securitySub": "密码、双重验证",
     "helpLabel": "帮助与反馈",
     "helpSub": "获取帮助或报告问题"
+  },
+  "feedback": {
+    "exceededTitle": "预算已超支！",
+    "exceededBody": "本月预算已使用 {{percent}}%。本月剩余时间请注意控制支出。",
+    "almostTitle": "接近预算上限",
+    "almostBody": "预算已使用 {{percent}}%，本月还剩 {{days}} 天。请留意支出。",
+    "aheadTitle": "支出快于计划",
+    "aheadBody": "你的支出快于预期。照此速度，本月底可能会超出预算。",
+    "impulseTitle": "冲动消费偏高",
+    "impulseBody": "{{percent}}% 的消费属于冲动购买。非必需品不妨先等 24 小时。",
+    "savingsTitle": "储蓄进展顺利！",
+    "savingsBody": "做得好！本月预计可存下 {{amount}}，已超出目标。",
+    "controlTitle": "支出控制得很好！",
+    "controlBody": "你的支出低于预期。继续保持，储蓄会更可观。",
+    "streakTitle": "连续记录 {{days}} 天！",
+    "streakBody": "太棒了！你一直在坚持记账，请保持这个习惯。",
+    "disciplineTitle": "自律表现出色！",
+    "disciplineBody": "你只用了预算的 {{percent}}%，理财很在行！"
+  },
+  "greeting": {
+    "morning": "早上好",
+    "afternoon": "下午好",
+    "evening": "晚上好",
+    "night": "晚安"
   }
 }

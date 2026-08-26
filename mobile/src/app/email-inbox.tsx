@@ -15,7 +15,7 @@ import {
 } from '@/lib/emailSubscriptionApi';
 import { R, useC } from '@/lib/design';
 import { Txt, GlassCard, IconBubble, Pill, BubbleButton, ScreenBackground } from '@/components/ui';
-import { t } from '@/lib/i18n/core';
+import { t, getDateFnsLocale } from '@/lib/i18n/core';
 
 const STEPS = [
   'Copy your private Budget address above.',
@@ -160,7 +160,7 @@ export default function EmailInboxScreen() {
                             {item.merchant || item.label || item.senderDomain || 'Unrecognised email'}
                           </Txt>
                           <Txt size={12} color={C.textFaint} numberOfLines={1} style={{ marginTop: 1 }}>
-                            {item.cadence !== 'unknown' ? `${item.cadence} · ` : ''}{item.chargedISO ? format(parseISO(item.chargedISO), 'MMM d') : 'recent'}
+                            {item.cadence !== 'unknown' ? `${item.cadence} · ` : ''}{item.chargedISO ? format(parseISO(item.chargedISO), 'MMM d', { locale: getDateFnsLocale() }) : 'recent'}
                           </Txt>
                         </View>
                         {item.amount ? <Txt weight="bold" size={16} color={C.text}>${item.amount.toFixed(2)}</Txt> : null}

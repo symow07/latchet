@@ -517,5 +517,29 @@
     "securitySub": "Password, 2FA",
     "helpLabel": "Help & Feedback",
     "helpSub": "Get support or report an issue"
+  },
+  "feedback": {
+    "exceededTitle": "Budget Exceeded!",
+    "exceededBody": "You've spent {{percent}}% of your monthly budget. Try to limit spending for the rest of the month.",
+    "almostTitle": "Almost at Budget Limit",
+    "almostBody": "You've used {{percent}}% of your budget with {{days}} days left. Be mindful of spending!",
+    "aheadTitle": "Spending Ahead of Pace",
+    "aheadBody": "You're spending faster than expected. At this rate, you might exceed your budget by month's end.",
+    "impulseTitle": "High Impulse Purchases",
+    "impulseBody": "{{percent}}% of your purchases were impulse buys. Try waiting 24 hours before non-essential purchases.",
+    "savingsTitle": "On Track for Savings!",
+    "savingsBody": "Great job! You're on track to save {{amount}} this month, exceeding your goal!",
+    "controlTitle": "Great Spending Control!",
+    "controlBody": "You're spending less than expected. Keep it up to maximize your savings!",
+    "streakTitle": "{{days}}-Day Streak!",
+    "streakBody": "Amazing! You've been tracking your finances consistently. Keep building this habit!",
+    "disciplineTitle": "Excellent Discipline!",
+    "disciplineBody": "You're using only {{percent}}% of your budget. You're a budgeting pro!"
+  },
+  "greeting": {
+    "morning": "Good morning",
+    "afternoon": "Good afternoon",
+    "evening": "Good evening",
+    "night": "Good night"
   }
 }

@@ -18,7 +18,7 @@ import * as Haptics from 'expo-haptics';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { R, useC } from '@/lib/design';
 import { Txt, GlassCard, Pill, ScreenBackground, EmptyState } from '@/components/ui';
-import { t } from '@/lib/i18n/core';
+import { t, getDateFnsLocale } from '@/lib/i18n/core';
 
 interface Transaction {
   id: string;
@@ -131,7 +131,7 @@ export default function TransactionsScreen() {
               <Pressable key={i} onPress={d.onPress} style={{ flex: 1 }}>
                 <GlassCard padding={12} radius={R.md} tint={`${C.p500}14`} border={`${C.p500}2e`}>
                   <Txt size={11} color={C.textFaint} style={{ marginBottom: 2 }}>{d.label}</Txt>
-                  <Txt weight="semibold" size={14} color={C.text}>{format(d.val, 'MMM d, yyyy')}</Txt>
+                  <Txt weight="semibold" size={14} color={C.text}>{format(d.val, 'MMM d, yyyy', { locale: getDateFnsLocale() })}</Txt>
                 </GlassCard>
               </Pressable>
             ))}
@@ -189,7 +189,7 @@ export default function TransactionsScreen() {
             {groupedArray.map((group, gi) => (
               <Animated.View key={group.date} entering={FadeInUp.delay(Math.min(gi * 40, 240)).springify().damping(16)} style={{ marginBottom: 22 }}>
                 <View className="flex-row justify-between items-center mb-3">
-                  <Txt weight="semibold" size={13} color={C.textDim}>{format(parseISO(group.date), 'EEEE, MMMM d')}</Txt>
+                  <Txt weight="semibold" size={13} color={C.textDim}>{format(parseISO(group.date), 'EEEE, MMMM d', { locale: getDateFnsLocale() })}</Txt>
                   <Pill
                     label={`${group.total < 0 ? '−' : '+'}${formatCurrency(Math.abs(group.total))}`}
                     color={group.total < 0 ? C.rose : C.green}

@@ -480,7 +480,7 @@
     "history": "Historique",
     "advisor": "Conseiller",
     "settings": "Réglages",
-    "dashboard": "Tableau de bord",
+    "dashboard": "Résumé",
     "expenses": "Dépenses",
     "team": "Équipe",
     "payroll": "Paie",
@@ -517,5 +517,29 @@
     "securitySub": "Mot de passe, 2FA",
     "helpLabel": "Aide et commentaires",
     "helpSub": "Obtenez de l’aide ou signalez un problème"
+  },
+  "feedback": {
+    "exceededTitle": "Budget dépassé !",
+    "exceededBody": "Vous avez dépensé {{percent}} % de votre budget mensuel. Essayez de limiter vos dépenses d’ici la fin du mois.",
+    "almostTitle": "Proche de la limite",
+    "almostBody": "Vous avez utilisé {{percent}} % de votre budget, et il reste {{days}} jours. Attention aux dépenses !",
+    "aheadTitle": "Dépenses en avance",
+    "aheadBody": "Vous dépensez plus vite que prévu. À ce rythme, vous risquez de dépasser votre budget avant la fin du mois.",
+    "impulseTitle": "Beaucoup d’achats impulsifs",
+    "impulseBody": "{{percent}} % de vos achats étaient impulsifs. Essayez d’attendre 24 heures avant tout achat non essentiel.",
+    "savingsTitle": "Objectif d’épargne en bonne voie !",
+    "savingsBody": "Bravo ! Vous êtes en voie d’épargner {{amount}} ce mois-ci, au-delà de votre objectif.",
+    "controlTitle": "Belle maîtrise des dépenses !",
+    "controlBody": "Vous dépensez moins que prévu. Continuez ainsi pour maximiser votre épargne !",
+    "streakTitle": "Série de {{days}} jours !",
+    "streakBody": "Superbe ! Vous suivez vos finances avec régularité. Continuez à ancrer cette habitude.",
+    "disciplineTitle": "Excellente discipline !",
+    "disciplineBody": "Vous n’utilisez que {{percent}} % de votre budget. Vous maîtrisez votre budget !"
+  },
+  "greeting": {
+    "morning": "Bonjour",
+    "afternoon": "Bon après-midi",
+    "evening": "Bonsoir",
+    "night": "Bonne nuit"
   }
 }
