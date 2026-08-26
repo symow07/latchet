@@ -12,6 +12,7 @@ import { initializeDatabase } from '@/lib/db';
 import { startCloudSync } from '@/lib/cloud-sync';
 import { loadRates } from '@/lib/rates';
 import { initLocale } from '@/lib/i18n/bootstrap';
+import { useLocaleStore } from '@/lib/i18n/locale-store';
 import { useSession, SESSION_QUERY_KEY } from '@/lib/auth/use-session';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { isBiometricAvailable, authenticateWithBiometrics } from '@/lib/biometric';
@@ -323,6 +324,7 @@ function RootLayoutNav({ colorScheme }: { colorScheme: 'light' | 'dark' | null |
 
 export default function RootLayout() {
   const C = useC();
+  const localeVersion = useLocaleStore((s) => s.version);
   const colorScheme = useColorScheme();
   const [dbReady, setDbReady] = useState(false);
   const [dbError, setDbError] = useState<string | null>(null);
@@ -353,7 +355,12 @@ export default function RootLayout() {
       await withTimeout(initializeDatabase(), DB_INIT_TIMEOUT_MS, 'initializeDatabase');
       console.log('[startup] initializeDatabase success');
       // Language before any screen renders, so nothing flashes in English first.
-      await initLocale().catch(() => {});
+      // Startup applies the stored language directly to i18n-js, so the
+      // store has to be told what it landed on or the first change looks
+      // like a no-op.
+      await initLocale()
+        .then((applied) => useLocaleStore.getState().sync(applied))
+        .catch(() => {});
     } catch (e) {
       console.error('[startup] initializeDatabase error', e);
       setDbError(e instanceof Error ? e.message : 'Failed to initialize database');
@@ -439,7 +446,10 @@ export default function RootLayout() {
       <GestureHandlerRootView style={{ flex: 1 }}>
         <KeyboardProvider>
           <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
-          <RootLayoutNav colorScheme={colorScheme} />
+          {/* Keyed on the locale: t() reads a module singleton that no
+              component subscribes to, so without a remount only the screen
+              that made the change re-renders. See lib/i18n/locale-store.ts. */}
+          <RootLayoutNav key={localeVersion} colorScheme={colorScheme} />
         </KeyboardProvider>
       </GestureHandlerRootView>
     </QueryClientProvider>

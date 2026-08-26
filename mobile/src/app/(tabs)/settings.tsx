@@ -25,8 +25,8 @@ import Animated, { FadeInUp } from 'react-native-reanimated';
 import { R, glow, useC } from '@/lib/design';
 import { DeleteAccountModal, UnrevokedGrantsNotice } from '@/components/DeleteAccountModal';
 import { useEntitlement } from '@/lib/useEntitlement';
-import { t, getLocale, SUPPORTED_LOCALES, LOCALE_LABELS, type AppLocale } from '@/lib/i18n/core';
-import { chooseLocale } from '@/lib/i18n/bootstrap';
+import { t, SUPPORTED_LOCALES, LOCALE_LABELS } from '@/lib/i18n/core';
+import { useLocaleStore } from '@/lib/i18n/locale-store';
 import type { UnrevokedGrant } from '@/lib/accountApi';
 import { Txt, GlassCard, IconBubble, BubbleButton, ScreenBackground } from '@/components/ui';
 
@@ -123,7 +123,8 @@ export default function SettingsScreen() {
   const [biometricEnabled, setBiometricEnabled] = useState(false);
   const [showDeleteAccount, setShowDeleteAccount] = useState(false);
   const [restoring, setRestoring] = useState(false);
-  const [locale, setLocaleState] = useState<AppLocale>(getLocale());
+  const locale = useLocaleStore((s) => s.locale);
+  const chooseLanguage = useLocaleStore((s) => s.choose);
   const { isPro, presentPaywall, restore } = useEntitlement();
   const [unrevokedGrants, setUnrevokedGrants] = useState<UnrevokedGrant[] | null>(null);
 
@@ -332,11 +333,11 @@ export default function SettingsScreen() {
                   onPress={async () => {
                     if (active) return;
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    await chooseLocale(code);
-                    setLocaleState(code);
-                    // Every screen reads t() at render, so re-running the
-                    // queries is enough — no reload, no restart.
-                    queryClient.invalidateQueries();
+                    // The store persists the choice and bumps the key the root
+                    // navigator is mounted on, which is what actually re-renders
+                    // the other screens. Invalidating queries here was not
+                    // enough: it only re-renders what subscribes to them.
+                    await chooseLanguage(code);
                   }}
                   style={{
                     flexDirection: 'row',

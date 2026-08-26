@@ -146,8 +146,11 @@ export default function OnboardingScreen() {
             </Pressable>
 
             {/* Currency List */}
+            {/* 75 currencies in a 256px box with the indicator turned off
+                showed four rows and no sign the rest existed. Taller, and the
+                indicator is the only cue that it scrolls at all. */}
             {showCurrencyPicker && (
-              <ScrollView className="max-h-64 mb-4" showsVerticalScrollIndicator={false}>
+              <ScrollView className="max-h-96 mb-4" showsVerticalScrollIndicator>
                 <Text style={{ color: C.textFaint }} className="text-xs mb-2 ml-1">{t('onboarding.popular')}</Text>
                 {popularCurrencies.map((c) => (
                   <Pressable
