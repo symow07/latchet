@@ -741,10 +741,34 @@ transaction in without opening a form.
   receipt reader on it. The reader's own AI call returned 503 — the backend was unreachable from an
   unauthenticated simulator — and the screen showed the error and fell back rather than hanging.
 
+- ☑ **Localised Siri phrases.** Siri translates nothing at runtime — phrases are matched from the
+  strings compiled into the app binary, so "Ajouter une dépense dans Budget" only works if it was
+  built in. `plugins/ios/Localization/{en,fr,zh-Hans}.lproj/` holds two tables:
+  `AppShortcuts.strings` for the spoken phrases and Shortcuts titles, `Localizable.strings` for
+  everything a `LocalizedStringResource` resolves — intent titles, descriptions, parameter names,
+  prompts and the spoken reply. Installed by `plugins/withAppShortcutLocalization.js`.
+
+  A String Catalog would have been one file instead of three per table, but Xcode rejects it:
+  *"AppShortcuts.xcstrings is only supported for iOS 17.0 and above"*, and this app deploys to 15.1.
+  Dropping iOS 15 and 16 users to save two files is not a trade worth making, so the plugin
+  assembles `PBXVariantGroup`s by hand — the `xcode` library has no helper for them.
+
+  The build setting matters as much as the files: `LM_NO_APP_SHORTCUT_LOCALIZATION` defaults to
+  **YES**, so `appintentsmetadataprocessor` was running with `--no-app-shortcuts-localization` and
+  would have extracted English only however many translations were present.
+
+  Verified in the built binary: `Metadata.appintents/root.ssu.yaml` carries a training corpus per
+  locale — en, fr and zh-Hans — for both intents, the flag is gone, and the app bundle contains
+  `en.lproj`, `fr.lproj` and `zh-Hans.lproj`, each with compiled strings and its own
+  `nlu.appintents` language model.
+
+  Side effect worth knowing: the app was natively English-only, and `Locale.preferredLanguages` is
+  filtered by an app's bundled localizations. A French device will now start the app in French
+  instead of English. That is a fix, but it is a change in first-launch behaviour.
+
 Still open from the four speed-ups chosen:
 
-- **Localised Siri phrases** — the phrases in `BudgetAppIntents.swift` are English only. The app is
-  translated; Siri phrases are matched from the binary's metadata and need a String Catalog per
-  language.
+- **The share extension's own text** — `ShareViewController`'s placeholder is a plain Swift string
+  in a different target, so it needs its own `.lproj` resources.
 - **expo-av → expo-audio** — `voice-api.ts` documents this debt. Worth doing before the next SDK
   bump forces it.

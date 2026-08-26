@@ -1,0 +1,17 @@
+/* Everything a LocalizedStringResource in BudgetAppIntents.swift resolves:
+   intent titles, descriptions, parameter names, spoken prompts and replies.
+
+   en */
+
+"Log an expense" = "Log an expense";
+"Log income" = "Log income";
+"Record something you spent. It appears in Budget next time you open it." = "Record something you spent. It appears in Budget next time you open it.";
+"Record money you received. It appears in Budget next time you open it." = "Record money you received. It appears in Budget next time you open it.";
+"Amount" = "Amount";
+"What for" = "What for";
+"What from" = "What from";
+"How much did you spend?" = "How much did you spend?";
+"What was it for?" = "What was it for?";
+"How much did you receive?" = "How much did you receive?";
+"What was it from?" = "What was it from?";
+"Got it. It'll be waiting in Budget." = "Got it. It'll be waiting in Budget.";

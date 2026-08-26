@@ -54,6 +54,7 @@
       "./plugins/withFmtConstevalFix",
       "./plugins/withAppIntents",
       "./plugins/withShareExtension",
+      "./plugins/withAppShortcutLocalization",
       "expo-localization"
     ],
     "experiments": {

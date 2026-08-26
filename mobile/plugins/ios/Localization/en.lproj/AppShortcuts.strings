@@ -1,0 +1,16 @@
+/* The phrases Siri listens for.
+   Keys are the English phrases exactly as written in BudgetAppIntents.swift.
+   Every phrase must contain ${applicationName} — the system rejects one
+   without it, in every language.
+
+   en */
+
+"Log an expense in ${applicationName}" = "Log an expense in ${applicationName}";
+"Add an expense to ${applicationName}" = "Add an expense to ${applicationName}";
+"Log spending in ${applicationName}" = "Log spending in ${applicationName}";
+"I spent money in ${applicationName}" = "I spent money in ${applicationName}";
+"Log income in ${applicationName}" = "Log income in ${applicationName}";
+"Add income to ${applicationName}" = "Add income to ${applicationName}";
+"I got paid in ${applicationName}" = "I got paid in ${applicationName}";
+"Log expense" = "Log expense";
+"Log income" = "Log income";
