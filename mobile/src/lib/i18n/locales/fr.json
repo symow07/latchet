@@ -474,5 +474,48 @@
     "pending": "En attente",
     "approved": "Approuvée",
     "rejected": "Refusée"
+  },
+  "tabs": {
+    "home": "Accueil",
+    "history": "Historique",
+    "advisor": "Conseiller",
+    "settings": "Réglages",
+    "dashboard": "Tableau de bord",
+    "expenses": "Dépenses",
+    "team": "Équipe",
+    "payroll": "Paie",
+    "budget": "Budget"
+  },
+  "settingsRows": {
+    "billRemindersLabel": "Rappels de factures",
+    "billRemindersDesc": "Suivez vos factures et leurs échéances",
+    "recurringLabel": "Transactions récurrentes",
+    "recurringDesc": "Créez automatiquement vos dépenses planifiées",
+    "netWorthLabel": "Patrimoine net",
+    "netWorthDesc": "Suivez vos actifs et vos passifs",
+    "categoryBudgetsLabel": "Budgets par catégorie",
+    "categoryBudgetsDesc": "Définissez des plafonds mensuels par catégorie",
+    "streakLabel": "Série de saisies",
+    "streakDesc": "Enregistrez vos transactions chaque jour pour bâtir une série",
+    "badgesLabel": "Badges de réussite",
+    "badgesDesc": "Débloquez des badges pour vos bonnes habitudes financières",
+    "cloudLabel": "Synchronisé",
+    "cloudDesc": "Vos données sont sauvegardées en toute sécurité"
+  },
+  "bizSettings": {
+    "sectionBusiness": "Entreprise",
+    "sectionPreferences": "Préférences",
+    "sectionSupport": "Assistance",
+    "companyLabel": "Profil de l’entreprise",
+    "companySub": "Nom, logo, adresse",
+    "taxLabel": "Paramètres fiscaux",
+    "taxSub": "TVA, numéro fiscal, exercice",
+    "regionLabel": "Devise et région",
+    "notifLabel": "Notifications",
+    "notifSub": "Alertes et rappels",
+    "securityLabel": "Sécurité",
+    "securitySub": "Mot de passe, 2FA",
+    "helpLabel": "Aide et commentaires",
+    "helpSub": "Obtenez de l’aide ou signalez un problème"
   }
 }

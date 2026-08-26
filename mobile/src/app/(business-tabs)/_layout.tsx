@@ -1,4 +1,5 @@
 import { Tabs } from 'expo-router';
+import { t } from '@/lib/i18n/core';
 import { View, Platform } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { LayoutDashboard, Receipt, Users, Wallet, PieChart, Settings } from 'lucide-react-native';
@@ -69,12 +70,12 @@ export default function BusinessTabLayout() {
         tabBarLabelStyle: { fontSize: 10, fontFamily: 'PlusJakartaSans_600SemiBold', marginTop: 2 },
       }}
     >
-      <Tabs.Screen name="index" options={{ title: 'Dashboard', tabBarIcon: ({ color, focused }) => <TabIcon name="dashboard" color={color} focused={focused} /> }} />
-      <Tabs.Screen name="expenses" options={{ title: 'Expenses', tabBarIcon: ({ color, focused }) => <TabIcon name="expenses" color={color} focused={focused} /> }} />
-      <Tabs.Screen name="team" options={{ title: 'Team', tabBarIcon: ({ color, focused }) => <TabIcon name="team" color={color} focused={focused} /> }} />
-      <Tabs.Screen name="subscriptions" options={{ title: 'Payroll', tabBarIcon: ({ color, focused }) => <TabIcon name="payroll" color={color} focused={focused} /> }} />
-      <Tabs.Screen name="insights" options={{ title: 'Budget', tabBarIcon: ({ color, focused }) => <TabIcon name="budget" color={color} focused={focused} /> }} />
-      <Tabs.Screen name="settings" options={{ title: 'Settings', tabBarIcon: ({ color, focused }) => <TabIcon name="settings" color={color} focused={focused} /> }} />
+      <Tabs.Screen name="index" options={{ title: t('tabs.dashboard'), tabBarIcon: ({ color, focused }) => <TabIcon name="dashboard" color={color} focused={focused} /> }} />
+      <Tabs.Screen name="expenses" options={{ title: t('tabs.expenses'), tabBarIcon: ({ color, focused }) => <TabIcon name="expenses" color={color} focused={focused} /> }} />
+      <Tabs.Screen name="team" options={{ title: t('tabs.team'), tabBarIcon: ({ color, focused }) => <TabIcon name="team" color={color} focused={focused} /> }} />
+      <Tabs.Screen name="subscriptions" options={{ title: t('tabs.payroll'), tabBarIcon: ({ color, focused }) => <TabIcon name="payroll" color={color} focused={focused} /> }} />
+      <Tabs.Screen name="insights" options={{ title: t('tabs.budget'), tabBarIcon: ({ color, focused }) => <TabIcon name="budget" color={color} focused={focused} /> }} />
+      <Tabs.Screen name="settings" options={{ title: t('tabs.settings'), tabBarIcon: ({ color, focused }) => <TabIcon name="settings" color={color} focused={focused} /> }} />
     </Tabs>
   );
 }

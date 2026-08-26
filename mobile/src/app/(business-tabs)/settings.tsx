@@ -13,32 +13,34 @@ import { R, glow, useB } from '@/lib/design';
 import { Txt, GlassCard, IconBubble, Pill, BizBackground } from '@/components/ui';
 import { t } from '@/lib/i18n/core';
 
-const SECTIONS = [
-  {
-    title: 'Business',
-    items: [
-      { icon: Building2, label: 'Company Profile', sub: 'Name, logo, address', color: '#3b82f6' },
-      { icon: FileText, label: 'Tax Settings', sub: 'VAT, tax ID, fiscal year', color: '#14b8a6' },
-      { icon: Globe, label: 'Currency & Region', sub: 'USD · United States', color: '#f59e0b' },
-    ],
-  },
-  {
-    title: 'Preferences',
-    items: [
-      { icon: Bell, label: 'Notifications', sub: 'Alerts and reminders', color: '#a78bfa' },
-      { icon: Shield, label: 'Security', sub: 'Password, 2FA', color: '#ef4444' },
-    ],
-  },
-  {
-    title: 'Support',
-    items: [
-      { icon: HelpCircle, label: 'Help & Feedback', sub: 'Get support or report an issue', color: '#94a3b8' },
-    ],
-  },
-];
-
 export default function BusinessSettingsScreen() {
   const B = useB();
+  // Built per render, not at module scope. t() at module scope resolves once
+  // at import and freezes whatever language was active then, so these rows
+  // would survive a locale change that remounts everything else.
+  const SECTIONS = [
+    {
+      title: t('bizSettings.sectionBusiness'),
+      items: [
+        { icon: Building2, label: t('bizSettings.companyLabel'), sub: t('bizSettings.companySub'), color: '#3b82f6' },
+        { icon: FileText, label: t('bizSettings.taxLabel'), sub: t('bizSettings.taxSub'), color: '#14b8a6' },
+        { icon: Globe, label: t('bizSettings.regionLabel'), sub: 'USD · United States', color: '#f59e0b' },
+      ],
+    },
+    {
+      title: t('bizSettings.sectionPreferences'),
+      items: [
+        { icon: Bell, label: t('bizSettings.notifLabel'), sub: t('bizSettings.notifSub'), color: '#a78bfa' },
+        { icon: Shield, label: t('bizSettings.securityLabel'), sub: t('bizSettings.securitySub'), color: '#ef4444' },
+      ],
+    },
+    {
+      title: t('bizSettings.sectionSupport'),
+      items: [
+        { icon: HelpCircle, label: t('bizSettings.helpLabel'), sub: t('bizSettings.helpSub'), color: '#94a3b8' },
+      ],
+    },
+  ];
   const insets = useSafeAreaInsets();
   const { data: session } = useSession();
   const invalidateSession = useInvalidateSession();

@@ -474,5 +474,48 @@
     "pending": "Pending",
     "approved": "Approved",
     "rejected": "Rejected"
+  },
+  "tabs": {
+    "home": "Home",
+    "history": "History",
+    "advisor": "Advisor",
+    "settings": "Settings",
+    "dashboard": "Dashboard",
+    "expenses": "Expenses",
+    "team": "Team",
+    "payroll": "Payroll",
+    "budget": "Budget"
+  },
+  "settingsRows": {
+    "billRemindersLabel": "Bill Reminders",
+    "billRemindersDesc": "Track upcoming bills & due dates",
+    "recurringLabel": "Recurring Transactions",
+    "recurringDesc": "Auto-create scheduled expenses",
+    "netWorthLabel": "Net Worth",
+    "netWorthDesc": "Track assets vs liabilities",
+    "categoryBudgetsLabel": "Category Budgets",
+    "categoryBudgetsDesc": "Set per-category monthly limits",
+    "streakLabel": "Logging Streak",
+    "streakDesc": "Build streaks by logging transactions daily",
+    "badgesLabel": "Achievement Badges",
+    "badgesDesc": "Unlock badges for good financial habits",
+    "cloudLabel": "Cloud Synced",
+    "cloudDesc": "Data backed up securely to the cloud"
+  },
+  "bizSettings": {
+    "sectionBusiness": "Business",
+    "sectionPreferences": "Preferences",
+    "sectionSupport": "Support",
+    "companyLabel": "Company Profile",
+    "companySub": "Name, logo, address",
+    "taxLabel": "Tax Settings",
+    "taxSub": "VAT, tax ID, fiscal year",
+    "regionLabel": "Currency & Region",
+    "notifLabel": "Notifications",
+    "notifSub": "Alerts and reminders",
+    "securityLabel": "Security",
+    "securitySub": "Password, 2FA",
+    "helpLabel": "Help & Feedback",
+    "helpSub": "Get support or report an issue"
   }
 }

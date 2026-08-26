@@ -217,10 +217,10 @@ export default function SettingsScreen() {
   });
 
   const tools = [
-    { label: 'Bill Reminders', desc: 'Track upcoming bills & due dates', Icon: Bell, color: C.p400, route: '/bill-reminders' },
-    { label: 'Recurring Transactions', desc: 'Auto-create scheduled expenses', Icon: Repeat, color: C.green, route: '/recurring' },
-    { label: 'Net Worth', desc: 'Track assets vs liabilities', Icon: TrendingUp, color: C.sky, route: '/net-worth' },
-    { label: 'Category Budgets', desc: 'Set per-category monthly limits', Icon: PieChart, color: C.rose, route: '/category-budgets' },
+    { label: t('settingsRows.billRemindersLabel'), desc: t('settingsRows.billRemindersDesc'), Icon: Bell, color: C.p400, route: '/bill-reminders' },
+    { label: t('settingsRows.recurringLabel'), desc: t('settingsRows.recurringDesc'), Icon: Repeat, color: C.green, route: '/recurring' },
+    { label: t('settingsRows.netWorthLabel'), desc: t('settingsRows.netWorthDesc'), Icon: TrendingUp, color: C.sky, route: '/net-worth' },
+    { label: t('settingsRows.categoryBudgetsLabel'), desc: t('settingsRows.categoryBudgetsDesc'), Icon: PieChart, color: C.rose, route: '/category-budgets' },
   ];
 
   return (
@@ -299,9 +299,9 @@ export default function SettingsScreen() {
           <SectionLabel>{t('settings.sections.features')}</SectionLabel>
           <View style={{ gap: 12 }}>
             {[
-              { Icon: Flame, color: C.lilac, label: 'Logging Streak', desc: 'Build streaks by logging transactions daily' },
-              { Icon: Award, color: C.p400, label: 'Achievement Badges', desc: 'Unlock badges for good financial habits' },
-              { Icon: Cloud, color: C.p600, label: 'Cloud Synced', desc: 'Data backed up securely to the cloud' },
+              { Icon: Flame, color: C.lilac, label: t('settingsRows.streakLabel'), desc: t('settingsRows.streakDesc') },
+              { Icon: Award, color: C.p400, label: t('settingsRows.badgesLabel'), desc: t('settingsRows.badgesDesc') },
+              { Icon: Cloud, color: C.p600, label: t('settingsRows.cloudLabel'), desc: t('settingsRows.cloudDesc') },
             ].map((f) => (
               <GlassCard key={f.label} padding={14} tint={`${f.color}12`} border={`${f.color}24`}>
                 <View className="flex-row items-center" style={{ gap: 14 }}>

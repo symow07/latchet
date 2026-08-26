@@ -1,4 +1,5 @@
 import React from 'react';
+import { t } from '@/lib/i18n/core';
 import { Tabs } from 'expo-router';
 import { View, Platform } from 'react-native';
 import { useClientOnlyValue } from '@/lib/useClientOnlyValue';
@@ -112,7 +113,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Home',
+          title: t('tabs.home'),
           tabBarIcon: ({ color, focused }) => <TabBarIcon name="dashboard" color={color} focused={focused} />,
           headerShown: false,
         }}
@@ -128,7 +129,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="transactions"
         options={{
-          title: 'History',
+          title: t('tabs.history'),
           tabBarIcon: ({ color, focused }) => <TabBarIcon name="transactions" color={color} focused={focused} />,
           headerShown: false,
         }}
@@ -136,7 +137,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="advisor"
         options={{
-          title: 'Advisor',
+          title: t('tabs.advisor'),
           tabBarIcon: ({ color, focused }) => <TabBarIcon name="advisor" color={color} focused={focused} />,
           headerShown: false,
         }}
@@ -144,7 +145,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="settings"
         options={{
-          title: 'Settings',
+          title: t('tabs.settings'),
           tabBarIcon: ({ color, focused }) => <TabBarIcon name="settings" color={color} focused={focused} />,
           headerShown: false,
         }}

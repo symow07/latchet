@@ -162,3 +162,43 @@ test('the catalogue is actually being used', () => {
   // Guards against the extraction silently reverting.
   expect(usedKeys(join(import.meta.dir, '..', '..')).size).toBeGreaterThan(50);
 });
+
+// ── t() must not be called at module scope ───────────────────────────────────
+
+test('no screen resolves a translation at module scope', () => {
+  // A t() call outside a component body runs once, when the module is first
+  // imported, and keeps whatever language was active at that moment. It then
+  // survives everything: the locale change, the remount the locale change
+  // triggers, and any re-render. The failure is silent — the string is a real
+  // translation, just the wrong one, and only in whichever language the app
+  // happened to start in.
+  //
+  // This is exactly what business settings did: its SECTIONS array sat at
+  // module scope, so its rows stayed in the startup language while the rest
+  // of the screen switched around them.
+  const roots = ['app', 'components'];
+  const offenders: string[] = [];
+
+  const walk = (dir: string): string[] =>
+    readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
+      const full = join(dir, e.name);
+      if (e.isDirectory()) return walk(full);
+      return e.isFile() && full.endsWith('.tsx') ? [full] : [];
+    });
+
+  for (const file of roots.flatMap((r) => walk(join(import.meta.dir, '..', '..', r)))) {
+    let depth = 0;
+    readFileSync(file, 'utf8').split('\n').forEach((line, i) => {
+      const code = line.replace(/\/\/.*$/, '');
+      if (depth === 0 && /\bt\(['"`]/.test(code)) {
+        offenders.push(`${file.split('/src/')[1]}:${i + 1}`);
+      }
+      for (const ch of code) {
+        if ('{(['.includes(ch)) depth++;
+        else if ('})]'.includes(ch)) depth = Math.max(0, depth - 1);
+      }
+    });
+  }
+
+  expect(offenders).toEqual([]);
+});

@@ -469,5 +469,48 @@
     "pending": "待处理",
     "approved": "已批准",
     "rejected": "已拒绝"
+  },
+  "tabs": {
+    "home": "首页",
+    "history": "记录",
+    "advisor": "顾问",
+    "settings": "设置",
+    "dashboard": "概览",
+    "expenses": "支出",
+    "team": "团队",
+    "payroll": "薪酬",
+    "budget": "预算"
+  },
+  "settingsRows": {
+    "billRemindersLabel": "账单提醒",
+    "billRemindersDesc": "跟踪即将到期的账单",
+    "recurringLabel": "定期交易",
+    "recurringDesc": "自动创建计划支出",
+    "netWorthLabel": "净资产",
+    "netWorthDesc": "跟踪资产与负债",
+    "categoryBudgetsLabel": "分类预算",
+    "categoryBudgetsDesc": "设置每月分类上限",
+    "streakLabel": "连续记录",
+    "streakDesc": "每日记账以延续连续记录",
+    "badgesLabel": "成就徽章",
+    "badgesDesc": "养成良好习惯即可解锁徽章",
+    "cloudLabel": "云端同步",
+    "cloudDesc": "数据已安全备份至云端"
+  },
+  "bizSettings": {
+    "sectionBusiness": "企业",
+    "sectionPreferences": "偏好设置",
+    "sectionSupport": "支持",
+    "companyLabel": "公司资料",
+    "companySub": "名称、标识、地址",
+    "taxLabel": "税务设置",
+    "taxSub": "增值税、税号、财年",
+    "regionLabel": "货币与地区",
+    "notifLabel": "通知",
+    "notifSub": "提醒与通知",
+    "securityLabel": "安全",
+    "securitySub": "密码、双重验证",
+    "helpLabel": "帮助与反馈",
+    "helpSub": "获取帮助或报告问题"
   }
 }
