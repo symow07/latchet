@@ -1,4 +1,5 @@
 import { Tabs } from 'expo-router';
+import { useLocaleStore } from '@/lib/i18n/locale-store';
 import { t } from '@/lib/i18n/core';
 import { View, Platform } from 'react-native';
 import { BlurView } from 'expo-blur';
@@ -33,9 +34,14 @@ function TabIcon({ name, color, focused }: { name: string; color: string; focuse
 }
 
 export default function BusinessTabLayout() {
+  // React Navigation caches a screen's `options`, so the remount the locale
+  // change triggers higher up does not reach these titles — the tab bar kept
+  // the language the app started in. Keying the navigator forces it.
+  const localeVersion = useLocaleStore((s) => s.version);
   const B = useB();
   return (
     <Tabs
+      key={localeVersion}
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: B.accentSoft,

@@ -612,5 +612,13 @@
   },
   "misc": {
     "weAccess": "我们可以访问的内容："
+  },
+  "settingsHeader": {
+    "title": "设置",
+    "subtitle": "按你的喜好设置，我们不评判。",
+    "importDesc": "上传银行 CSV 文件",
+    "accountsLinked": {
+      "other": "已关联 {{count}} 个账户"
+    }
   }
 }

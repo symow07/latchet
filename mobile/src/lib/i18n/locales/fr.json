@@ -617,5 +617,14 @@
   },
   "misc": {
     "weAccess": "Ce à quoi nous accédons :"
+  },
+  "settingsHeader": {
+    "title": "Réglages",
+    "subtitle": "Personnalisez à votre goût, sans jugement.",
+    "importDesc": "Importez le CSV de votre banque",
+    "accountsLinked": {
+      "one": "{{count}} compte lié",
+      "other": "{{count}} comptes liés"
+    }
   }
 }

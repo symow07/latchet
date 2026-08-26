@@ -1,4 +1,5 @@
 import React from 'react';
+import { useLocaleStore } from '@/lib/i18n/locale-store';
 import { t } from '@/lib/i18n/core';
 import { Tabs } from 'expo-router';
 import { View, Platform } from 'react-native';
@@ -68,9 +69,14 @@ function TabBarIcon({ name, color, focused }: { name: string; color: string; foc
 }
 
 export default function TabLayout() {
+  // React Navigation caches a screen's `options`, so the remount the locale
+  // change triggers higher up does not reach these titles — the tab bar kept
+  // the language the app started in. Keying the navigator forces it.
+  const localeVersion = useLocaleStore((s) => s.version);
   const C = useC();
   return (
     <Tabs
+      key={localeVersion}
       screenOptions={{
         tabBarActiveTintColor: C.p400,
         tabBarInactiveTintColor: C.textFaint,

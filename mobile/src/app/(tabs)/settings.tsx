@@ -228,20 +228,20 @@ export default function SettingsScreen() {
       <ScrollView className="flex-1" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
         {/* ── Header ── */}
         <View style={{ paddingTop: insets.top + 16, paddingHorizontal: 20 }}>
-<Txt weight="bold" size={30} color={C.text}>Settings </Txt>
-<Txt weight="medium" size={13} color={C.textDim} style={{ marginTop: 2 }}>Make it yours — we won't judge! </Txt>
+<Txt weight="bold" size={30} color={C.text}>{t('settingsHeader.title')}</Txt>
+<Txt weight="medium" size={13} color={C.textDim} style={{ marginTop: 2 }}>{t('settingsHeader.subtitle')}</Txt>
         </View>
 
         {/* ── Accounts ── */}
         <Animated.View entering={FadeInUp.delay(40).springify().damping(16)} style={{ paddingHorizontal: 20, paddingTop: 22 }}>
           <SectionLabel>{t('settings.sections.accounts')}</SectionLabel>
-          <NavRow icon={<CreditCard size={20} color={C.p400} />} color={C.p400} label={t('settings.manageAccounts')} desc={`${accounts.length} account${accounts.length !== 1 ? 's' : ''} linked`} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/accounts'); }} />
+          <NavRow icon={<CreditCard size={20} color={C.p400} />} color={C.p400} label={t('settings.manageAccounts')} desc={t('settingsHeader.accountsLinked', { count: accounts.length })} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/accounts'); }} />
         </Animated.View>
 
         {/* ── Import ── */}
         <Animated.View entering={FadeInUp.delay(70).springify().damping(16)} style={{ paddingHorizontal: 20, paddingTop: 20 }}>
           <SectionLabel>{t('settings.sections.import')}</SectionLabel>
-          <NavRow icon={<Upload size={20} color={C.lilac} />} color={C.lilac} label={t('settings.importTransactions')} desc="Upload CSV from your bank" onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/import'); }} />
+          <NavRow icon={<Upload size={20} color={C.lilac} />} color={C.lilac} label={t('settings.importTransactions')} desc={t('settingsHeader.importDesc')} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/import'); }} />
         </Animated.View>
 
         {/* ── Tools ── */}

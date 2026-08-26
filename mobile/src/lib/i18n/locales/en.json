@@ -617,5 +617,14 @@
   },
   "misc": {
     "weAccess": "What we can access:"
+  },
+  "settingsHeader": {
+    "title": "Settings",
+    "subtitle": "Make it yours — we won't judge!",
+    "importDesc": "Upload CSV from your bank",
+    "accountsLinked": {
+      "one": "{{count}} account linked",
+      "other": "{{count}} accounts linked"
+    }
   }
 }
