@@ -32,6 +32,8 @@ import { patchDefaultFont, useC } from '@/lib/design';
 import { t } from '@/lib/i18n/core';
 import { Lock } from 'lucide-react-native';
 import { drainPendingCaptures } from '@/lib/pending-drain';
+import { drainSharedItems } from '@/lib/share-drain';
+import { useSharedReceiptStore } from '@/lib/shared-receipt-store';
 import { listenForQuickAdd } from '@/lib/quick-add-notify';
 
 // Silence verbose console.log in release builds (startup/gate/api tracing stays
@@ -221,6 +223,16 @@ function RootLayoutNav({ colorScheme }: { colorScheme: 'light' | 'dark' | null |
     }
   }, [sessionLoading, session?.user, accountType, accountTypeLoaded, router]);
 
+  // Open a receipt shared in from another app, once the auth gate has settled.
+  // Any earlier and the redirect below replaces the route out from under it.
+  const sharedReceipt = useSharedReceiptStore((s) => s.uri);
+  const clearSharedReceipt = useSharedReceiptStore((s) => s.setUri);
+  useEffect(() => {
+    if (!sharedReceipt || sessionLoading || !accountTypeLoaded) return;
+    clearSharedReceipt(null);
+    router.push({ pathname: '/receipt-scan', params: { sharedUri: sharedReceipt } });
+  }, [sharedReceipt, sessionLoading, accountTypeLoaded, router, clearSharedReceipt]);
+
   // Register the device for push notifications (bill reminders, badge alerts)
   // and schedule the daily streak nudge — once per authenticated user.
   const pushRegisteredFor = useRef<string | null>(null);
@@ -335,6 +347,12 @@ function RootLayoutNav({ colorScheme }: { colorScheme: 'light' | 'dark' | null |
  * rather than leaving it somewhere to be found.
  */
 function usePendingCaptures(dbReady: boolean) {
+  // Parked, not navigated to. The drain runs as soon as the database is ready,
+  // which is before the auth gate has decided where the user belongs — a push
+  // here is wiped by the router.replace that follows. RootLayoutNav opens it
+  // once that has settled.
+  const parkReceipt = useSharedReceiptStore((s) => s.setUri);
+
   useEffect(() => {
     if (!dbReady) return;
 
@@ -352,6 +370,18 @@ function usePendingCaptures(dbReady: boolean) {
         // Capture is a convenience. Failing it must never break a launch.
         console.warn('[pending-capture] drain failed', e);
       }
+
+      try {
+        const { inserted, receiptUri } = await drainSharedItems();
+        if (cancelled) return;
+        if (inserted > 0) refresh();
+        // A shared photo cannot be written blind — it has to go through the
+        // vision model and a review. Opening the reader is what the user asked
+        // for by sharing it, so the navigation is expected rather than intrusive.
+        if (receiptUri) parkReceipt(receiptUri);
+      } catch (e) {
+        console.warn('[share] drain failed', e);
+      }
     };
 
     drain();
@@ -364,7 +394,7 @@ function usePendingCaptures(dbReady: boolean) {
       stopListening();
       sub.remove();
     };
-  }, [dbReady]);
+  }, [dbReady, parkReceipt]);
 }
 
 export default function RootLayout() {

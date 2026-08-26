@@ -9,8 +9,8 @@ import {
 } from 'react-native';
 import { Image } from 'expo-image';
 import { useC } from '@/lib/design';
-import { useState } from 'react';
-import { useRouter } from 'expo-router';
+import { useState, useEffect, useRef } from 'react';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -29,6 +29,7 @@ import {
   RefreshCw,
 } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInUp, FadeInDown, ZoomIn } from 'react-native-reanimated';
 import { addTransaction } from '@/lib/db';
@@ -81,6 +82,34 @@ export default function ReceiptScanScreen() {
   const [dateISO, setDateISO] = useState<string>(new Date().toISOString().split('T')[0]);
   const [isImpulse, setIsImpulse] = useState<boolean>(false);
 
+  /**
+   * A receipt sent in from another app via the share sheet.
+   *
+   * share-drain.ts has already copied it out of the App Group and into the
+   * app's own storage, so this only has to read it. Guarded by a ref rather
+   * than the param alone: expo-router re-renders with the same params, and
+   * re-analysing would bill a second vision call and overwrite the user's edits.
+   */
+  const { sharedUri } = useLocalSearchParams<{ sharedUri?: string }>();
+  const analysedShare = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!sharedUri || analysedShare.current === sharedUri) return;
+    analysedShare.current = sharedUri;
+
+    (async () => {
+      try {
+        const base64 = await FileSystem.readAsStringAsync(sharedUri, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+        await analyze(sharedUri, base64);
+      } catch {
+        setErrorMsg(t('errors.aiFailed'));
+        setStep('pick');
+      }
+    })();
+  }, [sharedUri]);
+
   async function pickImage(source: 'camera' | 'library') {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setErrorMsg(null);
@@ -123,11 +152,22 @@ export default function ReceiptScanScreen() {
       return;
     }
 
-    setImageUri(asset.uri);
+    await analyze(asset.uri, asset.base64);
+  }
+
+  /**
+   * Read one image and fill in the review.
+   *
+   * Shared by the picker and by receipts arriving from the share sheet, so a
+   * receipt sent from Photos lands in exactly the same review as one taken
+   * with the camera.
+   */
+  async function analyze(uri: string, base64: string) {
+    setImageUri(uri);
     setStep('analyzing');
 
     try {
-      const extracted = await analyzeReceiptWithAI(asset.base64);
+      const extracted = await analyzeReceiptWithAI(base64);
       setAmount(extracted.amount.toFixed(2));
       setCategory(extracted.category);
       setNote(extracted.note);

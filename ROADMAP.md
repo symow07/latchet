@@ -1,7 +1,9 @@
 # Real Budget — Execution Roadmap
 
 > **Status, 26 August 2026.** 27 of 30 tasks are shipped and marked ☑ below, plus a
-> Phase 8 (fast capture) added afterwards — see the end of this file.
+> Phase 8 (fast capture) added afterwards — see the end of this file. Phase 8 adds one
+> owner action: the App Group must be enabled in the Apple Developer portal before
+> share-sheet capture works on a real device.
 > Three remain open, and none of them is code:
 >
 > - **Task 21 — app icon and splash.** Needs design. Still no `assets/`, and
@@ -716,9 +718,31 @@ transaction in without opening a form.
   logging in was not something to do on the user's behalf. The JS either side of that boundary is
   tested; the boundary itself needs one run on a signed-in device.
 
+- ☑ **Share-sheet capture.** "Share → Budget" from any app: a receipt photo, a screenshot of a
+  payment confirmation, or the text of one. A native `SLComposeServiceViewController` in its own
+  target (`plugins/ios/ShareExtension/`), created on every prebuild by `plugins/withShareExtension.js`.
+
+  The extension captures and queues but does **not** interpret — it gets a small memory budget and
+  is killed without ceremony, so booting a JS runtime to save one line would make the fast path the
+  slow one, and a Swift copy of the amount parser could never be tested. Text is parsed by
+  `quick-add.ts` when the app next opens; a shared image goes to the receipt reader, because reading
+  a receipt needs the vision model and a review and must not be written blind.
+
+  **Needs one thing from the account owner:** enable the **App Group `group.com.realbudget.app`**
+  on the App ID `com.realbudget.app` in the Apple Developer portal, then let EAS re-sync
+  credentials. Unlike the Siri intents, this cannot be avoided — a share extension runs in its own
+  container, and the App Group is the only ground it and the app both stand on. Without it
+  `appGroupPath()` returns null and the app behaves as though nothing was ever shared.
+
+  Verified end to end on the simulator, where App Groups need no provisioning: the queue was
+  consumed, shared text became a 45.20 expense categorised Food from the word "Starbucks", text with
+  no amount was dropped, a file name of `../../Documents/SQLite/real_budget.db` was rejected, the
+  image was moved out of the shared container into the app's own storage, and the app opened the
+  receipt reader on it. The reader's own AI call returned 503 — the backend was unreachable from an
+  unauthenticated simulator — and the screen showed the error and fell back rather than hanging.
+
 Still open from the four speed-ups chosen:
 
-- **Share-sheet capture** — send a receipt or a payment confirmation to Budget from any app.
 - **Localised Siri phrases** — the phrases in `BudgetAppIntents.swift` are English only. The app is
   translated; Siri phrases are matched from the binary's metadata and need a String Catalog per
   language.

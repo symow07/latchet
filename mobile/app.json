@@ -53,6 +53,7 @@
       ],
       "./plugins/withFmtConstevalFix",
       "./plugins/withAppIntents",
+      "./plugins/withShareExtension",
       "expo-localization"
     ],
     "experiments": {
