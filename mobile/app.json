@@ -11,7 +11,8 @@
       "bundleIdentifier": "com.realbudget.app",
       "supportsTablet": true,
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSMicrophoneUsageDescription": "Budget uses the microphone so you can speak your spending instead of typing it. Recordings are transcribed and then deleted, never stored."
       }
     },
     "android": {

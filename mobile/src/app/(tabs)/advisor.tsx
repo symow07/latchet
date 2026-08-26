@@ -5,17 +5,20 @@ import {
   Pressable,
   KeyboardAvoidingView,
   Platform,
-  ActivityIndicator,
-} from 'react-native';
+  ActivityIndicator, Alert } from 'react-native';
 import { useState, useRef, useEffect } from 'react';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { Audio } from 'expo-av';
+import { VoiceReviewSheet } from '@/components/VoiceReviewSheet';
+import { requestMicrophone, startRecording, finishAndExtract } from '@/lib/voice-api';
+import { toTransactionInputs, type ReviewRow, type VoiceResult } from '@/lib/voice-capture';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Send, Bot, User, Sparkles, TrendingUp, PiggyBank, AlertCircle, Lightbulb } from 'lucide-react-native';
+import { Send, Bot, User, Sparkles, TrendingUp, PiggyBank, AlertCircle, Lightbulb, Mic } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInUp, FadeInDown } from 'react-native-reanimated';
 
-import { getTransactions, getSettings } from '@/lib/db';
+import { getTransactions, getSettings, addTransaction } from '@/lib/db';
 import {
   analyzeSpending,
   buildAIPrompt,
@@ -56,6 +59,7 @@ export default function AdvisorTab() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [analysis, setAnalysis] = useState<SpendingAnalysis | null>(null);
 
+  const queryClient = useQueryClient();
   const { data: transactions = [] } = useQuery({ queryKey: ['transactions'], queryFn: getTransactions });
   const { data: settings } = useQuery({ queryKey: ['settings'], queryFn: getSettings });
 
@@ -116,6 +120,62 @@ export default function AdvisorTab() {
   }, [messages]);
 
   const canSend = inputText.trim() && !sendMessageMutation.isPending;
+
+  // ── Voice capture ──────────────────────────────────────────────────────────
+  // Hold to talk, release to extract. Nothing is written until the review sheet
+  // comes back confirmed: speech is the least reliable input here, and a
+  // misheard amount saved silently is worse than one the user corrects.
+  const [recording, setRecording] = useState<Audio.Recording | null>(null);
+  const [extracting, setExtracting] = useState(false);
+  const [voiceResult, setVoiceResult] = useState<VoiceResult | null>(null);
+  const [savingVoice, setSavingVoice] = useState(false);
+
+  const beginVoice = async () => {
+    if (recording || extracting) return;
+    if ((await requestMicrophone()) === 'denied') {
+      Alert.alert(t('dialogs.permissionNeeded'), t('voice.micDenied'));
+      return;
+    }
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    try {
+      setRecording(await startRecording());
+    } catch {
+      Alert.alert(t('dialogs.error'), t('voice.failed'));
+    }
+  };
+
+  const endVoice = async () => {
+    const active = recording;
+    if (!active) return;
+    setRecording(null);
+    setExtracting(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    try {
+      setVoiceResult(await finishAndExtract(active));
+    } catch {
+      Alert.alert(t('dialogs.error'), t('voice.failed'));
+    } finally {
+      setExtracting(false);
+    }
+  };
+
+  const saveVoiceRows = async (rows: ReviewRow[]) => {
+    setSavingVoice(true);
+    try {
+      // Sequential rather than parallel: addTransaction adjusts the running
+      // balance, so concurrent writes would race it.
+      for (const input of toTransactionInputs(rows)) {
+        await addTransaction(input);
+      }
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setVoiceResult(null);
+      queryClient.invalidateQueries();
+    } catch {
+      Alert.alert(t('dialogs.error'), t('voice.failed'));
+    } finally {
+      setSavingVoice(false);
+    }
+  };
 
   return (
     <ScreenBackground>
@@ -240,6 +300,11 @@ export default function AdvisorTab() {
 
         {/* ── Input ── */}
         <View style={{ paddingHorizontal: 20, paddingTop: 10, paddingBottom: 28 }}>
+          {recording || extracting ? (
+            <Txt size={12} color={recording ? C.rose : C.textFaint} style={{ marginBottom: 8, marginLeft: 4 }}>
+              {recording ? t('voice.listening') : t('voice.thinking')}
+            </Txt>
+          ) : null}
           <View className="flex-row items-end" style={{ gap: 10 }}>
             <View style={{ flex: 1, borderRadius: R.lg, paddingHorizontal: 16, paddingVertical: 12, minHeight: 50, backgroundColor: C.glassStrong, borderWidth: 1, borderColor: C.glassBorder }}>
               <TextInput
@@ -255,6 +320,31 @@ export default function AdvisorTab() {
                 returnKeyType="send"
               />
             </View>
+            {/* Hold to talk. The send button keeps its place and the mic
+                takes the slot beside it, so typing is no harder than before. */}
+            <Pressable
+              onPressIn={beginVoice}
+              onPressOut={endVoice}
+              disabled={extracting || sendMessageMutation.isPending}
+            >
+              <View
+                style={[
+                  {
+                    width: 50, height: 50, borderRadius: 18,
+                    alignItems: 'center', justifyContent: 'center',
+                    backgroundColor: recording ? `${C.rose}26` : C.glassStrong,
+                    borderWidth: 1,
+                    borderColor: recording ? `${C.rose}66` : C.glassBorder,
+                  },
+                  recording ? glow(C.rose, 0.5, 14, C.glowScale) : null,
+                ]}
+              >
+                {extracting
+                  ? <ActivityIndicator size="small" color={C.p400} />
+                  : <Mic size={20} color={recording ? C.rose : C.textFaint} />}
+              </View>
+            </Pressable>
+
             <Pressable onPress={handleSend} disabled={!canSend}>
               <LinearGradient
                 colors={canSend ? [C.p600, C.p400] : ['#2a2138', '#2a2138']}
@@ -266,6 +356,14 @@ export default function AdvisorTab() {
           </View>
         </View>
       </KeyboardAvoidingView>
+
+      <VoiceReviewSheet
+        result={voiceResult}
+        visible={voiceResult !== null}
+        saving={savingVoice}
+        onCancel={() => setVoiceResult(null)}
+        onConfirm={saveVoiceRows}
+      />
     </ScreenBackground>
   );
 }

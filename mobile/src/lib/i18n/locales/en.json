@@ -732,5 +732,25 @@
     "dateFrom": "From",
     "dateTo": "To",
     "noCanceledBody": "Subscriptions you've canceled will be tracked here."
+  },
+  "voice": {
+    "reviewTitle": "What I heard",
+    "heard": "Transcript",
+    "nothingHeard": "No transactions in that",
+    "nothingHeardBody": "Try naming an amount — “lunch was twelve”, “got paid two thousand”.",
+    "tapToSpeak": "Hold to speak",
+    "listening": "Listening…",
+    "thinking": "Reading that back…",
+    "micDenied": "Microphone access is needed to record.",
+    "failed": "Could not read that recording.",
+    "selectedCount": {
+      "zero": "none selected",
+      "one": "1 selected",
+      "other": "{{count}} selected"
+    },
+    "saveCount": {
+      "one": "Save 1 transaction",
+      "other": "Save {{count}} transactions"
+    }
   }
 }

@@ -732,5 +732,25 @@
     "dateFrom": "Du",
     "dateTo": "Au",
     "noCanceledBody": "Les abonnements que vous avez résiliés seront suivis ici."
+  },
+  "voice": {
+    "reviewTitle": "Ce que j’ai entendu",
+    "heard": "Transcription",
+    "nothingHeard": "Aucune transaction là-dedans",
+    "nothingHeardBody": "Essayez de citer un montant : « le déjeuner, douze », « j’ai reçu deux mille ».",
+    "tapToSpeak": "Maintenez pour parler",
+    "listening": "J’écoute…",
+    "thinking": "Je relis…",
+    "micDenied": "L’accès au micro est nécessaire pour enregistrer.",
+    "failed": "Impossible de lire cet enregistrement.",
+    "selectedCount": {
+      "zero": "aucune sélectionnée",
+      "one": "1 sélectionnée",
+      "other": "{{count}} sélectionnées"
+    },
+    "saveCount": {
+      "one": "Enregistrer 1 transaction",
+      "other": "Enregistrer {{count}} transactions"
+    }
   }
 }

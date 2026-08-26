@@ -724,5 +724,23 @@
     "dateFrom": "从",
     "dateTo": "到",
     "noCanceledBody": "你已取消的订阅会记录在这里。"
+  },
+  "voice": {
+    "reviewTitle": "我听到的内容",
+    "heard": "语音转文字",
+    "nothingHeard": "其中没有交易",
+    "nothingHeardBody": "试着说出金额，例如“午饭十二块”“收到两千”。",
+    "tapToSpeak": "按住说话",
+    "listening": "正在聆听…",
+    "thinking": "正在识别…",
+    "micDenied": "录音需要访问麦克风。",
+    "failed": "无法识别这段录音。",
+    "selectedCount": {
+      "zero": "未选择",
+      "other": "已选 {{count}} 笔"
+    },
+    "saveCount": {
+      "other": "保存 {{count}} 笔交易"
+    }
   }
 }
