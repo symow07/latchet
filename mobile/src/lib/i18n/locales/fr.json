@@ -605,7 +605,7 @@
   },
   "bizStats": {
     "totalSubmitted": "Total soumis",
-    "pendingReview": "En attente de validation",
+    "pendingReview": "En attente",
     "spent": "Dépensé",
     "remaining": "Restant"
   },
