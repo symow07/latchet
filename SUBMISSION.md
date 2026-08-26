@@ -81,13 +81,27 @@ longest-lead external dependency from your launch — apply now, but don't wait 
 
 ## Remaining agent work
 
-- **Localise `ExpenseCategory`** in `(business-tabs)/expenses.tsx` — business mode ships in v1, so
-  a French user currently gets a translated app with an English expense form. Same pattern as
-  `category-meta`, separate namespace.
-- **CI: clean checkout → install → typecheck → test, both halves.** `category-meta.ts` was
-  untracked and re-exported; everything passed locally and a fresh clone would not have built.
-  Roughly twenty lines of workflow, and it closes the last instance of the "green for the wrong
-  reason" class that has now bitten three times.
+Both items previously listed here are done: `ExpenseCategory` is localised through
+`expenseCategoryLabel`, and `.github/workflows/ci.yml` runs install → typecheck → test on both
+halves, with a step that applies migrations to an empty database.
+
+- **The share extension's own text.** `ShareViewController`'s placeholder is a plain Swift string
+  in a separate target, so it needs its own `.lproj` resources — the app's `.lproj` files do not
+  reach it.
+- **Localised Siri phrases for the extension's target**, same reason.
+- **`expo-av` → `expo-audio`.** `voice-api.ts` documents the debt. Worth doing before the next SDK
+  bump forces it.
+
+Known gaps, not scheduled:
+
+- **Receipt images are device-local.** `Expense.imageUrl` stores a `file://` path from the picker,
+  so a reviewer on another device cannot load the receipt they are approving. A company logo was
+  left out of the profile screen for the same reason. Both need real file hosting.
+- **No delete-business endpoint.** A company record can be created and edited but not removed
+  except by deleting the account.
+- **Traditional Chinese narrows to Simplified.** `normalizeLocale` maps `zh-Hant` to `zh`.
+- **Notification quick-add's OS half is unverified** — iOS drawing the action and delivering the
+  response needs one run on a signed-in device.
 
 ---
 
