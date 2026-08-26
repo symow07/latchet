@@ -134,7 +134,7 @@ export default function ReceiptScanScreen() {
       setStep('review');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'AI analysis failed. Please try again.';
+      const msg = err instanceof Error ? err.message : t('errors.aiFailed');
       setErrorMsg(msg);
       setStep('pick');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);

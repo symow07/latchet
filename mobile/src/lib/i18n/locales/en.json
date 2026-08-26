@@ -541,5 +541,81 @@
     "afternoon": "Good afternoon",
     "evening": "Good evening",
     "night": "Good night"
+  },
+  "spendingStyle": {
+    "frugalLabel": "Frugal",
+    "frugalDesc": "I save as much as possible",
+    "moderateLabel": "Moderate",
+    "moderateDesc": "I balance spending and saving",
+    "generousLabel": "Generous",
+    "generousDesc": "I enjoy spending on experiences"
+  },
+  "goals": {
+    "saveLabel": "Save More",
+    "saveDesc": "Build emergency fund or savings",
+    "trackLabel": "Track Spending",
+    "trackDesc": "Know where my money goes",
+    "debtLabel": "Reduce Debt",
+    "debtDesc": "Pay off loans and credit cards",
+    "stickLabel": "Stick to Budget",
+    "stickDesc": "Stay within spending limits"
+  },
+  "subStatus": {
+    "confirmed": "Confirmed",
+    "possible": "Possible",
+    "canceled": "Canceled",
+    "noConfirmed": "No confirmed subscriptions",
+    "noConfirmedBody": "Subscriptions you verify will appear here.",
+    "noPossible": "No possible subscriptions",
+    "noPossibleBody": "Tap “Scan” to detect recurring charges from your transactions.",
+    "noCanceled": "No canceled subscriptions",
+    "cancelAction": "Cancel Subscription"
+  },
+  "healthBreakdown": {
+    "savingsRate": "Savings Rate",
+    "discipline": "Budget Discipline",
+    "consistency": "Spending Consistency",
+    "goalProgress": "Goal Progress",
+    "impulse": "Impulse Control"
+  },
+  "accountTypes": {
+    "cash": "Cash",
+    "checking": "Checking",
+    "savings": "Savings",
+    "creditCard": "Credit Card",
+    "investment": "Investment"
+  },
+  "frequency": {
+    "daily": "Daily",
+    "weekly": "Weekly",
+    "biweekly": "Bi-weekly",
+    "monthly": "Monthly",
+    "yearly": "Yearly"
+  },
+  "accountKind": {
+    "personalLabel": "Personal",
+    "personalSub": "For individuals",
+    "businessSub": "For companies",
+    "businessDesc": "Manage business expenses, revenue, and financial reporting."
+  },
+  "analyticsTabs": {
+    "overview": "Overview",
+    "insights": "Insights",
+    "alerts": "Alerts"
+  },
+  "bizStats": {
+    "totalSubmitted": "Total Submitted",
+    "pendingReview": "Pending Review",
+    "spent": "Spent",
+    "remaining": "Remaining"
+  },
+  "errors": {
+    "unknown": "Unknown error",
+    "dbInit": "Failed to initialize database",
+    "notFound": "Oops!",
+    "aiFailed": "AI analysis failed. Please try again."
+  },
+  "misc": {
+    "weAccess": "What we can access:"
   }
 }

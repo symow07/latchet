@@ -23,14 +23,18 @@ import { getAccounts, createAccount, updateAccount, deleteAccount, getSettings, 
 import { formatCurrencyAmount } from '@/lib/currencies';
 import { t } from '@/lib/i18n/core';
 
-const ACCOUNT_TYPES = [
-  { id: 'cash', label: 'Cash', icon: Wallet, color: '#22c55e' },
-  { id: 'checking', label: 'Checking', icon: Building2, color: '#3b82f6' },
-  { id: 'savings', label: 'Savings', icon: PiggyBank, color: '#9333ea' },
-  { id: 'credit', label: 'Credit Card', icon: CreditCard, color: '#ef4444' },
-  { id: 'investment', label: 'Investment', icon: TrendingUp, color: '#f59e0b' },
+// Built per call, not at module scope: t() at module scope resolves
+// once at import and freezes the startup language.
+function ACCOUNT_TYPES() {
+  return [
+  { id: 'cash', label: t('accountTypes.cash'), icon: Wallet, color: '#22c55e' },
+  { id: 'checking', label: t('accountTypes.checking'), icon: Building2, color: '#3b82f6' },
+  { id: 'savings', label: t('accountTypes.savings'), icon: PiggyBank, color: '#9333ea' },
+  { id: 'credit', label: t('accountTypes.creditCard'), icon: CreditCard, color: '#ef4444' },
+  { id: 'investment', label: t('accountTypes.investment'), icon: TrendingUp, color: '#f59e0b' },
   { id: 'other', label: 'Other', icon: MoreHorizontal, color: '#6b7280' },
 ];
+}
 
 const ACCOUNT_COLORS = [
   '#22c55e', '#3b82f6', '#9333ea', '#ef4444', '#f59e0b',
@@ -148,7 +152,7 @@ export default function AccountsScreen() {
   };
 
   const getAccountIcon = (accountType: string) => {
-    const typeConfig = ACCOUNT_TYPES.find(t => t.id === accountType);
+    const typeConfig = ACCOUNT_TYPES().find(t => t.id === accountType);
     return typeConfig?.icon || Wallet;
   };
 
@@ -326,7 +330,7 @@ export default function AccountsScreen() {
             <View className="mb-6">
               <Text style={{ color: C.textDim }} className="text-sm mb-2 ml-1">{t('accounts.accountType')}</Text>
               <View className="flex-row flex-wrap gap-2">
-                {ACCOUNT_TYPES.map((t) => {
+                {ACCOUNT_TYPES().map((t) => {
                   const Icon = t.icon;
                   const isSelected = type === t.id;
                   return (

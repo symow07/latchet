@@ -541,5 +541,81 @@
     "afternoon": "Bon après-midi",
     "evening": "Bonsoir",
     "night": "Bonne nuit"
+  },
+  "spendingStyle": {
+    "frugalLabel": "Économe",
+    "frugalDesc": "J’épargne autant que possible",
+    "moderateLabel": "Modéré",
+    "moderateDesc": "J’équilibre dépenses et épargne",
+    "generousLabel": "Généreux",
+    "generousDesc": "J’aime dépenser pour vivre des expériences"
+  },
+  "goals": {
+    "saveLabel": "Épargner davantage",
+    "saveDesc": "Constituer une épargne de précaution",
+    "trackLabel": "Suivre mes dépenses",
+    "trackDesc": "Savoir où va mon argent",
+    "debtLabel": "Réduire mes dettes",
+    "debtDesc": "Rembourser prêts et cartes de crédit",
+    "stickLabel": "Respecter mon budget",
+    "stickDesc": "Rester dans mes limites de dépenses"
+  },
+  "subStatus": {
+    "confirmed": "Confirmé",
+    "possible": "Possible",
+    "canceled": "Annulé",
+    "noConfirmed": "Aucun abonnement confirmé",
+    "noConfirmedBody": "Les abonnements que vous confirmez apparaîtront ici.",
+    "noPossible": "Aucun abonnement potentiel",
+    "noPossibleBody": "Touchez « Analyser » pour détecter les prélèvements récurrents.",
+    "noCanceled": "Aucun abonnement annulé",
+    "cancelAction": "Résilier l’abonnement"
+  },
+  "healthBreakdown": {
+    "savingsRate": "Taux d’épargne",
+    "discipline": "Discipline budgétaire",
+    "consistency": "Régularité des dépenses",
+    "goalProgress": "Progression des objectifs",
+    "impulse": "Maîtrise des impulsions"
+  },
+  "accountTypes": {
+    "cash": "Espèces",
+    "checking": "Compte courant",
+    "savings": "Épargne",
+    "creditCard": "Carte de crédit",
+    "investment": "Investissement"
+  },
+  "frequency": {
+    "daily": "Quotidien",
+    "weekly": "Hebdomadaire",
+    "biweekly": "Bimensuel",
+    "monthly": "Mensuel",
+    "yearly": "Annuel"
+  },
+  "accountKind": {
+    "personalLabel": "Personnel",
+    "personalSub": "Pour les particuliers",
+    "businessSub": "Pour les entreprises",
+    "businessDesc": "Gérez les dépenses, les revenus et le reporting financier de votre entreprise."
+  },
+  "analyticsTabs": {
+    "overview": "Aperçu",
+    "insights": "Analyses",
+    "alerts": "Alertes"
+  },
+  "bizStats": {
+    "totalSubmitted": "Total soumis",
+    "pendingReview": "En attente de validation",
+    "spent": "Dépensé",
+    "remaining": "Restant"
+  },
+  "errors": {
+    "unknown": "Erreur inconnue",
+    "dbInit": "Échec de l’initialisation de la base de données",
+    "notFound": "Oups !",
+    "aiFailed": "L’analyse IA a échoué. Veuillez réessayer."
+  },
+  "misc": {
+    "weAccess": "Ce à quoi nous accédons :"
   }
 }

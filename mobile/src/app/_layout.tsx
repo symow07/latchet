@@ -266,7 +266,7 @@ function RootLayoutNav({ colorScheme }: { colorScheme: 'light' | 'dark' | null |
           Couldn&apos;t reach the server
         </Text>
         <Text style={{ color: C.textDim, fontSize: 14, textAlign: 'center', marginBottom: 24 }}>
-          {sessionError instanceof Error ? sessionError.message : 'Unknown error'}
+          {sessionError instanceof Error ? sessionError.message : t('errors.unknown')}
         </Text>
         <Pressable
           onPress={() => queryClient.invalidateQueries({ queryKey: SESSION_QUERY_KEY })}
@@ -363,7 +363,7 @@ export default function RootLayout() {
         .catch(() => {});
     } catch (e) {
       console.error('[startup] initializeDatabase error', e);
-      setDbError(e instanceof Error ? e.message : 'Failed to initialize database');
+      setDbError(e instanceof Error ? e.message : t('errors.dbInit'));
       return;
     } finally {
       // Always hide splash once we've reached this branch — error UI or success UI both

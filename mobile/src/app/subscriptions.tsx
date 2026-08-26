@@ -37,11 +37,15 @@ import { t, getDateFnsLocale } from '@/lib/i18n/core';
 
 type SegmentKey = 'confirmed' | 'possible' | 'canceled';
 
-const SEGMENTS: { key: SegmentKey; label: string }[] = [
-  { key: 'confirmed', label: 'Confirmed' },
-  { key: 'possible', label: 'Possible' },
-  { key: 'canceled', label: 'Canceled' },
-];
+// Built per call, not at module scope: t() at module scope resolves once at
+// import and freezes the startup language.
+function segments(): { key: SegmentKey; label: string }[] {
+  return [
+    { key: 'confirmed', label: t('subStatus.confirmed') },
+    { key: 'possible', label: t('subStatus.possible') },
+    { key: 'canceled', label: t('subStatus.canceled') },
+  ];
+}
 
 function cadenceLabel(cadence: Subscription['cadence']): string {
   switch (cadence) {
@@ -227,17 +231,17 @@ function EmptyState({ segment }: { segment: SegmentKey }) {
   const configs: Record<SegmentKey, { icon: React.ReactNode; title: string; subtitle: string }> = {
     confirmed: {
       icon: <CheckCircle size={36} color="#22c55e" />,
-      title: 'No confirmed subscriptions',
-      subtitle: 'Subscriptions you verify will appear here.',
+      title: t('subStatus.noConfirmed'),
+      subtitle: t('subStatus.noConfirmedBody'),
     },
     possible: {
       icon: <Clock size={36} color="#f59e0b" />,
-      title: 'No possible subscriptions',
-      subtitle: 'Tap "Scan" to detect recurring charges from your transactions.',
+      title: t('subStatus.noPossible'),
+      subtitle: t('subStatus.noPossibleBody'),
     },
     canceled: {
       icon: <XCircle size={36} color="#6b7280" />,
-      title: 'No canceled subscriptions',
+      title: t('subStatus.noCanceled'),
       subtitle: "Subscriptions you've canceled will be tracked here.",
     },
   };
@@ -346,7 +350,7 @@ export default function SubscriptionsScreen() {
           className="flex-row rounded-2xl p-1"
           style={{ backgroundColor: 'rgba(0,0,0,0.25)' }}
         >
-          {SEGMENTS.map(seg => (
+          {segments().map(seg => (
             <Pressable
               key={seg.key}
               onPress={() => {

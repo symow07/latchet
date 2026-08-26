@@ -110,7 +110,7 @@ export default function HealthScoreScreen() {
 
   const breakdownItems = [
     {
-      label: 'Savings Rate',
+      label: t('healthBreakdown.savingsRate'),
       score: breakdown.savingsRate.score,
       max: breakdown.savingsRate.maxPoints,
       value: `${breakdown.savingsRate.value}%`,
@@ -118,7 +118,7 @@ export default function HealthScoreScreen() {
       color: '#22c55e',
     },
     {
-      label: 'Budget Discipline',
+      label: t('healthBreakdown.discipline'),
       score: breakdown.budgetDiscipline.score,
       max: breakdown.budgetDiscipline.maxPoints,
       value: `${breakdown.budgetDiscipline.value}%`,
@@ -126,7 +126,7 @@ export default function HealthScoreScreen() {
       color: '#3b82f6',
     },
     {
-      label: 'Spending Consistency',
+      label: t('healthBreakdown.consistency'),
       score: breakdown.spendingConsistency.score,
       max: breakdown.spendingConsistency.maxPoints,
       value: `${breakdown.spendingConsistency.value}%`,
@@ -134,7 +134,7 @@ export default function HealthScoreScreen() {
       color: C.p500,
     },
     {
-      label: 'Goal Progress',
+      label: t('healthBreakdown.goalProgress'),
       score: breakdown.goalProgress.score,
       max: breakdown.goalProgress.maxPoints,
       value: `${breakdown.goalProgress.value}%`,
@@ -142,7 +142,7 @@ export default function HealthScoreScreen() {
       color: '#f59e0b',
     },
     {
-      label: 'Impulse Control',
+      label: t('healthBreakdown.impulse'),
       score: breakdown.impulseControl.score,
       max: breakdown.impulseControl.maxPoints,
       value: `${breakdown.impulseControl.value}%`,

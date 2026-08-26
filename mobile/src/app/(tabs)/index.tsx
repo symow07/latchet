@@ -167,28 +167,28 @@ export default function DashboardScreen() {
     // first thing a new account is told is that its spending control is great.
     if (!scorable) return null;
     if (budgetUsedPercent >= 100) {
-      return { icon: AlertTriangle, color: C.rose, title: 'Budget Exceeded!', message: `You've spent ${budgetUsedPercent}% of your monthly budget. Try to limit spending for the rest of the month.` };
+      return { icon: AlertTriangle, color: C.rose, title: t('feedback.exceededTitle'), message: t('feedback.exceededBody', { percent: budgetUsedPercent }) };
     }
     if (budgetUsedPercent >= 90) {
-      return { icon: AlertTriangle, color: C.p400, title: 'Almost at Budget Limit', message: `You've used ${budgetUsedPercent}% of your budget with ${daysInMonth - dayOfMonth} days left. Be mindful of spending!` };
+      return { icon: AlertTriangle, color: C.p400, title: t('feedback.almostTitle'), message: t('feedback.almostBody', { percent: budgetUsedPercent, days: daysInMonth - dayOfMonth }) };
     }
     if (isOverspending) {
-      return { icon: AlertTriangle, color: C.p400, title: 'Spending Ahead of Pace', message: `You're spending faster than expected. At this rate, you might exceed your budget by month's end.` };
+      return { icon: AlertTriangle, color: C.p400, title: t('feedback.aheadTitle'), message: t('feedback.aheadBody') };
     }
     if (impulsePercent > 40) {
-      return { icon: Zap, color: C.rose, title: 'High Impulse Purchases', message: `${impulsePercent}% of your purchases were impulse buys. Try waiting 24 hours before non-essential purchases.` };
+      return { icon: Zap, color: C.rose, title: t('feedback.impulseTitle'), message: t('feedback.impulseBody', { percent: impulsePercent }) };
     }
     if (onTrackForSavings && savingsGoal > 0) {
-      return { icon: Sparkles, color: C.green, title: 'On Track for Savings!', message: `Great job! You're on track to save ${formatCurrency(currentSavings)} this month, exceeding your goal!` };
+      return { icon: Sparkles, color: C.green, title: t('feedback.savingsTitle'), message: t('feedback.savingsBody', { amount: formatCurrency(currentSavings) }) };
     }
     if (isUnderspending) {
-      return { icon: Sparkles, color: C.green, title: 'Great Spending Control!', message: `You're spending less than expected. Keep it up to maximize your savings!` };
+      return { icon: Sparkles, color: C.green, title: t('feedback.controlTitle'), message: t('feedback.controlBody') };
     }
     if (streak >= 7) {
-return { icon: Flame, color: C.p400, title: `${streak}-Day Streak! `, message: `Amazing! You've been tracking your finances consistently. Keep building this habit!` };
+return { icon: Flame, color: C.p400, title: t('feedback.streakTitle', { days: streak }), message: t('feedback.streakBody') };
     }
     if (disciplineGrade === 'A') {
-      return { icon: Award, color: C.p400, title: 'Excellent Discipline!', message: `You're using only ${budgetUsedPercent}% of your budget. You're a budgeting pro!` };
+      return { icon: Award, color: C.p400, title: t('feedback.disciplineTitle'), message: t('feedback.disciplineBody', { percent: budgetUsedPercent }) };
     }
     return null;
   };

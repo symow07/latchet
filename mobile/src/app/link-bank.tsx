@@ -542,7 +542,7 @@ export default function LinkBankScreen() {
             style={{ backgroundColor: C.glass }}
           >
             <View className="mb-3">
-              <Text style={{ color: C.textDim }} className="text-sm font-medium mb-2">What we can access:</Text>
+              <Text style={{ color: C.textDim }} className="text-sm font-medium mb-2">{t('misc.weAccess')}</Text>
               {consent.dataAccessed.map((item, idx) => (
                 <View key={idx} className="flex-row items-center mb-1">
                   <Check size={14} color="#22c55e" />

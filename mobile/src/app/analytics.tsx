@@ -70,10 +70,10 @@ export default function AnalyticsScreen() {
   };
 
   const tabs: { id: TabType; label: string; icon: typeof TrendingUp }[] = [
-    { id: 'overview', label: 'Overview', icon: TrendingUp },
+    { id: 'overview', label: t('analyticsTabs.overview'), icon: TrendingUp },
     { id: 'subscriptions', label: 'Subscriptions', icon: RefreshCw },
-    { id: 'insights', label: 'Insights', icon: Lightbulb },
-    { id: 'alerts', label: 'Alerts', icon: AlertTriangle },
+    { id: 'insights', label: t('analyticsTabs.insights'), icon: Lightbulb },
+    { id: 'alerts', label: t('analyticsTabs.alerts'), icon: AlertTriangle },
   ];
 
   return (

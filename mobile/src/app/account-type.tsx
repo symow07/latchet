@@ -1,4 +1,5 @@
 import { ScreenBackground } from '@/components/ui';
+import { t } from '@/lib/i18n/core';
 import { useC } from '@/lib/design';
 import { View, Text, Pressable, ActivityIndicator, ScrollView } from 'react-native';
 import { useState } from 'react';
@@ -12,7 +13,9 @@ import { useSession } from '@/lib/auth/use-session';
 import { useAccountTypeStore, type AccountType } from '@/lib/account-type-store';
 import { createBusiness } from '@/lib/businessApi';
 
-const ACCOUNT_TYPES: {
+// Built per call, not at module scope: t() at module scope resolves
+// once at import and freezes the startup language.
+function ACCOUNT_TYPES(): {
   id: AccountType;
   label: string;
   subtitle: string;
@@ -21,11 +24,12 @@ const ACCOUNT_TYPES: {
   colors: readonly [string, string];
   colorsLight: readonly [string, string];
   accent: string;
-}[] = [
+}[] {
+  return [
   {
     id: 'personal',
-    label: 'Personal',
-    subtitle: 'For individuals',
+    label: t('accountKind.personalLabel'),
+    subtitle: t('accountKind.personalSub'),
     description: 'Track daily spending, budgets, savings goals, and build healthy money habits.',
     icon: User,
     colors: ['#1a0840', '#2d1260'] as const,
@@ -35,14 +39,15 @@ const ACCOUNT_TYPES: {
   {
     id: 'business',
     label: 'Business',
-    subtitle: 'For companies',
-    description: 'Manage business expenses, revenue, and financial reporting.',
+    subtitle: t('accountKind.businessSub'),
+    description: t('accountKind.businessDesc'),
     icon: Briefcase,
     colors: ['#031526', '#05283f'] as const,
     colorsLight: ['#eef5fd', '#dfebfb'] as const,
     accent: '#3b82f6',
   },
 ];
+}
 
 export default function AccountTypeScreen() {
   const C = useC();
@@ -110,7 +115,7 @@ export default function AccountTypeScreen() {
         contentContainerStyle={{ paddingHorizontal: 20, gap: 16, paddingBottom: 12 }}
         showsVerticalScrollIndicator={false}
       >
-        {ACCOUNT_TYPES.map((type) => {
+        {ACCOUNT_TYPES().map((type) => {
           const isSelected = selected === type.id;
           const animStyle = type.id === 'personal' ? personalStyle : businessStyle;
           const Icon = type.icon;

@@ -45,9 +45,9 @@ export default function BusinessDashboardTab() {
   const subSummary = detectSubscriptions(allExpenses);
 
   const metrics = [
-    { label: 'Total Submitted', value: `$${totalExpenses.toFixed(0)}`, sub: `${allExpenses.length} expense${allExpenses.length !== 1 ? 's' : ''}`, accent: B.red },
+    { label: t('bizStats.totalSubmitted'), value: `$${totalExpenses.toFixed(0)}`, sub: `${allExpenses.length} expense${allExpenses.length !== 1 ? 's' : ''}`, accent: B.red },
     { label: 'Approved', value: `$${approvedTotal.toFixed(0)}`, sub: `${approved.length} approved`, accent: B.teal },
-    { label: 'Pending Review', value: `${pending.length}`, sub: canReview ? 'Needs review' : 'Awaiting review', accent: B.amber },
+    { label: t('bizStats.pendingReview'), value: `${pending.length}`, sub: canReview ? 'Needs review' : 'Awaiting review', accent: B.amber },
     { label: 'Rejected', value: `${rejected.length}`, sub: `${rejected.length} rejected`, accent: B.textDim },
   ];
 

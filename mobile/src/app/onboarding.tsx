@@ -27,18 +27,26 @@ import { t } from '@/lib/i18n/core';
 
 const STEPS = ['currency', 'income', 'goal', 'style'] as const;
 
-const SPENDING_STYLES = [
-  { id: 'frugal', label: 'Frugal', desc: 'I save as much as possible', icon: PiggyBank },
-  { id: 'moderate', label: 'Moderate', desc: 'I balance spending and saving', icon: Wallet },
-  { id: 'generous', label: 'Generous', desc: 'I enjoy spending on experiences', icon: CreditCard },
+// Built per call, not at module scope: t() at module scope resolves
+// once at import and freezes the startup language.
+function SPENDING_STYLES() {
+  return [
+  { id: 'frugal', label: t('spendingStyle.frugalLabel'), desc: t('spendingStyle.frugalDesc'), icon: PiggyBank },
+  { id: 'moderate', label: t('spendingStyle.moderateLabel'), desc: t('spendingStyle.moderateDesc'), icon: Wallet },
+  { id: 'generous', label: t('spendingStyle.generousLabel'), desc: t('spendingStyle.generousDesc'), icon: CreditCard },
 ];
+}
 
-const PRIMARY_GOALS = [
-  { id: 'save', label: 'Save More', desc: 'Build emergency fund or savings' },
-  { id: 'track', label: 'Track Spending', desc: 'Know where my money goes' },
-  { id: 'reduce_debt', label: 'Reduce Debt', desc: 'Pay off loans and credit cards' },
-  { id: 'budget', label: 'Stick to Budget', desc: 'Stay within spending limits' },
+// Built per call, not at module scope: t() at module scope resolves
+// once at import and freezes the startup language.
+function PRIMARY_GOALS() {
+  return [
+  { id: 'save', label: t('goals.saveLabel'), desc: t('goals.saveDesc') },
+  { id: 'track', label: t('goals.trackLabel'), desc: t('goals.trackDesc') },
+  { id: 'reduce_debt', label: t('goals.debtLabel'), desc: t('goals.debtDesc') },
+  { id: 'budget', label: t('goals.stickLabel'), desc: t('goals.stickDesc') },
 ];
+}
 
 export default function OnboardingScreen() {
   const C = useC();
@@ -272,7 +280,7 @@ export default function OnboardingScreen() {
             <Text style={{ color: C.textDim }} className="mb-6">{t('onboarding.primaryGoalHint')}</Text>
 
             <View className="gap-3">
-              {PRIMARY_GOALS.map((goal) => (
+              {PRIMARY_GOALS().map((goal) => (
                 <Pressable
                   key={goal.id}
                   onPress={() => {
@@ -311,7 +319,7 @@ export default function OnboardingScreen() {
             <Text style={{ color: C.textDim }} className="mb-6">{t('onboarding.spendingStyleHint')}</Text>
 
             <View className="gap-3">
-              {SPENDING_STYLES.map((style) => {
+              {SPENDING_STYLES().map((style) => {
                 const Icon = style.icon;
                 return (
                   <Pressable

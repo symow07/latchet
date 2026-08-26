@@ -95,13 +95,17 @@ const CATEGORIES: { label: Category; emoji: string }[] = [
   { label: 'Other', emoji: '' },
 ];
 
-const FREQUENCIES: { value: Frequency; label: string; shortLabel: string }[] = [
-  { value: 'daily', label: 'Daily', shortLabel: 'Daily' },
-  { value: 'weekly', label: 'Weekly', shortLabel: 'Weekly' },
-  { value: 'biweekly', label: 'Bi-weekly', shortLabel: 'Bi-wk' },
-  { value: 'monthly', label: 'Monthly', shortLabel: 'Monthly' },
-  { value: 'yearly', label: 'Yearly', shortLabel: 'Yearly' },
+// Built per call, not at module scope: t() at module scope resolves
+// once at import and freezes the startup language.
+function FREQUENCIES(): { value: Frequency; label: string; shortLabel: string }[] {
+  return [
+  { value: 'daily', label: t('frequency.daily'), shortLabel: t('frequency.daily') },
+  { value: 'weekly', label: t('frequency.weekly'), shortLabel: t('frequency.weekly') },
+  { value: 'biweekly', label: t('frequency.biweekly'), shortLabel: 'Bi-wk' },
+  { value: 'monthly', label: t('frequency.monthly'), shortLabel: t('frequency.monthly') },
+  { value: 'yearly', label: t('frequency.yearly'), shortLabel: t('frequency.yearly') },
 ];
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -110,11 +114,11 @@ function getCategoryEmoji(category: Category): string {
 }
 
 function getFrequencyLabel(frequency: Frequency): string {
-  return FREQUENCIES.find((f) => f.value === frequency)?.label ?? frequency;
+  return FREQUENCIES().find((f) => f.value === frequency)?.label ?? frequency;
 }
 
 function getFrequencyShort(frequency: Frequency): string {
-  return FREQUENCIES.find((f) => f.value === frequency)?.shortLabel ?? frequency;
+  return FREQUENCIES().find((f) => f.value === frequency)?.shortLabel ?? frequency;
 }
 
 function formatAmount(amount: number): string {
@@ -736,7 +740,7 @@ function AddRecurringModal({
                     borderColor: C.glassBorder,
                   }}
                 >
-                  {FREQUENCIES.map((freq, idx) => (
+                  {FREQUENCIES().map((freq, idx) => (
                     <Pressable
                       key={freq.value}
                       onPress={() => {

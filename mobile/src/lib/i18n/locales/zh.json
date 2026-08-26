@@ -536,5 +536,81 @@
     "afternoon": "下午好",
     "evening": "晚上好",
     "night": "晚安"
+  },
+  "spendingStyle": {
+    "frugalLabel": "节俭",
+    "frugalDesc": "尽可能多存钱",
+    "moderateLabel": "适中",
+    "moderateDesc": "在支出与储蓄之间平衡",
+    "generousLabel": "宽松",
+    "generousDesc": "乐于为体验消费"
+  },
+  "goals": {
+    "saveLabel": "多存钱",
+    "saveDesc": "建立应急金或储蓄",
+    "trackLabel": "跟踪支出",
+    "trackDesc": "了解钱花在哪里",
+    "debtLabel": "减少负债",
+    "debtDesc": "偿还贷款与信用卡",
+    "stickLabel": "严守预算",
+    "stickDesc": "控制在支出上限内"
+  },
+  "subStatus": {
+    "confirmed": "已确认",
+    "possible": "可能",
+    "canceled": "已取消",
+    "noConfirmed": "暂无已确认的订阅",
+    "noConfirmedBody": "你确认的订阅会显示在这里。",
+    "noPossible": "暂无可能的订阅",
+    "noPossibleBody": "点击“扫描”从交易中识别定期扣款。",
+    "noCanceled": "暂无已取消的订阅",
+    "cancelAction": "取消订阅"
+  },
+  "healthBreakdown": {
+    "savingsRate": "储蓄率",
+    "discipline": "预算自律",
+    "consistency": "支出稳定性",
+    "goalProgress": "目标进度",
+    "impulse": "冲动控制"
+  },
+  "accountTypes": {
+    "cash": "现金",
+    "checking": "支票账户",
+    "savings": "储蓄账户",
+    "creditCard": "信用卡",
+    "investment": "投资"
+  },
+  "frequency": {
+    "daily": "每日",
+    "weekly": "每周",
+    "biweekly": "每两周",
+    "monthly": "每月",
+    "yearly": "每年"
+  },
+  "accountKind": {
+    "personalLabel": "个人",
+    "personalSub": "适合个人",
+    "businessSub": "适合企业",
+    "businessDesc": "管理企业支出、收入与财务报表。"
+  },
+  "analyticsTabs": {
+    "overview": "概览",
+    "insights": "洞察",
+    "alerts": "提醒"
+  },
+  "bizStats": {
+    "totalSubmitted": "已提交总额",
+    "pendingReview": "待审核",
+    "spent": "已支出",
+    "remaining": "剩余"
+  },
+  "errors": {
+    "unknown": "未知错误",
+    "dbInit": "数据库初始化失败",
+    "notFound": "哎呀！",
+    "aiFailed": "AI 分析失败，请重试。"
+  },
+  "misc": {
+    "weAccess": "我们可以访问的内容："
   }
 }

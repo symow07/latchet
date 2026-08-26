@@ -262,8 +262,8 @@ export default function BudgetScreen() {
               <View style={{ flexDirection: 'row', paddingHorizontal: 20, gap: 10, marginBottom: 20 }}>
                 {[
                   { label: 'Budget', value: `$${totalBudget.toFixed(0)}`, accent: B.accent },
-                  { label: 'Spent', value: `$${totalSpent.toFixed(0)}`, accent: overBudget ? B.red : '#f87171' },
-                  { label: 'Remaining', value: `$${remaining.toFixed(0)}`, accent: B.teal },
+                  { label: t('bizStats.spent'), value: `$${totalSpent.toFixed(0)}`, accent: overBudget ? B.red : '#f87171' },
+                  { label: t('bizStats.remaining'), value: `$${remaining.toFixed(0)}`, accent: B.teal },
                 ].map(s => (
                   <GlassCard key={s.label} style={{ flex: 1, alignItems: 'center' }} padding={14} radius={R.md}>
                     <Txt weight="bold" size={17} color={s.accent} style={{ marginBottom: 2 }}>{s.value}</Txt>

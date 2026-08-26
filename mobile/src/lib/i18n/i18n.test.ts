@@ -166,18 +166,20 @@ test('the catalogue is actually being used', () => {
 // ── t() must not be called at module scope ───────────────────────────────────
 
 test('no screen resolves a translation at module scope', () => {
-  // A t() call outside a component body runs once, when the module is first
+  // A t() call outside a function body runs once, when the module is first
   // imported, and keeps whatever language was active at that moment. It then
-  // survives everything: the locale change, the remount the locale change
-  // triggers, and any re-render. The failure is silent — the string is a real
+  // survives everything: the locale change, the remount the change triggers,
+  // and every re-render after. The failure is silent — the string is a real
   // translation, just the wrong one, and only in whichever language the app
   // happened to start in.
   //
-  // This is exactly what business settings did: its SECTIONS array sat at
-  // module scope, so its rows stayed in the startup language while the rest
-  // of the screen switched around them.
-  const roots = ['app', 'components'];
-  const offenders: string[] = [];
+  // Counting brackets is not enough to detect this, which an earlier version
+  // of this test got wrong: a module-scope `const ROWS = [...]` is inside
+  // brackets and still evaluated at import. What matters is whether the
+  // enclosing top-level declaration is a *function*. So this walks top-level
+  // statements — anything starting in column 0 — and flags a t() inside one
+  // that is a plain data initialiser rather than a function or component.
+  const FN_START = /^(?:export\s+)?(?:default\s+)?(?:async\s+)?function\b|=>|=\s*\(|\bfunction\s*\(/;
 
   const walk = (dir: string): string[] =>
     readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
@@ -186,16 +188,20 @@ test('no screen resolves a translation at module scope', () => {
       return e.isFile() && full.endsWith('.tsx') ? [full] : [];
     });
 
-  for (const file of roots.flatMap((r) => walk(join(import.meta.dir, '..', '..', r)))) {
-    let depth = 0;
-    readFileSync(file, 'utf8').split('\n').forEach((line, i) => {
+  const offenders: string[] = [];
+  for (const file of ['app', 'components'].flatMap((r) => walk(join(import.meta.dir, '..', '..', r)))) {
+    const lines = readFileSync(file, 'utf8').split('\n');
+    let stmtIsFunction = true;   // before any declaration, assume safe
+    let stmtStart = 0;
+    lines.forEach((line, i) => {
       const code = line.replace(/\/\/.*$/, '');
-      if (depth === 0 && /\bt\(['"`]/.test(code)) {
-        offenders.push(`${file.split('/src/')[1]}:${i + 1}`);
+      // a new top-level statement starts at column 0
+      if (/^[A-Za-z]/.test(code) && /^(?:export|const|let|var|function|type|interface|import)\b/.test(code)) {
+        stmtIsFunction = FN_START.test(code);
+        stmtStart = i;
       }
-      for (const ch of code) {
-        if ('{(['.includes(ch)) depth++;
-        else if ('})]'.includes(ch)) depth = Math.max(0, depth - 1);
+      if (!stmtIsFunction && /\bt\(['"`]/.test(code)) {
+        offenders.push(`${file.split('/src/')[1]}:${i + 1} (declared line ${stmtStart + 1})`);
       }
     });
   }
