@@ -766,6 +766,25 @@ transaction in without opening a form.
   filtered by an app's bundled localizations. A French device will now start the app in French
   instead of English. That is a fix, but it is a change in first-launch behaviour.
 
+- ☑ **The rest of the interface.** A French device showed English onboarding, which turned out not to
+  be a locale bug but 339 strings that never went through `t()` at all. `en/fr/zh` went from 602
+  keys to 941.
+
+  The reason it had been missed repeatedly is worth recording: each earlier sweep used a
+  hand-written grep that matched a narrower pattern than the last — JSX text, then attributes, then
+  object literals (`{ title: 'Bank statement' }`), then conditional literals (`{cond && 'Saved!'}`),
+  then template literals (`` `Step ${n} of ${total}` ``). Every pass reported a smaller number than
+  the truth. `i18n.test.ts` now carries a **test** that fails on any new hardcoded UI string, which
+  is the only version of that check that stays honest. It was verified by reintroducing a string and
+  watching it fail.
+
+  Canonical values were deliberately left in English — expense categories, statuses, and roles are
+  identity, validated by the backend against a fixed enum, and the test's allowlist says so. Two
+  screens were rendering them raw (`{item.type}` showing "Expense"), so `tx-display.ts` adds the
+  display half that was missing.
+
+  Verified on a French simulator end to end.
+
 Still open from the four speed-ups chosen:
 
 - **The share extension's own text** — `ShareViewController`'s placeholder is a plain Swift string

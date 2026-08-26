@@ -244,10 +244,10 @@ return { icon: Flame, color: C.p400, title: t('feedback.streakTitle', { days: st
                   </IconBubble>
                   <View>
                     <Txt size={11} color="rgba(255,255,255,0.65)">
-                      {enoughHistory ? 'Survival' : 'Survival (need a week)'}
+                      {enoughHistory ? t('dashboard2.survival') : t('dashboard2.survivalNeedWeek')}
                     </Txt>
                     <Txt weight="bold" size={19} color="#fff">
-                      {survivalDays === null ? '—' : `${survivalDays} days`}
+                      {survivalDays === null ? '—' : t('dashboard2.daysCount', { count: survivalDays })}
                     </Txt>
                   </View>
                 </View>
@@ -396,7 +396,7 @@ return { icon: Flame, color: C.p400, title: t('feedback.streakTitle', { days: st
                 <Txt size={11} color={C.textDim}>{t('dashboard.impulse')}</Txt>
               </View>
               <Txt weight="bold" size={36} color={C.text}>{impulsePercent}%</Txt>
-              <Txt size={11} color={C.textFaint} style={{ marginTop: 2 }}>of purchases</Txt>
+              <Txt size={11} color={C.textFaint} style={{ marginTop: 2 }}>{t('dashboard2.ofPurchases')}</Txt>
             </GlassCard>
           </View>
         </Section>
@@ -492,7 +492,7 @@ return { icon: Flame, color: C.p400, title: t('feedback.streakTitle', { days: st
                     <View>
                       <Txt weight="bold" size={17} color="#fff">{t('dashboard.healthScore')}</Txt>
                       <Txt size={12} color="rgba(255,255,255,0.85)" style={{ marginTop: 1 }}>
-                        Grade {healthScore.grade} • {healthScore.trend === 'up' ? '↑' : healthScore.trend === 'down' ? '↓' : '→'} {healthScore.trend === 'stable' ? 'Stable' : `${healthScore.trendValue}%`}
+                        Grade {healthScore.grade} • {healthScore.trend === 'up' ? '↑' : healthScore.trend === 'down' ? '↓' : '→'} {healthScore.trend === 'stable' ? t('dashboard2.stable') : `${healthScore.trendValue}%`}
                       </Txt>
                     </View>
                   </View>

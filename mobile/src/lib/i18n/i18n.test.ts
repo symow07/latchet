@@ -208,3 +208,92 @@ test('no screen resolves a translation at module scope', () => {
 
   expect(offenders).toEqual([]);
 });
+
+// ── Guard against new hardcoded UI strings ───────────────────────────────────
+
+/**
+ * Everything a user reads has to come from a translation key.
+ *
+ * This exists because the untranslated strings were missed three times by
+ * hand-written greps that each matched a narrower pattern than the last: JSX
+ * text, then attributes, then object literals, then template literals. Each
+ * pass reported a smaller number than the truth. A test is the only version of
+ * that check that stays honest.
+ *
+ * Values that are stored, sent to the backend, or are brand names are listed in
+ * ALLOWED: those must stay canonical English, and translating them would break
+ * the enum the backend validates against.
+ */
+const ALLOWED = new Set([
+  // Canonical stored values — see category-meta.ts and tx-display.ts.
+  'Travel', 'Software', 'Meals', 'Office', 'Transport', 'Food', 'Gym', 'Shopping',
+  'Subscriptions', 'Other', 'Expense', 'Income', 'Approved', 'Rejected', 'Pending',
+  'Owner', 'Admin', 'Member', 'Manager', 'Employee', 'Business',
+  // Brand and format literals that are the same in every language.
+  'Budget', 'Alipay 支付宝', 'WeChat Pay 微信', 'YYYY-MM-DD', 'ABC123',
+]);
+
+const UI_ATTRS = 'placeholder|title|label|subtitle|body|message|header|description|buttonTitle|hint';
+const CODEISH = /=>|\);|;\s|\bconst\b|\blet\b|\breturn\b|useState|React\.|StyleProp|Promise|\?:|&&|\|\||:\s*(string|number|boolean)|\bprops\b|\bcase\b|[{}=()`]|Record</;
+const NOISE = /^(https?:|\/|#[0-9a-fA-F]{3,8}$|rgba?\(|PlusJakartaSans|(bg|text|font|border|flex|items|justify|rounded|px|py|mt|mb|ml|mr|w|h|gap)-|[a-z]+Idx$|en-US|UTC)/;
+
+function isProse(value: string): boolean {
+  const s = value.trim();
+  if (s.length < 3 || ALLOWED.has(s)) return false;
+  if (NOISE.test(s) || CODEISH.test(s)) return false;
+  if (!/[A-Za-z]{3}/.test(s)) return false;
+  if (/^[a-z0-9_.-]+$/.test(s)) return false;   // identifiers and keys
+  // A dotted camelCase literal is an i18n key chosen by a ternary inside t(),
+  // e.g. t(n === 1 ? 'a.one' : 'a.other') — a key, not something a user reads.
+  if (/^[a-z][A-Za-z0-9]*(\.[A-Za-z0-9]+)+$/.test(s)) return false;
+  if (/^[A-Z_]{2,}$/.test(s)) return false;     // CONSTANTS
+  return true;
+}
+
+function scanForHardcodedStrings(source: string): string[] {
+  // Comments, and the keys inside t('…'), are not user-facing strings.
+  let src = source
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/^\s*\/\/.*$/gm, '')
+    .replace(/\bt\(\s*'[^']*'/g, "t(''")
+    .replace(/\bt\(\s*"[^"]*"/g, 't("")');
+
+  const found: string[] = [];
+  for (const m of src.matchAll(/>([^<>{}]*(?:\{'[^']*'\}[^<>{}]*)*)</g)) {
+    const text = m[1].replace(/\{'[^']*'\}/g, ' ').replace(/\s+/g, ' ').trim();
+    if (text && isProse(text)) found.push(text);
+  }
+  for (const m of src.matchAll(new RegExp(`\\b(${UI_ATTRS})\\s*=\\s*"([^"]{3,})"`, 'g'))) {
+    if (isProse(m[2])) found.push(m[2]);
+  }
+  for (const m of src.matchAll(/\b(title|sub|subtitle|label|desc|description|body|text|hint|placeholder)\s*:\s*'([^']{3,})'/g)) {
+    if (isProse(m[2])) found.push(m[2]);
+  }
+  for (const m of src.matchAll(/\{[^{}]*?(?:&&|\?|:)\s*'([^']{4,})'/g)) {
+    if (isProse(m[1])) found.push(m[1]);
+  }
+  return found;
+}
+
+test('no screen renders a hardcoded English string', async () => {
+  const { readdirSync, readFileSync, statSync } = await import('node:fs');
+  const { join } = await import('node:path');
+
+  const walk = (dir: string): string[] =>
+    readdirSync(dir).flatMap((entry) => {
+      const full = join(dir, entry);
+      return statSync(full).isDirectory()
+        ? walk(full)
+        : full.endsWith('.tsx') && !full.endsWith('.test.tsx')
+          ? [full]
+          : [];
+    });
+
+  const offenders: string[] = [];
+  for (const file of [...walk('src/app'), ...walk('src/components')]) {
+    for (const text of scanForHardcodedStrings(readFileSync(file, 'utf8'))) {
+      offenders.push(`${file}: ${text.slice(0, 60)}`);
+    }
+  }
+  expect(offenders).toEqual([]);
+});

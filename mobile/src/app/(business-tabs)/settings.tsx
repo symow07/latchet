@@ -24,7 +24,7 @@ export default function BusinessSettingsScreen() {
       items: [
         { icon: Building2, label: t('bizSettings.companyLabel'), sub: t('bizSettings.companySub'), color: '#3b82f6' },
         { icon: FileText, label: t('bizSettings.taxLabel'), sub: t('bizSettings.taxSub'), color: '#14b8a6' },
-        { icon: Globe, label: t('bizSettings.regionLabel'), sub: 'USD · United States', color: '#f59e0b' },
+        { icon: Globe, label: t('bizSettings.regionLabel'), sub: t('bizSettings.regionSub'), color: '#f59e0b' },
       ],
     },
     {
@@ -69,7 +69,7 @@ export default function BusinessSettingsScreen() {
               <Briefcase size={24} color={B.accent} />
             </View>
             <View style={{ flex: 1 }}>
-              <Txt weight="bold" size={16} color="#fff">{session?.user?.name ?? 'Business Account'}</Txt>
+              <Txt weight="bold" size={16} color="#fff">{session?.user?.name ?? t('bizSettings.businessAccount')}</Txt>
               <Txt size={13} color={B.textFaint} style={{ marginTop: 2 }}>{session?.user?.email ?? ''}</Txt>
               <View style={{ marginTop: 6, alignSelf: 'flex-start' }}>
                 <Pill label="BUSINESS" color={B.accent} />

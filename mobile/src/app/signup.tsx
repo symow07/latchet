@@ -179,7 +179,7 @@ export default function SignUpScreen() {
             {/* Name */}
             <View className="mb-4">
               <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-2.5 ml-1 tracking-wider uppercase">
-                Full Name
+                {t('auth.fullName')}
               </Text>
               <View
                 className="flex-row items-center rounded-2xl px-4 py-4"
@@ -201,7 +201,7 @@ export default function SignUpScreen() {
             {/* Email */}
             <View className="mb-4">
               <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-2.5 ml-1 tracking-wider uppercase">
-                Email
+                {t('auth.email')}
               </Text>
               <View
                 className="flex-row items-center rounded-2xl px-4 py-4"
@@ -225,7 +225,7 @@ export default function SignUpScreen() {
             {/* Password */}
             <View className="mb-4">
               <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-2.5 ml-1 tracking-wider uppercase">
-                Password
+                {t('auth.password')}
               </Text>
               <View
                 className="flex-row items-center rounded-2xl px-4 py-4"
@@ -250,7 +250,7 @@ export default function SignUpScreen() {
             {/* Confirm Password */}
             <View className="mb-7">
               <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-2.5 ml-1 tracking-wider uppercase">
-                Confirm Password
+                {t('auth.confirmPassword')}
               </Text>
               <View
                 className="flex-row items-center rounded-2xl px-4 py-4"

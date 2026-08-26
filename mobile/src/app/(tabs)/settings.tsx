@@ -159,7 +159,7 @@ export default function SettingsScreen() {
       if (count === 0) Alert.alert(t('dialogs.exportNothing'), t('dialogs.exportNoneBody'));
     } catch (error) {
       console.error('Failed to export transactions:', error);
-      Alert.alert(t('dialogs.exportFailed'), `Could not export transactions to ${kind.toUpperCase()}`);
+      Alert.alert(t('dialogs.exportFailed'), t('dialogs.exportFailedBody', { format: kind.toUpperCase() }));
     }
   }
 
@@ -168,7 +168,7 @@ export default function SettingsScreen() {
     Alert.alert(t('dialogs.exportTitle'), t('dialogs.exportBody'), [
       { text: t('dialogs.exportCsv'), onPress: () => runExport('csv') },
       { text: t('dialogs.exportJson'), onPress: () => runExport('json') },
-      { text: 'Cancel', style: 'cancel' },
+      { text: t('common.cancel'), style: 'cancel' },
     ]);
   }
 
@@ -260,7 +260,7 @@ export default function SettingsScreen() {
           <SectionLabel>{t('settings.sections.numbers')}</SectionLabel>
           <MoneyInput icon={<Wallet size={15} color={C.p400} />} color={C.p400} label={t('settings.monthlyBudget')} hint={t('settings.monthlyBudgetHint')} value={monthlyBudget} onChangeText={setMonthlyBudget} placeholder="5000" />
           <MoneyInput icon={<Wallet size={15} color={C.green} />} color={C.green} label={t('settings.startingBalance')} hint={t('settings.startingBalanceHint')} value={startingBalance} onChangeText={setStartingBalance} placeholder="0" />
-          <MoneyInput icon={<Clock size={15} color={C.lilac} />} color={C.lilac} label={t('settings.hourlyRate')} hint="Used to calculate time cost of purchases" value={hourlyValue} onChangeText={setHourlyValue} placeholder="0" suffix="/hr" />
+          <MoneyInput icon={<Clock size={15} color={C.lilac} />} color={C.lilac} label={t('settings.hourlyRate')} hint={t('settings.hourlyRateInputHint')} value={hourlyValue} onChangeText={setHourlyValue} placeholder="0" suffix="/hr" />
         </Animated.View>
 
         {/* ── Preferences ── */}
@@ -277,7 +277,7 @@ export default function SettingsScreen() {
           <View style={{ paddingHorizontal: 20, paddingTop: 18 }}>
             <GlassCard tint={`${C.p700}16`} border={`${C.p700}2e`}>
 <Txt size={11} color={C.textDim} style={{ marginBottom: 3 }}>{t('misc2.example')}</Txt>
-              <Txt size={14} color={C.text}>$50 purchase = <Txt weight="bold" size={14} color={C.p400}>{Math.round((50 / parseFloat(hourlyValue)) * 60)} minutes</Txt> of work</Txt>
+              <Txt size={14} color={C.text}>{t('settings.timeCostExample', { minutes: t('settings.minutesCount', { count: Math.round((50 / parseFloat(hourlyValue)) * 60) }) })}</Txt>
             </GlassCard>
           </View>
         )}
@@ -287,10 +287,10 @@ export default function SettingsScreen() {
           {saved ? (
             <LinearGradient colors={[C.green, '#059669']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={[{ borderRadius: R.md, paddingVertical: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }, glow(C.green, 0.4, 18, C.glowScale)]}>
               <Check size={20} color="#fff" />
-<Txt weight="bold" size={16} color="#fff">Saved! </Txt>
+<Txt weight="bold" size={16} color="#fff">{t('settings.savedLabel')}</Txt>
             </LinearGradient>
           ) : (
-            <BubbleButton label={mutation.isPending ? 'Saving…' : 'Save!'} onPress={() => mutation.mutate()} disabled={mutation.isPending} />
+            <BubbleButton label={mutation.isPending ? t('settings.savingLabel') : t('settings.saveLabel')} onPress={() => mutation.mutate()} disabled={mutation.isPending} />
           )}
         </View>
 
@@ -406,10 +406,8 @@ export default function SettingsScreen() {
               try {
                 const restored = await restore();
                 Alert.alert(
-                  restored ? 'Purchases restored' : 'Nothing to restore',
-                  restored
-                    ? 'Any active subscription on this account has been reapplied.'
-                    : 'We couldn\'t find an active subscription for this account. If you subscribed with a different Apple ID or Google account, sign in with that one and try again.',
+                  restored ? t('dialogs.restoreOkTitle') : t('dialogs.restoreNoneTitle'),
+                  restored ? t('dialogs.restoreOkBody') : t('dialogs.restoreNoneBody'),
                 );
               } finally {
                 setRestoring(false);
@@ -438,7 +436,7 @@ export default function SettingsScreen() {
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
               Alert.alert(t('dialogs.resetTitle'), t('dialogs.resetBody'), [
-                { text: 'Cancel', style: 'cancel' },
+                { text: t('common.cancel'), style: 'cancel' },
                 {
                   text: t('dialogs.resetTitle'), style: 'destructive',
                   onPress: async () => {
@@ -449,10 +447,10 @@ export default function SettingsScreen() {
                       queryClient.invalidateQueries({ queryKey: ['settings'] });
                       queryClient.invalidateQueries({ queryKey: ['accounts'] });
                       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                      Alert.alert('Done', t('dialogs.resetDone'));
+                      Alert.alert(t('dialogs.done'), t('dialogs.resetDone'));
                     } catch (e) {
                       console.error('[Reset] error:', e);
-                      Alert.alert('Error', t('dialogs.resetWebOnly'));
+                      Alert.alert(t('common.error'), t('dialogs.resetWebOnly'));
                     }
                   },
                 },

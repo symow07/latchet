@@ -480,7 +480,7 @@ function AddModal({ visible, onClose, onSubmit, isSubmitting }: AddModalProps) {
               style={{ borderRadius: 16, padding: 16, marginBottom: 24 }}
             >
               <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, marginBottom: 4 }}>
-                Net Worth Preview
+                {t('netWorth.preview')}
               </Text>
               <Text
                 style={{
@@ -492,7 +492,7 @@ function AddModal({ visible, onClose, onSubmit, isSubmitting }: AddModalProps) {
                 {netWorth >= 0 ? '+' : ''}{formatCurrencyFull(netWorth)}
               </Text>
               <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, marginTop: 4 }}>
-                {formatCurrencyFull(totalAssets)} assets − {formatCurrencyFull(totalLiabilities)} liabilities
+                {t('netWorth.assetsMinus', { assets: formatCurrencyFull(totalAssets), liabilities: formatCurrencyFull(totalLiabilities) })}
               </Text>
             </LinearGradient>
 
@@ -514,7 +514,7 @@ function AddModal({ visible, onClose, onSubmit, isSubmitting }: AddModalProps) {
                   <ActivityIndicator color="white" />
                 ) : (
                   <Text style={{ color: 'white', fontSize: 16, fontWeight: '700' }}>
-                    Save Snapshot
+                    {t('netWorth.saveSnapshot')}
                   </Text>
                 )}
               </LinearGradient>
@@ -724,14 +724,14 @@ export default function NetWorthScreen() {
                       marginLeft: 4,
                     }}
                   >
-                    {deltaPositive ? '+' : ''}{formatCurrencyFull(netWorthDelta)} since last snapshot
+                    {t('netWorth.sinceLast', { delta: `${deltaPositive ? '+' : ''}${formatCurrencyFull(netWorthDelta)}` })}
                   </Text>
                 </View>
               )}
 
               {entries.length === 0 && !isLoading && (
                 <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, marginTop: 6 }}>
-                  Add your first snapshot to get started
+                  {t('netWorth.addFirstSnapshot')}
                 </Text>
               )}
             </>
@@ -779,7 +779,7 @@ export default function NetWorthScreen() {
             >
               <View className="flex-row items-center justify-between mb-4">
                 <Text style={{ color: C.textDim }} className="text-xs font-semibold tracking-widest">
-                  NET WORTH HISTORY
+                  {t('netWorth.historyTitle')}
                 </Text>
                 <Text style={{ color: C.textFaint }} className="text-xs">Last {Math.min(entries.length, 12)} snapshots</Text>
               </View>
@@ -796,7 +796,7 @@ export default function NetWorthScreen() {
               style={{ backgroundColor: C.glass, borderWidth: 1, borderColor: C.glassBorder }}
             >
               <Text style={{ color: C.textDim }} className="text-xs font-semibold tracking-widest mb-4">
-                LATEST BREAKDOWN
+                {t('netWorth.latestBreakdown')}
               </Text>
 
               {/* Assets breakdown */}
@@ -836,7 +836,7 @@ export default function NetWorthScreen() {
         {/* Snapshots list */}
         <View className="mx-4">
           <Text style={{ color: C.textDim }} className="text-xs font-semibold tracking-widest mb-3">
-            SNAPSHOT HISTORY
+            {t('netWorth.snapshotHistory')}
           </Text>
 
           {isLoading && (

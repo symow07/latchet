@@ -12,6 +12,7 @@ import { detectSubscriptions as detectFromEngine, monthlyCost } from './subscrip
 import { chargesFromExpenses } from './subscriptions/sources';
 import { findCancelEntry } from './cancel-directory';
 import { todayISO, daysAheadISO, daysBetween, isBetween } from './dates';
+import { t } from './i18n/core';
 
 export interface DetectedSubscription {
   key: string;
@@ -33,13 +34,16 @@ export interface SubscriptionSummary {
   upcoming: DetectedSubscription[];
 }
 
-const GENERIC_CANCEL_STEPS =
-  'Visit the service\'s account or billing settings page and select "Cancel", "Downgrade", or "End subscription".';
+/**
+ * Resolved on call, not at module scope. A `t()` at import time freezes the
+ * language the app happened to start in — see the guard in i18n.test.ts.
+ */
+const genericCancelSteps = () => t('subscriptionDetail.genericCancelSteps');
 
 /** Cancel guidance for a merchant, from the shared directory. */
 export function cancelGuidanceFor(merchant: string): { instructions: string; url?: string } {
   const entry = findCancelEntry(merchant.toLowerCase());
-  if (!entry) return { instructions: GENERIC_CANCEL_STEPS };
+  if (!entry) return { instructions: genericCancelSteps() };
   return {
     instructions: entry.steps.join(' → '),
     url: entry.cancelUrl || undefined,
@@ -87,10 +91,10 @@ export function formatNextCharge(dateStr: string): string {
   // depending on the device's timezone.
   const diffDays = daysBetween(todayISO(), dateStr.slice(0, 10));
 
-  if (diffDays < 0) return 'Overdue';
-  if (diffDays === 0) return 'Today';
-  if (diffDays === 1) return 'Tomorrow';
-  if (diffDays <= 7) return `In ${diffDays} days`;
+  if (diffDays < 0) return t('subStatus.overdue');
+  if (diffDays === 0) return t('subStatus.today');
+  if (diffDays === 1) return t('subStatus.tomorrow');
+  if (diffDays <= 7) return t('subStatus.inDays', { count: diffDays });
 
   return new Date(dateStr.slice(0, 10) + 'T00:00:00Z').toLocaleDateString(undefined, {
     month: 'short',

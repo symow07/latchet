@@ -132,7 +132,7 @@ export default function VerifyOTPScreen() {
           </View>
           <Text className="text-3xl font-bold text-white mb-2">{t('auth.checkEmail')}</Text>
           <Text className="text-white/60 text-sm leading-5">
-            We sent a 6-digit code to{'\n'}
+            {t('auth.codeSentTo')}{'\n'}
             <Text className="text-purple-300 font-semibold">{email}</Text>
           </Text>
         </LinearGradient>

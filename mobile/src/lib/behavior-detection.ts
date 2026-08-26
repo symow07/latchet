@@ -1,6 +1,8 @@
 import { format, subDays, subMonths, startOfMonth, endOfMonth, getDay } from 'date-fns';
 import { detectSubscriptions as detectFromEngine } from './subscriptions/engine';
 import { chargesFromTransactions } from './subscriptions/sources';
+import { t } from './i18n/core';
+import { categoryLabel } from './category-meta';
 
 export interface Transaction {
   id: string;
@@ -150,12 +152,15 @@ export function detectUnusualTransactions(transactions: Transaction[]): UnusualT
 
           if (deviation > 4) {
             severity = 'high';
-            reason = `${Math.round(deviation)}x higher than your typical ${category} purchase`;
+            reason = t('analytics.reasonMultiple', {
+              times: Math.round(deviation),
+              category: categoryLabel(category),
+            });
           } else if (deviation > 3) {
             severity = 'medium';
-            reason = `Significantly higher than your average ${category} spending`;
+            reason = t('analytics.reasonSignificant', { category: categoryLabel(category) });
           } else {
-            reason = `Above average for ${category}`;
+            reason = t('analytics.reasonAbove', { category: categoryLabel(category) });
           }
 
           unusual.push({
@@ -214,12 +219,15 @@ export function analyzeSpendingPatterns(transactions: Transaction[]): SpendingPa
     const weekendCategories = getTopCategories(weekendTxs, 3);
     patterns.push({
       type: 'weekend',
-      period: 'Last 30 days',
+      period: t('analytics.periodLast30'),
       totalSpent: weekendTotal,
       averageTransaction: weekendTotal / (weekendTxs.length || 1),
       transactionCount: weekendTxs.length,
       topCategories: weekendCategories,
-      insight: `You spend ${Math.round((weekendDailyAvg / weekdayDailyAvg - 1) * 100)}% more on weekends. Top weekend expenses: ${weekendCategories.map(c => c.category).join(', ')}`,
+      insight: t('analytics.weekendInsight', {
+        pct: Math.round((weekendDailyAvg / weekdayDailyAvg - 1) * 100),
+        categories: weekendCategories.map(c => categoryLabel(c.category)).join(', '),
+      }),
     });
   }
 
@@ -249,7 +257,10 @@ export function analyzeSpendingPatterns(transactions: Transaction[]): SpendingPa
       averageTransaction: thisMonthTotal / (thisMonthTxs.length || 1),
       transactionCount: thisMonthTxs.length,
       topCategories: getTopCategories(thisMonthTxs, 3),
-      insight: `Spending is up ${Math.round((thisMonthTotal / lastMonthTotal - 1) * 100)}% compared to last month. Projected total: $${projectedTotal.toFixed(0)}`,
+      insight: t('analytics.seasonalInsight', {
+        pct: Math.round((thisMonthTotal / lastMonthTotal - 1) * 100),
+        projected: `$${projectedTotal.toFixed(0)}`,
+      }),
     });
   }
 
@@ -297,17 +308,17 @@ export function getTopWasteCategories(transactions: Transaction[]): WasteCategor
 
       let tip = '';
       if (category === 'Food' && impulsePercentage > 30) {
-        tip = 'Try meal prepping to reduce food delivery impulse buys';
+        tip = t('analytics.tipFood');
       } else if (category === 'Shopping' && impulsePercentage > 40) {
-        tip = 'Use a 24-hour rule before making non-essential purchases';
+        tip = t('analytics.tipShopping');
       } else if (category === 'Subscriptions') {
-        tip = 'Review subscriptions - cancel ones you haven\'t used in 30 days';
+        tip = t('analytics.tipSubscriptions');
       } else if (category === 'Transport' && data.total > 200) {
-        tip = 'Consider carpooling or public transit to cut costs';
+        tip = t('analytics.tipTransport');
       } else if (impulsePercentage > 50) {
-        tip = `${Math.round(impulsePercentage)}% of ${category} spending is impulse - set a category budget`;
+        tip = t('analytics.tipImpulse', { pct: Math.round(impulsePercentage), category: categoryLabel(category) });
       } else {
-        tip = `Track ${category} spending more closely to identify savings`;
+        tip = t('analytics.tipTrack', { category: categoryLabel(category) });
       }
 
       return {

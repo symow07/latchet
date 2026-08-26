@@ -266,7 +266,7 @@ export default function AdvisorTab() {
                       <View style={{ width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.2)' }}>
                         <User size={13} color="#fff" />
                       </View>
-                      <Txt size={11} color="rgba(255,255,255,0.75)">You</Txt>
+                      <Txt size={11} color="rgba(255,255,255,0.75)">{t('advisor2.you')}</Txt>
                     </View>
                     <Txt size={14} color="#fff" style={{ lineHeight: 20 }}>{message.content}</Txt>
                   </LinearGradient>

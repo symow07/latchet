@@ -198,7 +198,7 @@ function SubscriptionCard({
               <View className="mt-2 gap-1">
                 <View className="flex-row justify-between">
                   <Text className="text-xs" style={{ color: C.textDim }}>
-                    Confidence
+                    {t('subscriptionsScreen.confidence')}
                   </Text>
                   <Text className="text-xs font-semibold" style={{ color: '#f59e0b' }}>
                     {Math.round(sub.confidenceScore)}%
@@ -428,12 +428,12 @@ export default function SubscriptionsScreen() {
                       <Search size={18} color="white" />
                     )}
                     <Text className="text-white font-bold text-base">
-                      {isScanning ? 'Scanning...' : 'Scan for Subscriptions'}
+                      {isScanning ? t('subscriptionsScreen.scanning') : t('subscriptionsScreen.scanFor')}
                     </Text>
                   </LinearGradient>
                 </Pressable>
                 <Text className="text-center text-xs mt-3" style={{ color: C.textDim }}>
-                  Analyzes your transaction history to detect recurring charges
+                  {t('subscriptionsScreen.analyzesHint')}
                 </Text>
               </Animated.View>
             )}
@@ -477,7 +477,7 @@ export default function SubscriptionsScreen() {
                 <Repeat size={16} color={C.p500} />
               )}
               <Text className="font-semibold text-sm" style={{ color: C.p500 }}>
-                {isScanning ? 'Scanning...' : 'Re-scan Transactions'}
+                {isScanning ? t('subscriptionsScreen.scanning') : t('subscriptionsScreen.rescan')}
               </Text>
             </Pressable>
           </Animated.View>

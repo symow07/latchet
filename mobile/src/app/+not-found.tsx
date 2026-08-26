@@ -10,7 +10,7 @@ export default function NotFoundScreen() {
       <Stack.Screen options={{ title: t('errors.notFound') }} />
       <View className="flex-1 items-center justify-center p-5" style={{ backgroundColor: C.bg }}>
         <Text style={{ color: C.text }} className="text-xl font-bold">
-          This screen doesn't exist.
+          {t('errors.screenMissing')}
         </Text>
 
         <Link href="/" className="mt-4 py-4">

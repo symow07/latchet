@@ -39,6 +39,7 @@ import Animated, {
 import { api } from '@/lib/api/api';
 import { t } from '@/lib/i18n/core';
 import { categoryLabel } from '@/lib/categories';
+import { txTypeLabel } from '@/lib/tx-display';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -287,7 +288,7 @@ function RecurringCard({
                 </View>
               </View>
               <Text style={{ color: C.textFaint, fontSize: 12, marginTop: 2 }}>
-                {categoryLabel(item.category)} · {item.type}
+                {categoryLabel(item.category)} · {txTypeLabel(item.type)}
               </Text>
             </View>
 
@@ -366,7 +367,7 @@ function RecurringCard({
                     fontWeight: '600',
                   }}
                 >
-                  Run now
+                  {t('recurring.runNow')}
                 </Text>
               </Pressable>
 
@@ -521,10 +522,10 @@ function AddRecurringModal({
               >
                 <View>
                   <Text style={{ color: C.text, fontSize: 20, fontWeight: '700' }}>
-                    New Recurring
+                    {t('recurring.newTitle')}
                   </Text>
                   <Text style={{ color: C.textFaint, fontSize: 13, marginTop: 2 }}>
-                    Auto-runs on a schedule
+                    {t('recurring.autoRuns')}
                   </Text>
                 </View>
                 <Pressable onPress={handleClose} hitSlop={8}>
@@ -803,7 +804,7 @@ function AddRecurringModal({
                     <>
                       <Plus size={20} color="white" />
                       <Text style={{ color: 'white', fontSize: 16, fontWeight: '700' }}>
-                        Create Recurring
+                        {t('recurring.createButton')}
                       </Text>
                     </>
                   )}
@@ -961,7 +962,7 @@ export default function RecurringScreen() {
 
           <View style={{ alignItems: 'center' }}>
             <Text style={{ color: 'white', fontSize: 18, fontWeight: '700' }}>
-              Recurring
+              {t('recurring.headerTitle')}
             </Text>
             <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, marginTop: 2 }}>
               {activeItems.length} active · {items.length} total
@@ -993,14 +994,14 @@ export default function RecurringScreen() {
                   letterSpacing: 0.6,
                 }}
               >
-                MONTHLY SPEND
+                {t('recurring.monthlySpend')}
               </Text>
             </View>
             <Text style={{ color: '#fca5a5', fontSize: 22, fontWeight: '800' }}>
               {formatAmount(totalMonthlyExpense)}
             </Text>
             <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, marginTop: 2 }}>
-              active expenses
+              {t('recurring.activeExpenses')}
             </Text>
           </View>
 
@@ -1024,14 +1025,14 @@ export default function RecurringScreen() {
                   letterSpacing: 0.6,
                 }}
               >
-                MONTHLY INCOME
+                {t('recurring.monthlyIncome')}
               </Text>
             </View>
             <Text style={{ color: '#86efac', fontSize: 22, fontWeight: '800' }}>
               {formatAmount(totalMonthlyIncome)}
             </Text>
             <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, marginTop: 2 }}>
-              active income
+              {t('recurring.activeIncome')}
             </Text>
           </View>
         </View>
@@ -1053,7 +1054,7 @@ export default function RecurringScreen() {
             }}
           >
             <Text style={{ color: C.textDim, textAlign: 'center', fontSize: 15 }}>
-              Could not load recurring transactions. Check your connection.
+              {t('recurring.loadFailed')}
             </Text>
           </View>
         ) : items.length === 0 ? (
@@ -1087,10 +1088,10 @@ export default function RecurringScreen() {
                 textAlign: 'center',
               }}
             >
-              No Recurring Transactions
+              {t('recurring.emptyTitle')}
             </Text>
             <Text style={{ color: C.textFaint, fontSize: 14, textAlign: 'center' }}>
-              Tap the + button to add subscriptions, bills, or regular income that repeat on a schedule.
+              {t('recurring.emptyBody')}
             </Text>
           </View>
         ) : (

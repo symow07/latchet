@@ -99,13 +99,13 @@ export default function AccountTypeScreen() {
       {/* Header */}
       <View className="px-6 pt-8 pb-6">
         <Text style={{ color: C.p500, fontSize: 13, fontWeight: '700', letterSpacing: 2, marginBottom: 10 }}>
-          STEP 1 OF 2
+          {t('onboarding.stepOf')}
         </Text>
         <Text className="font-bold" style={{ color: C.text, fontSize: 32, lineHeight: 40, marginBottom: 8 }}>
-          How will you{'\n'}use Budget?
+          {t('accountKind.question')}
         </Text>
         <Text style={{ color: C.textDim }} className="text-base leading-6">
-          Choose the account type that fits your needs. You can't change this later.
+          {t('accountKind.questionSub')}
         </Text>
       </View>
 
@@ -216,7 +216,7 @@ export default function AccountTypeScreen() {
                     marginRight: 8,
                   }}
                 >
-                  {selected ? 'Continue' : 'Select an account type'}
+                  {selected ? t('common.continue') : t('accountKind.selectPrompt')}
                 </Text>
                 {selected && <ArrowRight size={20} color="white" />}
               </>

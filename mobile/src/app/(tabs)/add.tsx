@@ -21,6 +21,7 @@ import { R, glow, useC } from '@/lib/design';
 import { Txt, GlassCard, IconBubble, BubbleButton, ScreenBackground, Emoji } from '@/components/ui';
 import { getCategories, DEFAULT_CATEGORIES, CATEGORY_EMOJIS, CATEGORY_COLORS, categoryLabel } from '@/lib/categories';
 import { t, getDateFnsLocale } from '@/lib/i18n/core';
+import { accountTypeLabel } from '@/lib/tx-display';
 
 const getAccountIcon = (type: string) => {
   switch (type) {
@@ -230,7 +231,7 @@ export default function AddTransactionScreen() {
                       ); })()}
                       <View>
                         <Txt weight="semibold" size={14} color={C.text}>{selectedAccount.name}</Txt>
-                        <Txt size={11} color={C.textFaint} style={{ textTransform: 'capitalize' }}>{selectedAccount.type}</Txt>
+                        <Txt size={11} color={C.textFaint}>{accountTypeLabel(selectedAccount.type)}</Txt>
                       </View>
                     </View>
                   ) : <Txt color={C.textFaint}>{t('addTransaction.selectAccount')}</Txt>}
@@ -287,7 +288,7 @@ export default function AddTransactionScreen() {
             <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setShowCatModal(true); }}>
               <View style={{ paddingVertical: 12, paddingHorizontal: 16, borderRadius: R.pill, flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1.5, borderColor: `${C.p500}55`, borderStyle: 'dashed' }}>
                 <Plus size={15} color={C.p400} />
-                <Txt weight="semibold" size={13} color={C.p400}>New</Txt>
+                <Txt weight="semibold" size={13} color={C.p400}>{t('addTx.newAccount')}</Txt>
               </View>
             </Pressable>
           </View>
@@ -345,7 +346,7 @@ export default function AddTransactionScreen() {
 
         {/* ── Date ── */}
         <View style={{ paddingHorizontal: 20, paddingTop: 22 }}>
-          <FieldLabel icon={<Calendar size={15} color={C.textFaint} />} label="Date" />
+          <FieldLabel icon={<Calendar size={15} color={C.textFaint} />} label={t('addTx.dateLabel')} />
           <Pressable onPress={() => setShowDatePicker(true)}>
             <GlassCard padding={14} radius={R.md}>
               <View className="flex-row items-center" style={{ gap: 12 }}>
@@ -403,7 +404,7 @@ export default function AddTransactionScreen() {
                 <IconBubble color={C.p500} size={40}><Clock size={19} color={C.p400} /></IconBubble>
                 <View>
                   <Txt size={11} color={C.textFaint}>{t('addTransaction.timeCost')}</Txt>
-                  <Txt weight="bold" size={17} color={C.p400}>{Math.round((parseFloat(amount) / settings.hourlyValue) * 60)} minutes of work</Txt>
+                  <Txt weight="bold" size={17} color={C.p400}>{t('addTx.minutesOfWork', { count: Math.round((parseFloat(amount) / settings.hourlyValue) * 60) })}</Txt>
                 </View>
               </View>
             </GlassCard>
@@ -413,7 +414,7 @@ export default function AddTransactionScreen() {
         {/* ── Submit ── */}
         <View style={{ paddingHorizontal: 20, paddingTop: 28 }}>
           <BubbleButton
-            label={mutation.isPending ? 'Logging…' : 'Log it!'}
+            label={mutation.isPending ? t('addTx.logging') : t('addTx.logIt')}
             onPress={() => mutation.mutate()}
             disabled={!canSubmit}
           />

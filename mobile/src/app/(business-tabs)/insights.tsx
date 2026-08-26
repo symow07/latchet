@@ -75,7 +75,7 @@ function EditBudgetModal({ visible, onClose, currentData }: { visible: boolean; 
       return setBudget({ totalMonthly: totalNum, categories: cats });
     },
     onSuccess: () => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); qc.invalidateQueries({ queryKey: ['biz-budget'] }); onClose(); },
-    onError: (e: Error) => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error); Alert.alert('Error', e.message); },
+    onError: (e: Error) => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error); Alert.alert(t('common.error'), e.message); },
   });
 
   return (
@@ -118,7 +118,7 @@ function EditBudgetModal({ visible, onClose, currentData }: { visible: boolean; 
             </View>
 
             <View style={{ marginTop: 16 }}>
-              <BubbleButton label={saveMut.isPending ? 'Saving…' : 'Save Budget'} onPress={() => saveMut.mutate()} disabled={saveMut.isPending} radius={R.md} colors={[B.accentDeep, B.accent]} glowColor={B.accent} />
+              <BubbleButton label={saveMut.isPending ? t('businessInsights.savingBudget') : t('businessInsights.saveBudgetButton')} onPress={() => saveMut.mutate()} disabled={saveMut.isPending} radius={R.md} colors={[B.accentDeep, B.accent]} glowColor={B.accent} />
             </View>
           </ScrollView>
         </View>
@@ -149,7 +149,7 @@ function CategoryRow({ cat, spent, budget, index }: { cat: typeof ALL_CATEGORIES
           {budget > 0 ? (
             <Txt size={11} color={B.textFaint} style={{ marginTop: 1 }}>${spent.toFixed(0)} of ${budget.toFixed(0)} · {p.toFixed(0)}%</Txt>
           ) : (
-            <Txt size={11} color={B.textFaint} style={{ marginTop: 1 }}>${spent.toFixed(0)} spent · no limit set</Txt>
+            <Txt size={11} color={B.textFaint} style={{ marginTop: 1 }}>{t('businessInsights.spentNoLimit', { amount: `$${spent.toFixed(0)}` })}</Txt>
           )}
         </View>
         <View style={{ alignItems: 'flex-end', gap: 4 }}>
@@ -227,7 +227,7 @@ export default function BudgetScreen() {
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: overBudget ? `${B.red}1a` : `${B.amber}1a`, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, marginBottom: 14, borderWidth: 1, borderColor: overBudget ? `${B.red}33` : `${B.amber}33` }}>
                     <AlertTriangle size={14} color={overBudget ? B.red : B.amber} />
                     <Txt weight="bold" size={12} color={overBudget ? B.red : B.amber}>
-                      {overBudget ? `Over budget by $${(totalSpent - totalBudget).toFixed(2)}` : `${totalPct.toFixed(0)}% of budget used — watch spending`}
+                      {overBudget ? t('businessInsights.overBudgetBy', { amount: `$${(totalSpent - totalBudget).toFixed(2)}` }) : t('businessInsights.pctUsed', { pct: totalPct.toFixed(0) })}
                     </Txt>
                   </View>
                 )}
@@ -261,7 +261,7 @@ export default function BudgetScreen() {
             {totalBudget > 0 && (
               <View style={{ flexDirection: 'row', paddingHorizontal: 20, gap: 10, marginBottom: 20 }}>
                 {[
-                  { label: 'Budget', value: `$${totalBudget.toFixed(0)}`, accent: B.accent },
+                  { label: t('businessInsights.budgetLabel'), value: `$${totalBudget.toFixed(0)}`, accent: B.accent },
                   { label: t('bizStats.spent'), value: `$${totalSpent.toFixed(0)}`, accent: overBudget ? B.red : '#f87171' },
                   { label: t('bizStats.remaining'), value: `$${remaining.toFixed(0)}`, accent: B.teal },
                 ].map(s => (

@@ -81,7 +81,7 @@ function JoinModal({ visible, onClose, onJoined }: { visible: boolean; onClose: 
 
   const joinMut = useMutation({
     mutationFn: () => { if (code.trim().length < 4) throw new Error('Enter a valid invite code'); return joinBusiness(code.trim()); },
-    onSuccess: (data) => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); Alert.alert('Joined!', `You've joined ${data.businessName}`); setCode(''); setErr(''); onJoined(); onClose(); },
+    onSuccess: (data) => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); Alert.alert(t('businessTeam.joinedTitle'), t('businessTeam.joinedBody', { name: data.businessName })); setCode(''); setErr(''); onJoined(); onClose(); },
     onError: (e: Error) => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error); setErr(e.message); },
   });
 
@@ -103,7 +103,7 @@ function JoinModal({ visible, onClose, onJoined }: { visible: boolean; onClose: 
           </GlassCard>
         )}
         <TextInput value={code} onChangeText={t => { setCode(t.toUpperCase()); setErr(''); }} placeholder="ABC123" placeholderTextColor={B.textFaint} autoCapitalize="characters" maxLength={6} style={{ backgroundColor: B.glass, borderRadius: R.md, paddingHorizontal: 16, paddingVertical: 16, color: B.accent, fontSize: 28, fontFamily: 'PlusJakartaSans_700Bold', letterSpacing: 10, textAlign: 'center', borderWidth: 1, borderColor: `${B.accent}33`, marginBottom: 20 }} selectionColor={B.accent} />
-        <BubbleButton label={joinMut.isPending ? 'Joining…' : 'Join Business'} onPress={() => joinMut.mutate()} disabled={joinMut.isPending} radius={R.md} colors={[B.accentDeep, B.accent]} glowColor={B.accent} />
+        <BubbleButton label={joinMut.isPending ? t('businessTeam.joining') : t('businessTeam.joinButton')} onPress={() => joinMut.mutate()} disabled={joinMut.isPending} radius={R.md} colors={[B.accentDeep, B.accent]} glowColor={B.accent} />
       </View>
     </Modal>
   );
@@ -125,7 +125,7 @@ function MemberRow({ member, isMe, isOwner, onRemove, onChangeRole }: { member: 
         </View>
         <View style={{ flex: 1 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Txt weight="semibold" size={15} color={B.text}>{member.user?.name ?? 'Unknown'}</Txt>
+            <Txt weight="semibold" size={15} color={B.text}>{member.user?.name ?? t('businessTeam.unknownMember')}</Txt>
             {isMe && <Pill label="YOU" color={B.accent} />}
           </View>
           <Txt size={12} color={B.textFaint} style={{ marginTop: 2 }}>{member.user?.email ?? ''}</Txt>
@@ -153,7 +153,7 @@ function MemberRow({ member, isMe, isOwner, onRemove, onChangeRole }: { member: 
                 <RI size={14} color={rm.color} />
                 <View style={{ flex: 1 }}>
                   <Txt weight="semibold" size={13} color={rm.color}>{rm.label}</Txt>
-                  <Txt size={11} color={B.textFaint}>{r === 'manager' ? 'Can approve/reject expenses' : 'Can submit expenses'}</Txt>
+                  <Txt size={11} color={B.textFaint}>{r === 'manager' ? t('businessTeam.canApprove') : t('businessTeam.canSubmit')}</Txt>
                 </View>
                 {member.role === r && <Check size={14} color={rm.color} />}
               </Pressable>
@@ -186,12 +186,12 @@ export default function TeamScreen() {
   const isOwner = myMembership?.role === 'owner';
   const isInBusiness = !!myMembership;
 
-  const changeRoleMut = useMutation({ mutationFn: ({ id, role }: { id: string; role: 'manager' | 'employee' }) => updateMemberRole(id, role), onSuccess: () => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); qc.invalidateQueries({ queryKey: ['biz-members'] }); }, onError: (e: Error) => Alert.alert('Error', e.message) });
-  const removeMut = useMutation({ mutationFn: removeMember, onSuccess: () => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning); qc.invalidateQueries({ queryKey: ['biz-members'] }); }, onError: (e: Error) => Alert.alert('Error', e.message) });
+  const changeRoleMut = useMutation({ mutationFn: ({ id, role }: { id: string; role: 'manager' | 'employee' }) => updateMemberRole(id, role), onSuccess: () => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); qc.invalidateQueries({ queryKey: ['biz-members'] }); }, onError: (e: Error) => Alert.alert(t('common.error'), e.message) });
+  const removeMut = useMutation({ mutationFn: removeMember, onSuccess: () => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning); qc.invalidateQueries({ queryKey: ['biz-members'] }); }, onError: (e: Error) => Alert.alert(t('common.error'), e.message) });
 
   function handleRemove(memberId: string) {
     Alert.alert(t('dialogs.removeMember'), t('dialogs.removeMemberBody'), [
-      { text: 'Cancel', style: 'cancel' },
+      { text: t('common.cancel'), style: 'cancel' },
       { text: t('dialogs.remove'), style: 'destructive', onPress: () => removeMut.mutate(memberId) },
     ]);
   }
@@ -223,7 +223,7 @@ export default function TeamScreen() {
             <View>
               <Txt size={13} color="rgba(255,255,255,0.5)" style={{ marginBottom: 4 }}>{t('businessTeam.members')}</Txt>
               <Txt weight="bold" size={36} color="#fff">{membersLoading ? '—' : members.length}</Txt>
-              <Txt weight="semibold" size={13} color={B.accentSoft} style={{ marginTop: 2 }}>{business?.name ?? (bizLoading ? 'Loading...' : 'Not in a business yet')}</Txt>
+              <Txt weight="semibold" size={13} color={B.accentSoft} style={{ marginTop: 2 }}>{business?.name ?? (bizLoading ? t('businessTeam.loading') : t('businessTeam.noBusiness'))}</Txt>
             </View>
             <View style={{ width: 56, height: 56, borderRadius: 20, backgroundColor: `${B.accent}26`, borderWidth: 1.5, borderColor: `${B.accent}44`, alignItems: 'center', justifyContent: 'center' }}>
               <Users size={26} color={B.accent} />

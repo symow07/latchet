@@ -59,7 +59,13 @@
     "hourlyRateHint": "See purchases in work hours",
     "logOut": "Log Out",
     "version": "Budget v1.0.0 — made with care",
-    "makeItYours": "Make it yours — we won't judge!"
+    "makeItYours": "Make it yours — we won't judge!",
+    "hourlyRateInputHint": "Used to calculate time cost of purchases",
+    "timeCostExample": "$50 purchase = %{minutes} of work",
+    "minutesCount": "%{count} minutes",
+    "savingLabel": "Saving…",
+    "saveLabel": "Save!",
+    "savedLabel": "Saved!"
   },
   "subscription": {
     "upgradeTitle": "Upgrade to Pro",
@@ -113,7 +119,10 @@
     "deletedTitle": "Account deleted",
     "deletedBody": "Your account and data are gone. We couldn't automatically revoke everything though — please disconnect these yourself:",
     "bankConnection": "Bank connection",
-    "inboxConnection": "Inbox connection"
+    "inboxConnection": "Inbox connection",
+    "ownedBusinessBody": "You own this business, so deleting your account removes it entirely — including %{expenses} expenses and access for %{members} other team members. Their records go too.",
+    "typeToConfirm": "Type %{email} to confirm.",
+    "manualRevoke": "Your account and data are gone. We couldn't automatically revoke everything though — please disconnect these yourself:"
   },
   "import": {
     "selectSource": "Where is your data from?",
@@ -156,7 +165,45 @@
     "allSpendingHint": "every row out",
     "allIncome": "All income",
     "allIncomeHint": "every row in",
-    "pdfReadFailedTitle": "Could not read that PDF"
+    "pdfReadFailedTitle": "Could not read that PDF",
+    "pdfConsentTitle": "Read this PDF with AI?",
+    "pdfConsentBody": "CSV files are processed entirely on your device. A PDF has to be sent to our server to be read. It is used only to extract the transactions and is not stored.",
+    "aiLimit": "You have hit the AI usage limit. Please try again later.",
+    "pdfAnalyseFailed": "The statement could not be analysed. If your bank offers CSV, that will always be more accurate.",
+    "unsupportedTitle": "Unsupported File",
+    "unsupportedBody": "Please pick a .csv or .pdf statement. Other formats aren't supported yet.",
+    "cnPdfBody": "Alipay and WeChat bills must be exported as CSV, not PDF.",
+    "unreadableTitle": "Can't read this file",
+    "unreadableBody": "The file is not readable. It may be a binary format (PDF, image) — only plain CSV is supported.",
+    "noneFoundTitle": "No Transactions Found",
+    "noneFoundCn": "Could not read this bill. Make sure you exported it as a UTF-8 CSV from %{source} — the Chinese column headers must be intact.",
+    "noneFoundCsv": "Could not parse any transactions. Ensure it's a valid CSV with date and amount columns.",
+    "stillNothingTitle": "Still nothing to import",
+    "stillNothingBody": "Those columns did not produce any transactions. Check that the date and amount columns are the right way round.",
+    "credentialsNote": "We do not store your banking credentials. Files are processed locally on your device and never uploaded to external servers.",
+    "sourceBank": "Bank statement",
+    "sourceBankSub": "CIH, Attijariwafa, or any bank — export a CSV",
+    "sourceAlipaySub": "Export your bill: Me → 账单 → export (UTF-8 CSV)",
+    "sourceWechatSub": "Me → Wallet → 账单 → 下载账单 (emailed CSV)",
+    "directNote": "Alipay & WeChat Pay have no way to connect directly — this imports the bill you export from each app. For your bank, export a CSV statement from online banking.",
+    "csvNote": "Processed entirely on your device. If we can't recognise the columns, you'll be asked to point them out — no file is ever a dead end.",
+    "pdfNote": "For banks that only offer PDF. Read by AI on our server, so it leaves your device — we ask first. CSV is always more accurate where your bank offers it.",
+    "mappingHelp": "Tell us which column holds what and we'll take it from there. Your bank's wording is shown with a sample value from the file.",
+    "pdfEmptyTitle": "Nothing readable in that PDF",
+    "pdfEmptyBody": "No transactions could be extracted. If your bank also offers CSV, that will always be more accurate.",
+    "stepUpload": "Upload CSV",
+    "stepPreview": "Review & Edit",
+    "stepComplete": "Complete",
+    "colDate": "Date",
+    "colAmount": "Amount",
+    "colDescription": "Description",
+    "reusingSettings": "Reusing the settings from your last import from this bank. Change them if anything looks wrong.",
+    "guessedSettings": "We had to guess part of this. Check the dates and amounts below look right.",
+    "detectedSettings": "Detected from your file. Change these if anything looks wrong.",
+    "impulse": "Impulse",
+    "markImpulse": "Mark Impulse",
+    "successBody": "Successfully imported %{count} transactions into your budget tracker.",
+    "iosOpenFailed": "iOS couldn't open the selected file. Try exporting from your bank again, or save it to Files first."
   },
   "advisor": {
     "issue": "I'm sorry, I encountered an issue: %{message}",
@@ -182,7 +229,26 @@
     "consentSubtitle": "You'll choose your bank and sign in on their secure page.",
     "unavailableTitle": "Bank linking unavailable",
     "unavailableBody": "Bank linking is not configured on the server yet. Please try again later.",
-    "connectionFailed": "Connection failed"
+    "connectionFailed": "Connection failed",
+    "oauthNote": "We use OAuth authentication and never store your banking credentials. Your data is encrypted and you can disconnect anytime.",
+    "syncing": "Syncing...",
+    "syncAll": "Sync All",
+    "syncNow": "Sync Now",
+    "linkAnother": "Link Another Bank",
+    "linkFirst": "Link Your First Bank",
+    "optionalNote": "You can continue adding transactions manually in the Dashboard. Bank linking is optional and can be set up later.",
+    "step1": "You'll be redirected to your bank's secure login page",
+    "step2": "Authorize read-only access to your transactions",
+    "step3": "We sync your transactions automatically",
+    "connectedSince": "Connected since %{date}",
+    "consentExpires": "Consent expires: %{date}",
+    "authorizeIntro": "By connecting, you authorize Budget to:",
+    "neverStore": "We never store your banking credentials",
+    "headerMain": "Bank Linking",
+    "headerAdd": "Add Bank",
+    "subMain": "Securely connect your accounts",
+    "subAdd": "Choose your bank",
+    "subDetail": "Manage connection"
   },
   "dashboard": {
     "totalBalance": "Total Balance",
@@ -223,7 +289,11 @@
     "primaryGoalHint": "We'll customize your experience based on this",
     "spendingStyle": "Your Spending Style",
     "spendingStyleHint": "How would you describe your spending habits?",
-    "failed": "Something went wrong. Please try again."
+    "failed": "Something went wrong. Please try again.",
+    "stepOf": "STEP 1 OF 2",
+    "settingUp": "Setting up...",
+    "getStarted": "Get Started",
+    "stepCounter": "Step %{step} of %{total}"
   },
   "accounts": {
     "title": "My Accounts",
@@ -233,7 +303,12 @@
     "color": "Color",
     "default": "Default",
     "delete": "Delete Account",
-    "namePlaceholder": "e.g., Main Checking"
+    "namePlaceholder": "e.g., Main Checking",
+    "emptyBody": "No accounts yet.\nTap + to add your first account.",
+    "editAccount": "Edit Account",
+    "addAccount": "Add Account",
+    "balanceOwed": "Current Balance (Amount Owed)",
+    "balanceCurrent": "Current Balance"
   },
   "netWorth": {
     "title": "NET WORTH",
@@ -245,7 +320,15 @@
     "noSnapshots": "No snapshots yet",
     "noHistory": "No history yet",
     "needMore": "Add more snapshots to see chart",
-    "loadFailed": "Could not load net worth data."
+    "loadFailed": "Could not load net worth data.",
+    "preview": "Net Worth Preview",
+    "saveSnapshot": "Save Snapshot",
+    "addFirstSnapshot": "Add your first snapshot to get started",
+    "historyTitle": "NET WORTH HISTORY",
+    "latestBreakdown": "LATEST BREAKDOWN",
+    "snapshotHistory": "SNAPSHOT HISTORY",
+    "assetsMinus": "%{assets} assets − %{liabilities} liabilities",
+    "sinceLast": "%{delta} since last snapshot"
   },
   "analytics": {
     "title": "Smart Analytics",
@@ -258,7 +341,36 @@
     "totalSpent": "Total Spent",
     "nextDue": "Next Due",
     "amount": "Amount",
-    "transactions": "Transactions"
+    "transactions": "Transactions",
+    "topWaste": "TOP WASTE CATEGORIES THIS MONTH",
+    "patternsDetected": "SPENDING PATTERNS DETECTED",
+    "noPatterns": "No recurring subscriptions detected yet.\nKeep tracking to find patterns.",
+    "savingsTips": "PERSONALIZED SAVINGS TIPS",
+    "behavioralInsights": "BEHAVIORAL INSIGHTS",
+    "duplicateCharges": "POSSIBLE DUPLICATE CHARGES",
+    "unusualTransactions": "UNUSUAL TRANSACTIONS",
+    "allClearBody": "No suspicious activity or duplicate charges detected.",
+    "avg": "Avg",
+    "avgFor": "Avg for %{category}: %{amount}",
+    "savingsPerMonth": "Potential savings: %{amount}/month",
+    "weekendSpending": "Weekend Spending",
+    "seasonalTrend": "Seasonal Trend",
+    "chargesOf": "%{count} charges of %{amount} on %{date}",
+    "refundLine": "Potential refund: %{amount}",
+    "weekendSpike": "Weekend Spike",
+    "seasonalChange": "Seasonal Change",
+    "reasonMultiple": "%{times}x higher than your typical %{category} purchase",
+    "reasonSignificant": "Significantly higher than your average %{category} spending",
+    "reasonAbove": "Above average for %{category}",
+    "periodLast30": "Last 30 days",
+    "weekendInsight": "You spend %{pct}% more on weekends. Top weekend expenses: %{categories}",
+    "seasonalInsight": "Spending is up %{pct}% compared to last month. Projected total: %{projected}",
+    "tipFood": "Try meal prepping to reduce food delivery impulse buys",
+    "tipShopping": "Use a 24-hour rule before making non-essential purchases",
+    "tipSubscriptions": "Review subscriptions - cancel ones you haven't used in 30 days",
+    "tipTransport": "Consider carpooling or public transit to cut costs",
+    "tipImpulse": "%{pct}% of %{category} spending is impulse - set a category budget",
+    "tipTrack": "Track %{category} spending more closely to identify savings"
   },
   "subscriptionDetail": {
     "title": "Subscription Details",
@@ -266,7 +378,30 @@
     "confidence": "Detection Confidence",
     "history": "Transaction History",
     "yourNotes": "Your Notes",
-    "saveNotes": "Save Notes"
+    "saveNotes": "Save Notes",
+    "notFoundBody": "This subscription could not be found.",
+    "goBack": "Go Back",
+    "amountLabel": "Amount",
+    "chargeAfterTitle": "Charge After Cancellation",
+    "chargeAfterBody": "A charge was detected after you marked this subscription as canceled. You may need to contact support for a refund.",
+    "confirmSub": "Confirm Subscription",
+    "markCanceled": "Mark as Canceled",
+    "howToCancel": "How to Cancel",
+    "noOccurrences": "No occurrences recorded",
+    "openCancelPage": "Open Cancel Page",
+    "notInDirectory": "Not in our directory",
+    "draftEmail": "Draft cancellation email",
+    "opensApple": "Opens your iPhone Subscriptions settings directly",
+    "opensPage": "Opens the %{name} cancel page directly",
+    "basedOn": "Based on %{count} recurring charges detected in your transaction history.",
+    "basedOnOne": "Based on %{count} recurring charge detected in your transaction history.",
+    "stepsTo": "Steps to cancel %{name}",
+    "noSteps": "We don't have specific steps for %{name} yet. Try searching online.",
+    "searchHow": "Search how to cancel %{name}",
+    "genericCancelSteps": "Visit the service's account or billing settings page and select \"Cancel\", \"Downgrade\", or \"End subscription\".",
+    "searchQuery": "how to cancel %{name} subscription",
+    "emailSubject": "Cancel my %{name} subscription",
+    "emailBody": "Hello,\n\nI would like to cancel my %{name} subscription effective immediately and stop all future charges. Please confirm the cancellation in writing.\n\nThank you."
   },
   "business": {
     "label": "BUSINESS",
@@ -297,7 +432,20 @@
     "howToCancel": "How to Cancel",
     "cancelSteps": "CANCELLATION STEPS",
     "cancelTip": "CANCELLATION TIP",
-    "emptyHint": "Submit software or recurring expenses to start tracking your business tools here."
+    "emptyHint": "Submit software or recurring expenses to start tracking your business tools here.",
+    "step1Title": "Go to the billing page",
+    "step2Title": "Confirm cancellation",
+    "step2Body": "Look for \"Cancel plan\", \"Downgrade\", or \"End subscription\". Some services hide this in advanced settings.",
+    "step3Title": "Get confirmation",
+    "step3Body": "Save the cancellation confirmation email. Check your payment method to ensure no future charges occur.",
+    "cancelBefore": "Cancel before %{date} to avoid being charged %{amount} again.",
+    "openBilling": "Open Billing Page",
+    "searchFor": "Search for \"%{name} cancel subscription\"",
+    "perMonth": "per month",
+    "dueSoon": "DUE SOON",
+    "upcomingCharges": "UPCOMING CHARGES (%{count})",
+    "allTools": "ALL TOOLS (%{count})",
+    "cancelTipBody": "Most SaaS tools let you cancel from Settings → Billing. Cancel at least 24 hours before the next renewal date to avoid being charged. Always request a cancellation confirmation email."
   },
   "businessExpenses": {
     "title": "Expenses",
@@ -315,7 +463,16 @@
     "approved": "APPROVED",
     "total": "TOTAL",
     "add": "Add",
-    "descPlaceholder": "What was this for?"
+    "descPlaceholder": "What was this for?",
+    "submitting": "Submitting…",
+    "submitExpense": "Submit Expense",
+    "noPending": "No pending expenses",
+    "noneYet": "No expenses yet",
+    "allCaughtUp": "All caught up!",
+    "tapAddFirst": "Tap Add to submit your first expense",
+    "expenseCount": "%{count} expenses",
+    "approvedBy": "✓ Approved by %{name}",
+    "rejectedBy": "✗ Rejected by %{name}"
   },
   "businessTeam": {
     "title": "Team",
@@ -326,7 +483,16 @@
     "joinBusiness": "Join a Business",
     "enterCode": "Enter an invite code from your manager",
     "remove": "Remove from team",
-    "enterCodeLong": "Enter the 6-character invite code your manager shared with you."
+    "enterCodeLong": "Enter the 6-character invite code your manager shared with you.",
+    "joinedTitle": "Joined!",
+    "joinedBody": "You've joined %{name}",
+    "joining": "Joining…",
+    "joinButton": "Join Business",
+    "unknownMember": "Unknown",
+    "canApprove": "Can approve/reject expenses",
+    "canSubmit": "Can submit expenses",
+    "loading": "Loading...",
+    "noBusiness": "Not in a business yet"
   },
   "businessInsights": {
     "budget": "Budget",
@@ -338,7 +504,13 @@
     "setBudgetShort": "Set a monthly budget",
     "noSpending": "No spending this month",
     "noSpendingHint": "Submit expenses to see your budget usage here",
-    "edit": "Edit"
+    "edit": "Edit",
+    "savingBudget": "Saving…",
+    "saveBudgetButton": "Save Budget",
+    "spentNoLimit": "%{amount} spent · no limit set",
+    "budgetLabel": "Budget",
+    "overBudgetBy": "Over budget by %{amount}",
+    "pctUsed": "%{pct}% of budget used — watch spending"
   },
   "businessPayroll": {
     "title": "Payroll",
@@ -349,7 +521,18 @@
     "total": "TOTAL PAYROLL",
     "none": "No payroll set up",
     "selectMember": "Select a team member…",
-    "allHaveSalaries": "All team members already have salaries set"
+    "allHaveSalaries": "All team members already have salaries set",
+    "adding": "Adding…",
+    "addToPayroll": "Add to Payroll",
+    "paidPill": "Paid",
+    "duePill": "Due",
+    "pendingFor": "Pending payment for %{month}",
+    "addButton": "Add",
+    "currentMonth": "CURRENT MONTH",
+    "tapAdd": "Tap Add to set salaries for your team",
+    "notConfigured": "Payroll hasn't been configured yet",
+    "dueCount": "DUE (%{count})",
+    "paidCount": "PAID (%{count})"
   },
   "auth": {
     "welcomeBack": "Welcome back",
@@ -363,7 +546,13 @@
     "verifying": "Verifying...",
     "didntGet": "Didn't get it? ",
     "resend": "Resend code",
-    "codeSent": "Code sent again!"
+    "codeSent": "Code sent again!",
+    "fullName": "Full Name",
+    "email": "Email",
+    "password": "Password",
+    "confirmPassword": "Confirm Password",
+    "signInSubtitle": "Sign in to your Budget account",
+    "codeSentTo": "We sent a 6-digit code to"
   },
   "addTransaction": {
     "title": "Add Transaction",
@@ -381,20 +570,62 @@
     "title": "Financial Health",
     "breakdown": "SCORE BREAKDOWN",
     "breakdownHint": "Your complete score breakdown",
-    "getAdvice": "Get Personalized Advice"
+    "getAdvice": "Get Personalized Advice",
+    "stableThisWeek": "Stable this week",
+    "estimateNote": "This is an estimate — you have %{count} transactions so far. Log a few weeks of spending and income for a score that actually reflects your habits.",
+    "howToImprove": "HOW TO IMPROVE YOUR SCORE",
+    "chatWithAi": "Chat with AI about your health score",
+    "trendUp": "↑ %{value}% better than last week",
+    "trendDown": "↓ %{value}% from last week"
   },
   "receiptScan": {
     "title": "Scan Receipt",
     "impulseBuy": "Impulse Buy",
     "dismiss": "Dismiss",
-    "goToDashboard": "Go to Dashboard"
+    "goToDashboard": "Go to Dashboard",
+    "stepPick": "Take or choose a photo",
+    "stepAnalyzing": "AI is reading your receipt...",
+    "stepReview": "Review & save",
+    "stepSuccess": "Transaction saved!",
+    "heroTitle": "Scan a Receipt",
+    "heroBody": "Point your camera at any receipt. AI will automatically extract the amount, category, and merchant.",
+    "takePhoto": "Take Photo",
+    "takePhotoSub": "Use your camera to capture a receipt",
+    "choosePhoto": "Choose Photo",
+    "choosePhotoSub": "Pick an existing receipt from your library",
+    "tipsTitle": "TIPS FOR BEST RESULTS",
+    "tip1": "Lay the receipt flat on a surface",
+    "tip2": "Make sure all text is clearly visible",
+    "tip3": "Use good lighting to reduce shadows",
+    "analyzingTitle": "Analyzing Receipt...",
+    "analyzingBody": "AI is reading the receipt and extracting transaction details for you.",
+    "aiExtracted": "AI extracted — review before saving",
+    "noteMerchant": "NOTE / MERCHANT",
+    "impulseHint": "Mark as an unplanned purchase",
+    "savedTitle": "Transaction Saved!",
+    "savedBody": "Your receipt has been scanned and saved to your transaction history.",
+    "scanAnother": "Scan Another Receipt",
+    "saving": "Saving...",
+    "saveTransaction": "Save Transaction"
   },
   "recurring": {
     "name": "NAME",
     "amount": "AMOUNT",
     "category": "CATEGORY",
     "type": "TYPE",
-    "frequency": "FREQUENCY"
+    "frequency": "FREQUENCY",
+    "runNow": "Run now",
+    "newTitle": "New Recurring",
+    "autoRuns": "Auto-runs on a schedule",
+    "createButton": "Create Recurring",
+    "monthlySpend": "MONTHLY SPEND",
+    "activeExpenses": "active expenses",
+    "monthlyIncome": "MONTHLY INCOME",
+    "activeIncome": "active income",
+    "loadFailed": "Could not load recurring transactions. Check your connection.",
+    "emptyTitle": "No Recurring Transactions",
+    "emptyBody": "Tap the + button to add subscriptions, bills, or regular income that repeat on a schedule.",
+    "headerTitle": "Recurring"
   },
   "emailInbox": {
     "title": "Email Inbox",
@@ -405,7 +636,18 @@
     "enterCode": "Enter this code in Gmail's forwarding settings:",
     "confirmGmail": "Confirm in Gmail",
     "active": "Active",
-    "notOn": "Not switched on yet"
+    "notOn": "Not switched on yet",
+    "findSubs": "Find subscriptions in your email",
+    "forwardIntro": "Forward receipts to your private Budget address and we'll spot the subscriptions automatically.",
+    "notEnabled": "Email forwarding isn't enabled for this app yet. Once it's turned on, your private inbox address will appear here.",
+    "forwardHint": "Forward a receipt email to your address above — it'll show up here.",
+    "adding": "Adding…",
+    "addCount": "Add %{count} to subscriptions",
+    "otherApps": "Other email apps (Outlook, iCloud) have similar \"forwarding\" or \"rules\" settings. After setup it's fully automatic — new receipts are detected on their own.",
+    "foundCount": "%{count} subscriptions found in your email",
+    "checking": "Checking…",
+    "connected": "Connected — forwarded receipts appear here",
+    "autoDetect": "Auto-detect subscriptions from your receipts"
   },
   "bankExtra": {
     "connectBank": "Connect Bank",
@@ -433,21 +675,57 @@
   },
   "startup": {
     "retry": "Retry",
-    "continueOffline": "Continue offline"
+    "continueOffline": "Continue offline",
+    "starting": "Starting Budget…",
+    "authenticate": "Authenticate to continue",
+    "authenticating": "Authenticating...",
+    "unlockBiometrics": "Unlock with Biometrics",
+    "serverUnreachable": "Couldn't reach the server",
+    "errorTitle": "Startup Error"
   },
   "businessSettings": {
     "title": "Settings",
     "signOut": "Sign Out"
   },
   "transactionsScreen": {
-    "filterByCategory": "Filter by category"
+    "filterByCategory": "Filter by category",
+    "historyTitle": "History",
+    "allCategories": "All",
+    "showingImpulse": "Showing impulse only",
+    "showImpulse": "Show impulse only",
+    "impulsePill": "Impulse",
+    "recordsFound": "%{count} records found",
+    "noRecords": "No records yet — start tracking!"
   },
   "billReminders": {
     "title": "Bill Reminders",
-    "recurring": "RECURRING"
+    "recurring": "RECURRING",
+    "paid": "Paid",
+    "newTitle": "New Bill Reminder",
+    "nameLabel": "BILL NAME",
+    "dueDayLabel": "DUE DAY",
+    "recurringMonthly": "Recurring monthly",
+    "autoReset": "Auto-reset on the next cycle",
+    "addButton": "Add Bill Reminder",
+    "monthlyTotal": "MONTHLY TOTAL",
+    "recurringBills": "recurring bills",
+    "loadFailed": "Could not load bill reminders. Check your connection.",
+    "emptyTitle": "No Bill Reminders",
+    "emptyBody": "Tap the + button to add your first bill reminder and never miss a due date.",
+    "paidThisCycle": "PAID THIS CYCLE",
+    "dueOn": "Due %{day} of month",
+    "daysOverdue": "%{count}d overdue",
+    "dueToday": "Due today",
+    "dueTomorrow": "Due tomorrow",
+    "daysLeft": "%{count}d left"
   },
   "subscriptionsScreen": {
-    "title": "Subscriptions"
+    "title": "Subscriptions",
+    "confidence": "Confidence",
+    "scanning": "Scanning...",
+    "scanFor": "Scan for Subscriptions",
+    "rescan": "Re-scan Transactions",
+    "analyzesHint": "Analyzes your transaction history to detect recurring charges"
   },
   "categories": {
     "Food": "Food",
@@ -459,7 +737,19 @@
   },
   "categoryBudgets": {
     "titleFor": "%{category} Budget",
-    "monthlyLimit": "Monthly spending limit"
+    "monthlyLimit": "Monthly spending limit",
+    "setBudget": "Set Budget",
+    "saving": "Saving...",
+    "title": "Category Budgets",
+    "subtitle": "Set monthly limits per category",
+    "noLimitSet": "No limit set · %{amount} spent",
+    "edit": "Edit",
+    "setLimit": "Set limit",
+    "removeLimit": "Remove limit",
+    "footnote": "Budgets are monthly. Progress bars reset at the start of each month. Over-budget categories show in red.",
+    "spentOf": "%{amount} spent",
+    "remaining": " · %{amount} left",
+    "overBy": "%{amount} over"
   },
   "expenseCategories": {
     "Travel": "Travel",
@@ -516,7 +806,9 @@
     "securityLabel": "Security",
     "securitySub": "Password, 2FA",
     "helpLabel": "Help & Feedback",
-    "helpSub": "Get support or report an issue"
+    "helpSub": "Get support or report an issue",
+    "businessAccount": "Business Account",
+    "regionSub": "USD · United States"
   },
   "feedback": {
     "exceededTitle": "Budget Exceeded!",
@@ -569,7 +861,11 @@
     "noPossible": "No possible subscriptions",
     "noPossibleBody": "Tap “Scan” to detect recurring charges from your transactions.",
     "noCanceled": "No canceled subscriptions",
-    "cancelAction": "Cancel Subscription"
+    "cancelAction": "Cancel Subscription",
+    "overdue": "Overdue",
+    "today": "Today",
+    "tomorrow": "Tomorrow",
+    "inDays": "In %{count} days"
   },
   "healthBreakdown": {
     "savingsRate": "Savings Rate",
@@ -583,7 +879,8 @@
     "checking": "Checking",
     "savings": "Savings",
     "creditCard": "Credit Card",
-    "investment": "Investment"
+    "investment": "Investment",
+    "other": "Other"
   },
   "frequency": {
     "daily": "Daily",
@@ -596,7 +893,10 @@
     "personalLabel": "Personal",
     "personalSub": "For individuals",
     "businessSub": "For companies",
-    "businessDesc": "Manage business expenses, revenue, and financial reporting."
+    "businessDesc": "Manage business expenses, revenue, and financial reporting.",
+    "question": "How will you\nuse Budget?",
+    "questionSub": "Choose the account type that fits your needs. You can't change this later.",
+    "selectPrompt": "Select an account type"
   },
   "analyticsTabs": {
     "overview": "Overview",
@@ -607,13 +907,30 @@
     "totalSubmitted": "Total Submitted",
     "pendingReview": "Pending Review",
     "spent": "Spent",
-    "remaining": "Remaining"
+    "remaining": "Remaining",
+    "approved": "Approved",
+    "rejected": "Rejected",
+    "approvedCount": "%{count} approved",
+    "rejectedCount": "%{count} rejected",
+    "needsReview": "Needs review",
+    "awaitingReview": "Awaiting review",
+    "yourBusiness": "YOUR BUSINESS",
+    "reviewCount": "Review (%{count})",
+    "toolsDetected": "%{count} tools detected",
+    "noToolsDetected": "No subscriptions detected yet",
+    "expensesWaiting": "%{count} expenses waiting for your review",
+    "greeting": "Hey, %{name}",
+    "expenseCount": "%{count} expenses",
+    "totalApprovedExpenses": "Total approved expenses",
+    "noExpensesYet": "No expenses yet — submit your first"
   },
   "errors": {
     "unknown": "Unknown error",
     "dbInit": "Failed to initialize database",
     "notFound": "Oops!",
-    "aiFailed": "AI analysis failed. Please try again."
+    "aiFailed": "AI analysis failed. Please try again.",
+    "screenMissing": "This screen doesn't exist.",
+    "requestFailed": "Request failed (%{status})"
   },
   "misc": {
     "weAccess": "What we can access:"
@@ -632,7 +949,9 @@
     "streak7": "7-Day Streak",
     "streak30": "30-Day Streak",
     "budgetMaster": "Budget Master",
-    "noSubscriptions": "No Subscriptions"
+    "noSubscriptions": "No Subscriptions",
+    "unlockedTitle": "🏆 Badge unlocked!",
+    "unlockedBody": "You earned \"%{badge}\". Keep it up!"
   },
   "dashboard2": {
     "trackCta": "Let's track that",
@@ -643,14 +962,20 @@
     "badgeCount": {
       "one": "{{count}} badge",
       "other": "{{count}} badges"
-    }
+    },
+    "survival": "Survival",
+    "survivalNeedWeek": "Survival (need a week)",
+    "ofPurchases": "of purchases",
+    "stable": "Stable",
+    "daysCount": "%{count} days"
   },
   "advisor2": {
     "welcomeBody": "Ask me anything about your finances. I can help you understand spending patterns, spot savings opportunities, and give advice based on your actual data.",
     "promptDoing": "How am I doing this month?",
     "promptSave": "How can I save more money?",
     "promptOverspend": "Where am I overspending?",
-    "promptTips": "Give me personalized tips"
+    "promptTips": "Give me personalized tips",
+    "you": "You"
   },
   "settingsToggles": {
     "timeCost": "Show Time Cost",
@@ -684,7 +1009,14 @@
     "removeMemberBody": "Are you sure you want to remove this person from your team?",
     "removePayroll": "Remove from payroll",
     "permissionNeeded": "Permission needed",
-    "cameraNeeded": "Camera access is required to take photos."
+    "cameraNeeded": "Camera access is required to take photos.",
+    "restoreOkTitle": "Purchases restored",
+    "restoreNoneTitle": "Nothing to restore",
+    "restoreOkBody": "Any active subscription on this account has been reapplied.",
+    "restoreNoneBody": "We couldn't find an active subscription for this account. If you subscribed with a different Apple ID or Google account, sign in with that one and try again.",
+    "done": "Done",
+    "removePayrollBody": "Remove %{name} from payroll? This will delete all payment history.",
+    "exportFailedBody": "Could not export transactions to %{format}"
   },
   "netWorthCats": {
     "cashSavings": "Cash & Savings",
@@ -703,7 +1035,12 @@
     "createCat": "Create Category",
     "noteOptional": "Note (optional)",
     "spentOnWhat": "What did you spend on?",
-    "notePlaceholder": "e.g. Coffee, Rent, Travel…"
+    "notePlaceholder": "e.g. Coffee, Rent, Travel…",
+    "newAccount": "New",
+    "dateLabel": "Date",
+    "minutesOfWork": "%{count} minutes of work",
+    "logging": "Logging…",
+    "logIt": "Log it!"
   },
   "fields": {
     "namePlaceholder": "John Doe",
@@ -752,5 +1089,9 @@
       "one": "Save 1 transaction",
       "other": "Save {{count}} transactions"
     }
+  },
+  "txTypes": {
+    "Expense": "Expense",
+    "Income": "Income"
   }
 }

@@ -228,9 +228,9 @@ export default function HealthScoreScreen() {
           >
             <TrendIcon size={16} color="white" />
             <Text className="text-white ml-2">
-              {healthScore.trend === 'up' && `↑ ${healthScore.trendValue}% better than last week`}
-              {healthScore.trend === 'down' && `↓ ${healthScore.trendValue}% from last week`}
-              {healthScore.trend === 'stable' && 'Stable this week'}
+              {healthScore.trend === 'up' && t('healthScore.trendUp', { value: healthScore.trendValue })}
+              {healthScore.trend === 'down' && t('healthScore.trendDown', { value: healthScore.trendValue })}
+              {healthScore.trend === 'stable' && t('healthScore.stableThisWeek')}
             </Text>
           </View>
         </View>
@@ -248,7 +248,7 @@ export default function HealthScoreScreen() {
             <View style={{ backgroundColor: 'rgba(251,191,36,0.1)', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: 'rgba(251,191,36,0.25)', flexDirection: 'row', gap: 10 }}>
               <Info size={16} color="rgba(255,255,255,0.45)" />
               <Text style={{ color: '#fcd34d', fontSize: 13, lineHeight: 19, flex: 1 }}>
-                This is an <Text style={{ fontWeight: '700' }}>estimate</Text> — you have {transactions.length} transaction{transactions.length === 1 ? '' : 's'} so far. Log a few weeks of spending and income for a score that actually reflects your habits.
+                {t('healthScore.estimateNote', { count: transactions.length })}
               </Text>
             </View>
           </View>
@@ -326,7 +326,7 @@ export default function HealthScoreScreen() {
         {healthScore.suggestions.length > 0 && (
           <View className="px-4 mb-4">
             <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-3 ml-1">
-              HOW TO IMPROVE YOUR SCORE
+              {t('healthScore.howToImprove')}
             </Text>
 
             {healthScore.suggestions.map((suggestion, idx) => (
@@ -372,7 +372,7 @@ export default function HealthScoreScreen() {
                   <View>
                     <Text className="text-white font-bold">{t('healthScore.getAdvice')}</Text>
                     <Text className="text-white/70 text-xs mt-0.5">
-                      Chat with AI about your health score
+                      {t('healthScore.chatWithAi')}
                     </Text>
                   </View>
                 </View>

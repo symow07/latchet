@@ -45,10 +45,10 @@ export default function BusinessDashboardTab() {
   const subSummary = detectSubscriptions(allExpenses);
 
   const metrics = [
-    { label: t('bizStats.totalSubmitted'), value: `$${totalExpenses.toFixed(0)}`, sub: `${allExpenses.length} expense${allExpenses.length !== 1 ? 's' : ''}`, accent: B.red },
-    { label: 'Approved', value: `$${approvedTotal.toFixed(0)}`, sub: `${approved.length} approved`, accent: B.teal },
-    { label: t('bizStats.pendingReview'), value: `${pending.length}`, sub: canReview ? 'Needs review' : 'Awaiting review', accent: B.amber },
-    { label: 'Rejected', value: `${rejected.length}`, sub: `${rejected.length} rejected`, accent: B.textDim },
+    { label: t('bizStats.totalSubmitted'), value: `$${totalExpenses.toFixed(0)}`, sub: t('bizStats.expenseCount', { count: allExpenses.length }), accent: B.red },
+    { label: t('bizStats.approved'), value: `$${approvedTotal.toFixed(0)}`, sub: t('bizStats.approvedCount', { count: approved.length }), accent: B.teal },
+    { label: t('bizStats.pendingReview'), value: `${pending.length}`, sub: canReview ? t('bizStats.needsReview') : t('bizStats.awaitingReview'), accent: B.amber },
+    { label: t('bizStats.rejected'), value: `${rejected.length}`, sub: t('bizStats.rejectedCount', { count: rejected.length }), accent: B.textDim },
   ];
 
   const statusColor: Record<string, string> = { pending: B.amber, approved: B.teal, rejected: B.red };
@@ -60,7 +60,7 @@ export default function BusinessDashboardTab() {
         <View style={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           <View>
             <Txt weight="bold" size={12} color={B.accent} style={{ letterSpacing: 1.6 }}>{t('business.label')}</Txt>
-            <Txt weight="bold" size={25} color={B.text} style={{ marginTop: 2 }}>Hey, {firstName}</Txt>
+            <Txt weight="bold" size={25} color={B.text} style={{ marginTop: 2 }}>{t('bizStats.greeting', { name: firstName })}</Txt>
           </View>
           <IconBubble color={B.accent} size={42} radius={14}><Briefcase size={19} color={B.accent} /></IconBubble>
         </View>
@@ -73,7 +73,7 @@ export default function BusinessDashboardTab() {
             style={[{ borderRadius: R.lg, padding: 22, borderWidth: 1, borderColor: `${B.accent}33` }, glow(B.accentDeep, 0.3, 22, B.glowScale)]}
           >
             <Txt weight="semibold" size={12} color="rgba(255,255,255,0.5)" style={{ letterSpacing: 1, marginBottom: 6 }}>
-              {business?.name?.toUpperCase() ?? 'YOUR BUSINESS'}
+              {business?.name?.toUpperCase() ?? t('bizStats.yourBusiness')}
             </Txt>
             {isLoading ? (
               <ActivityIndicator color={B.accent} size="small" style={{ alignSelf: 'flex-start', marginVertical: 6 }} />
@@ -82,8 +82,8 @@ export default function BusinessDashboardTab() {
             )}
             <Txt weight="semibold" size={13} color={B.accentSoft}>
               {pending.length > 0 && canReview
-                ? `${pending.length} expense${pending.length > 1 ? 's' : ''} waiting for your review`
-                : approved.length > 0 ? 'Total approved expenses' : 'No expenses yet — submit your first'}
+                ? t('bizStats.expensesWaiting', { count: pending.length })
+                : approved.length > 0 ? t('bizStats.totalApprovedExpenses') : t('bizStats.noExpensesYet')}
             </Txt>
           </LinearGradient>
         </Animated.View>
@@ -116,7 +116,7 @@ export default function BusinessDashboardTab() {
               <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push('/(business-tabs)/expenses'); }} style={({ pressed }) => ({ flex: 1, opacity: pressed ? 0.75 : 1 })}>
                 <GlassCard padding={14} radius={R.md} tint={`${B.amber}0e`} border={`${B.amber}2e`} style={{ alignItems: 'center', gap: 8 }}>
                   <IconBubble color={B.amber} size={40}><Clock size={18} color={B.amber} /></IconBubble>
-                  <Txt weight="semibold" size={11} color={B.textDim}>Review ({pending.length})</Txt>
+                  <Txt weight="semibold" size={11} color={B.textDim}>{t('bizStats.reviewCount', { count: pending.length })}</Txt>
                 </GlassCard>
               </Pressable>
             )}
@@ -133,7 +133,7 @@ export default function BusinessDashboardTab() {
                 <View style={{ flex: 1 }}>
                   <Txt weight="bold" size={15} color={B.text}>{t('business.businessTools')}</Txt>
                   <Txt size={12} color={B.textFaint} style={{ marginTop: 1 }}>
-                    {subSummary.subscriptions.length > 0 ? `${subSummary.subscriptions.length} tool${subSummary.subscriptions.length !== 1 ? 's' : ''} detected` : 'No subscriptions detected yet'}
+                    {subSummary.subscriptions.length > 0 ? t('bizStats.toolsDetected', { count: subSummary.subscriptions.length }) : t('bizStats.noToolsDetected')}
                   </Txt>
                 </View>
                 <ChevronRight size={18} color={B.textFaint} />

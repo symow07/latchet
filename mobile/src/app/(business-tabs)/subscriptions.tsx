@@ -130,7 +130,7 @@ function AddSalaryModal({ visible, onClose, members, existingUserIds }: { visibl
               </View>
             </GlassCard>
 
-            <BubbleButton label={saveMut.isPending ? 'Adding…' : 'Add to Payroll'} onPress={() => { if (eligible.length > 0) saveMut.mutate(); }} disabled={saveMut.isPending || eligible.length === 0} radius={R.md} colors={[B.accentDeep, B.accent]} glowColor={B.accent} />
+            <BubbleButton label={saveMut.isPending ? t('businessPayroll.adding') : t('businessPayroll.addToPayroll')} onPress={() => { if (eligible.length > 0) saveMut.mutate(); }} disabled={saveMut.isPending || eligible.length === 0} radius={R.md} colors={[B.accentDeep, B.accent]} glowColor={B.accent} />
           </ScrollView>
         </View>
       </KeyboardAvoidingView>
@@ -172,7 +172,7 @@ function EmployeeRow({ record, month, canEdit, onToggle, onDelete }: { record: S
           {canEdit ? (
             <PayToggle paid={paid} onToggle={() => onToggle(record.id, paid)} disabled={false} />
           ) : (
-            <Pill label={paid ? 'Paid' : 'Due'} color={paid ? B.teal : B.amber} />
+            <Pill label={paid ? t('businessPayroll.paidPill') : t('businessPayroll.duePill')} color={paid ? B.teal : B.amber} />
           )}
         </View>
       </View>
@@ -181,7 +181,7 @@ function EmployeeRow({ record, month, canEdit, onToggle, onDelete }: { record: S
         <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: B.glassBorder }}>
           <View style={{ flex: 1 }}>
             {paid && record.payment.paidAt && <Txt size={11} color={B.textFaint}>Paid {new Date(record.payment.paidAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</Txt>}
-            {!paid && <Txt size={11} color={B.textFaint}>Pending payment for {MONTH_NAMES[month - 1]}</Txt>}
+            {!paid && <Txt size={11} color={B.textFaint}>{t('businessPayroll.pendingFor', { month: MONTH_NAMES[month - 1] })}</Txt>}
           </View>
           {canEdit && (
             <Pressable onPress={() => onDelete(record.id, record.user.name)} hitSlop={8} style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}>
@@ -220,13 +220,13 @@ export default function PayrollScreen() {
     mutationFn: ({ id, paid }: { id: string; paid: boolean }) => paid ? markUnpaid(id, month, year) : markPaid(id, month, year),
     onMutate: () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium),
     onSuccess: () => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); invalidate(); },
-    onError: (e: Error) => Alert.alert('Error', e.message),
+    onError: (e: Error) => Alert.alert(t('common.error'), e.message),
   });
-  const deleteMut = useMutation({ mutationFn: deleteSalary, onSuccess: () => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning); invalidate(); }, onError: (e: Error) => Alert.alert('Error', e.message) });
+  const deleteMut = useMutation({ mutationFn: deleteSalary, onSuccess: () => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning); invalidate(); }, onError: (e: Error) => Alert.alert(t('common.error'), e.message) });
 
   function handleDelete(id: string, name: string) {
-    Alert.alert(t('dialogs.removePayroll'), `Remove ${name} from payroll? This will delete all payment history.`, [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(t('dialogs.removePayroll'), t('dialogs.removePayrollBody', { name }), [
+      { text: t('common.cancel'), style: 'cancel' },
       { text: t('dialogs.remove'), style: 'destructive', onPress: () => deleteMut.mutate(id) },
     ]);
   }
@@ -256,7 +256,7 @@ export default function PayrollScreen() {
           {canEdit && (
             <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setShowAdd(true); }} style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 9, borderRadius: 13, backgroundColor: `${B.accent}22`, borderWidth: 1.5, borderColor: `${B.accent}44` })}>
               <Plus size={16} color={B.accent} />
-              <Txt weight="bold" size={13} color={B.accent}>Add</Txt>
+              <Txt weight="bold" size={13} color={B.accent}>{t('businessPayroll.addButton')}</Txt>
             </Pressable>
           )}
         </View>
@@ -268,7 +268,7 @@ export default function PayrollScreen() {
           </Pressable>
           <View style={{ alignItems: 'center' }}>
             <Txt weight="bold" size={17} color={B.text}>{MONTH_NAMES[month - 1]} {year}</Txt>
-            {isCurrentMonth && <View style={{ marginTop: 3 }}><Pill label="CURRENT MONTH" color={B.accent} /></View>}
+            {isCurrentMonth && <View style={{ marginTop: 3 }}><Pill label={t('businessPayroll.currentMonth')} color={B.accent} /></View>}
           </View>
           <Pressable onPress={nextMonth} style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1, width: 36, height: 36, borderRadius: 11, backgroundColor: B.glass, borderWidth: 1, borderColor: B.glassBorder, alignItems: 'center', justifyContent: 'center' })}>
             <ChevronRight size={18} color={B.textDim} />
@@ -324,7 +324,7 @@ export default function PayrollScreen() {
                 <GlassCard padding={40} radius={R.lg} style={{ alignItems: 'center' }}>
                   <Briefcase size={32} color={B.slate700} />
                   <Txt weight="semibold" size={14} color={B.textDim} style={{ marginTop: 12, marginBottom: 4 }}>{t('businessPayroll.none')}</Txt>
-                  <Txt size={12} color={B.textFaint} style={{ textAlign: 'center' }}>{canEdit ? 'Tap Add to set salaries for your team' : "Payroll hasn't been configured yet"}</Txt>
+                  <Txt size={12} color={B.textFaint} style={{ textAlign: 'center' }}>{canEdit ? t('businessPayroll.tapAdd') : t('businessPayroll.notConfigured')}</Txt>
                 </GlassCard>
               </View>
             ) : (
@@ -332,7 +332,7 @@ export default function PayrollScreen() {
                 {unpaidCount > 0 && (
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                     <Clock size={13} color={B.amber} />
-                    <Txt weight="bold" size={11} color={B.amber} style={{ letterSpacing: 1 }}>DUE ({unpaidCount})</Txt>
+                    <Txt weight="bold" size={11} color={B.amber} style={{ letterSpacing: 1 }}>{t('businessPayroll.dueCount', { count: unpaidCount })}</Txt>
                   </View>
                 )}
                 {salaries.filter(s => s.payment.status === 'unpaid').map(s => (
@@ -342,7 +342,7 @@ export default function PayrollScreen() {
                 {paidCount > 0 && (
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: unpaidCount > 0 ? 6 : 0 }}>
                     <UserCheck size={13} color={B.teal} />
-                    <Txt weight="bold" size={11} color={B.teal} style={{ letterSpacing: 1 }}>PAID ({paidCount})</Txt>
+                    <Txt weight="bold" size={11} color={B.teal} style={{ letterSpacing: 1 }}>{t('businessPayroll.paidCount', { count: paidCount })}</Txt>
                   </View>
                 )}
                 {salaries.filter(s => s.payment.status === 'paid').map(s => (

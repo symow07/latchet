@@ -374,7 +374,7 @@ export default function OnboardingScreen() {
           borderBottomRightRadius: 32,
         }}
       >
-        <Text className="text-white/70 text-sm">Step {step + 1} of {STEPS.length}</Text>
+        <Text className="text-white/70 text-sm">{t('onboarding.stepCounter', { step: step + 1, total: STEPS.length })}</Text>
         <View className="flex-row mt-2 gap-2">
           {STEPS.map((_, idx) => (
             <View
@@ -437,9 +437,9 @@ export default function OnboardingScreen() {
                 <Text className="text-white font-bold text-lg mr-2">
                   {step === STEPS.length - 1
                     ? saveMutation.isPending
-                      ? 'Setting up...'
-                      : 'Get Started'
-                    : 'Continue'}
+                      ? t('onboarding.settingUp')
+                      : t('onboarding.getStarted')
+                    : t('common.continue')}
                 </Text>
                 {!saveMutation.isPending && <ArrowRight size={20} color="white" />}
               </LinearGradient>

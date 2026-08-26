@@ -252,10 +252,10 @@ export default function ReceiptScanScreen() {
           <View style={{ flex: 1, alignItems: 'center' }}>
             <Text style={{ color: 'white', fontSize: 18, fontWeight: 'bold' }}>{t('receiptScan.title')}</Text>
             <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, marginTop: 2 }}>
-              {step === 'pick' && 'Take or choose a photo'}
-              {step === 'analyzing' && 'AI is reading your receipt...'}
-              {step === 'review' && 'Review & save'}
-              {step === 'success' && 'Transaction saved!'}
+              {step === 'pick' && t('receiptScan.stepPick')}
+              {step === 'analyzing' && t('receiptScan.stepAnalyzing')}
+              {step === 'review' && t('receiptScan.stepReview')}
+              {step === 'success' && t('receiptScan.stepSuccess')}
             </Text>
           </View>
 
@@ -329,10 +329,10 @@ export default function ReceiptScanScreen() {
                 <Sparkles size={36} color={C.p500} />
               </View>
               <Text style={{ color: 'white', fontSize: 22, fontWeight: 'bold', marginBottom: 8 }}>
-                Scan a Receipt
+                {t('receiptScan.heroTitle')}
               </Text>
               <Text style={{ color: C.textDim, fontSize: 14, textAlign: 'center', lineHeight: 20 }}>
-                Point your camera at any receipt. AI will automatically extract the amount, category, and merchant.
+                {t('receiptScan.heroBody')}
               </Text>
             </View>
 
@@ -367,10 +367,10 @@ export default function ReceiptScanScreen() {
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 17, marginBottom: 2 }}>
-                    Take Photo
+                    {t('receiptScan.takePhoto')}
                   </Text>
                   <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13 }}>
-                    Use your camera to capture a receipt
+                    {t('receiptScan.takePhotoSub')}
                   </Text>
                 </View>
               </LinearGradient>
@@ -407,10 +407,10 @@ export default function ReceiptScanScreen() {
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 17, marginBottom: 2 }}>
-                    Choose Photo
+                    {t('receiptScan.choosePhoto')}
                   </Text>
                   <Text style={{ color: C.textDim, fontSize: 13 }}>
-                    Pick an existing receipt from your library
+                    {t('receiptScan.choosePhotoSub')}
                   </Text>
                 </View>
               </View>
@@ -419,12 +419,12 @@ export default function ReceiptScanScreen() {
             {/* Tips */}
             <View style={{ marginTop: 32 }}>
               <Text style={{ color: C.textFaint, fontSize: 11, fontWeight: '600', marginBottom: 12, marginLeft: 4 }}>
-                TIPS FOR BEST RESULTS
+                {t('receiptScan.tipsTitle')}
               </Text>
               {[
-                'Lay the receipt flat on a surface',
-                'Make sure all text is clearly visible',
-                'Use good lighting to reduce shadows',
+                t('receiptScan.tip1'),
+                t('receiptScan.tip2'),
+                t('receiptScan.tip3'),
               ].map((tip, i) => (
                 <View
                   key={i}
@@ -510,10 +510,10 @@ export default function ReceiptScanScreen() {
               <ActivityIndicator size="large" color={C.p500} />
             </View>
             <Text style={{ color: 'white', fontSize: 20, fontWeight: 'bold', marginBottom: 8 }}>
-              Analyzing Receipt...
+              {t('receiptScan.analyzingTitle')}
             </Text>
             <Text style={{ color: C.textDim, fontSize: 14, textAlign: 'center', lineHeight: 20 }}>
-              AI is reading the receipt and extracting transaction details for you.
+              {t('receiptScan.analyzingBody')}
             </Text>
 
             <View
@@ -586,7 +586,7 @@ export default function ReceiptScanScreen() {
                 >
                   <Sparkles size={14} color={C.p500} />
                   <Text style={{ color: C.p400, fontSize: 12, marginLeft: 5, fontWeight: '600' }}>
-                    AI extracted — review before saving
+                    {t('receiptScan.aiExtracted')}
                   </Text>
                 </View>
               </View>
@@ -676,7 +676,7 @@ export default function ReceiptScanScreen() {
             {/* Note */}
             <View style={{ marginBottom: 14 }}>
               <Text style={{ color: C.textDim, fontSize: 11, fontWeight: '600', marginBottom: 8, marginLeft: 4 }}>
-                NOTE / MERCHANT
+                {t('receiptScan.noteMerchant')}
               </Text>
               <View
                 style={{
@@ -815,7 +815,7 @@ export default function ReceiptScanScreen() {
                 <View>
                   <Text style={{ color: 'white', fontWeight: '600', fontSize: 15 }}>{t('receiptScan.impulseBuy')}</Text>
                   <Text style={{ color: C.textFaint, fontSize: 12, marginTop: 1 }}>
-                    Mark as an unplanned purchase
+                    {t('receiptScan.impulseHint')}
                   </Text>
                 </View>
               </View>
@@ -854,10 +854,10 @@ export default function ReceiptScanScreen() {
               <Check size={48} color="#22c55e" />
             </View>
             <Text style={{ color: 'white', fontSize: 26, fontWeight: 'bold', marginBottom: 10 }}>
-              Transaction Saved!
+              {t('receiptScan.savedTitle')}
             </Text>
             <Text style={{ color: C.textDim, fontSize: 15, textAlign: 'center', lineHeight: 22, marginBottom: 36 }}>
-              Your receipt has been scanned and saved to your transaction history.
+              {t('receiptScan.savedBody')}
             </Text>
 
             <View style={{ width: '100%', gap: 12 }}>
@@ -895,7 +895,7 @@ export default function ReceiptScanScreen() {
                 >
                   <Camera size={18} color={C.p500} />
                   <Text style={{ color: C.p500, fontWeight: '700', fontSize: 16 }}>
-                    Scan Another Receipt
+                    {t('receiptScan.scanAnother')}
                   </Text>
                 </View>
               </Pressable>
@@ -941,14 +941,14 @@ export default function ReceiptScanScreen() {
                 <>
                   <ActivityIndicator size="small" color="white" />
                   <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 17, marginLeft: 10 }}>
-                    Saving...
+                    {t('receiptScan.saving')}
                   </Text>
                 </>
               ) : (
                 <>
                   <Check size={20} color="white" />
                   <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 17, marginLeft: 8 }}>
-                    Save Transaction
+                    {t('receiptScan.saveTransaction')}
                   </Text>
                 </>
               )}

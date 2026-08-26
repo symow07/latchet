@@ -173,7 +173,7 @@ export default function AnalyticsScreen() {
           <Animated.View entering={FadeInUp.duration(400)} className="px-4 pt-4">
             {/* Top Waste Categories */}
             <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-3 ml-1">
-              TOP WASTE CATEGORIES THIS MONTH
+              {t('analytics.topWaste')}
             </Text>
             {analytics.wasteCategories.map((waste, idx) => (
               <WasteCategoryCard key={idx} waste={waste} formatCurrency={formatCurrency} index={idx} />
@@ -183,7 +183,7 @@ export default function AnalyticsScreen() {
             {analytics.spendingPatterns.length > 0 && (
               <>
                 <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-3 ml-1 mt-6">
-                  SPENDING PATTERNS DETECTED
+                  {t('analytics.patternsDetected')}
                 </Text>
                 {analytics.spendingPatterns.map((pattern, idx) => (
                   <SpendingPatternCard key={idx} pattern={pattern} formatCurrency={formatCurrency} />
@@ -236,7 +236,7 @@ export default function AnalyticsScreen() {
               >
                 <RefreshCw size={32} color="#6b7280" />
                 <Text style={{ color: C.textDim }} className="mt-3 text-center">
-                  No recurring subscriptions detected yet.{'\n'}Keep tracking to find patterns.
+                  {t('analytics.noPatterns')}
                 </Text>
               </View>
             ) : (
@@ -252,7 +252,7 @@ export default function AnalyticsScreen() {
           <Animated.View entering={FadeInUp.duration(400)} className="px-4 pt-4">
             {/* Waste Category Tips */}
             <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-3 ml-1">
-              PERSONALIZED SAVINGS TIPS
+              {t('analytics.savingsTips')}
             </Text>
             {analytics.wasteCategories.map((waste, idx) => (
               <Animated.View
@@ -272,7 +272,7 @@ export default function AnalyticsScreen() {
                       <Text style={{ color: C.text }} className="font-medium">{categoryLabel(waste.category)}</Text>
                       <Text style={{ color: C.textDim }} className="text-sm mt-1">{waste.tip}</Text>
                       <Text className="text-amber-400 text-xs mt-2">
-                        Potential savings: {formatCurrency(waste.potentialSavings)}/month
+                        {t('analytics.savingsPerMonth', { amount: formatCurrency(waste.potentialSavings) })}
                       </Text>
                     </View>
                   </View>
@@ -284,7 +284,7 @@ export default function AnalyticsScreen() {
             {analytics.spendingPatterns.length > 0 && (
               <>
                 <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-3 ml-1 mt-6">
-                  BEHAVIORAL INSIGHTS
+                  {t('analytics.behavioralInsights')}
                 </Text>
                 {analytics.spendingPatterns.map((pattern, idx) => (
                   <View
@@ -302,7 +302,7 @@ export default function AnalyticsScreen() {
                       </View>
                       <View className="flex-1">
                         <Text style={{ color: C.text }} className="font-medium">
-                          {pattern.type === 'weekend' ? 'Weekend Spending' : 'Seasonal Trend'}
+                          {pattern.type === 'weekend' ? t('analytics.weekendSpending') : t('analytics.seasonalTrend')}
                         </Text>
                         <Text style={{ color: C.textDim }} className="text-sm mt-1">{pattern.insight}</Text>
                       </View>
@@ -321,7 +321,7 @@ export default function AnalyticsScreen() {
             {analytics.duplicateCharges.length > 0 && (
               <>
                 <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-3 ml-1">
-                  POSSIBLE DUPLICATE CHARGES
+                  {t('analytics.duplicateCharges')}
                 </Text>
                 {analytics.duplicateCharges.map((dup, idx) => (
                   <View
@@ -335,10 +335,10 @@ export default function AnalyticsScreen() {
                     </View>
                     <Text style={{ color: C.text }} >{dup.description}</Text>
                     <Text style={{ color: C.textDim }} className="text-sm">
-                      {dup.transactions.length} charges of {formatCurrency(dup.amount)} on {dup.date}
+                      {t('analytics.chargesOf', { count: dup.transactions.length, amount: formatCurrency(dup.amount), date: dup.date })}
                     </Text>
                     <Text className="text-amber-400 text-xs mt-2">
-                      Potential refund: {formatCurrency(dup.potentialRefund)}
+                      {t('analytics.refundLine', { amount: formatCurrency(dup.potentialRefund) })}
                     </Text>
                   </View>
                 ))}
@@ -349,7 +349,7 @@ export default function AnalyticsScreen() {
             {analytics.unusualTransactions.length > 0 && (
               <>
                 <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-3 ml-1 mt-4">
-                  UNUSUAL TRANSACTIONS
+                  {t('analytics.unusualTransactions')}
                 </Text>
                 {analytics.unusualTransactions.map((unusual, idx) => (
                   <UnusualTransactionCard
@@ -372,7 +372,7 @@ export default function AnalyticsScreen() {
                 </View>
                 <Text className="text-green-400 font-semibold text-lg">{t('analytics.allClear')}</Text>
                 <Text style={{ color: C.textDim }} className="text-center mt-2">
-                  No suspicious activity or duplicate charges detected.
+                  {t('analytics.allClearBody')}
                 </Text>
               </View>
             )}
@@ -431,7 +431,7 @@ function WasteCategoryCard({
             <Text style={{ color: C.textDim }} className="font-medium">{waste.transactionCount}</Text>
           </View>
           <View>
-            <Text style={{ color: C.textFaint }} className="text-xs">Avg</Text>
+            <Text style={{ color: C.textFaint }} className="text-xs">{t('analytics.avg')}</Text>
             <Text style={{ color: C.textDim }} className="font-medium">
               {formatCurrency(waste.averageTransaction)}
             </Text>
@@ -504,7 +504,7 @@ function SpendingPatternCard({
           <TrendingUp size={16} color="#3b82f6" />
         )}
         <Text className="text-blue-400 font-medium ml-2">
-          {pattern.type === 'weekend' ? 'Weekend Spike' : 'Seasonal Change'}
+          {pattern.type === 'weekend' ? t('analytics.weekendSpike') : t('analytics.seasonalChange')}
         </Text>
       </View>
       <Text style={{ color: C.textDim }} className="text-sm">{pattern.insight}</Text>
@@ -558,7 +558,10 @@ function UnusualTransactionCard({
       </Text>
       <Text style={{ color: C.textDim }} className="text-sm mt-1">{unusual.reason}</Text>
       <Text style={{ color: C.textFaint }} className="text-xs mt-1">
-        Avg for {unusual.transaction.category}: {formatCurrency(unusual.averageForCategory)}
+        {t('analytics.avgFor', {
+          category: categoryLabel(unusual.transaction.category),
+          amount: formatCurrency(unusual.averageForCategory),
+        })}
       </Text>
     </View>
   );

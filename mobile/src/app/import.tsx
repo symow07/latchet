@@ -105,12 +105,11 @@ export default function ImportScreen() {
   const importPdfStatement = useCallback(async (uri: string, filename: string) => {
     const proceed = await new Promise<boolean>((resolve) => {
       Alert.alert(
-        'Read this PDF with AI?',
-        'CSV files are processed entirely on your device. A PDF has to be sent to our server to be read. ' +
-          'It is used only to extract the transactions and is not stored.',
+        t('import.pdfConsentTitle'),
+        t('import.pdfConsentBody'),
         [
-          { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
-          { text: 'Continue', onPress: () => resolve(true) },
+          { text: t('common.cancel'), style: 'cancel', onPress: () => resolve(false) },
+          { text: t('common.continue'), onPress: () => resolve(true) },
         ],
       );
     });
@@ -131,8 +130,8 @@ export default function ImportScreen() {
       if (rows.length === 0) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
         Alert.alert(
-          'Nothing readable in that PDF',
-          'No transactions could be extracted. If your bank also offers CSV, that will always be more accurate.',
+          t('import.pdfEmptyTitle'),
+          t('import.pdfEmptyBody'),
         );
         return;
       }
@@ -176,8 +175,8 @@ export default function ImportScreen() {
         isUpgradeRequired(e)
           ? t('subscription.pdfProBody')
           : e instanceof Error && /429/.test(e.message)
-            ? 'You have hit the AI usage limit. Please try again later.'
-            : 'The statement could not be analysed. If your bank offers CSV, that will always be more accurate.',
+            ? t('import.aiLimit')
+            : t('import.pdfAnalyseFailed'),
       );
     } finally {
       setAnalyzingPdf(false);
@@ -210,8 +209,8 @@ export default function ImportScreen() {
       const isPdf = name.endsWith('.pdf');
       if (!name.endsWith('.csv') && !isPdf) {
         Alert.alert(
-          'Unsupported File',
-          'Please pick a .csv or .pdf statement. Other formats aren\'t supported yet.',
+          t('import.unsupportedTitle'),
+          t('import.unsupportedBody'),
         );
         return;
       }
@@ -219,8 +218,8 @@ export default function ImportScreen() {
       if (isPdf) {
         if (source !== 'bank') {
           Alert.alert(
-            'Unsupported File',
-            'Alipay and WeChat bills must be exported as CSV, not PDF.',
+            t('import.unsupportedTitle'),
+            t('import.cnPdfBody'),
           );
           return;
         }
@@ -242,8 +241,8 @@ export default function ImportScreen() {
           console.error('File copy fallback failed:', copyErr);
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
           Alert.alert(
-            'Can\'t read this file',
-            'iOS couldn\'t open the selected file. Try exporting from your bank again, or save it to Files first.',
+            t('import.unreadableTitle'),
+            t('import.iosOpenFailed'),
           );
           return;
         }
@@ -257,8 +256,8 @@ export default function ImportScreen() {
         console.error('readAsStringAsync failed:', readErr);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
         Alert.alert(
-          'Can\'t read this file',
-          'The file is not readable. It may be a binary format (PDF, image) — only plain CSV is supported.',
+          t('import.unreadableTitle'),
+          t('import.unreadableBody'),
         );
         return;
       }
@@ -314,12 +313,12 @@ export default function ImportScreen() {
 
       if (parsedTransactions.length === 0) {
         Alert.alert(
-          'No Transactions Found',
+          t('import.noneFoundTitle'),
           source === 'alipay' || source === 'wechat'
-            ? 'Could not read this bill. Make sure you exported it as a UTF-8 CSV from ' +
-              (source === 'alipay' ? 'Alipay (支付宝账单)' : 'WeChat Pay (微信账单)') +
-              ' — the Chinese column headers must be intact.'
-            : "Could not parse any transactions. Ensure it's a valid CSV with date and amount columns."
+            ? t('import.noneFoundCn', {
+                source: source === 'alipay' ? 'Alipay (支付宝账单)' : 'WeChat Pay (微信账单)',
+              })
+            : t('import.noneFoundCsv')
         );
         return;
       }
@@ -344,7 +343,7 @@ export default function ImportScreen() {
     } catch (error) {
       console.error('File pick error:', error);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Error', t('dialogs.readFailed'));
+      Alert.alert(t('common.error'), t('dialogs.readFailed'));
     }
   }, [importPdfStatement]);
 
@@ -384,8 +383,8 @@ export default function ImportScreen() {
 
     if (parsed.length === 0) {
       Alert.alert(
-        'Still nothing to import',
-        'Those columns did not produce any transactions. Check that the date and amount columns are the right way round.'
+        t('import.stillNothingTitle'),
+        t('import.stillNothingBody')
       );
       return;
     }
@@ -493,7 +492,7 @@ export default function ImportScreen() {
           <View className="flex-1 items-center">
             <Text className="text-white text-lg font-bold">{t('importExtra.title')}</Text>
             <Text className="text-white/70 text-xs mt-1">
-              {step === 'upload' ? 'Upload CSV' : step === 'preview' ? 'Review & Edit' : 'Complete'}
+              {step === 'upload' ? t('import.stepUpload') : step === 'preview' ? t('import.stepPreview') : t('import.stepComplete')}
             </Text>
           </View>
           <View className="w-10" />
@@ -517,8 +516,7 @@ export default function ImportScreen() {
             <View className="flex-1">
               <Text className="text-green-400 font-semibold mb-1">{t('importExtra.privateTitle')}</Text>
               <Text style={{ color: C.textDim }} className="text-xs leading-4">
-                We do not store your banking credentials. Files are processed locally on your device
-                and never uploaded to external servers.
+                {t('import.credentialsNote')}
               </Text>
             </View>
           </View>
@@ -530,9 +528,9 @@ export default function ImportScreen() {
             <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-3 ml-1">{t('importExtra.chooseSource')}</Text>
             <View className="gap-3">
               {([
-                { source: 'bank' as ImportSource, emoji: '', title: 'Bank statement', sub: 'CIH, Attijariwafa, or any bank — export a CSV', color: '#3b82f6' },
-                { source: 'alipay' as ImportSource, emoji: '', title: 'Alipay 支付宝', sub: 'Export your bill: Me → 账单 → export (UTF-8 CSV)', color: '#1677ff' },
-                { source: 'wechat' as ImportSource, emoji: '', title: 'WeChat Pay 微信', sub: 'Me → Wallet → 账单 → 下载账单 (emailed CSV)', color: '#22c55e' },
+                { source: 'bank' as ImportSource, emoji: '', title: t('import.sourceBank'), sub: t('import.sourceBankSub'), color: '#3b82f6' },
+                { source: 'alipay' as ImportSource, emoji: '', title: 'Alipay 支付宝', sub: t('import.sourceAlipaySub'), color: '#1677ff' },
+                { source: 'wechat' as ImportSource, emoji: '', title: 'WeChat Pay 微信', sub: t('import.sourceWechatSub'), color: '#22c55e' },
               ]).map((s) => (
                 <Pressable key={s.source} onPress={() => pickFile(s.source)}>
                   <View
@@ -553,7 +551,7 @@ export default function ImportScreen() {
             </View>
 
             <Text style={{ color: C.textFaint }} className="text-xs mt-4 ml-1 leading-4">
-              Alipay & WeChat Pay have no way to connect directly — this imports the bill you export from each app. For your bank, export a CSV statement from online banking.
+              {t('import.directNote')}
             </Text>
 
             {/* Supported Formats */}
@@ -568,16 +566,14 @@ export default function ImportScreen() {
                   <Text style={{ color: C.textDim }} className="ml-3">{t('import.csvTitle')}</Text>
                 </View>
                 <Text style={{ color: C.textFaint }} className="text-xs mt-2">
-                  Processed entirely on your device. If we can&apos;t recognise the columns,
-                  you&apos;ll be asked to point them out — no file is ever a dead end.
+                  {t('import.csvNote')}
                 </Text>
                 <View className="flex-row items-center mt-4">
                   <FileText size={20} color="#6b7280" />
                   <Text style={{ color: C.textDim }} className="ml-3">{t('import.pdfTitle')}</Text>
                 </View>
                 <Text style={{ color: C.textFaint }} className="text-xs mt-2">
-                  For banks that only offer PDF. Read by AI on our server, so it leaves your
-                  device — we ask first. CSV is always more accurate where your bank offers it.
+                  {t('import.pdfNote')}
                 </Text>
               </View>
             </View>
@@ -606,15 +602,14 @@ export default function ImportScreen() {
 {t('import.mappingTitle')}
               </Text>
               <Text style={{ color: C.textDim }} className="text-xs leading-5">
-                Tell us which column holds what and we&apos;ll take it from there. Your
-                bank&apos;s wording is shown with a sample value from the file.
+                {t('import.mappingHelp')}
               </Text>
             </View>
 
             {([
-              { key: 'dateIdx' as const, label: 'Date', required: true },
-              { key: 'amountIdx' as const, label: 'Amount', required: true },
-              { key: 'descIdx' as const, label: 'Description', required: false },
+              { key: 'dateIdx' as const, label: t('import.colDate'), required: true },
+              { key: 'amountIdx' as const, label: t('import.colAmount'), required: true },
+              { key: 'descIdx' as const, label: t('import.colDescription'), required: false },
             ]).map(field => {
               const current = mapping[field.key] ?? inspection.mapping[field.key];
               return (
@@ -742,10 +737,10 @@ export default function ImportScreen() {
                   </Text>
                   <Text style={{ color: C.textFaint }} className="text-xs mb-3 leading-4">
                     {rememberedBank
-                      ? 'Reusing the settings from your last import from this bank. Change them if anything looks wrong.'
+                      ? t('import.reusingSettings')
                       : format.dateAmbiguous || format.signAmbiguous
-                        ? 'We had to guess part of this. Check the dates and amounts below look right.'
-                        : 'Detected from your file. Change these if anything looks wrong.'}
+                        ? t('import.guessedSettings')
+                        : t('import.detectedSettings')}
                   </Text>
 
                   <Text style={{ color: C.textDim }} className="text-xs mb-2">{t('import.dateOrder')}</Text>
@@ -907,7 +902,7 @@ export default function ImportScreen() {
                               >
                                 <Edit3 size={16} color={tx.isImpulse ? '#ec4899' : '#9ca3af'} />
                                 <Text style={{ color: C.textDim }} className={`ml-2 text-sm ${tx.isImpulse ? 'text-pink-400' : ''}`}>
-                                  {tx.isImpulse ? 'Impulse' : 'Mark Impulse'}
+                                  {tx.isImpulse ? t('import.impulse') : t('import.markImpulse')}
                                 </Text>
                               </View>
                             </Pressable>
@@ -935,7 +930,7 @@ export default function ImportScreen() {
             </View>
             <Text style={{ color: C.text }} className="text-2xl font-bold mb-2">{t('importExtra.complete')}</Text>
             <Text style={{ color: C.textDim }} className="text-center mb-6">
-              Successfully imported {importedCount} transactions into your budget tracker.
+              {t('import.successBody', { count: importedCount })}
             </Text>
             <Pressable
               onPress={() => {

@@ -116,10 +116,10 @@ function urgencyColor(days: number): string {
 }
 
 function urgencyLabel(days: number): string {
-  if (days < 0) return `${Math.abs(days)}d overdue`;
-  if (days === 0) return 'Due today';
-  if (days === 1) return 'Due tomorrow';
-  return `${days}d left`;
+  if (days < 0) return t('billReminders.daysOverdue', { count: Math.abs(days) });
+  if (days === 0) return t('billReminders.dueToday');
+  if (days === 1) return t('billReminders.dueTomorrow');
+  return t('billReminders.daysLeft', { count: days });
 }
 
 function formatAmount(amount: number): string {
@@ -245,7 +245,8 @@ function BillCard({
                   {bill.name}
                 </Text>
                 <Text style={{ color: C.textFaint, fontSize: 12, marginTop: 1 }}>
-                  {categoryLabel(bill.category)} · Due {bill.dueDay}{getDaySuffix(bill.dueDay)} of month
+                  {categoryLabel(bill.category)} ·{' '}
+                  {t('billReminders.dueOn', { day: `${bill.dueDay}${getDaySuffix(bill.dueDay)}` })}
                 </Text>
               </View>
             </View>
@@ -270,7 +271,7 @@ function BillCard({
               )}
               {bill.isPaid && (
                 <Text style={{ color: '#22c55e', fontSize: 11, fontWeight: '600', marginTop: 4 }}>
-                  Paid
+                  {t('billReminders.paid')}
                 </Text>
               )}
             </View>
@@ -426,7 +427,7 @@ function AddBillModal({
               {/* Header */}
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
                 <Text style={{ color: C.text, fontSize: 20, fontWeight: '700' }}>
-                  New Bill Reminder
+                  {t('billReminders.newTitle')}
                 </Text>
                 <Pressable onPress={handleClose} hitSlop={8}>
                   <View
@@ -461,7 +462,7 @@ function AddBillModal({
 
               {/* Name */}
               <Text style={{ color: C.textDim, fontSize: 12, fontWeight: '600', marginBottom: 6 }}>
-                BILL NAME
+                {t('billReminders.nameLabel')}
               </Text>
               <View
                 style={{
@@ -514,7 +515,7 @@ function AddBillModal({
 
                 <View style={{ flex: 1 }}>
                   <Text style={{ color: C.textDim, fontSize: 12, fontWeight: '600', marginBottom: 6 }}>
-                    DUE DAY
+                    {t('billReminders.dueDayLabel')}
                   </Text>
                   <View
                     style={{
@@ -631,10 +632,10 @@ function AddBillModal({
               >
                 <View>
                   <Text style={{ color: C.text, fontSize: 15, fontWeight: '500' }}>
-                    Recurring monthly
+                    {t('billReminders.recurringMonthly')}
                   </Text>
                   <Text style={{ color: C.textFaint, fontSize: 12, marginTop: 1 }}>
-                    Auto-reset on the next cycle
+                    {t('billReminders.autoReset')}
                   </Text>
                 </View>
                 <Switch
@@ -672,7 +673,7 @@ function AddBillModal({
                     <>
                       <Plus size={20} color="white" />
                       <Text style={{ color: 'white', fontSize: 16, fontWeight: '700' }}>
-                        Add Bill Reminder
+                        {t('billReminders.addButton')}
                       </Text>
                     </>
                   )}
@@ -805,13 +806,13 @@ export default function BillRemindersScreen() {
             }}
           >
             <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 11, fontWeight: '600' }}>
-              MONTHLY TOTAL
+              {t('billReminders.monthlyTotal')}
             </Text>
             <Text style={{ color: 'white', fontSize: 22, fontWeight: '800', marginTop: 4 }}>
               {formatAmount(totalMonthly)}
             </Text>
             <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 11, marginTop: 2 }}>
-              recurring bills
+              {t('billReminders.recurringBills')}
             </Text>
           </View>
 
@@ -855,7 +856,7 @@ export default function BillRemindersScreen() {
         ) : isError ? (
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 }}>
             <Text style={{ color: C.textDim, textAlign: 'center', fontSize: 15 }}>
-              Could not load bill reminders. Check your connection.
+              {t('billReminders.loadFailed')}
             </Text>
           </View>
         ) : sorted.length === 0 ? (
@@ -874,10 +875,10 @@ export default function BillRemindersScreen() {
               <Bell size={32} color={C.p500} />
             </View>
             <Text style={{ color: C.text, fontSize: 18, fontWeight: '700', marginBottom: 6 }}>
-              No Bill Reminders
+              {t('billReminders.emptyTitle')}
             </Text>
             <Text style={{ color: C.textFaint, fontSize: 14, textAlign: 'center' }}>
-              Tap the + button to add your first bill reminder and never miss a due date.
+              {t('billReminders.emptyBody')}
             </Text>
           </View>
         ) : (
@@ -932,7 +933,7 @@ export default function BillRemindersScreen() {
                     marginTop: sorted.filter((b) => !b.isPaid).length > 0 ? 16 : 0,
                   }}
                 >
-                  PAID THIS CYCLE
+                  {t('billReminders.paidThisCycle')}
                 </Text>
                 {sorted
                   .filter((b) => b.isPaid)

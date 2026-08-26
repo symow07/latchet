@@ -175,7 +175,7 @@ function SubmitModal({ visible, onClose, onDone }: { visible: boolean; onClose: 
 
             <View style={{ marginTop: 4 }}>
               <BubbleButton
-                label={mutation.isPending ? 'Submitting…' : 'Submit Expense'}
+                label={mutation.isPending ? t('businessExpenses.submitting') : t('businessExpenses.submitExpense')}
                 onPress={() => mutation.mutate()}
                 disabled={mutation.isPending}
                 radius={R.md}
@@ -227,7 +227,7 @@ function ExpenseCard({ expense, canReview, onApprove, onReject }: { expense: Exp
 
       {expense.reviewer && (
         <Txt size={12} color={B.textFaint} style={{ marginBottom: 6 }}>
-          {expense.status === 'approved' ? '✓ Approved' : '✗ Rejected'} by {expense.reviewer.name}
+          {t(expense.status === 'approved' ? 'businessExpenses.approvedBy' : 'businessExpenses.rejectedBy', { name: expense.reviewer.name })}
         </Txt>
       )}
 
@@ -268,8 +268,8 @@ export default function ExpensesScreen() {
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ['biz-expenses'] });
 
-  const approveMut = useMutation({ mutationFn: approveExpense, onSuccess: () => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); invalidate(); }, onError: (e: Error) => Alert.alert('Error', e.message) });
-  const rejectMut = useMutation({ mutationFn: rejectExpense, onSuccess: () => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning); invalidate(); }, onError: (e: Error) => Alert.alert('Error', e.message) });
+  const approveMut = useMutation({ mutationFn: approveExpense, onSuccess: () => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); invalidate(); }, onError: (e: Error) => Alert.alert(t('common.error'), e.message) });
+  const rejectMut = useMutation({ mutationFn: rejectExpense, onSuccess: () => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning); invalidate(); }, onError: (e: Error) => Alert.alert(t('common.error'), e.message) });
 
   const totalAll = expenses.reduce((s, e) => s + e.amount, 0);
   const totalApproved = expenses.filter(e => e.status === 'approved').reduce((s, e) => s + e.amount, 0);
@@ -297,7 +297,7 @@ export default function ExpensesScreen() {
           <GlassCard style={{ flex: 1 }} padding={16} radius={R.md} tint={`${B.red}10`} border={`${B.red}26`}>
             <Txt weight="semibold" size={11} color={B.textFaint} style={{ marginBottom: 4 }}>{t('businessExpenses.total')}</Txt>
             <Txt weight="bold" size={22} color={B.text}>${totalAll.toFixed(2)}</Txt>
-            <Txt size={11} color={B.textFaint} style={{ marginTop: 2 }}>{expenses.length} expense{expenses.length !== 1 ? 's' : ''}</Txt>
+            <Txt size={11} color={B.textFaint} style={{ marginTop: 2 }}>{t('businessExpenses.expenseCount', { count: expenses.length })}</Txt>
           </GlassCard>
           <GlassCard style={{ flex: 1 }} padding={16} radius={R.md} tint={`${B.teal}10`} border={`${B.teal}26`}>
             <Txt weight="semibold" size={11} color={B.textFaint} style={{ marginBottom: 4 }}>{t('businessExpenses.approved')}</Txt>
@@ -325,8 +325,8 @@ export default function ExpensesScreen() {
           ) : expenses.length === 0 ? (
             <GlassCard padding={40} radius={R.lg} style={{ alignItems: 'center' }}>
               {filter === 'pending' ? <Clock size={32} color={B.slate700} /> : <Receipt size={32} color={B.slate700} />}
-              <Txt weight="semibold" size={14} color={B.textDim} style={{ marginTop: 12, marginBottom: 4 }}>{filter === 'pending' ? 'No pending expenses' : 'No expenses yet'}</Txt>
-              <Txt size={12} color={B.textFaint}>{filter === 'pending' ? 'All caught up!' : 'Tap Add to submit your first expense'}</Txt>
+              <Txt weight="semibold" size={14} color={B.textDim} style={{ marginTop: 12, marginBottom: 4 }}>{filter === 'pending' ? t('businessExpenses.noPending') : t('businessExpenses.noneYet')}</Txt>
+              <Txt size={12} color={B.textFaint}>{filter === 'pending' ? t('businessExpenses.allCaughtUp') : t('businessExpenses.tapAddFirst')}</Txt>
             </GlassCard>
           ) : (
             expenses.map(expense => (

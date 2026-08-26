@@ -154,11 +154,10 @@ export function DeleteAccountModal({
 {t('deleteAccount.businessWarningTitle', { name: preview.ownedBusiness.name })}
                       </Txt>
                       <Txt size={13} color="rgba(255,255,255,0.7)" style={{ marginTop: 6, lineHeight: 19 }}>
-                        You own this business, so deleting your account removes it entirely —
-                        including {preview.ownedBusiness.expenses} expense
-                        {preview.ownedBusiness.expenses === 1 ? '' : 's'} and access for{' '}
-                        {preview.ownedBusiness.teamMembers} other team member
-                        {preview.ownedBusiness.teamMembers === 1 ? '' : 's'}. Their records go too.
+                        {t('deleteAccount.ownedBusinessBody', {
+                          expenses: preview.ownedBusiness.expenses,
+                          members: preview.ownedBusiness.teamMembers,
+                        })}
                       </Txt>
                     </GlassCard>
                   </View>
@@ -171,7 +170,7 @@ export function DeleteAccountModal({
                 )}
 
                 <Txt size={13} color="rgba(255,255,255,0.7)" style={{ marginTop: 20 }}>
-                  Type <Txt weight="bold" size={13} color="#fff">{preview.email}</Txt> to confirm.
+                  {t('deleteAccount.typeToConfirm', { email: preview.email })}
                 </Txt>
                 <TextInput
                   value={typed}
@@ -257,8 +256,7 @@ export function UnrevokedGrantsNotice({
         <View style={{ backgroundColor: C.bgRaise, borderRadius: 20, padding: 20, paddingBottom: insets.bottom + 20 }}>
           <Txt weight="bold" size={18} color="#fff">{t('deleteAccount.deletedTitle')}</Txt>
           <Txt size={14} color="rgba(255,255,255,0.7)" style={{ marginTop: 10, lineHeight: 20 }}>
-            Your account and data are gone. We couldn&apos;t automatically revoke everything
-            though — please disconnect these yourself:
+            {t('deleteAccount.manualRevoke')}
           </Txt>
 
           {grants.map((g, i) => (

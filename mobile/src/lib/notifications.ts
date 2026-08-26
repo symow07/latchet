@@ -14,6 +14,7 @@ import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import { Platform } from 'react-native';
 import { api } from './api/api';
+import { t } from './i18n/core';
 
 // Show alerts + play sound even when the app is foregrounded.
 Notifications.setNotificationHandler({
@@ -120,8 +121,8 @@ export async function presentBadgeEarned(badge: string): Promise<void> {
   try {
     await Notifications.scheduleNotificationAsync({
       content: {
-        title: '🏆 Badge unlocked!',
-        body: `You earned "${badge}". Keep it up!`,
+        title: t('badges.unlockedTitle'),
+        body: t('badges.unlockedBody', { badge }),
       },
       trigger: null, // fire now
     });

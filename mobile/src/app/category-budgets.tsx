@@ -248,7 +248,7 @@ function EditModal({
                   >
                     <Check size={16} color="white" style={{ marginRight: 6 }} />
                     <Text style={{ color: '#fff', fontWeight: '700', fontSize: 15 }}>
-                      {isSaving ? 'Saving...' : 'Set Budget'}
+                      {isSaving ? t('categoryBudgets.saving') : t('categoryBudgets.setBudget')}
                     </Text>
                   </LinearGradient>
                 </Pressable>
@@ -375,10 +375,10 @@ export default function CategoryBudgetsScreen() {
           <ArrowLeft size={20} color="#fff" />
         </Pressable>
         <Text style={{ color: '#fff', fontSize: 28, fontWeight: '800', marginBottom: 4 }}>
-          Category Budgets
+          {t('categoryBudgets.title')}
         </Text>
         <Text style={{ color: 'rgba(255,255,255,0.65)', fontSize: 14 }}>
-          Set monthly limits per category
+          {t('categoryBudgets.subtitle')}
         </Text>
       </LinearGradient>
 
@@ -434,19 +434,19 @@ export default function CategoryBudgetsScreen() {
                     <Text style={{ color: C.text, fontSize: 16, fontWeight: '700' }}>{categoryLabel(cat.name)}</Text>
                     {hasLimit ? (
                       <Text style={{ color: C.textDim, fontSize: 12, marginTop: 2 }}>
-                        ${spent.toFixed(0)} spent
+                        {t('categoryBudgets.spentOf', { amount: `$${spent.toFixed(0)}` })}
                         {overBudget
                           ? ` · `
-                          : ` · $${remaining.toFixed(0)} left`}
+                          : t('categoryBudgets.remaining', { amount: `$${remaining.toFixed(0)}` })}
                         {overBudget && (
                           <Text style={{ color: '#ef4444' }}>
-                            ${(spent - budget.amount).toFixed(0)} over
+                            {t('categoryBudgets.overBy', { amount: `$${(spent - budget.amount).toFixed(0)}` })}
                           </Text>
                         )}
                       </Text>
                     ) : (
                       <Text style={{ color: C.textFaint, fontSize: 12, marginTop: 2 }}>
-                        No limit set · ${spent.toFixed(0)} spent
+                        {t('categoryBudgets.noLimitSet', { amount: `$${spent.toFixed(0)}` })}
                       </Text>
                     )}
                   </View>
@@ -471,7 +471,7 @@ export default function CategoryBudgetsScreen() {
                       }}
                     >
                       <Text style={{ color: C.p500, fontSize: 11, fontWeight: '600' }}>
-                        {hasLimit ? 'Edit' : 'Set limit'}
+                        {hasLimit ? t('categoryBudgets.edit') : t('categoryBudgets.setLimit')}
                       </Text>
                     </Pressable>
                   </View>
@@ -512,7 +512,7 @@ export default function CategoryBudgetsScreen() {
                   >
                     <Trash2 size={12} color="#ef4444" style={{ marginRight: 4 }} />
                     <Text style={{ color: '#ef4444', fontSize: 11, fontWeight: '600' }}>
-                      Remove limit
+                      {t('categoryBudgets.removeLimit')}
                     </Text>
                   </Pressable>
                 )}
@@ -533,7 +533,7 @@ export default function CategoryBudgetsScreen() {
           }}
         >
           <Text style={{ color: C.p400, fontSize: 13, lineHeight: 20 }}>
-            Budgets are monthly. Progress bars reset at the start of each month. Over-budget categories show in red.
+            {t('categoryBudgets.footnote')}
           </Text>
         </View>
       </ScrollView>

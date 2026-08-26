@@ -79,7 +79,7 @@ function StartupScreen({ stage }: { stage: string }) {
     <View style={{ flex: 1, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
       <ActivityIndicator size="large" color={C.amber} />
       <Text style={{ color: C.text, fontSize: 18, fontWeight: '600', marginTop: 24 }}>
-        Starting Budget…
+        {t('startup.starting')}
       </Text>
       <Text style={{ color: C.textDim, fontSize: 13, marginTop: 8 }}>
         {stage}
@@ -128,7 +128,7 @@ function LockScreen({ onUnlock }: { onUnlock: () => void }) {
             Budget
           </Text>
           <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 15 }}>
-            Authenticate to continue
+            {t('startup.authenticate')}
           </Text>
         </View>
 
@@ -143,7 +143,7 @@ function LockScreen({ onUnlock }: { onUnlock: () => void }) {
           })}
         >
           <Text style={{ color: C.amber, fontWeight: '700', fontSize: 17 }}>
-            {authenticating ? 'Authenticating...' : 'Unlock with Biometrics'}
+            {authenticating ? t('startup.authenticating') : t('startup.unlockBiometrics')}
           </Text>
         </Pressable>
       </LinearGradient>
@@ -277,7 +277,7 @@ function RootLayoutNav({ colorScheme }: { colorScheme: 'light' | 'dark' | null |
     return (
       <View style={{ flex: 1, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
         <Text style={{ color: C.rose, fontSize: 20, fontWeight: '700', marginBottom: 8 }}>
-          Couldn&apos;t reach the server
+          {t('startup.serverUnreachable')}
         </Text>
         <Text style={{ color: C.textDim, fontSize: 14, textAlign: 'center', marginBottom: 24 }}>
           {sessionError instanceof Error ? sessionError.message : t('errors.unknown')}
@@ -486,7 +486,7 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <View style={{ flex: 1, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
           <Text style={{ color: '#ef4444', fontSize: 20, fontWeight: '700', marginBottom: 12 }}>
-            Startup Error
+            {t('startup.errorTitle')}
           </Text>
           <Text style={{ color: C.textDim, fontSize: 14, textAlign: 'center', marginBottom: 24 }}>
             {dbError}

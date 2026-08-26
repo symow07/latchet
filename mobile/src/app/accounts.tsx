@@ -22,6 +22,7 @@ import * as Haptics from 'expo-haptics';
 import { getAccounts, createAccount, updateAccount, deleteAccount, getSettings, type Account } from '@/lib/db';
 import { formatCurrencyAmount } from '@/lib/currencies';
 import { t } from '@/lib/i18n/core';
+import { accountTypeLabel } from '@/lib/tx-display';
 
 // Built per call, not at module scope: t() at module scope resolves
 // once at import and freezes the startup language.
@@ -216,7 +217,7 @@ export default function AccountsScreen() {
           <View className="items-center py-12">
             <Wallet size={48} color="#4b5563" />
             <Text style={{ color: C.textFaint }} className="text-center mt-4">
-              No accounts yet.{'\n'}Tap + to add your first account.
+              {t('accounts.emptyBody')}
             </Text>
           </View>
         ) : (
@@ -240,7 +241,7 @@ export default function AccountsScreen() {
                   </View>
                   <View className="flex-1">
                     <Text style={{ color: C.text }} className="font-semibold text-lg">{account.name}</Text>
-                    <Text style={{ color: C.textFaint }} className="text-sm capitalize">{account.type}</Text>
+                    <Text style={{ color: C.textFaint }} className="text-sm">{accountTypeLabel(account.type)}</Text>
                   </View>
                   <View className="items-end">
                     <Text
@@ -291,7 +292,7 @@ export default function AccountsScreen() {
               <X size={24} color="#9ca3af" />
             </Pressable>
             <Text style={{ color: C.text }} className="text-lg font-semibold">
-              {editingAccount ? 'Edit Account' : 'Add Account'}
+              {editingAccount ? t('accounts.editAccount') : t('accounts.addAccount')}
             </Text>
             <Pressable
               onPress={handleSave}
@@ -302,7 +303,7 @@ export default function AccountsScreen() {
                   name.trim() ? 'text-purple-400' : ''
                 }`}
               >
-                Save
+                {t('common.save')}
               </Text>
             </Pressable>
           </View>
@@ -369,7 +370,7 @@ export default function AccountsScreen() {
             {/* Current Balance */}
             <View className="mb-6">
               <Text style={{ color: C.textDim }} className="text-sm mb-2 ml-1">
-                {type === 'credit' ? 'Current Balance (Amount Owed)' : 'Current Balance'}
+                {type === 'credit' ? t('accounts.balanceOwed') : t('accounts.balanceCurrent')}
               </Text>
               <View
                 className="flex-row items-center rounded-2xl px-4 py-4"

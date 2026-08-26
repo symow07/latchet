@@ -1,5 +1,6 @@
 import { fetch } from "expo/fetch";
 import { authClient } from "../auth/auth-client";
+import { t } from "../i18n/core";
 
 const baseUrl = process.env.EXPO_PUBLIC_BACKEND_URL!;
 const REQUEST_TIMEOUT_MS = 15000;
@@ -78,7 +79,7 @@ const request = async <T>(
     const text = await response.text().catch(() => "");
     const contentType = response.headers.get("content-type") ?? "";
     let parsed: unknown = text;
-    let message = `Request failed (${response.status})`;
+    let message = t("errors.requestFailed", { status: response.status });
     if (contentType.includes("application/json") && text) {
       try {
         parsed = JSON.parse(text);

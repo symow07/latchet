@@ -75,7 +75,7 @@ export default function TransactionsScreen() {
   const handleDelete = (id: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     Alert.alert(t('dialogs.deleteTx'), t('dialogs.areYouSure'), [
-      { text: 'Cancel', style: 'cancel' },
+      { text: t('common.cancel'), style: 'cancel' },
       { text: t('dialogs.delete'), style: 'destructive', onPress: () => deleteMutation.mutate(id) },
     ]);
   };
@@ -117,9 +117,9 @@ export default function TransactionsScreen() {
       >
         {/* ── Header ── */}
         <View style={{ paddingTop: insets.top + 16, paddingHorizontal: 20 }}>
-<Txt weight="bold" size={30} color={C.text}>History </Txt>
+<Txt weight="bold" size={30} color={C.text}>{t('transactionsScreen.historyTitle')}</Txt>
           <Txt weight="medium" size={13} color={C.textDim} style={{ marginTop: 2 }}>
-{filtered.length > 0? `${filtered.length} records found `: 'No records yet — start tracking!'}
+{filtered.length > 0 ? t('transactionsScreen.recordsFound', { count: filtered.length }) : t('transactionsScreen.noRecords')}
           </Txt>
 
           {/* Date range */}
@@ -150,7 +150,7 @@ export default function TransactionsScreen() {
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, marginBottom: 12 }} contentContainerStyle={{ gap: 8 }}>
             <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setFilterCategory(null); }}>
               <View style={{ paddingVertical: 10, paddingHorizontal: 16, borderRadius: R.pill, backgroundColor: filterCategory === null ? `${C.p500}2a` : C.glass, borderWidth: 1.5, borderColor: filterCategory === null ? `${C.p500}88` : 'transparent' }}>
-<Txt weight="semibold" size={13} color={filterCategory === null? C.p400: C.textFaint}>All </Txt>
+<Txt weight="semibold" size={13} color={filterCategory === null? C.p400: C.textFaint}>{t('transactionsScreen.allCategories')}</Txt>
               </View>
             </Pressable>
             {categories.map(cat => {
@@ -171,7 +171,7 @@ export default function TransactionsScreen() {
             <View style={{ paddingVertical: 13, paddingHorizontal: 16, borderRadius: R.md, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: filterImpulseOnly ? `${C.rose}16` : C.glass, borderWidth: 1.5, borderColor: filterImpulseOnly ? `${C.rose}55` : 'transparent' }}>
               <Zap size={16} color={filterImpulseOnly ? C.rose : C.textFaint} />
               <Txt weight="semibold" size={13} color={filterImpulseOnly ? C.rose : C.textFaint}>
-                {filterImpulseOnly ? 'Showing impulse only' : 'Show impulse only'}
+                {filterImpulseOnly ? t('transactionsScreen.showingImpulse') : t('transactionsScreen.showImpulse')}
               </Txt>
             </View>
           </Pressable>
@@ -209,7 +209,7 @@ export default function TransactionsScreen() {
                           <View className="flex-1">
                             <View className="flex-row items-center flex-wrap" style={{ gap: 6 }}>
                               <Txt weight="semibold" size={15} color={C.text}>{categoryLabel(tx.category, allCategories)}</Txt>
-                              {tx.isImpulse ? <Pill label="Impulse" color={C.rose} /> : null}
+                              {tx.isImpulse ? <Pill label={t('transactionsScreen.impulsePill')} color={C.rose} /> : null}
                             </View>
                             {tx.note ? <Txt size={13} color={C.textFaint} style={{ marginTop: 2 }}>{tx.note}</Txt> : null}
                             {!!settings?.showTimeCost && settings?.hourlyValue > 0 && tx.type === 'Expense' && (

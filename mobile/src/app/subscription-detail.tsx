@@ -293,11 +293,11 @@ export default function SubscriptionDetailScreen() {
       >
         <Text style={{ color: C.text }} className="text-lg font-bold mb-2">{t('subscriptionDetail.notFound')}</Text>
         <Text className="text-center text-sm" style={{ color: C.textDim }}>
-          This subscription could not be found.
+          {t('subscriptionDetail.notFoundBody')}
         </Text>
         <Pressable onPress={() => router.back()} className="mt-6">
           <Text className="font-semibold" style={{ color: C.p500 }}>
-            Go Back
+            {t('subscriptionDetail.goBack')}
           </Text>
         </Pressable>
       </View>
@@ -351,7 +351,7 @@ export default function SubscriptionDetailScreen() {
           <View className="flex-row gap-3">
             <StatCard
               icon={<DollarSign size={18} color="#22c55e" />}
-              label="Amount"
+              label={t('subscriptionDetail.amountLabel')}
               value={formatCurrency(subscription.typicalAmount)}
               color="#22c55e"
               delay={0}
@@ -393,10 +393,10 @@ export default function SubscriptionDetailScreen() {
                 <AlertTriangle size={18} color="#ef4444" style={{ marginTop: 1 }} />
                 <View className="flex-1">
                   <Text className="font-bold text-sm" style={{ color: '#ef4444' }}>
-                    Charge After Cancellation
+                    {t('subscriptionDetail.chargeAfterTitle')}
                   </Text>
                   <Text className="text-xs mt-1 leading-4" style={{ color: '#fca5a5' }}>
-                    A charge was detected after you marked this subscription as canceled. You may need to contact support for a refund.
+                    {t('subscriptionDetail.chargeAfterBody')}
                   </Text>
                 </View>
               </View>
@@ -427,7 +427,9 @@ export default function SubscriptionDetailScreen() {
             )}
             {subscription.status !== 'canceled' && cancelEntry && (
               <Text className="text-center text-xs -mt-1 mb-1" style={{ color: C.textFaint }}>
-                Opens {cancelEntry.native === 'apple' ? 'your iPhone Subscriptions settings' : `the ${cancelEntry.displayName} cancel page`} directly
+                {cancelEntry.native === 'apple'
+                  ? t('subscriptionDetail.opensApple')
+                  : t('subscriptionDetail.opensPage', { name: cancelEntry.displayName })}
               </Text>
             )}
 
@@ -453,7 +455,7 @@ export default function SubscriptionDetailScreen() {
                   <CheckCircle size={18} color="#22c55e" />
                 )}
                 <Text className="font-bold text-sm" style={{ color: '#22c55e' }}>
-                  Confirm Subscription
+                  {t('subscriptionDetail.confirmSub')}
                 </Text>
               </Pressable>
             )}
@@ -480,7 +482,7 @@ export default function SubscriptionDetailScreen() {
                   <XCircle size={18} color="#ef4444" />
                 )}
                 <Text className="font-bold text-sm" style={{ color: '#ef4444' }}>
-                  Mark as Canceled
+                  {t('subscriptionDetail.markCanceled')}
                 </Text>
               </Pressable>
             )}
@@ -501,7 +503,7 @@ export default function SubscriptionDetailScreen() {
             >
               <ExternalLink size={18} color={C.p500} />
               <Text className="font-bold text-sm" style={{ color: C.p500 }}>
-                How to Cancel
+                {t('subscriptionDetail.howToCancel')}
               </Text>
               <ChevronRight size={14} color={C.p500} />
             </Pressable>
@@ -524,7 +526,7 @@ export default function SubscriptionDetailScreen() {
                 <View className="items-center py-10 gap-2">
                   <Clock size={28} color="#4b5563" />
                   <Text className="text-sm" style={{ color: C.textFaint }}>
-                    No occurrences recorded
+                    {t('subscriptionDetail.noOccurrences')}
                   </Text>
                 </View>
               ) : (
@@ -566,7 +568,7 @@ export default function SubscriptionDetailScreen() {
                   />
                 </View>
                 <Text className="text-xs mt-2 leading-4" style={{ color: C.textDim }}>
-                  Based on {occurrences.length} recurring charge{occurrences.length !== 1 ? 's' : ''} detected in your transaction history.
+                  {t(occurrences.length === 1 ? 'subscriptionDetail.basedOnOne' : 'subscriptionDetail.basedOn', { count: occurrences.length })}
                 </Text>
               </View>
             </Animated.View>
@@ -627,7 +629,7 @@ export default function SubscriptionDetailScreen() {
               }}
             >
               <Text style={{ color: C.text }} className="font-bold text-lg">
-                How to Cancel
+                {t('subscriptionDetail.howToCancel')}
               </Text>
               <Pressable
                 onPress={closeSheet}
@@ -649,7 +651,7 @@ export default function SubscriptionDetailScreen() {
                   {/* Steps */}
                   <View className="gap-3">
                     <Text style={{ color: C.text }} className="font-semibold text-sm mb-1">
-                      Steps to cancel {cancelEntry.displayName}
+                      {t('subscriptionDetail.stepsTo', { name: cancelEntry.displayName })}
                     </Text>
                     {cancelEntry.steps.map((step, i) => (
                       <View key={i} className="flex-row gap-3 items-start">
@@ -688,7 +690,7 @@ export default function SubscriptionDetailScreen() {
                   >
                     <Globe size={16} color={C.p500} />
                     <Text className="font-bold text-sm" style={{ color: C.p500 }}>
-                      Open Cancel Page
+                      {t('subscriptionDetail.openCancelPage')}
                     </Text>
                     <ExternalLink size={13} color={C.p500} />
                   </Pressable>
@@ -701,10 +703,10 @@ export default function SubscriptionDetailScreen() {
                     style={{ backgroundColor: C.glass }}
                   >
                     <Text style={{ color: C.text }} className="font-semibold text-sm mb-1">
-                      Not in our directory
+                      {t('subscriptionDetail.notInDirectory')}
                     </Text>
                     <Text className="text-sm leading-5" style={{ color: C.textDim }}>
-                      We don't have specific steps for {subscription.merchantDisplay} yet. Try searching online.
+                      {t('subscriptionDetail.noSteps', { name: subscription.merchantDisplay })}
                     </Text>
                   </View>
 
@@ -712,7 +714,7 @@ export default function SubscriptionDetailScreen() {
                     onPress={() => {
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                       const query = encodeURIComponent(
-                        `how to cancel ${subscription.merchantDisplay} subscription`
+                        t('subscriptionDetail.searchQuery', { name: subscription.merchantDisplay })
                       );
                       Linking.openURL(`https://www.google.com/search?q=${query}`);
                     }}
@@ -730,7 +732,7 @@ export default function SubscriptionDetailScreen() {
                   >
                     <Globe size={16} color={C.p500} />
                     <Text className="font-semibold text-sm" style={{ color: C.p500 }}>
-                      Search how to cancel {subscription.merchantDisplay}
+                      {t('subscriptionDetail.searchHow', { name: subscription.merchantDisplay })}
                     </Text>
                   </Pressable>
 
@@ -739,12 +741,10 @@ export default function SubscriptionDetailScreen() {
                     onPress={() => {
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                       const subj = encodeURIComponent(
-                        `Cancel my ${subscription.merchantDisplay} subscription`
+                        t('subscriptionDetail.emailSubject', { name: subscription.merchantDisplay })
                       );
                       const body = encodeURIComponent(
-                        `Hello,\n\nI would like to cancel my ${subscription.merchantDisplay} subscription` +
-                          ` effective immediately and stop all future charges. Please confirm the cancellation` +
-                          ` in writing.\n\nThank you.`
+                        t('subscriptionDetail.emailBody', { name: subscription.merchantDisplay })
                       );
                       Linking.openURL(`mailto:?subject=${subj}&body=${body}`);
                     }}
@@ -762,7 +762,7 @@ export default function SubscriptionDetailScreen() {
                   >
                     <ExternalLink size={16} color="#9ca3af" />
                     <Text className="font-semibold text-sm" style={{ color: C.textDim }}>
-                      Draft cancellation email
+                      {t('subscriptionDetail.draftEmail')}
                     </Text>
                   </Pressable>
                 </View>

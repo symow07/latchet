@@ -178,7 +178,7 @@ export default function LoginScreen() {
             </View>
             <Text className="text-4xl font-bold text-white mb-2">{t('auth.welcomeBack')}</Text>
             <Text className="text-white/55 text-base leading-6">
-              Sign in to your Budget account
+              {t('auth.signInSubtitle')}
             </Text>
           </LinearGradient>
 
@@ -193,7 +193,7 @@ export default function LoginScreen() {
             {/* Email */}
             <View className="mb-4">
               <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-2.5 ml-1 tracking-wider uppercase">
-                Email
+                {t('auth.email')}
               </Text>
               <View
                 className="flex-row items-center rounded-2xl px-4 py-4"
@@ -219,7 +219,7 @@ export default function LoginScreen() {
             {/* Password */}
             <View className="mb-7">
               <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-2.5 ml-1 tracking-wider uppercase">
-                Password
+                {t('auth.password')}
               </Text>
               <View
                 className="flex-row items-center rounded-2xl px-4 py-4"

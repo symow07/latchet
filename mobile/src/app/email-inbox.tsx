@@ -76,7 +76,7 @@ export default function EmailInboxScreen() {
           </Pressable>
           <Txt weight="bold" size={28} color={C.text}>{t('emailInbox.title')}</Txt>
           <Txt weight="medium" size={13} color={C.textDim} style={{ marginTop: 2 }}>
-            Forward receipts to your private Budget address and we'll spot the subscriptions automatically.
+            {t('emailInbox.forwardIntro')}
           </Txt>
         </View>
 
@@ -88,7 +88,7 @@ export default function EmailInboxScreen() {
                 <View className="flex-1">
                   <Txt weight="bold" size={15} color={C.text}>{t('emailInbox.notOn')}</Txt>
                   <Txt size={13} color={C.textDim} style={{ marginTop: 3, lineHeight: 19 }}>
-                    Email forwarding isn't enabled for this app yet. Once it's turned on, your private inbox address will appear here.
+                    {t('emailInbox.notEnabled')}
                   </Txt>
                 </View>
               </View>
@@ -146,7 +146,7 @@ export default function EmailInboxScreen() {
                   <Inbox size={30} color={C.textFaint} />
                   <Txt weight="semibold" size={14} color={C.textDim} style={{ marginTop: 10 }}>{t('emailInbox.none')}</Txt>
                   <Txt size={12} color={C.textFaint} style={{ textAlign: 'center', marginTop: 3 }}>
-                    Forward a receipt email to your address above — it'll show up here.
+                    {t('emailInbox.forwardHint')}
                   </Txt>
                 </GlassCard>
               ) : (
@@ -173,7 +173,7 @@ export default function EmailInboxScreen() {
               {invoices.length > 0 && (
                 <View style={{ marginTop: 14 }}>
                   <BubbleButton
-                    label={importMut.isPending ? 'Adding…' : `Add ${invoices.length} to subscriptions`}
+                    label={importMut.isPending ? t('emailInbox.adding') : t('emailInbox.addCount', { count: invoices.length })}
                     onPress={() => importMut.mutate()}
                     disabled={importMut.isPending}
                   />
@@ -195,7 +195,7 @@ export default function EmailInboxScreen() {
                 ))}
               </GlassCard>
               <Txt size={11} color={C.textFaint} style={{ marginTop: 10, lineHeight: 16 }}>
-                Other email apps (Outlook, iCloud) have similar "forwarding" or "rules" settings. After setup it's fully automatic — new receipts are detected on their own.
+                {t('emailInbox.otherApps')}
               </Txt>
             </View>
           </>

@@ -23,7 +23,7 @@ import { getEmailDetectedForBusiness } from '@/lib/emailSubscriptionApi';
 import { EmailScanCard } from '@/components/EmailScanCard';
 import { R, glow, useB } from '@/lib/design';
 import { Txt, GlassCard, IconBubble, BizBackground, BubbleButton } from '@/components/ui';
-import { t } from '@/lib/i18n/core';
+import { t, getIntlTag } from '@/lib/i18n/core';
 import { categoryLabel } from '@/lib/categories';
 
 // ─── Cancel Guide Modal ─────────────────────────────────────────────────────────
@@ -31,9 +31,9 @@ function CancelGuideModal({ sub, visible, onClose }: { sub: DetectedSubscription
   const B = useB();
   if (!sub) return null;
   const steps = [
-    { t: 'Go to the billing page', d: sub.cancelInstructions },
-    { t: 'Confirm cancellation', d: 'Look for "Cancel plan", "Downgrade", or "End subscription". Some services hide this in advanced settings.' },
-    { t: 'Get confirmation', d: 'Save the cancellation confirmation email. Check your payment method to ensure no future charges occur.' },
+    { t: t('businessTools.step1Title'), d: sub.cancelInstructions },
+    { t: t('businessTools.step2Title'), d: t('businessTools.step2Body') },
+    { t: t('businessTools.step3Title'), d: t('businessTools.step3Body') },
   ];
 
   return (
@@ -80,15 +80,18 @@ function CancelGuideModal({ sub, visible, onClose }: { sub: DetectedSubscription
           <GlassCard padding={14} radius={R.sm} tint={`${B.amber}0e`} border={`${B.amber}2a`} style={{ marginBottom: 20, flexDirection: 'row', gap: 10 }}>
             <Info size={16} color={B.amber} style={{ marginTop: 1 }} />
             <Txt size={12} color={B.amber} style={{ lineHeight: 18, flex: 1 }}>
-              Cancel before {new Date(sub.nextChargeDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric' })} to avoid being charged ${sub.amount.toFixed(2)} again.
+              {t('businessTools.cancelBefore', {
+                date: new Date(sub.nextChargeDate).toLocaleDateString(getIntlTag(), { month: 'long', day: 'numeric' }),
+                amount: `$${sub.amount.toFixed(2)}`,
+              })}
             </Txt>
           </GlassCard>
 
           {sub.cancelUrl ? (
-            <BubbleButton label="Open Billing Page" icon={<ExternalLink size={16} color="#fff" />} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); if (sub.cancelUrl) Linking.openURL(sub.cancelUrl); }} radius={R.md} colors={[B.accentDeep, B.accent]} glowColor={B.accent} />
+            <BubbleButton label={t('businessTools.openBilling')} icon={<ExternalLink size={16} color="#fff" />} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); if (sub.cancelUrl) Linking.openURL(sub.cancelUrl); }} radius={R.md} colors={[B.accentDeep, B.accent]} glowColor={B.accent} />
           ) : (
             <GlassCard padding={16} radius={R.md} style={{ alignItems: 'center' }}>
-              <Txt size={14} color={B.textFaint}>Search for "{sub.name} cancel subscription"</Txt>
+              <Txt size={14} color={B.textFaint}>{t('businessTools.searchFor', { name: sub.name })}</Txt>
             </GlassCard>
           )}
         </ScrollView>
@@ -232,14 +235,14 @@ export default function BusinessToolsScreen() {
                     <View style={{ width: 52, height: 52, borderRadius: 18, backgroundColor: `${B.accent}1f`, borderWidth: 1.5, borderColor: `${B.accent}33`, alignItems: 'center', justifyContent: 'center', marginBottom: 4 }}>
                       <TrendingDown size={22} color={B.red} />
                     </View>
-                    <Txt weight="bold" size={11} color={B.red}>per month</Txt>
+                    <Txt weight="bold" size={11} color={B.red}>{t('businessTools.perMonth')}</Txt>
                   </View>
                 </View>
                 <View style={{ flexDirection: 'row', gap: 10 }}>
                   {[
                     { label: 'TOOLS', value: `${subscriptions.length}`, color: B.accent },
                     { label: 'RECURRING', value: `${subscriptions.filter(s => s.isRecurring).length}`, color: B.teal },
-                    { label: 'DUE SOON', value: `${upcoming.length}`, color: upcoming.length > 0 ? B.amber : B.textFaint },
+                    { label: t('businessTools.dueSoon'), value: `${upcoming.length}`, color: upcoming.length > 0 ? B.amber : B.textFaint },
                   ].map(stat => (
                     <View key={stat.label} style={{ flex: 1, backgroundColor: B.glass, borderRadius: 14, padding: 12, alignItems: 'center' }}>
                       <Txt weight="bold" size={18} color={stat.color}>{stat.value}</Txt>
@@ -255,7 +258,7 @@ export default function BusinessToolsScreen() {
               <View style={{ marginHorizontal: 20, marginBottom: 20 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 12 }}>
                   <CalendarClock size={14} color={B.amber} />
-                  <Txt weight="bold" size={11} color={B.amber} style={{ letterSpacing: 1.2 }}>UPCOMING CHARGES ({upcoming.length})</Txt>
+                  <Txt weight="bold" size={11} color={B.amber} style={{ letterSpacing: 1.2 }}>{t('businessTools.upcomingCharges', { count: upcoming.length })}</Txt>
                 </View>
                 <GlassCard padding={0} radius={R.lg} tint={`${B.amber}0a`} border={`${B.amber}26`} style={{ overflow: 'hidden' }}>
                   {upcoming.map((sub, i) => (
@@ -276,7 +279,7 @@ export default function BusinessToolsScreen() {
             <View style={{ paddingHorizontal: 20 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 12 }}>
                 <Wrench size={13} color={B.textFaint} />
-                <Txt weight="bold" size={11} color={B.textFaint} style={{ letterSpacing: 1.2 }}>ALL TOOLS ({subscriptions.length})</Txt>
+                <Txt weight="bold" size={11} color={B.textFaint} style={{ letterSpacing: 1.2 }}>{t('businessTools.allTools', { count: subscriptions.length })}</Txt>
               </View>
               <View style={{ gap: 10 }}>
                 {subscriptions.map(sub => <SubscriptionCard key={sub.key} sub={sub} onCancelGuide={setCancelSub} />)}
@@ -291,7 +294,7 @@ export default function BusinessToolsScreen() {
                   <Txt weight="bold" size={12} color={B.accent} style={{ letterSpacing: 0.8 }}>{t('businessTools.cancelTip')}</Txt>
                 </View>
                 <Txt size={13} color={B.textDim} style={{ lineHeight: 20 }}>
-                  Most SaaS tools let you cancel from <Txt weight="semibold" size={13} color={B.text}>Settings → Billing</Txt>. Cancel <Txt weight="semibold" size={13} color={B.text}>at least 24 hours before</Txt> the next renewal date to avoid being charged. Always request a cancellation confirmation email.
+                  {t('businessTools.cancelTipBody')}
                 </Txt>
               </GlassCard>
             </View>

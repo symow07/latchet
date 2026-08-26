@@ -7,6 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Mail, ChevronRight, CheckCircle2, Inbox } from 'lucide-react-native';
 
 import { getEmailStatus, type EmailStatus } from '@/lib/emailSubscriptionApi';
+import { t } from '@/lib/i18n/core';
 
 /**
  * Entry card for the "inbox inside Budget" subscription finder. Tapping it opens
@@ -28,12 +29,12 @@ export function EmailScanCard({ accent }: { accent?: string }) {
   const verified = !!status?.forwarding?.verified;
   const count = status?.inboxCount ?? 0;
   const subtitle = isLoading
-    ? 'Checking…'
+    ? t('emailInbox.checking')
     : count > 0
-    ? `${count} subscription${count === 1 ? '' : 's'} found in your email`
+    ? t('emailInbox.foundCount', { count })
     : verified
-    ? 'Connected — forwarded receipts appear here'
-    : 'Auto-detect subscriptions from your receipts';
+    ? t('emailInbox.connected')
+    : t('emailInbox.autoDetect');
 
   return (
     <View className="mx-4 mb-4">
@@ -55,7 +56,7 @@ export function EmailScanCard({ accent }: { accent?: string }) {
             </View>
             <View className="flex-1">
               <Text style={{ color: C.text, fontFamily: 'PlusJakartaSans_700Bold', fontSize: 15 }}>
-                Find subscriptions in your email
+                {t('emailInbox.findSubs')}
               </Text>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 2 }}>
                 {verified && <CheckCircle2 size={12} color="#22c55e" />}
