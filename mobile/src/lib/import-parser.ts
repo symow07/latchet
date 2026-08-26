@@ -1,3 +1,5 @@
+import { suggestCategory, type MerchantMemory } from './merchant-memory';
+
 // Transaction categories matching the app's existing categories
 export const CATEGORIES = [
   'Food',
@@ -11,6 +13,7 @@ export const CATEGORIES = [
 export type Category = typeof CATEGORIES[number];
 
 // Keywords for auto-categorization
+
 const CATEGORY_KEYWORDS: Record<Category, string[]> = {
   Food: [
     'restaurant', 'cafe', 'coffee', 'starbucks', 'mcdonald', 'burger', 'pizza',
@@ -467,7 +470,12 @@ export function parseCSV(
    * Explicit column mapping, from the manual mapping UI. When omitted the
    * columns are auto-detected from the header row.
    */
-  mappingOverride?: Partial<ColumnMapping>
+  mappingOverride?: Partial<ColumnMapping>,
+  /**
+   * What the user has categorised before. Their own history beats the keyword
+   * table, which only knows US brands — see lib/merchant-memory.
+   */
+  memory?: MerchantMemory
 ): ParsedTransaction[] {
   const lines = csvContent.trim().split('\n');
   if (lines.length < 2) return [];
@@ -592,7 +600,10 @@ export function parseCSV(
       description: description.trim(),
       amount,
       type,
-      suggestedCategory: declaredCategory || autoCategorize(description),
+      suggestedCategory:
+        declaredCategory ||
+        (memory ? suggestCategory(description, memory) : null) ||
+        autoCategorize(description),
       originalData,
       isImpulse:
         impulseIdx >= 0
@@ -625,7 +636,7 @@ export function parseStatement(
   return parseCSV(content, overrides);
 }
 
-function parseChineseBill(content: string, kind: 'alipay' | 'wechat'): ParsedTransaction[] {
+function parseChineseBill(content: string, kind: 'alipay' | 'wechat', memory?: MerchantMemory): ParsedTransaction[] {
   const lines = content.split(/\r?\n/);
 
   // The header row is the first line that names both a time and an amount column.
@@ -671,7 +682,9 @@ function parseChineseBill(content: string, kind: 'alipay' | 'wechat'): ParsedTra
       description,
       amount,
       type,
-      suggestedCategory: autoCategorize(description),
+      suggestedCategory:
+        (memory ? suggestCategory(description, memory) : null) ||
+        autoCategorize(description),
       originalData: {},
       isImpulse: detectImpulse(description, amount),
     });

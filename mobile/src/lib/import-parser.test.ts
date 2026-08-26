@@ -12,6 +12,7 @@ import {
   missingColumns,
   emptyMapping,
 } from './import-parser';
+import { buildMerchantMemory } from './merchant-memory';
 
 // ── Amount conventions ───────────────────────────────────────────────────────
 
@@ -302,4 +303,42 @@ test('an empty file is reported as missing everything, not crashed on', () => {
   const found = inspectCsv('');
   expect(found.missing).toEqual(['date', 'amount']);
   expect(found.headers).toEqual([]);
+});
+
+// ── The user's own history beats the keyword table ───────────────────────────
+
+test('an import uses what the user categorised before', () => {
+  // The keyword table is US-centric and answers "Other" for Marjane. Once the
+  // user has filed one Marjane row under Food, the next import should know.
+  const memory = buildMerchantMemory([
+    { note: 'MARJANE CASABLANCA', category: 'Food', dateISO: '2026-08-01' },
+  ]);
+  const csv = [
+    'Date,Description,Amount',
+    '2026-08-20,MARJANE RABAT 4412,-240.50',
+  ].join('\n');
+
+  const withoutMemory = parseCSV(csv);
+  const withMemory = parseCSV(csv, {}, undefined, memory);
+
+  expect(withoutMemory[0]!.suggestedCategory).toBe('Other');
+  expect(withMemory[0]!.suggestedCategory).toBe('Food');
+});
+
+test('a category declared in the file still wins over the memory', () => {
+  // An explicit column is the user telling us directly; the memory is only an
+  // inference from past behaviour.
+  const memory = buildMerchantMemory([
+    { note: 'MARJANE', category: 'Food', dateISO: '2026-08-01' },
+  ]);
+  const csv = [
+    'Date,Description,Amount,Category',
+    '2026-08-20,MARJANE RABAT,-240.50,Shopping',
+  ].join('\n');
+  expect(parseCSV(csv, {}, undefined, memory)[0]!.suggestedCategory).toBe('Shopping');
+});
+
+test('without a memory the parser behaves exactly as before', () => {
+  const csv = ['Date,Description,Amount', '2026-08-20,STARBUCKS,-4.50'].join('\n');
+  expect(parseCSV(csv)[0]!.suggestedCategory).toBe('Food');
 });
