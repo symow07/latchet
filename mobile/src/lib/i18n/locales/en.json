@@ -626,5 +626,23 @@
       "one": "{{count}} account linked",
       "other": "{{count}} accounts linked"
     }
+  },
+  "badges": {
+    "zeroImpulse": "Zero-Impulse Day",
+    "streak7": "7-Day Streak",
+    "streak30": "30-Day Streak",
+    "budgetMaster": "Budget Master",
+    "noSubscriptions": "No Subscriptions"
+  },
+  "dashboard2": {
+    "trackCta": "Let's track that",
+    "streakDays": {
+      "one": "{{count}} day",
+      "other": "{{count}} days"
+    },
+    "badgeCount": {
+      "one": "{{count}} badge",
+      "other": "{{count}} badges"
+    }
   }
 }

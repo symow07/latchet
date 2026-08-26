@@ -1,4 +1,5 @@
 import { View, ScrollView, Pressable } from 'react-native';
+import { badgeLabel } from '@/lib/badge-meta';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { getTransactions, getSettings, getAccounts, getSubscriptions } from '@/lib/db';
@@ -298,7 +299,7 @@ return { icon: Flame, color: C.p400, title: t('feedback.streakTitle', { days: st
             <Pressable onPress={() => go('/accounts')}>
               <GlassCard tint={`${C.p500}14`} border={`${C.p500}2e`}>
                 <View className="flex-row items-center justify-between mb-3">
-                  <View className="flex-row items-center" style={{ gap: 8 }}>
+                  <View className="flex-row items-center flex-1" style={{ gap: 8 }}>
                     <Wallet size={15} color={C.p400} />
                     <Txt weight="semibold" size={12} color={C.p300}>{t('dashboard.myAccounts')}</Txt>
                   </View>
@@ -411,11 +412,11 @@ return { icon: Flame, color: C.p400, title: t('feedback.streakTitle', { days: st
                 </LinearGradient>
                 <View>
                   <Txt size={11} color={C.textDim}>{t('dashboard.loggingStreak')}</Txt>
-                  <Txt weight="bold" size={22} color={C.text}>{streak} days</Txt>
+                  <Txt weight="bold" size={22} color={C.text}>{t('dashboard2.streakDays', { count: streak })}</Txt>
                   {streak >= 3 && <Txt size={11} color={C.p300} style={{ marginTop: 1 }}>{t('dashboard.keepItUp')}</Txt>}
                 </View>
               </View>
-{badges.length > 0 && <Pill label={` ${badges.length} badges`} color={C.p400} />}
+{badges.length > 0 && <Pill label={t('dashboard2.badgeCount', { count: badges.length })} color={C.p400} />}
             </View>
           </GlassCard>
         </Section>
@@ -430,7 +431,7 @@ return { icon: Flame, color: C.p400, title: t('feedback.streakTitle', { days: st
               </View>
               <View className="flex-row flex-wrap" style={{ gap: 8 }}>
                 {badges.map((badge, idx) => (
-<Pill key={idx} label={badge} color={C.p400} />
+<Pill key={idx} label={badgeLabel(badge)} color={C.p400} />
                 ))}
               </View>
             </GlassCard>
@@ -465,9 +466,9 @@ return { icon: Flame, color: C.p400, title: t('feedback.streakTitle', { days: st
           <Pressable onPress={() => go('/analytics')}>
             <GlassCard tint={`${C.p700}16`} border={`${C.p700}2e`}>
               <View className="flex-row items-center justify-between">
-                <View className="flex-row items-center" style={{ gap: 12 }}>
+                <View className="flex-row items-center flex-1" style={{ gap: 12 }}>
                   <IconBubble color={C.p500} size={48} radius={18}><BarChart3 size={23} color={C.p400} /></IconBubble>
-                  <View>
+                  <View className="flex-1">
                     <Txt weight="bold" size={15} color={C.text}>{t('dashboard.smartAnalytics')}</Txt>
                     <Txt size={12} color={C.textDim} style={{ marginTop: 1 }}>{t('dashboard.smartAnalyticsHint')}</Txt>
                   </View>
@@ -511,9 +512,9 @@ return { icon: Flame, color: C.p400, title: t('feedback.streakTitle', { days: st
             <Pressable onPress={() => go('/subscriptions')}>
               <GlassCard tint={`${C.p700}16`} border={`${C.p700}2e`}>
                 <View className="flex-row items-center justify-between mb-3">
-                  <View className="flex-row items-center" style={{ gap: 12 }}>
+                  <View className="flex-row items-center flex-1" style={{ gap: 12 }}>
                     <IconBubble color={C.lilac} size={42}><CreditCard size={20} color={C.lilac} /></IconBubble>
-                    <View>
+                    <View className="flex-1">
                       <Txt weight="bold" size={15} color={C.text}>{t('dashboard.subscriptions')}</Txt>
                       <Txt size={12} color={C.textDim} style={{ marginTop: 1 }}>{formatCurrency(subMonthlyTotal)}/mo recurring</Txt>
                     </View>
@@ -540,9 +541,9 @@ return { icon: Flame, color: C.p400, title: t('feedback.streakTitle', { days: st
           <Pressable onPress={() => go('/link-bank')}>
             <GlassCard tint={`${C.p800}1c`} border={`${C.p800}38`}>
               <View className="flex-row items-center justify-between">
-                <View className="flex-row items-center" style={{ gap: 12 }}>
+                <View className="flex-row items-center flex-1" style={{ gap: 12 }}>
                   <IconBubble color={C.p600} size={48} radius={18}><Building2 size={23} color={C.p500} /></IconBubble>
-                  <View>
+                  <View className="flex-1">
                     <Txt weight="bold" size={15} color={C.text}>{t('dashboard.linkBank')}</Txt>
                     <Txt size={12} color={C.textDim} style={{ marginTop: 1 }}>{t('dashboard.linkBankHint')}</Txt>
                   </View>
@@ -555,7 +556,7 @@ return { icon: Flame, color: C.p400, title: t('feedback.streakTitle', { days: st
 
         {/* ── CTA ── */}
         <Section delay={350} style={{ paddingHorizontal: 20, marginTop: 18 }}>
-<BubbleButton label="Let's track that " onPress={() => router.push('/add')} />
+<BubbleButton label={t('dashboard2.trackCta')} onPress={() => router.push('/add')} />
         </Section>
       </ScrollView>
     </ScreenBackground>

@@ -626,5 +626,23 @@
       "one": "{{count}} compte lié",
       "other": "{{count}} comptes liés"
     }
+  },
+  "badges": {
+    "zeroImpulse": "Journée sans achat impulsif",
+    "streak7": "Série de 7 jours",
+    "streak30": "Série de 30 jours",
+    "budgetMaster": "Maître du budget",
+    "noSubscriptions": "Aucun abonnement"
+  },
+  "dashboard2": {
+    "trackCta": "On note ça",
+    "streakDays": {
+      "one": "{{count}} jour",
+      "other": "{{count}} jours"
+    },
+    "badgeCount": {
+      "one": "{{count}} badge",
+      "other": "{{count}} badges"
+    }
   }
 }

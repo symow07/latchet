@@ -620,5 +620,21 @@
     "accountsLinked": {
       "other": "已关联 {{count}} 个账户"
     }
+  },
+  "badges": {
+    "zeroImpulse": "零冲动日",
+    "streak7": "连续 7 天",
+    "streak30": "连续 30 天",
+    "budgetMaster": "预算达人",
+    "noSubscriptions": "无订阅"
+  },
+  "dashboard2": {
+    "trackCta": "记一笔",
+    "streakDays": {
+      "other": "{{count}} 天"
+    },
+    "badgeCount": {
+      "other": "{{count}} 个徽章"
+    }
   }
 }
