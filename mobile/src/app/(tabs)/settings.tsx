@@ -267,8 +267,8 @@ export default function SettingsScreen() {
         <Animated.View entering={FadeInUp.delay(160).springify().damping(16)} style={{ paddingHorizontal: 20, paddingTop: 20 }}>
           <SectionLabel>{t('settings.sections.preferences')}</SectionLabel>
           <View style={{ gap: 12 }}>
-            <ToggleRow icon={<Eye size={20} color={C.lilac} />} color={C.lilac} label="Show Time Cost" desc={t('settings.hourlyRateHint')} value={showTimeCost} onValueChange={(val) => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setShowTimeCost(val); }} />
-            <ToggleRow icon={<Fingerprint size={20} color={C.p400} />} color={C.p400} label="Biometric Lock" desc="Require Face ID / Fingerprint on open" value={biometricEnabled} onValueChange={handleBiometricToggle} />
+            <ToggleRow icon={<Eye size={20} color={C.lilac} />} color={C.lilac} label={t('settingsToggles.timeCost')} desc={t('settings.hourlyRateHint')} value={showTimeCost} onValueChange={(val) => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setShowTimeCost(val); }} />
+            <ToggleRow icon={<Fingerprint size={20} color={C.p400} />} color={C.p400} label={t('settingsToggles.biometric')} desc={t('settingsToggles.biometricSub')} value={biometricEnabled} onValueChange={handleBiometricToggle} />
           </View>
         </Animated.View>
 

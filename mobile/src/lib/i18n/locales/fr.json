@@ -644,5 +644,17 @@
       "one": "{{count}} badge",
       "other": "{{count}} badges"
     }
+  },
+  "advisor2": {
+    "welcomeBody": "Posez-moi n’importe quelle question sur vos finances. Je peux vous aider à comprendre vos habitudes de dépense, repérer des économies possibles et vous conseiller à partir de vos données réelles.",
+    "promptDoing": "Où en suis-je ce mois-ci ?",
+    "promptSave": "Comment épargner davantage ?",
+    "promptOverspend": "Où est-ce que je dépense trop ?",
+    "promptTips": "Donnez-moi des conseils personnalisés"
+  },
+  "settingsToggles": {
+    "timeCost": "Afficher le coût en temps",
+    "biometric": "Verrouillage biométrique",
+    "biometricSub": "Exiger Face ID ou l’empreinte à l’ouverture"
   }
 }

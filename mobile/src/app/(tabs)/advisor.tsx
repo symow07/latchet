@@ -36,12 +36,16 @@ interface Message {
   timestamp: Date;
 }
 
-const SUGGESTED_PROMPTS = [
-  { icon: TrendingUp, text: 'How am I doing this month?', color: '#a855f7' },
-  { icon: PiggyBank, text: 'How can I save more money?', color: '#10b981' },
-  { icon: AlertCircle, text: 'Where am I overspending?', color: '#f59e0b' },
-  { icon: Lightbulb, text: 'Give me personalized tips', color: '#0ea5e9' },
-];
+// Built per call, not at module scope: t() at module scope resolves once at
+// import and freezes the startup language.
+function suggestedPrompts() {
+  return [
+    { icon: TrendingUp, text: t('advisor2.promptDoing'), color: '#a855f7' },
+    { icon: PiggyBank, text: t('advisor2.promptSave'), color: '#10b981' },
+    { icon: AlertCircle, text: t('advisor2.promptOverspend'), color: '#f59e0b' },
+    { icon: Lightbulb, text: t('advisor2.promptTips'), color: '#0ea5e9' },
+  ];
+}
 
 export default function AdvisorTab() {
   const C = useC();
@@ -151,8 +155,7 @@ export default function AdvisorTab() {
                   </View>
                 </View>
                 <Txt size={13} color={C.textDim} style={{ lineHeight: 20 }}>
-                  Ask me anything about your finances. I can help you understand spending patterns,
-                  spot savings opportunities, and give advice based on your actual data.
+                  {t('advisor2.welcomeBody')}
                 </Txt>
               </GlassCard>
 
@@ -173,7 +176,7 @@ export default function AdvisorTab() {
 
               <Txt weight="bold" size={11} color={C.textFaint} style={{ marginBottom: 10, marginLeft: 2, letterSpacing: 1 }}>{t('advisor.tryAsking')}</Txt>
               <View style={{ gap: 10 }}>
-                {SUGGESTED_PROMPTS.map((prompt, idx) => (
+                {suggestedPrompts().map((prompt, idx) => (
                   <Animated.View key={idx} entering={FadeInUp.delay(200 + 100 * idx).duration(300)}>
                     <Pressable onPress={() => handleSuggestedPrompt(prompt.text)}>
                       <GlassCard padding={14} radius={R.md}>

@@ -636,5 +636,17 @@
     "badgeCount": {
       "other": "{{count}} 个徽章"
     }
+  },
+  "advisor2": {
+    "welcomeBody": "关于你的财务，尽管问我。我可以帮你了解消费习惯、找出可以省钱的地方，并根据你的真实数据给出建议。",
+    "promptDoing": "我这个月表现如何？",
+    "promptSave": "我怎样才能存更多钱？",
+    "promptOverspend": "我在哪些地方超支了？",
+    "promptTips": "给我一些个性化建议"
+  },
+  "settingsToggles": {
+    "timeCost": "显示时间成本",
+    "biometric": "生物识别锁",
+    "biometricSub": "打开时需要面容或指纹验证"
   }
 }

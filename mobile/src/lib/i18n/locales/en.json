@@ -644,5 +644,17 @@
       "one": "{{count}} badge",
       "other": "{{count}} badges"
     }
+  },
+  "advisor2": {
+    "welcomeBody": "Ask me anything about your finances. I can help you understand spending patterns, spot savings opportunities, and give advice based on your actual data.",
+    "promptDoing": "How am I doing this month?",
+    "promptSave": "How can I save more money?",
+    "promptOverspend": "Where am I overspending?",
+    "promptTips": "Give me personalized tips"
+  },
+  "settingsToggles": {
+    "timeCost": "Show Time Cost",
+    "biometric": "Biometric Lock",
+    "biometricSub": "Require Face ID / Fingerprint on open"
   }
 }
