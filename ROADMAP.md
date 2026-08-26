@@ -803,6 +803,35 @@ transaction in without opening a form.
 
   Verified on the simulator switching English → French → English in business mode.
 
+- ☑ **Business settings — every row now does something.** The six rows were chevrons over nothing.
+
+  Four needed no backend: **Currency & Region** opens a searchable picker over all 168 currencies
+  (`app/currency.tsx`) and its subtitle finally reads the real currency instead of the hardcoded
+  "USD · United States"; **Notifications** and **Security** became working toggles, both reading
+  their state from the system rather than a stored flag, so a reminder cancelled in iOS Settings or
+  a biometric lock lost to a reinstall reports honestly; **Help & Feedback** opens a mail draft
+  pre-filled with app version, account type and business name.
+
+  Two needed one. `Business` held only `name` and `inviteCode`, so this adds `address`,
+  `vatNumber`, `taxId` and `fiscalYearStartMonth`, a migration, and `PATCH /api/business` scoped by
+  `ownerId` — a manager approves expenses, only the owner changes the company's legal identity.
+
+  No VAT or tax-id format validation, deliberately: those identifiers differ in every country the
+  app ships to, and a check that is wrong for the user's country rejects a number that is correct.
+
+  **No logo, despite what the row promised.** Storing one the way expense receipts work would save
+  a device-local `file://` path that no teammate could load — the same gap that already makes
+  receipt images invisible to reviewers. The subtitle now says "Name and address". A real logo needs
+  file hosting the app does not have.
+
+  Verified against a local server and database, not just unit tests: setting all fields, editing one
+  without wiping the rest, clearing with `""` and with `null`, an empty name refusing to blank the
+  name, an out-of-range month rejected with 400, and a joined non-owner getting 404 with the owner's
+  record untouched. The migration was applied to a scratch database from empty first.
+
+  **Owner action:** `support@realbudget.app` in `(business-tabs)/settings.tsx` does not exist —
+  the domain is unbought. Replace it before shipping or the mail draft goes nowhere.
+
 Still open from the four speed-ups chosen:
 
 - **The share extension's own text** — `ShareViewController`'s placeholder is a plain Swift string

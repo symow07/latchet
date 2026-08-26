@@ -323,6 +323,9 @@ function RootLayoutNav({ colorScheme }: { colorScheme: 'light' | 'dark' | null |
           <Stack.Screen name="account-type" options={{ headerShown: false }} />
           <Stack.Screen name="(business-tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="business-tools" options={{ headerShown: false }} />
+          <Stack.Screen name="business-profile" options={{ headerShown: false }} />
+          <Stack.Screen name="business-tax" options={{ headerShown: false }} />
+          <Stack.Screen name="currency" options={{ headerShown: false }} />
         </Stack.Protected>
 
         {/* Public: only accessible when NOT signed in */}

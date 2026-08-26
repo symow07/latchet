@@ -31,7 +31,8 @@
     "scoreLockedBody": "评分需要真实的支出才有意义，在你记录之前会一直空着。",
     "noChartData": "暂无支出可供图表显示",
     "transactionsEmptyBody": "调整筛选条件，或添加第一笔交易。",
-    "netWorthEmptyBody": "点击 + 按钮记录第一份净资产快照。"
+    "netWorthEmptyBody": "点击 + 按钮记录第一份净资产快照。",
+    "saving": "保存中…"
   },
   "settings": {
     "title": "设置",
@@ -792,7 +793,7 @@
     "sectionPreferences": "偏好设置",
     "sectionSupport": "支持",
     "companyLabel": "公司资料",
-    "companySub": "名称、标识、地址",
+    "companySub": "名称与地址",
     "taxLabel": "税务设置",
     "taxSub": "增值税、税号、财年",
     "regionLabel": "货币与地区",
@@ -803,7 +804,28 @@
     "helpLabel": "帮助与反馈",
     "helpSub": "获取帮助或报告问题",
     "businessAccount": "企业账户",
-    "regionSub": "美元 · 美国"
+    "regionSub": "未设置",
+    "noBusiness": "你还没有加入任何企业。",
+    "ownerOnly": "只有企业所有者可以修改这些信息。",
+    "companyNameLabel": "公司名称",
+    "companyNamePlaceholder": "某某有限公司",
+    "addressLabel": "地址",
+    "addressPlaceholder": "街道、城市、邮编",
+    "addressHint": "会显示在你导出的内容上。留空即可移除。",
+    "vatLabel": "增值税号",
+    "vatPlaceholder": "FR12345678901",
+    "taxIdLabel": "税号",
+    "taxIdPlaceholder": "公司注册号",
+    "fiscalYearLabel": "财年开始月份",
+    "fiscalYearHint": "再次点击已选月份即可清除。",
+    "currencySearch": "搜索货币",
+    "currencyNote": "只改变金额的显示方式，不会换算你已经记录的数据。",
+    "noCurrencyMatch": "没有匹配的货币",
+    "biometricUnavailableBody": "你的设备尚未设置生物识别。请先在系统设置中添加面容 ID 或指纹。",
+    "supportSubject": "Budget——支持请求",
+    "supportBody": "\n\n---\n应用版本：%{version}\n账户类型：%{account}\n企业：%{business}",
+    "noMailTitle": "没有邮件应用",
+    "noMailBody": "该设备未设置邮件应用。请直接发信至 support@realbudget.app。"
   },
   "feedback": {
     "exceededTitle": "预算已超支！",

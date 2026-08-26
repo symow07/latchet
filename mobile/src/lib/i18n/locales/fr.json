@@ -33,7 +33,8 @@
     "scoreLockedBody": "Il lui faut de vraies dépenses pour avoir un sens : il reste vide tant que vous n’en enregistrez pas.",
     "noChartData": "Aucune dépense à afficher",
     "transactionsEmptyBody": "Ajustez vos filtres ou ajoutez votre première transaction.",
-    "netWorthEmptyBody": "Touchez le bouton + pour enregistrer votre premier bilan patrimonial."
+    "netWorthEmptyBody": "Touchez le bouton + pour enregistrer votre premier bilan patrimonial.",
+    "saving": "Enregistrement…"
   },
   "settings": {
     "title": "Réglages",
@@ -797,7 +798,7 @@
     "sectionPreferences": "Préférences",
     "sectionSupport": "Assistance",
     "companyLabel": "Profil de l’entreprise",
-    "companySub": "Nom, logo, adresse",
+    "companySub": "Nom et adresse",
     "taxLabel": "Paramètres fiscaux",
     "taxSub": "TVA, numéro fiscal, exercice",
     "regionLabel": "Devise et région",
@@ -808,7 +809,28 @@
     "helpLabel": "Aide et commentaires",
     "helpSub": "Obtenez de l’aide ou signalez un problème",
     "businessAccount": "Compte entreprise",
-    "regionSub": "USD · États-Unis"
+    "regionSub": "Non défini",
+    "noBusiness": "Vous ne faites pas encore partie d'une entreprise.",
+    "ownerOnly": "Seul le propriétaire de l'entreprise peut modifier ces informations.",
+    "companyNameLabel": "NOM DE L'ENTREPRISE",
+    "companyNamePlaceholder": "Acme SARL",
+    "addressLabel": "ADRESSE",
+    "addressPlaceholder": "Rue, ville, code postal",
+    "addressHint": "Affichée sur tout ce que vous exportez. Laissez vide pour la supprimer.",
+    "vatLabel": "NUMÉRO DE TVA",
+    "vatPlaceholder": "FR12345678901",
+    "taxIdLabel": "NUMÉRO FISCAL",
+    "taxIdPlaceholder": "Numéro d'immatriculation",
+    "fiscalYearLabel": "DÉBUT DE L'EXERCICE",
+    "fiscalYearHint": "Touchez à nouveau le mois sélectionné pour l'effacer.",
+    "currencySearch": "Rechercher une devise",
+    "currencyNote": "Change l'affichage des montants. Cela ne convertit rien de ce que vous avez déjà enregistré.",
+    "noCurrencyMatch": "Aucune devise ne correspond",
+    "biometricUnavailableBody": "Aucune méthode biométrique n'est configurée sur cet appareil. Ajoutez Face ID ou une empreinte dans les réglages.",
+    "supportSubject": "Budget — demande d'assistance",
+    "supportBody": "\n\n---\nVersion de l'app : %{version}\nType de compte : %{account}\nEntreprise : %{business}",
+    "noMailTitle": "Aucune app de messagerie",
+    "noMailBody": "Aucune app de messagerie n'est configurée sur cet appareil. Écrivez plutôt à support@realbudget.app."
   },
   "feedback": {
     "exceededTitle": "Budget dépassé !",

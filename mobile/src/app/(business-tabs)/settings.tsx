@@ -1,4 +1,5 @@
-import { View, ScrollView, Pressable } from 'react-native';
+import { useEffect, useState } from 'react';
+import { View, ScrollView, Pressable, Switch, Linking, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
@@ -9,43 +10,164 @@ import * as Haptics from 'expo-haptics';
 import { authClient } from '@/lib/auth/auth-client';
 import { useInvalidateSession, useSession } from '@/lib/auth/use-session';
 import { useAccountTypeStore } from '@/lib/account-type-store';
+import { useRouter } from 'expo-router';
+import { useQuery } from '@tanstack/react-query';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getBusiness } from '@/lib/businessApi';
+import { getSettings } from '@/lib/db';
+import { isBiometricAvailable } from '@/lib/biometric';
+import {
+  scheduleStreakReminder, cancelStreakReminder, isStreakReminderScheduled,
+} from '@/lib/notifications';
 import { R, glow, useB } from '@/lib/design';
 import { Txt, GlassCard, IconBubble, Pill, BizBackground } from '@/components/ui';
 import { t, SUPPORTED_LOCALES, LOCALE_LABELS } from '@/lib/i18n/core';
 import { useLocaleStore } from '@/lib/i18n/locale-store';
 
+interface SettingsRow {
+  icon: React.ComponentType<{ size: number; color: string }>;
+  label: string;
+  sub: string;
+  color: string;
+  /** A row is either a link or a toggle. Never both, and never neither. */
+  onPress?: () => void;
+  toggle?: { value: boolean; onChange: (next: boolean) => void };
+}
+
+interface Section {
+  title: string;
+  items: SettingsRow[];
+}
+
 export default function BusinessSettingsScreen() {
   const B = useB();
-  // Built per render, not at module scope. t() at module scope resolves once
-  // at import and freezes whatever language was active then, so these rows
-  // would survive a locale change that remounts everything else.
-  const SECTIONS = [
+  const insets = useSafeAreaInsets();
+  const { data: session } = useSession();
+  const locale = useLocaleStore((s) => s.locale);
+  const chooseLanguage = useLocaleStore((s) => s.choose);
+  const router = useRouter();
+
+  // Subtitles that state the current value rather than a guess. The row used
+  // to read "USD · United States" no matter what the user had chosen.
+  const { data: business } = useQuery({ queryKey: ['business'], queryFn: getBusiness });
+  const { data: settings } = useQuery({ queryKey: ['settings'], queryFn: getSettings });
+
+  const [remindersOn, setRemindersOn] = useState(false);
+  const [biometricOn, setBiometricOn] = useState(false);
+
+  useEffect(() => {
+    // Read from the system, not from a flag we set: a reminder cancelled in
+    // iOS Settings or lost to a reinstall should show as off.
+    isStreakReminderScheduled().then(setRemindersOn).catch(() => {});
+    AsyncStorage.getItem('@biometric_lock')
+      .then((v) => setBiometricOn(v === 'true'))
+      .catch(() => {});
+  }, []);
+
+  const toggleReminders = async (next: boolean) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setRemindersOn(next);
+    if (next) {
+      await scheduleStreakReminder();
+      // Permission may have been refused, in which case nothing was
+      // scheduled — reflect what actually happened rather than the tap.
+      setRemindersOn(await isStreakReminderScheduled());
+    } else {
+      await cancelStreakReminder();
+    }
+  };
+
+  const toggleBiometric = async (next: boolean) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (next && !(await isBiometricAvailable())) {
+      Alert.alert(t('dialogs.biometricsUnavailable'), t('bizSettings.biometricUnavailableBody'));
+      return;
+    }
+    setBiometricOn(next);
+    await AsyncStorage.setItem('@biometric_lock', next ? 'true' : 'false');
+  };
+
+  /**
+   * Support mail, pre-filled with what makes a report actionable.
+   *
+   * TODO(owner): support@realbudget.app does not exist yet — the domain is
+   * unbought. Replace it before shipping, or this silently goes nowhere.
+   */
+  const contactSupport = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const subject = t('bizSettings.supportSubject');
+    const body = t('bizSettings.supportBody', {
+      version: '1.0.0',
+      account: 'business',
+      business: business?.name ?? '—',
+    });
+    const url = `mailto:support@realbudget.app?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    if (await Linking.canOpenURL(url)) await Linking.openURL(url);
+    else Alert.alert(t('bizSettings.noMailTitle'), t('bizSettings.noMailBody'));
+  };
+
+  /**
+   * Built per render, not at module scope: t() at module scope resolves once at
+   * import and freezes whatever language was active then, so these rows would
+   * survive a locale change that remounts everything else.
+   *
+   * Every row does something. They used to be chevrons over nothing.
+   */
+  const SECTIONS: Section[] = [
     {
       title: t('bizSettings.sectionBusiness'),
       items: [
-        { icon: Building2, label: t('bizSettings.companyLabel'), sub: t('bizSettings.companySub'), color: '#3b82f6' },
-        { icon: FileText, label: t('bizSettings.taxLabel'), sub: t('bizSettings.taxSub'), color: '#14b8a6' },
-        { icon: Globe, label: t('bizSettings.regionLabel'), sub: t('bizSettings.regionSub'), color: '#f59e0b' },
+        {
+          icon: Building2, color: '#3b82f6',
+          label: t('bizSettings.companyLabel'),
+          // The name itself, when there is one — more use than a list of the
+          // fields the screen contains.
+          sub: business?.name ?? t('bizSettings.companySub'),
+          onPress: () => router.push('/business-profile'),
+        },
+        {
+          icon: FileText, color: '#14b8a6',
+          label: t('bizSettings.taxLabel'),
+          sub: business?.vatNumber || business?.taxId || t('bizSettings.taxSub'),
+          onPress: () => router.push('/business-tax'),
+        },
+        {
+          icon: Globe, color: '#f59e0b',
+          label: t('bizSettings.regionLabel'),
+          sub: settings?.currency
+            ? `${settings.currency} · ${settings.currencySymbol ?? ''}`.trim()
+            : t('bizSettings.regionSub'),
+          onPress: () => router.push('/currency'),
+        },
       ],
     },
     {
       title: t('bizSettings.sectionPreferences'),
       items: [
-        { icon: Bell, label: t('bizSettings.notifLabel'), sub: t('bizSettings.notifSub'), color: '#a78bfa' },
-        { icon: Shield, label: t('bizSettings.securityLabel'), sub: t('bizSettings.securitySub'), color: '#ef4444' },
+        {
+          icon: Bell, color: '#a78bfa',
+          label: t('bizSettings.notifLabel'), sub: t('bizSettings.notifSub'),
+          toggle: { value: remindersOn, onChange: toggleReminders },
+        },
+        {
+          icon: Shield, color: '#ef4444',
+          label: t('bizSettings.securityLabel'), sub: t('bizSettings.securitySub'),
+          toggle: { value: biometricOn, onChange: toggleBiometric },
+        },
       ],
     },
     {
       title: t('bizSettings.sectionSupport'),
       items: [
-        { icon: HelpCircle, label: t('bizSettings.helpLabel'), sub: t('bizSettings.helpSub'), color: '#94a3b8' },
+        {
+          icon: HelpCircle, color: '#94a3b8',
+          label: t('bizSettings.helpLabel'), sub: t('bizSettings.helpSub'),
+          onPress: contactSupport,
+        },
       ],
     },
   ];
-  const insets = useSafeAreaInsets();
-  const { data: session } = useSession();
-  const locale = useLocaleStore((s) => s.locale);
-  const chooseLanguage = useLocaleStore((s) => s.choose);
+
   const invalidateSession = useInvalidateSession();
   const reset = useAccountTypeStore(s => s.reset);
 
@@ -88,18 +210,39 @@ export default function BusinessSettingsScreen() {
             <View style={{ gap: 10 }}>
               {section.items.map((item) => {
                 const Icon = item.icon;
-                return (
-                  <Pressable key={item.label} style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}>
-                    <GlassCard padding={14} radius={R.md}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                        <IconBubble color={item.color} size={38} radius={12} style={{ marginRight: 13 }}><Icon size={17} color={item.color} /></IconBubble>
-                        <View style={{ flex: 1 }}>
-                          <Txt weight="semibold" size={15} color={B.text}>{item.label}</Txt>
-                          <Txt size={12} color={B.textFaint} style={{ marginTop: 1 }}>{item.sub}</Txt>
-                        </View>
-                        <ChevronRight size={16} color={B.textFaint} />
+                const body = (
+                  <GlassCard padding={14} radius={R.md}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <IconBubble color={item.color} size={38} radius={12} style={{ marginRight: 13 }}><Icon size={17} color={item.color} /></IconBubble>
+                      <View style={{ flex: 1 }}>
+                        <Txt weight="semibold" size={15} color={B.text}>{item.label}</Txt>
+                        <Txt size={12} color={B.textFaint} style={{ marginTop: 1 }} numberOfLines={1}>{item.sub}</Txt>
                       </View>
-                    </GlassCard>
+                      {item.toggle ? (
+                        <Switch
+                          value={item.toggle.value}
+                          onValueChange={item.toggle.onChange}
+                          trackColor={{ false: B.glassBorder, true: `${item.color}99` }}
+                          thumbColor="#fff"
+                        />
+                      ) : (
+                        <ChevronRight size={16} color={B.textFaint} />
+                      )}
+                    </View>
+                  </GlassCard>
+                );
+
+                // A toggle handles its own press; wrapping it in a Pressable
+                // would give the row a tap target that does nothing.
+                return item.toggle ? (
+                  <View key={item.label}>{body}</View>
+                ) : (
+                  <Pressable
+                    key={item.label}
+                    onPress={item.onPress}
+                    style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
+                  >
+                    {body}
                   </Pressable>
                 );
               })}

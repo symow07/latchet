@@ -131,6 +131,27 @@ export async function presentBadgeEarned(badge: string): Promise<void> {
   }
 }
 
+/** Stop the daily nudge. Safe to call when nothing is scheduled. */
+export async function cancelStreakReminder(): Promise<void> {
+  await Notifications.cancelScheduledNotificationAsync(STREAK_NUDGE_ID).catch(() => {});
+}
+
+/**
+ * Whether the daily nudge is currently scheduled.
+ *
+ * Read from the system rather than a stored flag, so a reminder the user
+ * turned off in iOS Settings, or one lost to a reinstall, is reported honestly
+ * instead of showing a toggle that claims to be on.
+ */
+export async function isStreakReminderScheduled(): Promise<boolean> {
+  try {
+    const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+    return scheduled.some((n) => n.identifier === STREAK_NUDGE_ID);
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Schedule (or reschedule) a daily local reminder to log spending so the user
  * keeps their streak. Idempotent: cancels the previous nudge first.

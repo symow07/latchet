@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { prisma } from "../prisma";
+import { buildBusinessProfileFields } from "../lib/business-profile";
 import { auth } from "../auth";
 import { randomBytes } from "crypto";
 import { getUserBusiness } from "../lib/get-user-business";
@@ -89,6 +90,44 @@ businessRouter.get("/", async (c) => {
   });
   return c.json({ business: full });
 });
+
+// ─── updateBusiness ───────────────────────────────────────────────────────────
+// PATCH /api/business — company profile and tax identity.
+//
+// Scoped by ownerId, not by membership. A manager can approve expenses; only
+// the owner changes the company's legal identity, and findUnique on ownerId
+// means a non-owner cannot reach another business's row even by guessing ids.
+businessRouter.patch(
+  "/",
+  zValidator(
+    "json",
+    z.object({
+      name: z.string().min(1).max(200).optional(),
+      // Empty string clears the field. Distinguishing "not sent" from "cleared"
+      // is why these are nullable rather than just optional: undefined leaves a
+      // value alone, null and "" remove it.
+      address: z.string().max(500).nullish(),
+      vatNumber: z.string().max(64).nullish(),
+      taxId: z.string().max(64).nullish(),
+      fiscalYearStartMonth: z.number().int().min(1).max(12).nullish(),
+    })
+  ),
+  async (c) => {
+    const user = c.get("user")!;
+    const patch = c.req.valid("json");
+
+    const business = await prisma.business.findUnique({ where: { ownerId: user.id } });
+    if (!business) return c.json({ error: "No business found" }, 404);
+
+    const updated = await prisma.business.update({
+      where: { id: business.id },
+      data: buildBusinessProfileFields(patch),
+      include: { teamMembers: { include: { user: { select: { id: true, name: true, email: true } } } } },
+    });
+
+    return c.json({ business: updated });
+  }
+);
 
 // ─── getInviteCode ────────────────────────────────────────────────────────────
 // GET /api/business/invite-code — owner regenerates/gets invite code

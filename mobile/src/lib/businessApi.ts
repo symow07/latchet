@@ -17,6 +17,12 @@ export interface Business {
   id: string;
   ownerId: string;
   name: string;
+  /** Company profile and tax identity. All optional — a sole trader has none. */
+  address?: string | null;
+  vatNumber?: string | null;
+  taxId?: string | null;
+  /** Month the fiscal year starts, 1-12. */
+  fiscalYearStartMonth?: number | null;
   inviteCode?: string | null;
   createdAt: string;
   updatedAt: string;
@@ -54,6 +60,31 @@ export async function getBusiness(): Promise<Business | null> {
   if (res.status === 404) return null;
   const data = await res.json() as { business: Business; error?: string };
   if (!res.ok) throw new Error(data.error ?? 'Failed to fetch business');
+  return data.business;
+}
+
+/**
+ * Update the company profile or tax identity.
+ *
+ * Only the fields present are changed. Sending an empty string clears a field;
+ * omitting it leaves the stored value alone — the backend keeps that
+ * distinction so a screen editing one field cannot wipe the others.
+ */
+export async function updateBusiness(patch: {
+  name?: string;
+  address?: string | null;
+  vatNumber?: string | null;
+  taxId?: string | null;
+  fiscalYearStartMonth?: number | null;
+}): Promise<Business> {
+  const res = await fetch(`${getBackendUrl()}/api/business`, {
+    method: 'PATCH',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(patch),
+  });
+  const data = await res.json() as { business: Business; error?: string };
+  if (!res.ok) throw new Error(data.error ?? 'Failed to update business');
   return data.business;
 }
 

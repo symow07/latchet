@@ -42,3 +42,21 @@ test("no route can add a member by raw user id", () => {
   );
   expect(memberCreators).toEqual([]);
 });
+
+test("the company profile can be edited", () => {
+  expect(has("PATCH", "/")).toBe(true);
+});
+
+test("editing the company profile is owner-scoped, not membership-scoped", async () => {
+  // A manager approves expenses; only the owner changes the company's legal
+  // identity. The handler resolves the row by findUnique({ ownerId }), so a
+  // non-owner has no path to another business's record even knowing its id —
+  // there is no id in the route to supply.
+  const source = await Bun.file(new URL("./business.ts", import.meta.url)).text();
+  const handler = source.slice(source.indexOf('businessRouter.patch(\n  "/"'));
+  const body = handler.slice(0, handler.indexOf("\n);"));
+
+  expect(body).toContain("findUnique({ where: { ownerId: user.id } })");
+  // No membership lookup, which would widen this to managers and employees.
+  expect(body).not.toContain("teamMember.findFirst");
+});

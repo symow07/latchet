@@ -342,6 +342,14 @@ model Business {
   id          String          @id @default(cuid())
   ownerId     String          @unique
   name        String
+  // Company profile and tax identity. All optional: a sole trader has no VAT
+  // number, and nothing here should block using the app.
+  address     String?
+  vatNumber   String?
+  taxId       String?
+  // Month the fiscal year starts, 1-12. Not a date: only the month matters,
+  // and storing a full date invites timezone questions that have no answer.
+  fiscalYearStartMonth Int?
   inviteCode  String?         @unique
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
