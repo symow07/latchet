@@ -830,7 +830,11 @@
     "supportSubject": "Budget — support request",
     "supportBody": "\n\n---\nApp version: %{version}\nAccount type: %{account}\nBusiness: %{business}",
     "noMailTitle": "No mail app",
-    "noMailBody": "This device has no mail app set up. Write to support@realbudget.app instead."
+    "noMailBody": "This device has no mail app set up. Write to support@realbudget.app instead.",
+    "createTitle": "No business set up",
+    "createBody": "Your account is set to Business, but the company record was never created. This normally happens during sign-up; if it failed, create it here.",
+    "createButton": "Create my business",
+    "creating": "Creating…"
   },
   "feedback": {
     "exceededTitle": "Budget Exceeded!",

@@ -1,3 +1,4 @@
+import { authedFetch } from './api/api';
 const getBackendUrl = (): string => {
   const url = process.env.EXPO_PUBLIC_BACKEND_URL;
   if (!url) throw new Error('EXPO_PUBLIC_BACKEND_URL is not configured');
@@ -53,7 +54,7 @@ export async function getPayroll(month?: number, year?: number): Promise<Payroll
   const params = new URLSearchParams();
   if (month) params.set('month', String(month));
   if (year)  params.set('year',  String(year));
-  const res = await fetch(`${getBackendUrl()}/api/payroll?${params}`, { credentials: 'include' });
+  const res = await authedFetch(`${getBackendUrl()}/api/payroll?${params}`);
   const data = await res.json() as PayrollData & { error?: string };
   if (!res.ok) throw new Error((data as { error?: string }).error ?? 'Failed to fetch payroll');
   return data;
@@ -65,9 +66,8 @@ export async function setSalary(payload: {
   title?: string | null;
   currency?: string;
 }): Promise<SalaryRecord> {
-  const res = await fetch(`${getBackendUrl()}/api/payroll`, {
+  const res = await authedFetch(`${getBackendUrl()}/api/payroll`, {
     method: 'POST',
-    credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
@@ -77,9 +77,8 @@ export async function setSalary(payload: {
 }
 
 export async function deleteSalary(id: string): Promise<void> {
-  const res = await fetch(`${getBackendUrl()}/api/payroll/${id}`, {
+  const res = await authedFetch(`${getBackendUrl()}/api/payroll/${id}`, {
     method: 'DELETE',
-    credentials: 'include',
   });
   if (!res.ok) {
     const data = await res.json() as { error?: string };
@@ -93,9 +92,8 @@ export async function markPaid(
   year: number,
   note?: string
 ): Promise<SalaryPaymentRecord> {
-  const res = await fetch(`${getBackendUrl()}/api/payroll/${id}/pay`, {
+  const res = await authedFetch(`${getBackendUrl()}/api/payroll/${id}/pay`, {
     method: 'PATCH',
-    credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ month, year, note: note ?? null }),
   });
@@ -109,9 +107,8 @@ export async function markUnpaid(
   month: number,
   year: number
 ): Promise<SalaryPaymentRecord> {
-  const res = await fetch(`${getBackendUrl()}/api/payroll/${id}/unpay`, {
+  const res = await authedFetch(`${getBackendUrl()}/api/payroll/${id}/unpay`, {
     method: 'PATCH',
-    credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ month, year }),
   });

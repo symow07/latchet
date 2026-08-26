@@ -19,6 +19,25 @@ export class NetworkError extends Error {
   }
 }
 
+/**
+ * fetch with the session attached.
+ *
+ * For the call sites that predate this client and do their own response
+ * handling. `credentials: "include"` is NOT enough on this stack — see the note
+ * in request() below — so anything talking to the backend has to go through
+ * here or it is silently unauthenticated, which surfaces as a 401 that looks
+ * like a logged-out user rather than a missing header.
+ */
+export const authedFetch = (
+  url: string,
+  init: { method?: string; body?: string; headers?: Record<string, string> } = {},
+) =>
+  fetch(url, {
+    ...init,
+    credentials: "include",
+    headers: { ...(init.headers ?? {}), Cookie: authClient.getCookie() },
+  });
+
 export class ApiError extends Error {
   status: number;
   body: unknown;

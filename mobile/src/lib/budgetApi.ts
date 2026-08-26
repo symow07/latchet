@@ -1,3 +1,4 @@
+import { authedFetch } from './api/api';
 const getBackendUrl = (): string => {
   const url = process.env.EXPO_PUBLIC_BACKEND_URL;
   if (!url) throw new Error('EXPO_PUBLIC_BACKEND_URL is not configured');
@@ -24,8 +25,7 @@ export interface BudgetData {
 }
 
 export async function getBudget(): Promise<BudgetData> {
-  const res = await fetch(`${getBackendUrl()}/api/business/budget`, {
-    credentials: 'include',
+  const res = await authedFetch(`${getBackendUrl()}/api/business/budget`, {
   });
   const data = await res.json() as BudgetData & { error?: string };
   if (!res.ok) throw new Error((data as { error?: string }).error ?? 'Failed to fetch budget');
@@ -36,9 +36,8 @@ export async function setBudget(payload: {
   totalMonthly: number;
   categories: Partial<Record<BudgetCategory, number>>;
 }): Promise<{ budget: { totalMonthly: number; categories: Partial<Record<BudgetCategory, number>> } }> {
-  const res = await fetch(`${getBackendUrl()}/api/business/budget`, {
+  const res = await authedFetch(`${getBackendUrl()}/api/business/budget`, {
     method: 'PUT',
-    credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });

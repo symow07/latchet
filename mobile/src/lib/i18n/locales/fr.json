@@ -830,7 +830,11 @@
     "supportSubject": "Budget — demande d'assistance",
     "supportBody": "\n\n---\nVersion de l'app : %{version}\nType de compte : %{account}\nEntreprise : %{business}",
     "noMailTitle": "Aucune app de messagerie",
-    "noMailBody": "Aucune app de messagerie n'est configurée sur cet appareil. Écrivez plutôt à support@realbudget.app."
+    "noMailBody": "Aucune app de messagerie n'est configurée sur cet appareil. Écrivez plutôt à support@realbudget.app.",
+    "createTitle": "Aucune entreprise configurée",
+    "createBody": "Votre compte est de type Entreprise, mais la fiche entreprise n'a jamais été créée. Cela se fait normalement à l'inscription ; si cela a échoué, créez-la ici.",
+    "createButton": "Créer mon entreprise",
+    "creating": "Création…"
   },
   "feedback": {
     "exceededTitle": "Budget dépassé !",

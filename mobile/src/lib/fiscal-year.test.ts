@@ -33,3 +33,12 @@ test('a real month passes through', () => {
   expect(normaliseFiscalMonth(1)).toBe(1);
   expect(normaliseFiscalMonth(12)).toBe(12);
 });
+
+test('the month list does not shift with the device timezone', () => {
+  // Built from Date.UTC, so formatting in local time renders each date as the
+  // previous month west of Greenwich — the list began at December in Los
+  // Angeles and every month the user picked was off by one.
+  const names = monthNames();
+  expect(names[0].toLowerCase()).toBe('january');
+  expect(names[11].toLowerCase()).toBe('december');
+});

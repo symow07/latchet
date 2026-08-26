@@ -825,7 +825,11 @@
     "supportSubject": "Budget——支持请求",
     "supportBody": "\n\n---\n应用版本：%{version}\n账户类型：%{account}\n企业：%{business}",
     "noMailTitle": "没有邮件应用",
-    "noMailBody": "该设备未设置邮件应用。请直接发信至 support@realbudget.app。"
+    "noMailBody": "该设备未设置邮件应用。请直接发信至 support@realbudget.app。",
+    "createTitle": "尚未设置企业",
+    "createBody": "你的账户类型是企业，但企业记录从未创建。这通常在注册时完成；如果当时失败了，可以在这里创建。",
+    "createButton": "创建我的企业",
+    "creating": "创建中…"
   },
   "feedback": {
     "exceededTitle": "预算已超支！",

@@ -1,3 +1,4 @@
+import { authedFetch } from './api/api';
 const getBackendUrl = (): string => {
   const url = process.env.EXPO_PUBLIC_BACKEND_URL;
   if (!url) throw new Error('EXPO_PUBLIC_BACKEND_URL is not configured');
@@ -42,9 +43,8 @@ export interface TeamMember {
 // ─── API calls ────────────────────────────────────────────────────────────────
 
 export async function createBusiness(name?: string): Promise<Business> {
-  const res = await fetch(`${getBackendUrl()}/api/business`, {
+  const res = await authedFetch(`${getBackendUrl()}/api/business`, {
     method: 'POST',
-    credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ name: name ?? '' }),
   });
@@ -54,8 +54,7 @@ export async function createBusiness(name?: string): Promise<Business> {
 }
 
 export async function getBusiness(): Promise<Business | null> {
-  const res = await fetch(`${getBackendUrl()}/api/business`, {
-    credentials: 'include',
+  const res = await authedFetch(`${getBackendUrl()}/api/business`, {
   });
   if (res.status === 404) return null;
   const data = await res.json() as { business: Business; error?: string };
@@ -77,9 +76,8 @@ export async function updateBusiness(patch: {
   taxId?: string | null;
   fiscalYearStartMonth?: number | null;
 }): Promise<Business> {
-  const res = await fetch(`${getBackendUrl()}/api/business`, {
+  const res = await authedFetch(`${getBackendUrl()}/api/business`, {
     method: 'PATCH',
-    credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(patch),
   });
@@ -89,8 +87,7 @@ export async function updateBusiness(patch: {
 }
 
 export async function getInviteCode(): Promise<{ code: string; businessName: string }> {
-  const res = await fetch(`${getBackendUrl()}/api/business/invite-code`, {
-    credentials: 'include',
+  const res = await authedFetch(`${getBackendUrl()}/api/business/invite-code`, {
   });
   const data = await res.json() as { code: string; businessName: string; error?: string };
   if (!res.ok) throw new Error(data.error ?? 'Failed to get invite code');
@@ -98,9 +95,8 @@ export async function getInviteCode(): Promise<{ code: string; businessName: str
 }
 
 export async function refreshInviteCode(): Promise<{ code: string; businessName: string }> {
-  const res = await fetch(`${getBackendUrl()}/api/business/invite-code/refresh`, {
+  const res = await authedFetch(`${getBackendUrl()}/api/business/invite-code/refresh`, {
     method: 'POST',
-    credentials: 'include',
   });
   const data = await res.json() as { code: string; businessName: string; error?: string };
   if (!res.ok) throw new Error(data.error ?? 'Failed to refresh invite code');
@@ -108,9 +104,8 @@ export async function refreshInviteCode(): Promise<{ code: string; businessName:
 }
 
 export async function joinBusiness(code: string): Promise<{ member: TeamMember; businessName: string }> {
-  const res = await fetch(`${getBackendUrl()}/api/business/join`, {
+  const res = await authedFetch(`${getBackendUrl()}/api/business/join`, {
     method: 'POST',
-    credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ code }),
   });
@@ -120,8 +115,7 @@ export async function joinBusiness(code: string): Promise<{ member: TeamMember; 
 }
 
 export async function getMembers(): Promise<TeamMember[]> {
-  const res = await fetch(`${getBackendUrl()}/api/business/members`, {
-    credentials: 'include',
+  const res = await authedFetch(`${getBackendUrl()}/api/business/members`, {
   });
   const data = await res.json() as { members: TeamMember[]; error?: string };
   if (!res.ok) throw new Error(data.error ?? 'Failed to fetch members');
@@ -129,9 +123,8 @@ export async function getMembers(): Promise<TeamMember[]> {
 }
 
 export async function updateMemberRole(memberId: string, role: 'manager' | 'employee'): Promise<TeamMember> {
-  const res = await fetch(`${getBackendUrl()}/api/business/team/${memberId}`, {
+  const res = await authedFetch(`${getBackendUrl()}/api/business/team/${memberId}`, {
     method: 'PATCH',
-    credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ role }),
   });
@@ -141,9 +134,8 @@ export async function updateMemberRole(memberId: string, role: 'manager' | 'empl
 }
 
 export async function removeMember(memberId: string): Promise<void> {
-  const res = await fetch(`${getBackendUrl()}/api/business/team/${memberId}`, {
+  const res = await authedFetch(`${getBackendUrl()}/api/business/team/${memberId}`, {
     method: 'DELETE',
-    credentials: 'include',
   });
   if (!res.ok) {
     const data = await res.json() as { error?: string };

@@ -832,6 +832,20 @@ transaction in without opening a form.
   **Owner action:** `support@realbudget.app` in `(business-tabs)/settings.tsx` does not exist —
   the domain is unbought. Replace it before shipping or the mail draft goes nowhere.
 
+- ☑ **The business feature had never been authenticated.** Verifying the profile save turned up the
+  reason every business screen was empty: `businessApi`, `budgetApi`, `expenseApi` and `salaryApi`
+  called the backend with bare `fetch` and `credentials: "include"`, which attaches nothing on this
+  stack — `api.ts` already said so in a comment, and four files were written as if it did not.
+  Twenty calls, every one of them unauthenticated, answered 401.
+
+  That is why the account had no company record: `createBusiness` runs once, when the account type is
+  chosen, and its failure is swallowed with a `console.warn`. Nothing anywhere in the app could
+  create one afterwards, so a Business account whose provisioning failed stayed empty forever with
+  no recovery. Company Profile now offers one when no record exists.
+
+  `authedFetch` in `api/api.ts` attaches the session; the misleading `credentials` options are gone,
+  and a test fails on any backend call that skips it or reintroduces them.
+
 Still open from the four speed-ups chosen:
 
 - **The share extension's own text** — `ShareViewController`'s placeholder is a plain Swift string

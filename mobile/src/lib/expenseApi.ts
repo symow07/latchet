@@ -1,3 +1,4 @@
+import { authedFetch } from './api/api';
 const getBackendUrl = (): string => {
   const url = process.env.EXPO_PUBLIC_BACKEND_URL;
   if (!url) throw new Error('EXPO_PUBLIC_BACKEND_URL is not configured');
@@ -41,9 +42,8 @@ export async function submitExpense(data: {
   description: string;
   imageUrl?: string | null;
 }): Promise<Expense> {
-  const res = await fetch(`${getBackendUrl()}/api/expenses`, {
+  const res = await authedFetch(`${getBackendUrl()}/api/expenses`, {
     method: 'POST',
-    credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
@@ -56,16 +56,15 @@ export async function getExpenses(status?: ExpenseStatus): Promise<Expense[]> {
   const url = status
     ? `${getBackendUrl()}/api/expenses?status=${status}`
     : `${getBackendUrl()}/api/expenses`;
-  const res = await fetch(url, { credentials: 'include' });
+  const res = await authedFetch(url);
   const json = await res.json() as { expenses: Expense[]; error?: string };
   if (!res.ok) throw new Error(json.error ?? 'Failed to fetch expenses');
   return json.expenses;
 }
 
 export async function approveExpense(id: string): Promise<Expense> {
-  const res = await fetch(`${getBackendUrl()}/api/expenses/${id}/approve`, {
+  const res = await authedFetch(`${getBackendUrl()}/api/expenses/${id}/approve`, {
     method: 'PATCH',
-    credentials: 'include',
   });
   const json = await res.json() as { expense: Expense; error?: string };
   if (!res.ok) throw new Error(json.error ?? 'Failed to approve expense');
@@ -73,9 +72,8 @@ export async function approveExpense(id: string): Promise<Expense> {
 }
 
 export async function rejectExpense(id: string): Promise<Expense> {
-  const res = await fetch(`${getBackendUrl()}/api/expenses/${id}/reject`, {
+  const res = await authedFetch(`${getBackendUrl()}/api/expenses/${id}/reject`, {
     method: 'PATCH',
-    credentials: 'include',
   });
   const json = await res.json() as { expense: Expense; error?: string };
   if (!res.ok) throw new Error(json.error ?? 'Failed to reject expense');

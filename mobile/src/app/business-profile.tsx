@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Building2 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
-import { getBusiness, updateBusiness } from '@/lib/businessApi';
+import { createBusiness, getBusiness, updateBusiness } from '@/lib/businessApi';
 import { useSession } from '@/lib/auth/use-session';
 import { R, useB } from '@/lib/design';
 import { Txt, GlassCard, BubbleButton, BizBackground, IconBubble } from '@/components/ui';
@@ -44,6 +44,26 @@ export default function BusinessProfileScreen() {
   const nameValue = name ?? business?.name ?? '';
   const addressValue = address ?? business?.address ?? '';
 
+  /**
+   * Recovery for an account that never got a business row.
+   *
+   * createBusiness runs once, when the account type is chosen, and a failure
+   * there is only logged — which leaves a Business account with no business
+   * and, until now, no way anywhere in the app to make one. Every business
+   * screen just shows an empty state forever.
+   */
+  const create = useMutation({
+    mutationFn: () => createBusiness(session?.user?.name ?? undefined),
+    onSuccess: () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      qc.invalidateQueries({ queryKey: ['business'] });
+    },
+    onError: (e: Error) => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      setErr(e.message);
+    },
+  });
+
   const mutation = useMutation({
     mutationFn: () => updateBusiness({ name: nameValue.trim(), address: addressValue }),
     onSuccess: () => {
@@ -78,9 +98,28 @@ export default function BusinessProfileScreen() {
           <View style={{ paddingTop: 60, alignItems: 'center' }}><ActivityIndicator color={B.accent} /></View>
         ) : !business ? (
           <View style={{ paddingHorizontal: 20, paddingTop: 28 }}>
-            <GlassCard padding={18} radius={R.md}>
-              <Txt size={14} color={B.textDim}>{t('bizSettings.noBusiness')}</Txt>
-            </GlassCard>
+            <View style={{ alignItems: 'center', marginBottom: 20 }}>
+              <IconBubble color={B.accent} size={64} radius={22}><Building2 size={28} color={B.accent} /></IconBubble>
+            </View>
+            <Txt weight="bold" size={18} color={B.text} style={{ textAlign: 'center', marginBottom: 8 }}>
+              {t('bizSettings.createTitle')}
+            </Txt>
+            <Txt size={13} color={B.textFaint} style={{ textAlign: 'center', lineHeight: 19, marginBottom: 22 }}>
+              {t('bizSettings.createBody')}
+            </Txt>
+            {err ? (
+              <GlassCard padding={12} radius={R.md} tint={`${B.red}12`} border={`${B.red}2a`} style={{ marginBottom: 14 }}>
+                <Txt size={13} color={B.red}>{err}</Txt>
+              </GlassCard>
+            ) : null}
+            <BubbleButton
+              label={create.isPending ? t('bizSettings.creating') : t('bizSettings.createButton')}
+              onPress={() => create.mutate()}
+              disabled={create.isPending}
+              radius={R.md}
+              colors={[B.accentDeep, B.accent]}
+              glowColor={B.accent}
+            />
           </View>
         ) : (
           <View style={{ paddingHorizontal: 20, paddingTop: 22 }}>
