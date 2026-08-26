@@ -4,6 +4,9 @@ import {
   setActiveRates,
   getRatesAsOf,
   isUsingBundledRates,
+  formatCurrencyAmount,
+  getCurrencyByCode,
+  CURRENCIES,
   BUNDLED_RATES_AS_OF,
 } from './currencies';
 
@@ -40,4 +43,53 @@ test('an entirely unknown currency returns the amount unchanged', () => {
 test('rates matching is case-insensitive', () => {
   setActiveRates({ USD: 1, EUR: 0.5 }, '2026-08-18');
   expect(convertCurrency(100, 'usd', 'eur')).toBe(50);
+});
+
+// ── The widened list ─────────────────────────────────────────────────────────
+// Most currencies now ship with no bundled rate and depend on the live table.
+// The risk that buys is a silent NaN in money arithmetic, so it is pinned here.
+
+test('every currency has a code, a name and a symbol', () => {
+  for (const c of CURRENCIES) {
+    expect(c.code).toMatch(/^[A-Z]{3}$/);
+    expect(c.name.length).toBeGreaterThan(0);
+    expect(c.symbol.length).toBeGreaterThan(0);
+  }
+});
+
+test('codes are unique', () => {
+  const codes = CURRENCIES.map((c) => c.code);
+  expect(new Set(codes).size).toBe(codes.length);
+});
+
+test('a currency with no bundled rate returns the amount unchanged offline', () => {
+  // Not NaN, and not a silently invented figure. AFN is one of the 93 that
+  // exist only so they can be selected.
+  const afn = getCurrencyByCode('AFN');
+  expect(afn).toBeDefined();
+  expect(afn!.rate).toBeUndefined();
+  setActiveRates({}, '2026-01-01');
+  expect(convertCurrency(100, 'USD', 'AFN')).toBe(100);
+  expect(Number.isNaN(convertCurrency(100, 'USD', 'AFN'))).toBe(false);
+});
+
+test('a live rate is used for a currency that has no bundled one', () => {
+  setActiveRates({ USD: 1, AFN: 70 }, '2026-01-01');
+  expect(convertCurrency(1, 'USD', 'AFN')).toBeCloseTo(70, 6);
+});
+
+test('minor units come from the entry, including 3-decimal currencies', () => {
+  // The list this replaced knew only about zero-decimal currencies, so a
+  // Bahraini fils rendered as if it were a cent.
+  expect(getCurrencyByCode('BHD')!.decimals).toBe(3);
+  expect(formatCurrencyAmount(1.234, 'BHD')).toContain('1.234');
+  expect(formatCurrencyAmount(1.4, 'JPY')).toContain('1');
+  expect(formatCurrencyAmount(1.4, 'JPY')).not.toContain('.');
+  expect(formatCurrencyAmount(1.5, 'USD')).toContain('1.50');
+});
+
+test('the popular shortlist still resolves against the widened list', () => {
+  for (const code of ['USD', 'EUR', 'GBP', 'JPY', 'CNY', 'INR', 'CAD', 'AUD', 'AED', 'SAR']) {
+    expect(getCurrencyByCode(code)).toBeDefined();
+  }
 });

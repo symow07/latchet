@@ -31,7 +31,10 @@ interface CachedSnapshot {
 /** The table compiled into the app. Correct-ish, and openly dated. */
 export function bundledSnapshot(): RatesSnapshot {
   const rates: Record<string, number> = {};
-  for (const c of CURRENCIES) rates[c.code] = c.rate;
+  // Most currencies now carry no bundled rate at all — they exist in the list
+  // so they can be selected, and their rate comes from the live table. Only
+  // the ones that shipped before the list was widened have an offline value.
+  for (const c of CURRENCIES) if (c.rate !== undefined) rates[c.code] = c.rate;
   return { base: 'USD', rates, asOf: BUNDLED_RATES_AS_OF, source: 'bundled' };
 }
 
