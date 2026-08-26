@@ -74,14 +74,14 @@ export function coerceDate(value: unknown): string | null {
   return `${m[1]}-${m[2]}-${m[3]}`;
 }
 
-function coerceType(value: unknown, fallback: "Expense" | "Income"): "Expense" | "Income" {
+export function coerceType(value: unknown, fallback: "Expense" | "Income"): "Expense" | "Income" {
   const s = String(value ?? "").toLowerCase();
   if (s === "income" || s === "credit" || s === "deposit") return "Income";
   if (s === "expense" || s === "debit" || s === "withdrawal") return "Expense";
   return fallback;
 }
 
-function coerceCategory(value: unknown): string {
+export function coerceCategory(value: unknown): string {
   const s = String(value ?? "").trim();
   return (STATEMENT_CATEGORIES as readonly string[]).includes(s) ? s : "Other";
 }

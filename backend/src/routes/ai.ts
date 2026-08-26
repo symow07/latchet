@@ -11,6 +11,7 @@ import {
   normaliseStatementRows,
   STATEMENT_CATEGORIES,
 } from "../lib/statement-extract";
+import { normaliseVoiceRows, voiceExtractionPrompt } from "../lib/voice-extract";
 
 /**
  * AI proxy routes. The mobile app used to call OpenAI directly with a public
@@ -20,8 +21,10 @@ import {
  */
 
 const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
+const OPENAI_TRANSCRIBE_URL = "https://api.openai.com/v1/audio/transcriptions";
 const CHAT_MODEL = "gpt-4o-mini";
 const VISION_MODEL = "gpt-4o";
+const TRANSCRIBE_MODEL = "whisper-1";
 
 const CATEGORIES = ["Food", "Transport", "Shopping", "Gym", "Subscriptions", "Other"] as const;
 
@@ -230,6 +233,93 @@ router.post("/analyze-statement", zValidator("json", statementSchema), async (c)
   } catch (e) {
     console.error("[ai:analyze-statement]", e instanceof Error ? e.message : e);
     return c.json({ error: "Statement analysis failed" }, 502);
+  }
+});
+
+// ~8 MB of audio. At Whisper's bitrate that is several minutes of speech,
+// which is far longer than anyone narrates a day's spending for.
+const MAX_AUDIO_BYTES = 8 * 1024 * 1024;
+const MAX_AUDIO_BASE64_CHARS = Math.ceil(MAX_AUDIO_BYTES * 1.37);
+
+const voiceSchema = z.object({
+  /** Raw base64 audio (no data: prefix), as produced by expo-file-system. */
+  audio: z.string().min(1).max(MAX_AUDIO_BASE64_CHARS),
+  /** Container the client recorded, so Whisper gets a filename it accepts. */
+  format: z.enum(["m4a", "mp3", "wav", "webm"]).default("m4a"),
+  /**
+   * The speaker's local date. Not derived server-side on purpose: a user in
+   * Shanghai recording at 08:00 is a day ahead of a UTC server, and "today"
+   * has to mean their today or the morning's coffee lands on yesterday.
+   */
+  todayISO: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  /** BCP-47 hint for Whisper. Optional; it auto-detects without one. */
+  language: z.string().max(10).optional(),
+});
+
+/**
+ * Turn a spoken description of a day's spending into reviewable transactions.
+ *
+ * Two calls: Whisper for the words, then the chat model for the structure.
+ * Split rather than combined because they fail differently — a bad recording
+ * fails at transcription and is worth telling the user about specifically,
+ * where a clean transcript with no money in it is a legitimate empty result.
+ *
+ * Nothing here writes to the database. The rows come back for the user to
+ * review and confirm, for the same reason receipt scanning does: speech is
+ * the least reliable input the app has, and a misheard amount silently
+ * entered is worse than one the user has to correct.
+ */
+router.post("/voice-transactions", zValidator("json", voiceSchema), async (c) => {
+  const { audio, format, todayISO, language } = c.req.valid("json");
+
+  let transcript: string;
+  try {
+    const bytes = Buffer.from(audio, "base64");
+    const form = new FormData();
+    form.append("file", new Blob([bytes]), `speech.${format}`);
+    form.append("model", TRANSCRIBE_MODEL);
+    if (language) form.append("language", language.slice(0, 2));
+
+    const res = await fetchWithTimeout(OPENAI_TRANSCRIBE_URL, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${env.OPENAI_API_KEY}` },
+      body: form,
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      throw new Error(`OpenAI ${res.status}: ${text.slice(0, 300)}`);
+    }
+    transcript = String(((await res.json()) as { text?: string })?.text ?? "").trim();
+  } catch (e) {
+    console.error("[ai:voice-transcribe]", e instanceof Error ? e.message : e);
+    return c.json({ error: "Could not transcribe that recording." }, 502);
+  }
+
+  if (!transcript) {
+    return c.json({ transcript: "", transactions: [] });
+  }
+
+  try {
+    const data = await openaiChat({
+      model: CHAT_MODEL,
+      messages: [
+        { role: "system", content: voiceExtractionPrompt(todayISO, STATEMENT_CATEGORIES) },
+        { role: "user", content: transcript },
+      ],
+      temperature: 0,
+      max_tokens: 1200,
+      response_format: { type: "json_object" },
+    });
+
+    const raw = data?.choices?.[0]?.message?.content ?? "{}";
+    const transactions = normaliseVoiceRows(JSON.parse(raw), todayISO);
+    // An empty list is a real answer, not an error: someone can talk for a
+    // minute without naming a single figure. The transcript goes back either
+    // way so the user can see what was heard.
+    return c.json({ transcript, transactions });
+  } catch (e) {
+    console.error("[ai:voice-extract]", e instanceof Error ? e.message : e);
+    return c.json({ error: "Could not read transactions from that recording.", transcript }, 502);
   }
 });
 

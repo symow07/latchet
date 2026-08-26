@@ -14,6 +14,7 @@ import { allowUsageTiered } from "../lib/usage-limit";
  * — a client is never able to assert what it is entitled to.
  */
 
+const VOICE_USER = "voice-allowance-user";
 const FREE_USER = "guard_free_user";
 const PRO_USER = "guard_pro_user";
 const EXPIRED_USER = "guard_expired_user";
@@ -211,4 +212,42 @@ test("a webhook for an unknown subscriber is acknowledged, not retried forever",
 
   expect(res.status).toBe(200);
   expect((await res.json()) as { applied: boolean }).toMatchObject({ applied: false });
+});
+
+test("every AI route is behind the paywall, including ones added later", () => {
+  // The guard is router.use("*"), so it covers everything by construction —
+  // but only the /chat route was ever exercised, and "the guard is a wildcard"
+  // is exactly the kind of assumption that stops being true when someone
+  // mounts a sub-router or reorders a middleware. AI routes are the expensive
+  // ones, and they are the whole reason the subscription exists.
+  //
+  // Enumerating the router's own registered paths means a route added
+  // tomorrow is checked without anyone remembering to add it here.
+  const paths = (aiRouter as unknown as { routes: { path: string; method: string }[] }).routes;
+  const posts = paths.filter((r) => r.method === "POST").map((r) => r.path);
+
+  expect(posts.length).toBeGreaterThanOrEqual(4);
+  expect(posts).toContain("/voice-transactions");
+
+  // Every POST must be preceded by the wildcard guard in the routing table,
+  // i.e. the guard is registered before any of them.
+  const guardIndex = paths.findIndex((r) => r.path === "/*" || r.path === "*");
+  expect(guardIndex).toBeGreaterThanOrEqual(0);
+  for (const r of paths) {
+    if (r.method !== "POST") continue;
+    expect(paths.indexOf(r)).toBeGreaterThan(guardIndex);
+  }
+});
+
+test("the voice route refuses a free user who has spent their allowance", async () => {
+  const allowance = aiAllowance(false);
+  for (let i = 0; i < FREE_AI_CALLS_PER_DAY; i++) {
+    expect(allowUsageTiered("ai", VOICE_USER, allowance)).toBe(true);
+  }
+  const res = await appAs(VOICE_USER, aiRouter as never).request("/voice-transactions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ audio: "AAAA", format: "m4a", todayISO: "2026-08-26" }),
+  });
+  expect(res.status).toBe(402);
 });
