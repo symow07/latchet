@@ -190,9 +190,9 @@ export default function TeamScreen() {
   const removeMut = useMutation({ mutationFn: removeMember, onSuccess: () => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning); qc.invalidateQueries({ queryKey: ['biz-members'] }); }, onError: (e: Error) => Alert.alert('Error', e.message) });
 
   function handleRemove(memberId: string) {
-    Alert.alert('Remove member', 'Are you sure you want to remove this person from your team?', [
+    Alert.alert(t('dialogs.removeMember'), t('dialogs.removeMemberBody'), [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Remove', style: 'destructive', onPress: () => removeMut.mutate(memberId) },
+      { text: t('dialogs.remove'), style: 'destructive', onPress: () => removeMut.mutate(memberId) },
     ]);
   }
 

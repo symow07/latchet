@@ -656,5 +656,81 @@
     "timeCost": "Show Time Cost",
     "biometric": "Biometric Lock",
     "biometricSub": "Require Face ID / Fingerprint on open"
+  },
+  "dialogs": {
+    "error": "Error",
+    "resetTitle": "Reset Everything",
+    "resetBody": "This will permanently delete all your transactions, accounts, and reset your settings.",
+    "resetDone": "All your activity has been reset to zero.",
+    "resetWebOnly": "Reset is only available on the mobile app, not in the browser preview.",
+    "exportTitle": "Export Data",
+    "exportBody": "Choose a format to share or back up your transactions.",
+    "exportCsv": "CSV (re-importable)",
+    "exportJson": "JSON (full backup)",
+    "exportFailed": "Export Failed",
+    "exportNothing": "Nothing to Export",
+    "exportNoneBody": "You have no transactions yet.",
+    "biometricsUnavailable": "Biometrics Unavailable",
+    "emptyFile": "Empty File",
+    "emptyFileBody": "The selected file appears to be empty.",
+    "readFailed": "Failed to read the file. Please try again.",
+    "importError": "Import Error",
+    "importPartial": "Some transactions failed to import. Please try again.",
+    "deleteTx": "Delete Transaction",
+    "areYouSure": "Are you sure?",
+    "delete": "Delete",
+    "remove": "Remove",
+    "removeMember": "Remove member",
+    "removeMemberBody": "Are you sure you want to remove this person from your team?",
+    "removePayroll": "Remove from payroll",
+    "permissionNeeded": "Permission needed",
+    "cameraNeeded": "Camera access is required to take photos."
+  },
+  "netWorthCats": {
+    "cashSavings": "Cash & Savings",
+    "investments": "Investments",
+    "realEstate": "Real Estate",
+    "otherAssets": "Other Assets",
+    "creditCardDebt": "Credit Card Debt",
+    "loans": "Loans",
+    "mortgage": "Mortgage",
+    "otherLiab": "Other Liabilities"
+  },
+  "addTx": {
+    "type": "Transaction Type",
+    "category": "Category",
+    "account": "Account",
+    "createCat": "Create Category",
+    "noteOptional": "Note (optional)",
+    "spentOnWhat": "What did you spend on?",
+    "notePlaceholder": "e.g. Coffee, Rent, Travel…"
+  },
+  "fields": {
+    "namePlaceholder": "John Doe",
+    "emailPlaceholder": "your@email.com",
+    "emailPlaceholder2": "you@example.com",
+    "passwordHint": "At least 8 characters",
+    "repeatPassword": "Repeat password",
+    "yourPassword": "Your password",
+    "enterAmount": "Enter amount",
+    "merchantOrDesc": "Merchant or description",
+    "askFinances": "Ask about your finances…",
+    "billPlaceholder": "e.g. Netflix, Rent, Gym…",
+    "recurringPlaceholder": "e.g. Netflix, Salary, Gym…",
+    "rolePlaceholder": "e.g. Software Engineer"
+  },
+  "subDetail": {
+    "cadence": "Cadence",
+    "nextCharge": "Next Charge",
+    "notesHint": "Add your own cancellation notes, confirmation numbers, etc."
+  },
+  "misc2": {
+    "exportDesc": "Download transactions as CSV/JSON",
+    "awaitingEmail": "Awaiting first email",
+    "accountKindPersonalDesc": "Track daily spending, budgets, savings goals, and build healthy money habits.",
+    "example": "Example",
+    "dateFrom": "From",
+    "dateTo": "To",
+    "noCanceledBody": "Subscriptions you've canceled will be tracked here."
   }
 }

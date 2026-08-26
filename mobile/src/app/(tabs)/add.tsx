@@ -197,7 +197,7 @@ export default function AddTransactionScreen() {
 
         {/* ── Type ── */}
         <View style={{ paddingHorizontal: 20, paddingTop: 22 }}>
-          <FieldLabel icon={<Tag size={15} color={C.textFaint} />} label="Transaction Type" />
+          <FieldLabel icon={<Tag size={15} color={C.textFaint} />} label={t('addTx.type')} />
           <View className="flex-row" style={{ gap: 12 }}>
             {([
               { t: 'Expense' as const, Icon: ArrowDownCircle, color: C.rose },
@@ -219,7 +219,7 @@ export default function AddTransactionScreen() {
         {/* ── Account ── */}
         {accounts.length > 0 && (
           <View style={{ paddingHorizontal: 20, paddingTop: 22 }}>
-            <FieldLabel icon={<Wallet size={15} color={C.textFaint} />} label="Account" />
+            <FieldLabel icon={<Wallet size={15} color={C.textFaint} />} label={t('addTx.account')} />
             <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setShowAccountPicker(!showAccountPicker); }}>
               <GlassCard padding={14} radius={R.md}>
                 <View className="flex-row items-center justify-between">
@@ -270,7 +270,7 @@ export default function AddTransactionScreen() {
 
         {/* ── Category ── */}
         <View style={{ paddingHorizontal: 20, paddingTop: 22 }}>
-          <FieldLabel icon={<Tag size={15} color={C.textFaint} />} label="Category" />
+          <FieldLabel icon={<Tag size={15} color={C.textFaint} />} label={t('addTx.category')} />
           <View className="flex-row flex-wrap" style={{ gap: 10 }}>
             {categories.map(cat => {
               const isSelected = category === cat.name;
@@ -311,7 +311,7 @@ export default function AddTransactionScreen() {
               <TextInput
                 value={newCatName}
                 onChangeText={setNewCatName}
-                placeholder="e.g. Coffee, Rent, Travel…"
+                placeholder={t('addTx.notePlaceholder')}
                 placeholderTextColor={C.textFaint}
                 maxLength={20}
                 style={{ color: C.text, fontSize: 16, fontFamily: 'PlusJakartaSans_600SemiBold', backgroundColor: C.glass, borderRadius: R.md, paddingHorizontal: 16, paddingVertical: 14, borderWidth: 1, borderColor: C.glassBorder, marginBottom: 16 }}
@@ -338,7 +338,7 @@ export default function AddTransactionScreen() {
                 ))}
               </View>
 
-              <BubbleButton label="Create Category" onPress={handleCreateCategory} disabled={!newCatName.trim()} />
+              <BubbleButton label={t('addTx.createCat')} onPress={handleCreateCategory} disabled={!newCatName.trim()} />
             </Pressable>
           </Pressable>
         </Modal>
@@ -382,11 +382,11 @@ export default function AddTransactionScreen() {
 
         {/* ── Note ── */}
         <View style={{ paddingHorizontal: 20, paddingTop: 22 }}>
-          <FieldLabel icon={<FileText size={15} color={C.textFaint} />} label="Note (optional)" />
+          <FieldLabel icon={<FileText size={15} color={C.textFaint} />} label={t('addTx.noteOptional')} />
           <TextInput
             value={note}
             onChangeText={setNote}
-            placeholder="What did you spend on?"
+            placeholder={t('addTx.spentOnWhat')}
             placeholderTextColor={C.textFaint}
             multiline
             numberOfLines={3}

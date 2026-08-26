@@ -202,7 +202,7 @@ function EditModal({
                 <TextInput
                   value={currentAmount}
                   onChangeText={onChangeAmount}
-                  placeholder="Enter amount"
+                  placeholder={t('fields.enterAmount')}
                   placeholderTextColor="#555"
                   keyboardType="decimal-pad"
                   autoFocus

@@ -610,7 +610,7 @@ function AddRecurringModal({
                 <TextInput
                   value={name}
                   onChangeText={setName}
-                  placeholder="e.g. Netflix, Salary, Gym…"
+                  placeholder={t('fields.recurringPlaceholder')}
                   placeholderTextColor="#4b5563"
                   style={{ flex: 1, color: C.text, fontSize: 15, marginLeft: 10 }}
                 />

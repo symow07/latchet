@@ -478,7 +478,7 @@ function AddBillModal({
                 <TextInput
                   value={name}
                   onChangeText={setName}
-                  placeholder="e.g. Netflix, Rent, Gym…"
+                  placeholder={t('fields.billPlaceholder')}
                   placeholderTextColor="#4b5563"
                   style={{ flex: 1, color: C.text, fontSize: 15, marginLeft: 10 }}
                 />

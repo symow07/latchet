@@ -358,14 +358,14 @@ export default function SubscriptionDetailScreen() {
             />
             <StatCard
               icon={<Repeat size={18} color={C.p500} />}
-              label="Cadence"
+              label={t('subDetail.cadence')}
               value={cadenceLabel(subscription.cadence)}
               color={C.p500}
               delay={60}
             />
             <StatCard
               icon={<Calendar size={18} color="#f59e0b" />}
-              label="Next Charge"
+              label={t('subDetail.nextCharge')}
               value={subscription.status === 'canceled' ? t('subStatus.canceled') : nextDateFormatted}
               color="#f59e0b"
               delay={120}
@@ -774,7 +774,7 @@ export default function SubscriptionDetailScreen() {
                 <TextInput
                   value={cancelNotes}
                   onChangeText={setCancelNotes}
-                  placeholder="Add your own cancellation notes, confirmation numbers, etc."
+                  placeholder={t('subDetail.notesHint')}
                   placeholderTextColor="#6b7280"
                   multiline
                   numberOfLines={4}

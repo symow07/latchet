@@ -245,7 +245,7 @@ export default function AdvisorTab() {
               <TextInput
                 value={inputText}
                 onChangeText={setInputText}
-                placeholder="Ask about your finances…"
+                placeholder={t('fields.askFinances')}
                 placeholderTextColor={C.textFaint}
                 multiline
                 maxLength={500}

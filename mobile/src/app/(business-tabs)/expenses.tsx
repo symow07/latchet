@@ -72,7 +72,7 @@ function SubmitModal({ visible, onClose, onDone }: { visible: boolean; onClose: 
   async function takePhoto() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== 'granted') { Alert.alert('Permission needed', 'Camera access is required to take photos.'); return; }
+    if (status !== 'granted') { Alert.alert(t('dialogs.permissionNeeded'), t('dialogs.cameraNeeded')); return; }
     const result = await ImagePicker.launchCameraAsync({ allowsEditing: true, quality: 0.7, base64: false });
     if (!result.canceled && result.assets[0]) setImageUri(result.assets[0].uri);
   }

@@ -156,18 +156,18 @@ export default function SettingsScreen() {
   async function runExport(kind: 'csv' | 'json') {
     try {
       const count = kind === 'csv' ? await exportTransactionsCSV() : await exportTransactionsJSON();
-      if (count === 0) Alert.alert('Nothing to Export', 'You have no transactions yet.');
+      if (count === 0) Alert.alert(t('dialogs.exportNothing'), t('dialogs.exportNoneBody'));
     } catch (error) {
       console.error('Failed to export transactions:', error);
-      Alert.alert('Export Failed', `Could not export transactions to ${kind.toUpperCase()}`);
+      Alert.alert(t('dialogs.exportFailed'), `Could not export transactions to ${kind.toUpperCase()}`);
     }
   }
 
   function handleExportData() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    Alert.alert('Export Data', 'Choose a format to share or back up your transactions.', [
-      { text: 'CSV (re-importable)', onPress: () => runExport('csv') },
-      { text: 'JSON (full backup)', onPress: () => runExport('json') },
+    Alert.alert(t('dialogs.exportTitle'), t('dialogs.exportBody'), [
+      { text: t('dialogs.exportCsv'), onPress: () => runExport('csv') },
+      { text: t('dialogs.exportJson'), onPress: () => runExport('json') },
       { text: 'Cancel', style: 'cancel' },
     ]);
   }
@@ -176,7 +176,7 @@ export default function SettingsScreen() {
     if (val) {
       const available = await isBiometricAvailable();
       if (!available) {
-        Alert.alert('Biometrics Unavailable', 'Your device does not support biometric authentication or none are enrolled. Please set up Face ID / Fingerprint in device settings.', [{ text: 'OK' }]);
+        Alert.alert(t('dialogs.biometricsUnavailable'), 'Your device does not support biometric authentication or none are enrolled. Please set up Face ID / Fingerprint in device settings.', [{ text: 'OK' }]);
         return;
       }
     }
@@ -251,7 +251,7 @@ export default function SettingsScreen() {
             {tools.map((item) => (
               <NavRow key={item.route} icon={<item.Icon size={20} color={item.color} />} color={item.color} label={item.label} desc={item.desc} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push(item.route as any); }} />
             ))}
-            <NavRow icon={<Download size={20} color={C.lilac} />} color={C.lilac} label={t('settings.exportData')} desc="Download transactions as CSV/JSON" onPress={handleExportData} />
+            <NavRow icon={<Download size={20} color={C.lilac} />} color={C.lilac} label={t('settings.exportData')} desc={t('misc2.exportDesc')} onPress={handleExportData} />
           </View>
         </Animated.View>
 
@@ -276,7 +276,7 @@ export default function SettingsScreen() {
         {hourlyValue && parseFloat(hourlyValue) > 0 && showTimeCost && (
           <View style={{ paddingHorizontal: 20, paddingTop: 18 }}>
             <GlassCard tint={`${C.p700}16`} border={`${C.p700}2e`}>
-<Txt size={11} color={C.textDim} style={{ marginBottom: 3 }}>Example </Txt>
+<Txt size={11} color={C.textDim} style={{ marginBottom: 3 }}>{t('misc2.example')}</Txt>
               <Txt size={14} color={C.text}>$50 purchase = <Txt weight="bold" size={14} color={C.p400}>{Math.round((50 / parseFloat(hourlyValue)) * 60)} minutes</Txt> of work</Txt>
             </GlassCard>
           </View>
@@ -437,10 +437,10 @@ export default function SettingsScreen() {
           <Pressable
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-              Alert.alert('Reset All Activity', 'This will permanently delete all your transactions, accounts, and reset your settings to zero. This cannot be undone.', [
+              Alert.alert(t('dialogs.resetTitle'), t('dialogs.resetBody'), [
                 { text: 'Cancel', style: 'cancel' },
                 {
-                  text: 'Reset Everything', style: 'destructive',
+                  text: t('dialogs.resetTitle'), style: 'destructive',
                   onPress: async () => {
                     try {
                       await resetAllData();
@@ -449,10 +449,10 @@ export default function SettingsScreen() {
                       queryClient.invalidateQueries({ queryKey: ['settings'] });
                       queryClient.invalidateQueries({ queryKey: ['accounts'] });
                       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                      Alert.alert('Done', 'All your activity has been reset to zero.');
+                      Alert.alert('Done', t('dialogs.resetDone'));
                     } catch (e) {
                       console.error('[Reset] error:', e);
-                      Alert.alert('Error', 'Reset is only available on the mobile app, not in the browser preview.');
+                      Alert.alert('Error', t('dialogs.resetWebOnly'));
                     }
                   },
                 },

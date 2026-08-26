@@ -387,25 +387,25 @@ function AddModal({ visible, onClose, onSubmit, isSubmitting }: AddModalProps) {
                 style={{ backgroundColor: 'rgba(34,197,94,0.06)', borderWidth: 1, borderColor: 'rgba(34,197,94,0.12)' }}
               >
                 <InputRow
-                  label="Cash & Savings"
+                  label={t('netWorthCats.cashSavings')}
                   value={form.cashSavings}
                   onChange={field('cashSavings')}
                   iconComponent={<Wallet size={16} color="#22c55e" />}
                 />
                 <InputRow
-                  label="Investments"
+                  label={t('netWorthCats.investments')}
                   value={form.investments}
                   onChange={field('investments')}
                   iconComponent={<TrendingUp size={16} color="#22c55e" />}
                 />
                 <InputRow
-                  label="Real Estate"
+                  label={t('netWorthCats.realEstate')}
                   value={form.realEstate}
                   onChange={field('realEstate')}
                   iconComponent={<Home size={16} color="#22c55e" />}
                 />
                 <InputRow
-                  label="Other Assets"
+                  label={t('netWorthCats.otherAssets')}
                   value={form.otherAssets}
                   onChange={field('otherAssets')}
                   iconComponent={<Briefcase size={16} color="#22c55e" />}
@@ -438,25 +438,25 @@ function AddModal({ visible, onClose, onSubmit, isSubmitting }: AddModalProps) {
                 style={{ backgroundColor: 'rgba(239,68,68,0.06)', borderWidth: 1, borderColor: 'rgba(239,68,68,0.12)' }}
               >
                 <InputRow
-                  label="Credit Card Debt"
+                  label={t('netWorthCats.creditCardDebt')}
                   value={form.creditCardDebt}
                   onChange={field('creditCardDebt')}
                   iconComponent={<CreditCard size={16} color="#ef4444" />}
                 />
                 <InputRow
-                  label="Loans"
+                  label={t('netWorthCats.loans')}
                   value={form.loans}
                   onChange={field('loans')}
                   iconComponent={<DollarSign size={16} color="#ef4444" />}
                 />
                 <InputRow
-                  label="Mortgage"
+                  label={t('netWorthCats.mortgage')}
                   value={form.mortgage}
                   onChange={field('mortgage')}
                   iconComponent={<Landmark size={16} color="#ef4444" />}
                 />
                 <InputRow
-                  label="Other Liabilities"
+                  label={t('netWorthCats.otherLiab')}
                   value={form.otherLiabilities}
                   onChange={field('otherLiabilities')}
                   iconComponent={<Building2 size={16} color="#ef4444" />}
@@ -802,32 +802,32 @@ export default function NetWorthScreen() {
               {/* Assets breakdown */}
               <View className="mb-3">
                 {latestEntry.breakdown.cashSavings != null && latestEntry.breakdown.cashSavings > 0 && (
-                  <BreakdownLine icon={<Wallet size={14} color="#4ade80" />} label="Cash & Savings" value={latestEntry.breakdown.cashSavings} color="#4ade80" />
+                  <BreakdownLine icon={<Wallet size={14} color="#4ade80" />} label={t('netWorthCats.cashSavings')} value={latestEntry.breakdown.cashSavings} color="#4ade80" />
                 )}
                 {latestEntry.breakdown.investments != null && latestEntry.breakdown.investments > 0 && (
-                  <BreakdownLine icon={<TrendingUp size={14} color="#4ade80" />} label="Investments" value={latestEntry.breakdown.investments} color="#4ade80" />
+                  <BreakdownLine icon={<TrendingUp size={14} color="#4ade80" />} label={t('netWorthCats.investments')} value={latestEntry.breakdown.investments} color="#4ade80" />
                 )}
                 {latestEntry.breakdown.realEstate != null && latestEntry.breakdown.realEstate > 0 && (
-                  <BreakdownLine icon={<Home size={14} color="#4ade80" />} label="Real Estate" value={latestEntry.breakdown.realEstate} color="#4ade80" />
+                  <BreakdownLine icon={<Home size={14} color="#4ade80" />} label={t('netWorthCats.realEstate')} value={latestEntry.breakdown.realEstate} color="#4ade80" />
                 )}
                 {latestEntry.breakdown.otherAssets != null && latestEntry.breakdown.otherAssets > 0 && (
-                  <BreakdownLine icon={<Briefcase size={14} color="#4ade80" />} label="Other Assets" value={latestEntry.breakdown.otherAssets} color="#4ade80" />
+                  <BreakdownLine icon={<Briefcase size={14} color="#4ade80" />} label={t('netWorthCats.otherAssets')} value={latestEntry.breakdown.otherAssets} color="#4ade80" />
                 )}
               </View>
 
               <View style={{ height: 1, backgroundColor: C.glass, marginBottom: 12 }} />
 
               {latestEntry.breakdown.creditCardDebt != null && latestEntry.breakdown.creditCardDebt > 0 && (
-                <BreakdownLine icon={<CreditCard size={14} color="#f87171" />} label="Credit Card Debt" value={latestEntry.breakdown.creditCardDebt} color="#f87171" negate />
+                <BreakdownLine icon={<CreditCard size={14} color="#f87171" />} label={t('netWorthCats.creditCardDebt')} value={latestEntry.breakdown.creditCardDebt} color="#f87171" negate />
               )}
               {latestEntry.breakdown.loans != null && latestEntry.breakdown.loans > 0 && (
-                <BreakdownLine icon={<DollarSign size={14} color="#f87171" />} label="Loans" value={latestEntry.breakdown.loans} color="#f87171" negate />
+                <BreakdownLine icon={<DollarSign size={14} color="#f87171" />} label={t('netWorthCats.loans')} value={latestEntry.breakdown.loans} color="#f87171" negate />
               )}
               {latestEntry.breakdown.mortgage != null && latestEntry.breakdown.mortgage > 0 && (
-                <BreakdownLine icon={<Landmark size={14} color="#f87171" />} label="Mortgage" value={latestEntry.breakdown.mortgage} color="#f87171" negate />
+                <BreakdownLine icon={<Landmark size={14} color="#f87171" />} label={t('netWorthCats.mortgage')} value={latestEntry.breakdown.mortgage} color="#f87171" negate />
               )}
               {latestEntry.breakdown.otherLiabilities != null && latestEntry.breakdown.otherLiabilities > 0 && (
-                <BreakdownLine icon={<Building2 size={14} color="#f87171" />} label="Other Liabilities" value={latestEntry.breakdown.otherLiabilities} color="#f87171" negate />
+                <BreakdownLine icon={<Building2 size={14} color="#f87171" />} label={t('netWorthCats.otherLiab')} value={latestEntry.breakdown.otherLiabilities} color="#f87171" negate />
               )}
             </View>
           </Animated.View>

@@ -654,7 +654,7 @@ export default function ReceiptScanScreen() {
                 <TextInput
                   value={note}
                   onChangeText={(t) => setNote(t.slice(0, 50))}
-                  placeholder="Merchant or description"
+                  placeholder={t('fields.merchantOrDesc')}
                   placeholderTextColor="#555"
                   selectionColor={C.p500}
                   style={{ flex: 1, color: 'white', fontSize: 15 }}

@@ -264,7 +264,7 @@ export default function ImportScreen() {
       }
 
       if (!content.trim()) {
-        Alert.alert('Empty File', 'The selected file appears to be empty.');
+        Alert.alert(t('dialogs.emptyFile'), t('dialogs.emptyFileBody'));
         return;
       }
 
@@ -344,7 +344,7 @@ export default function ImportScreen() {
     } catch (error) {
       console.error('File pick error:', error);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Error', 'Failed to read the file. Please try again.');
+      Alert.alert('Error', t('dialogs.readFailed'));
     }
   }, [importPdfStatement]);
 
@@ -459,7 +459,7 @@ export default function ImportScreen() {
     } catch (error) {
       console.error('Import error:', error);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Import Error', 'Some transactions failed to import. Please try again.');
+      Alert.alert(t('dialogs.importError'), t('dialogs.importPartial'));
     } finally {
       setImporting(false);
     }

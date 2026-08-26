@@ -120,7 +120,7 @@ function AddSalaryModal({ visible, onClose, members, existingUserIds }: { visibl
             )}
 
             <FieldLabel>{t('businessPayroll.jobTitle')}</FieldLabel>
-            <TextInput value={title} onChangeText={setTitle} placeholder="e.g. Software Engineer" placeholderTextColor={B.textFaint} style={{ color: B.text, fontSize: 15, fontFamily: 'PlusJakartaSans_500Medium', backgroundColor: B.glass, borderRadius: R.md, paddingHorizontal: 16, paddingVertical: 14, borderWidth: 1, borderColor: B.glassBorder, marginBottom: 14 }} selectionColor={B.accent} />
+            <TextInput value={title} onChangeText={setTitle} placeholder={t('fields.rolePlaceholder')} placeholderTextColor={B.textFaint} style={{ color: B.text, fontSize: 15, fontFamily: 'PlusJakartaSans_500Medium', backgroundColor: B.glass, borderRadius: R.md, paddingHorizontal: 16, paddingVertical: 14, borderWidth: 1, borderColor: B.glassBorder, marginBottom: 14 }} selectionColor={B.accent} />
 
             <FieldLabel>{t('businessPayroll.monthlySalary')}</FieldLabel>
             <GlassCard padding={0} radius={R.md} border={`${B.accent}33`} style={{ marginBottom: 22 }}>
@@ -225,9 +225,9 @@ export default function PayrollScreen() {
   const deleteMut = useMutation({ mutationFn: deleteSalary, onSuccess: () => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning); invalidate(); }, onError: (e: Error) => Alert.alert('Error', e.message) });
 
   function handleDelete(id: string, name: string) {
-    Alert.alert('Remove from payroll', `Remove ${name} from payroll? This will delete all payment history.`, [
+    Alert.alert(t('dialogs.removePayroll'), `Remove ${name} from payroll? This will delete all payment history.`, [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Remove', style: 'destructive', onPress: () => deleteMut.mutate(id) },
+      { text: t('dialogs.remove'), style: 'destructive', onPress: () => deleteMut.mutate(id) },
     ]);
   }
 

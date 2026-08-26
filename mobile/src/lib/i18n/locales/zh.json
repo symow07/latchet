@@ -648,5 +648,81 @@
     "timeCost": "显示时间成本",
     "biometric": "生物识别锁",
     "biometricSub": "打开时需要面容或指纹验证"
+  },
+  "dialogs": {
+    "error": "错误",
+    "resetTitle": "重置全部",
+    "resetBody": "这将永久删除你的所有交易与账户，并重置设置。",
+    "resetDone": "你的所有记录已清零。",
+    "resetWebOnly": "重置仅在移动应用中可用，浏览器预览中不可用。",
+    "exportTitle": "导出数据",
+    "exportBody": "选择格式以分享或备份你的交易记录。",
+    "exportCsv": "CSV（可重新导入）",
+    "exportJson": "JSON（完整备份）",
+    "exportFailed": "导出失败",
+    "exportNothing": "没有可导出的内容",
+    "exportNoneBody": "你还没有任何交易记录。",
+    "biometricsUnavailable": "生物识别不可用",
+    "emptyFile": "文件为空",
+    "emptyFileBody": "所选文件似乎是空的。",
+    "readFailed": "无法读取文件，请重试。",
+    "importError": "导入错误",
+    "importPartial": "部分交易导入失败，请重试。",
+    "deleteTx": "删除交易",
+    "areYouSure": "确定吗？",
+    "delete": "删除",
+    "remove": "移除",
+    "removeMember": "移除成员",
+    "removeMemberBody": "确定要将此人移出团队吗？",
+    "removePayroll": "从薪酬中移除",
+    "permissionNeeded": "需要权限",
+    "cameraNeeded": "拍照需要访问相机。"
+  },
+  "netWorthCats": {
+    "cashSavings": "现金与储蓄",
+    "investments": "投资",
+    "realEstate": "房产",
+    "otherAssets": "其他资产",
+    "creditCardDebt": "信用卡欠款",
+    "loans": "贷款",
+    "mortgage": "房贷",
+    "otherLiab": "其他负债"
+  },
+  "addTx": {
+    "type": "交易类型",
+    "category": "类别",
+    "account": "账户",
+    "createCat": "创建类别",
+    "noteOptional": "备注（可选）",
+    "spentOnWhat": "这笔钱花在什么上？",
+    "notePlaceholder": "例如：咖啡、房租、旅行…"
+  },
+  "fields": {
+    "namePlaceholder": "张三",
+    "emailPlaceholder": "you@example.com",
+    "emailPlaceholder2": "you@example.com",
+    "passwordHint": "至少 8 个字符",
+    "repeatPassword": "再次输入密码",
+    "yourPassword": "你的密码",
+    "enterAmount": "输入金额",
+    "merchantOrDesc": "商户或描述",
+    "askFinances": "询问你的财务…",
+    "billPlaceholder": "例如：Netflix、房租、健身房…",
+    "recurringPlaceholder": "例如：Netflix、工资、健身房…",
+    "rolePlaceholder": "例如：软件工程师"
+  },
+  "subDetail": {
+    "cadence": "周期",
+    "nextCharge": "下次扣款",
+    "notesHint": "添加你的取消备注、确认号等。"
+  },
+  "misc2": {
+    "exportDesc": "以 CSV/JSON 下载交易记录",
+    "awaitingEmail": "等待第一封邮件",
+    "accountKindPersonalDesc": "记录日常支出、预算与储蓄目标，养成良好的理财习惯。",
+    "example": "示例",
+    "dateFrom": "从",
+    "dateTo": "到",
+    "noCanceledBody": "你已取消的订阅会记录在这里。"
   }
 }

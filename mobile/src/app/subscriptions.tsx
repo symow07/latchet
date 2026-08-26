@@ -242,7 +242,7 @@ function EmptyState({ segment }: { segment: SegmentKey }) {
     canceled: {
       icon: <XCircle size={36} color="#6b7280" />,
       title: t('subStatus.noCanceled'),
-      subtitle: "Subscriptions you've canceled will be tracked here.",
+      subtitle: t('misc2.noCanceledBody'),
     },
   };
   const { icon, title, subtitle } = configs[segment];

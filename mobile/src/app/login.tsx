@@ -203,7 +203,7 @@ export default function LoginScreen() {
                 <TextInput
                   value={email}
                   onChangeText={(t) => { setEmail(t); setError(''); }}
-                  placeholder="you@example.com"
+                  placeholder={t('fields.emailPlaceholder2')}
                   placeholderTextColor="#4b5563"
                   keyboardType="email-address"
                   autoCapitalize="none"
@@ -229,7 +229,7 @@ export default function LoginScreen() {
                 <TextInput
                   value={password}
                   onChangeText={(t) => { setPassword(t); setError(''); }}
-                  placeholder="Your password"
+                  placeholder={t('fields.yourPassword')}
                   placeholderTextColor="#4b5563"
                   secureTextEntry={!showPassword}
                   className="flex-1 ml-3 text-base"

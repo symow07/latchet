@@ -30,7 +30,7 @@ function ACCOUNT_TYPES(): {
     id: 'personal',
     label: t('accountKind.personalLabel'),
     subtitle: t('accountKind.personalSub'),
-    description: 'Track daily spending, budgets, savings goals, and build healthy money habits.',
+    description: t('misc2.accountKindPersonalDesc'),
     icon: User,
     colors: ['#1a0840', '#2d1260'] as const,
     colorsLight: ['#f6f0ff', '#ece0ff'] as const,

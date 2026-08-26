@@ -189,7 +189,7 @@ export default function SignUpScreen() {
                 <TextInput
                   value={name}
                   onChangeText={(t) => { setName(t); setError(''); }}
-                  placeholder="John Doe"
+                  placeholder={t('fields.namePlaceholder')}
                   placeholderTextColor="#4b5563"
                   autoCapitalize="words"
                   className="flex-1 ml-3 text-base"
@@ -211,7 +211,7 @@ export default function SignUpScreen() {
                 <TextInput
                   value={email}
                   onChangeText={(t) => { setEmail(t); setError(''); }}
-                  placeholder="your@email.com"
+                  placeholder={t('fields.emailPlaceholder')}
                   placeholderTextColor="#4b5563"
                   keyboardType="email-address"
                   autoCapitalize="none"
@@ -235,7 +235,7 @@ export default function SignUpScreen() {
                 <TextInput
                   value={password}
                   onChangeText={(t) => { setPassword(t); setError(''); }}
-                  placeholder="At least 8 characters"
+                  placeholder={t('fields.passwordHint')}
                   placeholderTextColor="#4b5563"
                   secureTextEntry={!showPassword}
                   className="flex-1 ml-3 text-base"
@@ -260,7 +260,7 @@ export default function SignUpScreen() {
                 <TextInput
                   value={confirmPassword}
                   onChangeText={(t) => { setConfirmPassword(t); setError(''); }}
-                  placeholder="Repeat password"
+                  placeholder={t('fields.repeatPassword')}
                   placeholderTextColor="#4b5563"
                   secureTextEntry={!showPassword}
                   className="flex-1 ml-3 text-base"

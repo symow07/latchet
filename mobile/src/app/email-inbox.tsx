@@ -103,7 +103,7 @@ export default function EmailInboxScreen() {
                   <Txt weight="semibold" size={12} color={C.p300}>{t('emailInbox.yourAddress')}</Txt>
                   {addr?.verified
                     ? <View className="flex-row items-center" style={{ gap: 4 }}><ShieldCheck size={13} color={C.green} /><Txt weight="bold" size={11} color={C.green}>{t('emailInbox.active')}</Txt></View>
-                    : <Pill label="Awaiting first email" color={C.amber} />}
+                    : <Pill label={t('misc2.awaitingEmail')} color={C.amber} />}
                 </View>
                 <View className="flex-row items-center" style={{ gap: 10 }}>
                   <View style={{ flex: 1, backgroundColor: C.glass, borderRadius: R.md, paddingHorizontal: 14, paddingVertical: 13, borderWidth: 1, borderColor: C.glassBorder }}>

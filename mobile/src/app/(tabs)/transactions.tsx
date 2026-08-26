@@ -74,9 +74,9 @@ export default function TransactionsScreen() {
 
   const handleDelete = (id: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    Alert.alert('Delete Transaction', 'Are you sure?', [
+    Alert.alert(t('dialogs.deleteTx'), t('dialogs.areYouSure'), [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: () => deleteMutation.mutate(id) },
+      { text: t('dialogs.delete'), style: 'destructive', onPress: () => deleteMutation.mutate(id) },
     ]);
   };
 
@@ -125,8 +125,8 @@ export default function TransactionsScreen() {
           {/* Date range */}
           <View className="flex-row" style={{ gap: 12, marginTop: 16 }}>
             {([
-              { label: 'From', val: startDate, onPress: () => setShowStartPicker(true) },
-              { label: 'To', val: endDate, onPress: () => setShowEndPicker(true) },
+              { label: t('misc2.dateFrom'), val: startDate, onPress: () => setShowStartPicker(true) },
+              { label: t('misc2.dateTo'), val: endDate, onPress: () => setShowEndPicker(true) },
             ]).map((d, i) => (
               <Pressable key={i} onPress={d.onPress} style={{ flex: 1 }}>
                 <GlassCard padding={12} radius={R.md} tint={`${C.p500}14`} border={`${C.p500}2e`}>

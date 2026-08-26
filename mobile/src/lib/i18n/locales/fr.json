@@ -656,5 +656,81 @@
     "timeCost": "Afficher le coût en temps",
     "biometric": "Verrouillage biométrique",
     "biometricSub": "Exiger Face ID ou l’empreinte à l’ouverture"
+  },
+  "dialogs": {
+    "error": "Erreur",
+    "resetTitle": "Tout réinitialiser",
+    "resetBody": "Cela supprimera définitivement toutes vos transactions et tous vos comptes, et réinitialisera vos réglages.",
+    "resetDone": "Toute votre activité a été remise à zéro.",
+    "resetWebOnly": "La réinitialisation n’est disponible que dans l’application mobile, pas dans l’aperçu navigateur.",
+    "exportTitle": "Exporter les données",
+    "exportBody": "Choisissez un format pour partager ou sauvegarder vos transactions.",
+    "exportCsv": "CSV (réimportable)",
+    "exportJson": "JSON (sauvegarde complète)",
+    "exportFailed": "Échec de l’export",
+    "exportNothing": "Rien à exporter",
+    "exportNoneBody": "Vous n’avez encore aucune transaction.",
+    "biometricsUnavailable": "Biométrie indisponible",
+    "emptyFile": "Fichier vide",
+    "emptyFileBody": "Le fichier sélectionné semble vide.",
+    "readFailed": "Impossible de lire le fichier. Veuillez réessayer.",
+    "importError": "Erreur d’import",
+    "importPartial": "Certaines transactions n’ont pas pu être importées. Veuillez réessayer.",
+    "deleteTx": "Supprimer la transaction",
+    "areYouSure": "Confirmer ?",
+    "delete": "Supprimer",
+    "remove": "Retirer",
+    "removeMember": "Retirer ce membre",
+    "removeMemberBody": "Voulez-vous vraiment retirer cette personne de votre équipe ?",
+    "removePayroll": "Retirer de la paie",
+    "permissionNeeded": "Autorisation requise",
+    "cameraNeeded": "L’accès à l’appareil photo est nécessaire pour prendre des photos."
+  },
+  "netWorthCats": {
+    "cashSavings": "Liquidités et épargne",
+    "investments": "Investissements",
+    "realEstate": "Immobilier",
+    "otherAssets": "Autres actifs",
+    "creditCardDebt": "Dettes de carte de crédit",
+    "loans": "Prêts",
+    "mortgage": "Prêt immobilier",
+    "otherLiab": "Autres passifs"
+  },
+  "addTx": {
+    "type": "Type de transaction",
+    "category": "Catégorie",
+    "account": "Compte",
+    "createCat": "Créer une catégorie",
+    "noteOptional": "Note (facultatif)",
+    "spentOnWhat": "Sur quoi avez-vous dépensé ?",
+    "notePlaceholder": "ex. café, loyer, voyage…"
+  },
+  "fields": {
+    "namePlaceholder": "Jean Dupont",
+    "emailPlaceholder": "vous@exemple.com",
+    "emailPlaceholder2": "vous@exemple.com",
+    "passwordHint": "Au moins 8 caractères",
+    "repeatPassword": "Répétez le mot de passe",
+    "yourPassword": "Votre mot de passe",
+    "enterAmount": "Saisissez un montant",
+    "merchantOrDesc": "Commerçant ou description",
+    "askFinances": "Posez une question sur vos finances…",
+    "billPlaceholder": "ex. Netflix, loyer, salle de sport…",
+    "recurringPlaceholder": "ex. Netflix, salaire, salle de sport…",
+    "rolePlaceholder": "ex. ingénieur logiciel"
+  },
+  "subDetail": {
+    "cadence": "Fréquence",
+    "nextCharge": "Prochain prélèvement",
+    "notesHint": "Ajoutez vos notes de résiliation, numéros de confirmation, etc."
+  },
+  "misc2": {
+    "exportDesc": "Téléchargez vos transactions en CSV/JSON",
+    "awaitingEmail": "En attente du premier e-mail",
+    "accountKindPersonalDesc": "Suivez vos dépenses quotidiennes, vos budgets et vos objectifs d’épargne, et prenez de bonnes habitudes.",
+    "example": "Exemple",
+    "dateFrom": "Du",
+    "dateTo": "Au",
+    "noCanceledBody": "Les abonnements que vous avez résiliés seront suivis ici."
   }
 }
