@@ -7,7 +7,7 @@ import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/reac
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { View, Text, Pressable, ActivityIndicator } from 'react-native';
+import { View, Text, Pressable, ActivityIndicator, AppState } from 'react-native';
 import { initializeDatabase } from '@/lib/db';
 import { startCloudSync } from '@/lib/cloud-sync';
 import { loadRates } from '@/lib/rates';
@@ -31,6 +31,8 @@ import {
 import { patchDefaultFont, useC } from '@/lib/design';
 import { t } from '@/lib/i18n/core';
 import { Lock } from 'lucide-react-native';
+import { drainPendingCaptures } from '@/lib/pending-drain';
+import { listenForQuickAdd } from '@/lib/quick-add-notify';
 
 // Silence verbose console.log in release builds (startup/gate/api tracing stays
 // available in dev via expo.log). warn/error still surface for crash reporting.
@@ -322,6 +324,49 @@ function RootLayoutNav({ colorScheme }: { colorScheme: 'light' | 'dark' | null |
   );
 }
 
+/**
+ * Transactions captured without opening the app — Siri shortcuts, and amounts
+ * typed into the evening streak reminder.
+ *
+ * The Siri queue is drained once the database is up and again on every
+ * foreground: the app can be backgrounded, a shortcut fired, and the app
+ * resumed without a fresh launch, so mount alone would miss it. The
+ * notification path is a listener instead, because iOS delivers the response
+ * rather than leaving it somewhere to be found.
+ */
+function usePendingCaptures(dbReady: boolean) {
+  useEffect(() => {
+    if (!dbReady) return;
+
+    let cancelled = false;
+    const refresh = () => {
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['accounts'] });
+    };
+
+    const drain = async () => {
+      try {
+        const inserted = await drainPendingCaptures();
+        if (inserted > 0 && !cancelled) refresh();
+      } catch (e) {
+        // Capture is a convenience. Failing it must never break a launch.
+        console.warn('[pending-capture] drain failed', e);
+      }
+    };
+
+    drain();
+    const stopListening = listenForQuickAdd(refresh);
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') drain();
+    });
+    return () => {
+      cancelled = true;
+      stopListening();
+      sub.remove();
+    };
+  }, [dbReady]);
+}
+
 export default function RootLayout() {
   const C = useC();
   const localeVersion = useLocaleStore((s) => s.version);
@@ -330,6 +375,8 @@ export default function RootLayout() {
   const [dbError, setDbError] = useState<string | null>(null);
   const [locked, setLocked] = useState(false);
   const [stage, setStage] = useState<string>('Booting…');
+
+  usePendingCaptures(dbReady);
 
   const [fontsLoaded] = useFonts({
     PlusJakartaSans_400Regular,

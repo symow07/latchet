@@ -28,8 +28,53 @@ Notifications.setNotificationHandler({
 
 const STREAK_NUDGE_ID = 'daily-streak-nudge';
 
+/**
+ * The actionable-notification category the streak nudge carries.
+ *
+ * iOS matches a delivered notification to a category by this identifier and
+ * draws the registered actions under it, so the id has to be stable — change
+ * it and already-scheduled notifications lose their buttons.
+ */
+export const QUICK_ADD_CATEGORY = 'quick-add';
+export const QUICK_ADD_ACTION = 'quick-add-log';
+
+/**
+ * Register the "Log it" action with its inline text field.
+ *
+ * Safe to call repeatedly; setNotificationCategoryAsync replaces by id.
+ */
+export async function registerQuickAddCategory(): Promise<void> {
+  try {
+    await Notifications.setNotificationCategoryAsync(QUICK_ADD_CATEGORY, [
+      {
+        identifier: QUICK_ADD_ACTION,
+        buttonTitle: 'Log it',
+        textInput: {
+          submitButtonTitle: 'Save',
+          placeholder: 'e.g. 12.50 coffee',
+        },
+        options: {
+          // Not opening the app is the whole point — logging from the lock
+          // screen costs the seconds the action exists to save.
+          opensAppToForeground: false,
+        },
+      },
+    ]);
+  } catch (e) {
+    console.warn('[notifications] registerQuickAddCategory failed:', e);
+  }
+}
+
+/**
+ * Ask for notification permission, if it has not been granted already.
+ *
+ * Deliberately does not check Device.isDevice. Local notifications — the
+ * streak nudge and its quick-add action — work perfectly well on a simulator,
+ * and gating them on a physical device made the whole feature untestable. Only
+ * push *tokens* need real hardware, and registerForPushNotifications checks
+ * for that itself.
+ */
 async function ensurePermission(): Promise<boolean> {
-  if (!Device.isDevice) return false; // Push tokens require a physical device.
   const { status: existing } = await Notifications.getPermissionsAsync();
   let status = existing;
   if (status !== 'granted') {
@@ -52,6 +97,8 @@ export async function registerForPushNotifications(): Promise<string | null> {
         importance: Notifications.AndroidImportance.DEFAULT,
       });
     }
+    // A push token identifies real hardware; a simulator cannot have one.
+    if (!Device.isDevice) return null;
     if (!(await ensurePermission())) return null;
 
     const tokenResponse = await Notifications.getExpoPushTokenAsync();
@@ -91,11 +138,15 @@ export async function scheduleStreakReminder(hour = 20, minute = 0): Promise<voi
   try {
     if (!(await ensurePermission())) return;
     await Notifications.cancelScheduledNotificationAsync(STREAK_NUDGE_ID).catch(() => {});
+    // The category has to exist before a notification referencing it is
+    // delivered, or iOS draws the notification with no actions on it.
+    await registerQuickAddCategory();
     await Notifications.scheduleNotificationAsync({
       identifier: STREAK_NUDGE_ID,
       content: {
         title: "Don't break your streak 🔥",
         body: 'Log today\'s spending to keep your logging streak alive.',
+        categoryIdentifier: QUICK_ADD_CATEGORY,
       },
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.DAILY,

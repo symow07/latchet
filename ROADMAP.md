@@ -1,6 +1,7 @@
 # Real Budget — Execution Roadmap
 
-> **Status, 26 August 2026.** 27 of 30 tasks are shipped and marked ☑ below.
+> **Status, 26 August 2026.** 27 of 30 tasks are shipped and marked ☑ below, plus a
+> Phase 8 (fast capture) added afterwards — see the end of this file.
 > Three remain open, and none of them is code:
 >
 > - **Task 21 — app icon and splash.** Needs design. Still no `assets/`, and
@@ -683,3 +684,43 @@ Only after the above.
   August 2026. Benchmark receipt-extraction accuracy before and after.
 - Offline support for `bill-reminders`, `recurring`, `net-worth`, `category-budgets` — these have no
   local SQLite table and are blank without a network, contradicting "offline-first".
+
+---
+
+## Phase 8 — Fast capture
+
+Not part of the original 30. Added after the observation that people abandon budgeting apps
+because manual entry costs more than the insight is worth, so every path here is about getting a
+transaction in without opening a form.
+
+- ☑ **Voice memo capture.** Hold the mic on the advisor tab, describe the day, and Whisper plus a
+  structured extraction turn it into rows. Nothing is written until the user has seen it —
+  `VoiceReviewSheet` shows the transcript above editable amounts, because a misheard "fifty" for
+  "fifteen" is the likely error and speech is the least reliable input the app has.
+  `voice-capture.ts` holds the decision logic and is tested without a microphone.
+- ☑ **Merchant memory.** What the user filed this merchant under last time beats any keyword table.
+  `merchant-memory.ts`, shared by the CSV importer and both capture paths via `categorise.ts`.
+- ☑ **Siri App Intents.** "Log an expense in Budget" — `plugins/ios/BudgetAppIntents.swift`,
+  injected by `plugins/withAppIntents.js`. Declared in the **main app target**, not an extension:
+  an extension would need an App Group to share a file with the app, and an App Group needs the
+  capability provisioned against the App ID. Staying in the app target costs no provisioning at all.
+  The intent cannot reach the database — Siri background-launches the app with no React Native in
+  the process — so it appends to a queue that `pending-drain.ts` drains on the next foreground.
+  Verified end to end on the simulator: three queued captures inserted with categories resolved
+  from their notes, a torn final line dropped, and a replay of already-drained ids inserting nothing.
+- ☑ **Notification quick-add.** The evening streak nudge carries a text field, so "12.50 coffee"
+  logs from the lock screen. `quick-add.ts` holds the parsing (14 tests); `quick-add-notify.ts`
+  holds the plumbing (7 tests).
+  **Partly unverified:** the OS half — iOS drawing the action button and delivering the response —
+  was not exercised, because the streak reminder only schedules for an authenticated session and
+  logging in was not something to do on the user's behalf. The JS either side of that boundary is
+  tested; the boundary itself needs one run on a signed-in device.
+
+Still open from the four speed-ups chosen:
+
+- **Share-sheet capture** — send a receipt or a payment confirmation to Budget from any app.
+- **Localised Siri phrases** — the phrases in `BudgetAppIntents.swift` are English only. The app is
+  translated; Siri phrases are matched from the binary's metadata and need a String Catalog per
+  language.
+- **expo-av → expo-audio** — `voice-api.ts` documents this debt. Worth doing before the next SDK
+  bump forces it.

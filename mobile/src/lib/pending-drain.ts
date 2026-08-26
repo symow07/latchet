@@ -1,0 +1,114 @@
+/**
+ * Draining what Siri captured while the app was closed.
+ *
+ * The native half of pending-capture.ts, which holds the parsing and
+ * de-duplication rules and is tested without a simulator. This file is the
+ * part that needs the filesystem, AsyncStorage and the database — kept
+ * separate for the same reason voice-api.ts is separate from voice-capture.ts.
+ *
+ * The queue is written by plugins/ios/BudgetAppIntents.swift, running in a
+ * background launch of this app where React Native is not up. It lands in the
+ * app's own Documents directory — the same container expo-file-system reads,
+ * which is why no App Group is involved.
+ */
+import * as FileSystem from 'expo-file-system';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { addTransaction } from './db';
+import { parsePendingQueue, selectDrainable } from './pending-capture';
+import { categoriseNote, loadMerchantMemory } from './categorise';
+
+/** Must match PendingCaptureQueue.fileName in the Swift. */
+const QUEUE_FILE = 'pending-captures.ndjson';
+const SEEN_KEY = 'pending_capture_seen_v1';
+
+/**
+ * How many drained ids to remember. Only needs to outlive the window where a
+ * crash could replay a file, so a few hundred is generous.
+ */
+const SEEN_CAP = 500;
+
+function queueUri(): string | null {
+  const dir = FileSystem.documentDirectory;
+  return dir ? dir + QUEUE_FILE : null;
+}
+
+async function readSeen(): Promise<Set<string>> {
+  try {
+    const raw = await AsyncStorage.getItem(SEEN_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return new Set(Array.isArray(parsed) ? parsed.filter((v) => typeof v === 'string') : []);
+  } catch {
+    // A corrupt list means we might double-insert rather than skip. Treating it
+    // as empty is the wrong side of that trade, but it is also the only side
+    // available — and the alternative, refusing to drain, loses the captures.
+    return new Set();
+  }
+}
+
+async function writeSeen(seen: Set<string>): Promise<void> {
+  const kept = [...seen].slice(-SEEN_CAP);
+  await AsyncStorage.setItem(SEEN_KEY, JSON.stringify(kept));
+}
+
+/**
+ * Insert everything Siri queued, and return how many landed.
+ *
+ * Ids are marked seen *before* the insert, not after. A crash in between
+ * therefore loses a capture rather than inserting it twice, and that is the
+ * right way round: a duplicate transaction quietly corrupts a balance the user
+ * has no reason to re-check, whereas a missing one is no worse than never
+ * having spoken it, and they are standing there to notice.
+ */
+export async function drainPendingCaptures(): Promise<number> {
+  const uri = queueUri();
+  if (!uri) return 0;
+
+  const info = await FileSystem.getInfoAsync(uri);
+  if (!info.exists) return 0;
+
+  let raw = '';
+  try {
+    raw = await FileSystem.readAsStringAsync(uri);
+  } catch {
+    // Unreadable: delete it rather than retrying on every foreground forever.
+    await FileSystem.deleteAsync(uri, { idempotent: true }).catch(() => {});
+    return 0;
+  }
+
+  const seen = await readSeen();
+  const captures = selectDrainable(parsePendingQueue(raw), seen, Date.now());
+
+  // Delete before inserting. The ids are in `seen` either way, so a re-parse
+  // would find nothing; leaving the file behind only risks it growing.
+  await FileSystem.deleteAsync(uri, { idempotent: true }).catch(() => {});
+  if (captures.length === 0) return 0;
+
+  // Siri never asks for a category — that would turn a two-second capture into
+  // a menu. The note decides, via the same ladder the importer uses, so
+  // "coffee at Blue Bottle" lands where this user's own past coffees did.
+  const memory = await loadMerchantMemory();
+
+  for (const capture of captures) seen.add(capture.id);
+  await writeSeen(seen);
+
+  let inserted = 0;
+  for (const capture of captures) {
+    try {
+      await addTransaction({
+        amount: capture.amount,
+        category: categoriseNote(capture.note, memory),
+        type: capture.type,
+        // Not inferred. detectImpulse reads keywords from a typed description,
+        // and a Siri phrase is not that — guessing would skew the one metric
+        // the dashboard reports about self-control.
+        isImpulse: false,
+        note: capture.note || undefined,
+        dateISO: capture.dateISO,
+      });
+      inserted += 1;
+    } catch {
+      // One bad row should not stop the rest of the queue landing.
+    }
+  }
+  return inserted;
+}

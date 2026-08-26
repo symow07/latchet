@@ -4,6 +4,19 @@
  * The native half: expo-av for the microphone, the API client for the upload.
  * Kept apart from voice-capture.ts so the decision logic there — what gets
  * written, what does not — stays testable without a simulator.
+ *
+ * KNOWN DEBT: expo-av is deprecated. Expo's own docs say to use expo-audio
+ * instead, and expo-av will not survive many more SDK bumps. It is used here
+ * anyway because it is already a dependency and already compiled into the
+ * native project, where expo-audio is neither — adding it means a new native
+ * module and a rebuild, and its recording API is hook-based, so this file
+ * would be restructured rather than edited.
+ *
+ * That port is worth doing before the next SDK upgrade forces it, and it is
+ * cheap while this feature is new. It was not done in the same change as
+ * shipping the feature because there was no way to run a build and confirm
+ * the port worked, and an unverified rewrite of the recording path is a worse
+ * position than a deprecation warning.
  */
 import { Audio } from 'expo-av';
 import * as FileSystem from 'expo-file-system';
