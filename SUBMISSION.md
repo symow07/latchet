@@ -94,9 +94,10 @@ halves, with a step that applies migrations to an empty database.
 
 Known gaps, not scheduled:
 
-- **Receipt images are device-local.** `Expense.imageUrl` stores a `file://` path from the picker,
-  so a reviewer on another device cannot load the receipt they are approving. A company logo was
-  left out of the profile screen for the same reason. Both need real file hosting.
+- **A company logo still has nowhere to live.** Receipts now upload to the volume, but the profile
+  screen has no logo field: it would need the same treatment, and nobody has asked for it.
+- **Receipts submitted before this change are gone.** Their `file://` paths only ever resolved on
+  the submitter's own phone; the app labels them unavailable rather than showing a broken image.
 - **No delete-business endpoint.** A company record can be created and edited but not removed
   except by deleting the account.
 - **Traditional Chinese narrows to Simplified.** `normalizeLocale` maps `zh-Hant` to `zh`.

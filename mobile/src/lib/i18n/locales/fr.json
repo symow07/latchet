@@ -473,7 +473,8 @@
     "tapAddFirst": "Touchez Ajouter pour soumettre votre première dépense",
     "expenseCount": "%{count} dépenses",
     "approvedBy": "✓ Approuvé par %{name}",
-    "rejectedBy": "✗ Refusé par %{name}"
+    "rejectedBy": "✗ Refusé par %{name}",
+    "receiptUnavailable": "Reçu indisponible — soumis avant l'envoi des reçus au serveur"
   },
   "businessTeam": {
     "title": "Équipe",

@@ -13,6 +13,9 @@ import {
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system';
+import { receiptSource } from '@/lib/receipt-image';
+import { hasLoadableReceipt, isLegacyLocalReceipt } from '@/lib/receipt-path';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   getExpenses, submitExpense, approveExpense, rejectExpense,
@@ -78,11 +81,19 @@ function SubmitModal({ visible, onClose, onDone }: { visible: boolean; onClose: 
   }
 
   const mutation = useMutation({
-    mutationFn: () => {
+    mutationFn: async () => {
+      // Read at submit time rather than at pick time: the picker's base64
+      // option holds the whole image in memory from the moment it is chosen,
+      // and most picks are re-picked or abandoned.
+      const base64 = imageUri
+        ? await FileSystem.readAsStringAsync(imageUri, {
+            encoding: FileSystem.EncodingType.Base64,
+          })
+        : null;
       const num = parseFloat(amount);
       if (isNaN(num) || num <= 0) throw new Error('Enter a valid amount');
       if (!desc.trim()) throw new Error('Description is required');
-      return submitExpense({ amount: num, category: cat, description: desc.trim(), imageUrl: imageUri });
+      return submitExpense({ amount: num, category: cat, description: desc.trim(), image: base64 });
     },
     onSuccess: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -212,10 +223,19 @@ function ExpenseCard({ expense, canReview, onApprove, onReject }: { expense: Exp
         </View>
       </View>
 
-      {expense.imageUrl && (
+      {isLegacyLocalReceipt(expense.imageUrl) && (
+        // Submitted before receipts were uploaded: the bytes only ever existed
+        // on the submitter's phone, so say so instead of showing a broken box.
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+          <ImageIcon size={12} color={B.textFaint} />
+          <Txt size={11} color={B.textFaint}>{t('businessExpenses.receiptUnavailable')}</Txt>
+        </View>
+      )}
+
+      {hasLoadableReceipt(expense.imageUrl) && (
         <Pressable onPress={() => setShowImage(v => !v)} style={{ marginBottom: 8 }}>
           {showImage ? (
-            <Image source={{ uri: expense.imageUrl }} style={{ width: '100%', height: 160, borderRadius: 12 }} resizeMode="cover" />
+            <Image source={receiptSource(expense.imageUrl)!} style={{ width: '100%', height: 160, borderRadius: 12 }} resizeMode="cover" />
           ) : (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: `${B.accent}10`, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 6, alignSelf: 'flex-start', borderWidth: 1, borderColor: `${B.accent}22` }}>
               <ImageIcon size={12} color={B.accent} />

@@ -11,6 +11,9 @@ user data.**
 
 - Railway → service → **Volumes** → attach a volume (e.g. mount at `/data`).
 - Set `DATABASE_URL=file:/data/prod.db`.
+- Receipt images are written to a `receipts/` directory **beside the database**, so the same volume
+  holds both and there is nothing extra to configure. Set `RECEIPT_DIR` only to override that.
+  Losing the volume loses the receipts as well as the data.
 - `bun run start:prod` already runs `prisma migrate deploy` on boot, so the
   schema is created/upgraded automatically on first start.
 - Longer-term: migrate to Postgres before the user base grows (SQLite is

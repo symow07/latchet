@@ -468,7 +468,8 @@
     "tapAddFirst": "点击“添加”提交第一笔报销",
     "expenseCount": "%{count} 笔报销",
     "approvedBy": "✓ 由 %{name} 批准",
-    "rejectedBy": "✗ 由 %{name} 驳回"
+    "rejectedBy": "✗ 由 %{name} 驳回",
+    "receiptUnavailable": "收据不可用——提交时收据尚未上传到服务器"
   },
   "businessTeam": {
     "title": "团队",

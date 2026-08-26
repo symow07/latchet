@@ -40,7 +40,8 @@ export async function submitExpense(data: {
   amount: number;
   category: ExpenseCategory;
   description: string;
-  imageUrl?: string | null;
+  /** The receipt itself, base64. The server stores it and fills in imageUrl. */
+  image?: string | null;
 }): Promise<Expense> {
   const res = await authedFetch(`${getBackendUrl()}/api/expenses`, {
     method: 'POST',

@@ -473,7 +473,8 @@
     "tapAddFirst": "Tap Add to submit your first expense",
     "expenseCount": "%{count} expenses",
     "approvedBy": "✓ Approved by %{name}",
-    "rejectedBy": "✗ Rejected by %{name}"
+    "rejectedBy": "✗ Rejected by %{name}",
+    "receiptUnavailable": "Receipt unavailable — submitted before receipts were uploaded"
   },
   "businessTeam": {
     "title": "Team",
