@@ -77,7 +77,8 @@
       "features": "المزايا",
       "subscription": "الاشتراك",
       "language": "اللغة",
-      "danger": "منطقة الحذر"
+      "danger": "منطقة الحذر",
+      "household": "الأسرة"
     },
     "manageAccounts": "إدارة الحسابات",
     "importTransactions": "استيراد المعاملات",
@@ -96,7 +97,8 @@
     "minutesCount": "%{count} دقيقة",
     "savingLabel": "جارٍ الحفظ…",
     "saveLabel": "احفظ!",
-    "savedLabel": "تم الحفظ!"
+    "savedLabel": "تم الحفظ!",
+    "householdDesc": "شارك ميزانية مع من تعيش معهم"
   },
   "deleteAccount": {
     "entry": "حذف الحساب",
@@ -109,7 +111,6 @@
     "linkedBanks": "البنوك المرتبطة",
     "connectedInboxes": "صناديق البريد المتصلة",
     "plusRest": "إضافةً إلى إعداداتك وميزانياتك وتذكيرات الفواتير والمعاملات المتكررة والإنجازات.",
-    "businessWarningTitle": "سيؤدي هذا أيضًا إلى حذف %{name}",
     "businessWarningBody": "أنت مالك هذه الشركة، لذا فحذف حسابك يزيلها بالكامل — بما في ذلك %{expenses} ووصول %{members}. وتُحذف سجلاتهم أيضًا.",
     "expenses": {
       "zero": "لا مصاريف",
@@ -140,7 +141,9 @@
     "inboxConnection": "اتصال البريد",
     "ownedBusinessBody": "أنت مالك هذه الشركة، لذا فحذف حسابك يزيلها بالكامل — بما في ذلك %{expenses} مصروفًا ووصول %{members} من الأعضاء الآخرين. وتُحذف سجلاتهم أيضًا.",
     "typeToConfirm": "اكتب %{email} للتأكيد.",
-    "manualRevoke": "اختفى حسابك وبياناتك. لكننا لم نتمكن من إلغاء كل شيء تلقائيًا — يرجى قطع هذه الاتصالات بنفسك:"
+    "manualRevoke": "اختفى حسابك وبياناتك. لكننا لم نتمكن من إلغاء كل شيء تلقائيًا — يرجى قطع هذه الاتصالات بنفسك:",
+    "groupWarningTitle": "سيؤدي هذا أيضًا إلى حذف %{name}",
+    "ownedHouseholdBody": "أنت مالك هذه الأسرة، لذا فحذف حسابك يزيلها بالكامل — يفقد %{members} من الأعضاء الآخرين العرض المشترك. أما سجلاتهم الخاصة فتبقى كما هي."
   },
   "settingsRows": {
     "billRemindersLabel": "تذكيرات الفواتير",
@@ -1172,5 +1175,64 @@
   "txTypes": {
     "Expense": "مصروف",
     "Income": "دخل"
+  },
+  "household": {
+    "title": "الأسرة",
+    "emptyTitle": "لا توجد أسرة بعد",
+    "emptySubtitle": "شارك ميزانية مع من تعيش معهم. كل شخص يختار بنفسه مقدار ما يكشفه.",
+    "createTitle": "أنشئ أسرة",
+    "namePlaceholder": "اسم الأسرة",
+    "createCta": "إنشاء",
+    "joinInstead": "لدي رمز دعوة",
+    "totalIn": "الوارد",
+    "totalOut": "الصادر",
+    "visibilityTitle": "من يرى ماذا",
+    "visibilityBlurb": "يرى كل فرد في الأسرة هذه القائمة نفسها، بما في ذلك ما تكشفه أنت.",
+    "you": "%{name} (أنت)",
+    "myVisibilityTitle": "ما أكشفه",
+    "myVisibilityBlurb": "أنت وحدك من يغيّر هذا. لا أحد في الأسرة يستطيع رفعه نيابة عنك.",
+    "levelSummary": "الإجماليات فقط",
+    "levelSummaryDesc": "الوارد والصادر لديك. بلا فئات ولا معاملات.",
+    "levelCategories": "الإجماليات والفئات",
+    "levelCategoriesDesc": "إنفاقك حسب الفئة، دون المعاملات المفردة.",
+    "levelFull": "كل شيء",
+    "levelFullDesc": "معاملاتك، بما في ذلك الملاحظات.",
+    "raiseNotice": "الخفض يبقى خاصًا. أما الرفع فيُعلم الأسرة، حتى لا تزداد ظهورية أحد دون علمه.",
+    "contributionsTitle": "كل شخص",
+    "notShared": "الفئات غير مشتركة",
+    "inviteTitle": "رمز الدعوة",
+    "inviteBlurb": "شاركه مع من تعيش معه. سيرى ما يكشفه الانضمام قبل أن يقبل.",
+    "leave": "مغادرة الأسرة",
+    "leaveNotice": "المغادرة تسري فورًا وتُلغي مشاركة أي حسابات كنت قد أضفتها.",
+    "joinTitle": "الانضمام إلى أسرة",
+    "joinBlurb": "أدخل الرمز الذي تلقيته. سترى بالضبط ما يشاركه الانضمام قبل أن تقبل.",
+    "codePlaceholder": "رمز الدعوة",
+    "lookUp": "بحث",
+    "whatTheySee": "ما يشاركه الانضمام",
+    "willBeShared": "يُشارَك مع الأسرة",
+    "willNotBeShared": "لا يُشارَك",
+    "consentFooter": "يمكنك تغيير ما تكشفه في أي وقت، ومغادرة الأسرة متى شئت.",
+    "joinCta": "الانضمام إلى %{name}",
+    "field_totalIn": "إجمالي الوارد لديك",
+    "field_totalOut": "إجمالي الصادر لديك",
+    "field_categories": "إنفاقك حسب الفئة",
+    "field_transactions": "معاملاتك المفردة",
+    "field_accountBalances": "أرصدة حساباتك",
+    "memberCount": {
+      "zero": "لا يوجد أعضاء",
+      "one": "عضو واحد",
+      "two": "عضوان",
+      "few": "%{count} أعضاء",
+      "many": "%{count} عضوًا",
+      "other": "%{count} عضو"
+    },
+    "sharedAccountCount": {
+      "zero": "لا حسابات مشتركة",
+      "one": "حساب مشترك واحد",
+      "two": "حسابان مشتركان",
+      "few": "%{count} حسابات مشتركة",
+      "many": "%{count} حسابًا مشتركًا",
+      "other": "%{count} حساب مشترك"
+    }
   }
 }

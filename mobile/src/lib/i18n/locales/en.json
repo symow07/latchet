@@ -47,7 +47,8 @@
       "features": "FEATURES",
       "subscription": "SUBSCRIPTION",
       "language": "LANGUAGE",
-      "danger": "CAREFUL ZONE"
+      "danger": "CAREFUL ZONE",
+      "household": "Household"
     },
     "manageAccounts": "Manage Accounts",
     "importTransactions": "Import Transactions",
@@ -66,7 +67,8 @@
     "minutesCount": "%{count} minutes",
     "savingLabel": "Saving…",
     "saveLabel": "Save!",
-    "savedLabel": "Saved!"
+    "savedLabel": "Saved!",
+    "householdDesc": "Share a budget with the people you live with"
   },
   "subscription": {
     "upgradeTitle": "Upgrade to Pro",
@@ -102,7 +104,6 @@
     "linkedBanks": "Linked banks",
     "connectedInboxes": "Connected inboxes",
     "plusRest": "Plus your settings, budgets, bill reminders, recurring transactions and achievements.",
-    "businessWarningTitle": "This also deletes %{name}",
     "businessWarningBody": "You own this business, so deleting your account removes it entirely — including %{expenses} and access for %{members}. Their records go too.",
     "expenses": {
       "one": "%{count} expense",
@@ -125,7 +126,9 @@
     "inboxConnection": "Inbox connection",
     "ownedBusinessBody": "You own this business, so deleting your account removes it entirely — including %{expenses} expenses and access for %{members} other team members. Their records go too.",
     "typeToConfirm": "Type %{email} to confirm.",
-    "manualRevoke": "Your account and data are gone. We couldn't automatically revoke everything though — please disconnect these yourself:"
+    "manualRevoke": "Your account and data are gone. We couldn't automatically revoke everything though — please disconnect these yourself:",
+    "groupWarningTitle": "This also deletes %{name}",
+    "ownedHouseholdBody": "You own this household, so deleting your account removes it entirely — %{members} other members lose the shared view. Their own records are untouched."
   },
   "import": {
     "selectSource": "Where is your data from?",
@@ -1134,5 +1137,58 @@
   "txTypes": {
     "Expense": "Expense",
     "Income": "Income"
+  },
+  "household": {
+    "title": "Household",
+    "emptyTitle": "No household yet",
+    "emptySubtitle": "Share a budget with the people you live with. Everyone chooses for themselves how much they reveal.",
+    "createTitle": "Start a household",
+    "namePlaceholder": "Household name",
+    "createCta": "Create",
+    "joinInstead": "I have an invite code",
+    "totalIn": "Money in",
+    "totalOut": "Money out",
+    "visibilityTitle": "Who can see what",
+    "visibilityBlurb": "Everyone in the household sees this same list, including what you reveal.",
+    "you": "%{name} (you)",
+    "myVisibilityTitle": "What I reveal",
+    "myVisibilityBlurb": "Only you can change this. Nobody in the household can raise it for you.",
+    "levelSummary": "Totals only",
+    "levelSummaryDesc": "Your money in and out. No categories, no transactions.",
+    "levelCategories": "Totals and categories",
+    "levelCategoriesDesc": "What you spend per category, without the individual transactions.",
+    "levelFull": "Everything",
+    "levelFullDesc": "Your transactions, including notes.",
+    "raiseNotice": "Lowering this is private. Raising it tells the household, so nobody's visibility grows without them knowing.",
+    "contributionsTitle": "Each person",
+    "notShared": "Categories not shared",
+    "inviteTitle": "Invite code",
+    "inviteBlurb": "Share this with someone you live with. They see what joining reveals before they accept.",
+    "leave": "Leave household",
+    "leaveNotice": "Leaving takes effect immediately and un-shares any accounts you had opted in.",
+    "joinTitle": "Join a household",
+    "joinBlurb": "Enter the code you were given. You'll see exactly what joining shares before you accept.",
+    "codePlaceholder": "Invite code",
+    "lookUp": "Look up",
+    "whatTheySee": "What joining shares",
+    "willBeShared": "Shared with the household",
+    "willNotBeShared": "Not shared",
+    "consentFooter": "You can change what you reveal at any time, and leave whenever you like.",
+    "joinCta": "Join %{name}",
+    "field_totalIn": "Your total money in",
+    "field_totalOut": "Your total money out",
+    "field_categories": "What you spend per category",
+    "field_transactions": "Your individual transactions",
+    "field_accountBalances": "Your account balances",
+    "memberCount": {
+      "zero": "No members yet",
+      "one": "%{count} member",
+      "other": "%{count} members"
+    },
+    "sharedAccountCount": {
+      "zero": "No shared accounts",
+      "one": "%{count} shared account",
+      "other": "%{count} shared accounts"
+    }
   }
 }

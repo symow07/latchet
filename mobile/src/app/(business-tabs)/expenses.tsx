@@ -283,7 +283,7 @@ export default function ExpensesScreen() {
   });
   const { data: business } = useQuery({ queryKey: ['my-business'], queryFn: getBusiness });
 
-  const myRole = business?.teamMembers.find(m => m.userId === session?.user?.id)?.role;
+  const myRole = business?.members.find(m => m.userId === session?.user?.id)?.role;
   const canReview = myRole === 'owner' || myRole === 'manager';
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ['biz-expenses'] });

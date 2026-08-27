@@ -145,23 +145,27 @@ export function DeleteAccountModal({
                   </GlassCard>
                 </View>
 
-                {/* An owner deleting their account takes the whole business with
-                    them. Nobody should discover that afterwards. */}
-                {preview.ownedBusiness && (
-                  <View style={{ marginTop: 12 }}>
+                {/* An owner deleting their account takes the whole group with
+                    them. Nobody should discover that afterwards — and someone
+                    who owns both a company and a household gets told about
+                    both, which is why this maps rather than testing one field. */}
+                {preview.ownedGroups.map((group) => (
+                  <View key={group.id} style={{ marginTop: 12 }}>
                     <GlassCard padding={14} tint="rgba(239,68,68,0.1)" border="rgba(239,68,68,0.28)">
                       <Txt weight="semibold" size={14} color="#f87171">
-{t('deleteAccount.businessWarningTitle', { name: preview.ownedBusiness.name })}
+                        {t('deleteAccount.groupWarningTitle', { name: group.name })}
                       </Txt>
                       <Txt size={13} color="rgba(255,255,255,0.7)" style={{ marginTop: 6, lineHeight: 19 }}>
-                        {t('deleteAccount.ownedBusinessBody', {
-                          expenses: preview.ownedBusiness.expenses,
-                          members: preview.ownedBusiness.teamMembers,
-                        })}
+                        {group.type === 'household'
+                          ? t('deleteAccount.ownedHouseholdBody', { members: group.members })
+                          : t('deleteAccount.ownedBusinessBody', {
+                              expenses: group.expenses,
+                              members: group.members,
+                            })}
                       </Txt>
                     </GlassCard>
                   </View>
-                )}
+                ))}
 
                 {(preview.linkedBanks > 0 || preview.connectedInboxes > 0) && (
                   <Txt size={12} color="rgba(255,255,255,0.45)" style={{ marginTop: 12, lineHeight: 18 }}>

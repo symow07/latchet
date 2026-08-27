@@ -6,10 +6,12 @@
  */
 import { api } from './api/api';
 
-export interface OwnedBusinessImpact {
+export interface OwnedGroupImpact {
+  id: string;
+  /** "business" | "household" — they read very differently to the user. */
+  type: string;
   name: string;
-  /** Other people who lose access. */
-  teamMembers: number;
+  members: number;
   expenses: number;
 }
 
@@ -19,8 +21,13 @@ export interface DeletionPreview {
   accounts: number;
   linkedBanks: number;
   connectedInboxes: number;
-  /** Present only when the user owns a business, which cascades away with them. */
-  ownedBusiness: OwnedBusinessImpact | null;
+  /**
+   * Every group the user owns, each of which cascades away with them. Plural
+   * since groups were generalised: someone can own a company AND a household,
+   * and being warned about only one of them is how you delete the other by
+   * surprise.
+   */
+  ownedGroups: OwnedGroupImpact[];
 }
 
 export interface UnrevokedGrant {

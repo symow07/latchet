@@ -19,7 +19,7 @@ import {
   getPayroll, setSalary, deleteSalary, markPaid, markUnpaid,
   type SalaryRecord,
 } from '@/lib/salaryApi';
-import { type TeamMember } from '@/lib/businessApi';
+import { type GroupMember } from '@/lib/businessApi';
 import { R, glow, useB } from '@/lib/design';
 import { Txt, GlassCard, IconBubble, Pill, BizBackground, BubbleButton } from '@/components/ui';
 import { t } from '@/lib/i18n/core';
@@ -32,7 +32,7 @@ function FieldLabel({ children }: { children: string }) {
 }
 
 // ─── Add Salary Modal ──────────────────────────────────────────────────────────────
-function AddSalaryModal({ visible, onClose, members, existingUserIds }: { visible: boolean; onClose: () => void; members: TeamMember[]; existingUserIds: Set<string> }) {
+function AddSalaryModal({ visible, onClose, members, existingUserIds }: { visible: boolean; onClose: () => void; members: GroupMember[]; existingUserIds: Set<string> }) {
   const B = useB();
   const qc = useQueryClient();
   const [selectedUserId, setSelectedUserId] = useState('');
@@ -212,7 +212,7 @@ export default function PayrollScreen() {
 
   useFocusEffect(useCallback(() => { qc.invalidateQueries({ queryKey: ['payroll'] }); }, [qc]));
 
-  const myRole = business?.teamMembers.find(m => m.userId === session?.user?.id)?.role;
+  const myRole = business?.members.find(m => m.userId === session?.user?.id)?.role;
   const canEdit = myRole === 'owner' || myRole === 'manager';
   const invalidate = () => qc.invalidateQueries({ queryKey: ['payroll'] });
 

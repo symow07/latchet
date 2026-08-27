@@ -15,7 +15,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSession } from '@/lib/auth/use-session';
 import {
   getBusiness, getMembers, getInviteCode, refreshInviteCode,
-  joinBusiness, updateMemberRole, removeMember, type TeamMember,
+  joinBusiness, updateMemberRole, removeMember, type GroupMember,
 } from '@/lib/businessApi';
 import { R, glow, useB } from '@/lib/design';
 import { Txt, GlassCard, IconBubble, Pill, BizBackground, BubbleButton } from '@/components/ui';
@@ -110,7 +110,7 @@ function JoinModal({ visible, onClose, onJoined }: { visible: boolean; onClose: 
 }
 
 // ─── Member Row ──────────────────────────────────────────────────────────────────
-function MemberRow({ member, isMe, isOwner, onRemove, onChangeRole }: { member: TeamMember; isMe: boolean; isOwner: boolean; onRemove: (id: string) => void; onChangeRole: (id: string, role: 'manager' | 'employee') => void }) {
+function MemberRow({ member, isMe, isOwner, onRemove, onChangeRole }: { member: GroupMember; isMe: boolean; isOwner: boolean; onRemove: (id: string) => void; onChangeRole: (id: string, role: 'manager' | 'employee') => void }) {
   const B = useB();
   const [roleOpen, setRoleOpen] = useState(false);
   const meta = ROLE_META[member.role] ?? ROLE_META.employee;

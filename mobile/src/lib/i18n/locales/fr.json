@@ -47,7 +47,8 @@
       "features": "FONCTIONS",
       "subscription": "ABONNEMENT",
       "language": "LANGUE",
-      "danger": "ZONE SENSIBLE"
+      "danger": "ZONE SENSIBLE",
+      "household": "Foyer"
     },
     "manageAccounts": "Gérer les comptes",
     "importTransactions": "Importer des transactions",
@@ -66,7 +67,8 @@
     "minutesCount": "%{count} minutes",
     "savingLabel": "Enregistrement…",
     "saveLabel": "Enregistrer !",
-    "savedLabel": "Enregistré !"
+    "savedLabel": "Enregistré !",
+    "householdDesc": "Partagez un budget avec vos proches"
   },
   "subscription": {
     "upgradeTitle": "Passer à Pro",
@@ -102,7 +104,6 @@
     "linkedBanks": "Banques liées",
     "connectedInboxes": "Boîtes mail connectées",
     "plusRest": "Ainsi que vos réglages, budgets, rappels de factures, transactions récurrentes et récompenses.",
-    "businessWarningTitle": "Cela supprime aussi %{name}",
     "businessWarningBody": "Vous êtes propriétaire de cette entreprise : supprimer votre compte la supprime entièrement — dont %{expenses} et l'accès de %{members}. Leurs données disparaissent aussi.",
     "expenses": {
       "one": "%{count} dépense",
@@ -125,7 +126,9 @@
     "inboxConnection": "Connexion e-mail",
     "ownedBusinessBody": "Vous êtes propriétaire de cette entreprise : supprimer votre compte la supprime entièrement — y compris %{expenses} dépenses et l'accès de %{members} autres membres. Leurs données disparaissent aussi.",
     "typeToConfirm": "Tapez %{email} pour confirmer.",
-    "manualRevoke": "Votre compte et vos données ont été supprimés. Nous n'avons pas pu tout révoquer automatiquement — veuillez déconnecter ceci vous-même :"
+    "manualRevoke": "Votre compte et vos données ont été supprimés. Nous n'avons pas pu tout révoquer automatiquement — veuillez déconnecter ceci vous-même :",
+    "groupWarningTitle": "Cela supprime aussi %{name}",
+    "ownedHouseholdBody": "Vous êtes propriétaire de ce foyer : supprimer votre compte le supprime entièrement — %{members} autres membres perdent la vue partagée. Leurs propres données restent intactes."
   },
   "import": {
     "selectSource": "D'où viennent vos données ?",
@@ -1134,5 +1137,58 @@
   "txTypes": {
     "Expense": "Dépense",
     "Income": "Revenu"
+  },
+  "household": {
+    "title": "Foyer",
+    "emptyTitle": "Aucun foyer",
+    "emptySubtitle": "Partagez un budget avec vos proches. Chacun choisit lui-même ce qu'il révèle.",
+    "createTitle": "Créer un foyer",
+    "namePlaceholder": "Nom du foyer",
+    "createCta": "Créer",
+    "joinInstead": "J'ai un code d'invitation",
+    "totalIn": "Entrées",
+    "totalOut": "Sorties",
+    "visibilityTitle": "Qui voit quoi",
+    "visibilityBlurb": "Tout le monde dans le foyer voit cette même liste, y compris ce que vous révélez.",
+    "you": "%{name} (vous)",
+    "myVisibilityTitle": "Ce que je révèle",
+    "myVisibilityBlurb": "Vous seul pouvez le modifier. Personne dans le foyer ne peut l'augmenter à votre place.",
+    "levelSummary": "Totaux uniquement",
+    "levelSummaryDesc": "Vos entrées et sorties. Aucune catégorie, aucune transaction.",
+    "levelCategories": "Totaux et catégories",
+    "levelCategoriesDesc": "Vos dépenses par catégorie, sans les transactions individuelles.",
+    "levelFull": "Tout",
+    "levelFullDesc": "Vos transactions, y compris les notes.",
+    "raiseNotice": "Baisser ce niveau reste privé. L'augmenter en informe le foyer, pour que la visibilité de personne n'augmente à son insu.",
+    "contributionsTitle": "Chaque personne",
+    "notShared": "Catégories non partagées",
+    "inviteTitle": "Code d'invitation",
+    "inviteBlurb": "Partagez-le avec un proche. Il verra ce que rejoindre révèle avant d'accepter.",
+    "leave": "Quitter le foyer",
+    "leaveNotice": "Le départ prend effet immédiatement et cesse de partager les comptes que vous aviez ajoutés.",
+    "joinTitle": "Rejoindre un foyer",
+    "joinBlurb": "Saisissez le code reçu. Vous verrez exactement ce que rejoindre partage avant d'accepter.",
+    "codePlaceholder": "Code d'invitation",
+    "lookUp": "Rechercher",
+    "whatTheySee": "Ce que rejoindre partage",
+    "willBeShared": "Partagé avec le foyer",
+    "willNotBeShared": "Non partagé",
+    "consentFooter": "Vous pouvez modifier ce que vous révélez à tout moment, et partir quand vous le souhaitez.",
+    "joinCta": "Rejoindre %{name}",
+    "field_totalIn": "Vos entrées totales",
+    "field_totalOut": "Vos sorties totales",
+    "field_categories": "Vos dépenses par catégorie",
+    "field_transactions": "Vos transactions individuelles",
+    "field_accountBalances": "Vos soldes de comptes",
+    "memberCount": {
+      "zero": "Aucun membre",
+      "one": "%{count} membre",
+      "other": "%{count} membres"
+    },
+    "sharedAccountCount": {
+      "zero": "Aucun compte partagé",
+      "one": "%{count} compte partagé",
+      "other": "%{count} comptes partagés"
+    }
   }
 }

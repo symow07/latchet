@@ -174,7 +174,7 @@ export default function BudgetScreen() {
 
   useFocusEffect(useCallback(() => { qc.invalidateQueries({ queryKey: ['biz-budget'] }); }, [qc]));
 
-  const myRole = business?.teamMembers.find(m => m.userId === session?.user?.id)?.role;
+  const myRole = business?.members.find(m => m.userId === session?.user?.id)?.role;
   const canEdit = myRole === 'owner' || myRole === 'manager';
 
   const totalBudget = data?.budget.totalMonthly ?? 0;

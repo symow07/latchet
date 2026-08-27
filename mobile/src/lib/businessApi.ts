@@ -29,14 +29,17 @@ export interface Business {
   inviteCode?: string | null;
   createdAt: string;
   updatedAt: string;
-  teamMembers: TeamMember[];
+  members: GroupMember[];
 }
 
-export interface TeamMember {
+export interface GroupMember {
   id: string;
-  businessId: string;
+  groupId: string;
   userId: string;
   role: 'owner' | 'manager' | 'employee';
+  /** What this member reveals about themselves. Unused in business mode:
+   *  an expense is submitted deliberately, so it needs no dial. */
+  shareLevel?: 'summary' | 'categories' | 'full';
   createdAt: string;
   updatedAt: string;
   user?: BusinessUser;
@@ -142,32 +145,32 @@ export async function refreshInviteCode(): Promise<{ code: string; businessName:
   return { code: data.code, businessName: data.businessName };
 }
 
-export async function joinBusiness(code: string): Promise<{ member: TeamMember; businessName: string }> {
+export async function joinBusiness(code: string): Promise<{ member: GroupMember; businessName: string }> {
   const res = await authedFetch(`${getBackendUrl()}/api/business/join`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ code }),
   });
-  const data = await res.json() as { member: TeamMember; businessName: string; error?: string };
+  const data = await res.json() as { member: GroupMember; businessName: string; error?: string };
   if (!res.ok) throw new Error(data.error ?? 'Failed to join business');
   return { member: data.member, businessName: data.businessName };
 }
 
-export async function getMembers(): Promise<TeamMember[]> {
+export async function getMembers(): Promise<GroupMember[]> {
   const res = await authedFetch(`${getBackendUrl()}/api/business/members`, {
   });
-  const data = await res.json() as { members: TeamMember[]; error?: string };
+  const data = await res.json() as { members: GroupMember[]; error?: string };
   if (!res.ok) throw new Error(data.error ?? 'Failed to fetch members');
   return data.members;
 }
 
-export async function updateMemberRole(memberId: string, role: 'manager' | 'employee'): Promise<TeamMember> {
+export async function updateMemberRole(memberId: string, role: 'manager' | 'employee'): Promise<GroupMember> {
   const res = await authedFetch(`${getBackendUrl()}/api/business/team/${memberId}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ role }),
   });
-  const data = await res.json() as { member: TeamMember; error?: string };
+  const data = await res.json() as { member: GroupMember; error?: string };
   if (!res.ok) throw new Error(data.error ?? 'Failed to update role');
   return data.member;
 }

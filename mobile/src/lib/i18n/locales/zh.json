@@ -45,7 +45,8 @@
       "features": "功能",
       "subscription": "订阅",
       "language": "语言",
-      "danger": "危险操作"
+      "danger": "危险操作",
+      "household": "家庭组"
     },
     "manageAccounts": "管理账户",
     "importTransactions": "导入交易",
@@ -64,7 +65,8 @@
     "minutesCount": "%{count} 分钟",
     "savingLabel": "保存中…",
     "saveLabel": "保存！",
-    "savedLabel": "已保存！"
+    "savedLabel": "已保存！",
+    "householdDesc": "与同住的人共享预算"
   },
   "subscription": {
     "upgradeTitle": "升级到 Pro",
@@ -100,7 +102,6 @@
     "linkedBanks": "已连接的银行",
     "connectedInboxes": "已连接的邮箱",
     "plusRest": "以及你的设置、预算、账单提醒、周期交易和成就。",
-    "businessWarningTitle": "这也会删除 %{name}",
     "businessWarningBody": "你是这个企业的所有者，删除账户会将其完全移除——包括 %{expenses} 以及 %{members} 的访问权限。他们的记录也会一并删除。",
     "expenses": {
       "other": "%{count} 笔支出"
@@ -121,7 +122,9 @@
     "inboxConnection": "邮箱连接",
     "ownedBusinessBody": "你是这家企业的所有者，删除账户会将其完全移除——包括 %{expenses} 笔报销以及 %{members} 位其他成员的访问权限。他们的记录也会一并删除。",
     "typeToConfirm": "请输入 %{email} 以确认。",
-    "manualRevoke": "你的账户和数据已删除。但有些内容我们无法自动撤销——请你自行断开这些连接："
+    "manualRevoke": "你的账户和数据已删除。但有些内容我们无法自动撤销——请你自行断开这些连接：",
+    "groupWarningTitle": "这也会删除 %{name}",
+    "ownedHouseholdBody": "你是这个家庭组的所有者，删除账户会将其完全移除——%{members} 位其他成员将失去共享视图。他们自己的记录不受影响。"
   },
   "import": {
     "selectSource": "你的数据来自哪里？",
@@ -1124,5 +1127,56 @@
   "txTypes": {
     "Expense": "支出",
     "Income": "收入"
+  },
+  "household": {
+    "title": "家庭组",
+    "emptyTitle": "还没有家庭组",
+    "emptySubtitle": "与同住的人共享预算。每个人自行决定公开多少。",
+    "createTitle": "创建家庭组",
+    "namePlaceholder": "家庭组名称",
+    "createCta": "创建",
+    "joinInstead": "我有邀请码",
+    "totalIn": "收入",
+    "totalOut": "支出",
+    "visibilityTitle": "谁能看到什么",
+    "visibilityBlurb": "家庭组中的每个人都看到这份相同的列表，包括你公开的内容。",
+    "you": "%{name}（你）",
+    "myVisibilityTitle": "我公开的内容",
+    "myVisibilityBlurb": "只有你能更改。家庭组中没有人能替你提高它。",
+    "levelSummary": "仅总额",
+    "levelSummaryDesc": "你的收入与支出。不含分类，不含交易明细。",
+    "levelCategories": "总额与分类",
+    "levelCategoriesDesc": "你在各分类上的支出，不含单笔交易。",
+    "levelFull": "全部",
+    "levelFullDesc": "你的交易明细，包括备注。",
+    "raiseNotice": "调低是私密的。调高会通知家庭组，这样没有人的可见度会在不知情的情况下增加。",
+    "contributionsTitle": "每个人",
+    "notShared": "未共享分类",
+    "inviteTitle": "邀请码",
+    "inviteBlurb": "把它分享给同住的人。他们在接受前会看到加入会公开什么。",
+    "leave": "退出家庭组",
+    "leaveNotice": "退出立即生效，并会取消共享你此前加入的所有账户。",
+    "joinTitle": "加入家庭组",
+    "joinBlurb": "输入你收到的邀请码。在接受之前，你会看到加入会共享哪些内容。",
+    "codePlaceholder": "邀请码",
+    "lookUp": "查询",
+    "whatTheySee": "加入会共享什么",
+    "willBeShared": "与家庭组共享",
+    "willNotBeShared": "不共享",
+    "consentFooter": "你可以随时更改公开内容，也可以随时退出。",
+    "joinCta": "加入 %{name}",
+    "field_totalIn": "你的总收入",
+    "field_totalOut": "你的总支出",
+    "field_categories": "你各分类的支出",
+    "field_transactions": "你的单笔交易",
+    "field_accountBalances": "你的账户余额",
+    "memberCount": {
+      "zero": "暂无成员",
+      "other": "%{count} 位成员"
+    },
+    "sharedAccountCount": {
+      "zero": "无共享账户",
+      "other": "%{count} 个共享账户"
+    }
   }
 }

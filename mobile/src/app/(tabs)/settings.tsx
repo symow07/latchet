@@ -13,7 +13,7 @@ import { useRouter } from 'expo-router';
 import { getSettings, updateSettings, getAccounts, resetAllData } from '@/lib/db';
 import { exportTransactionsCSV, exportTransactionsJSON } from '@/lib/export-data';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { DollarSign, Wallet, Clock, Eye, Flame, Award, Cloud, Check, ChevronRight, CreditCard, LogOut, Upload, Download, Fingerprint, PieChart, RotateCcw, Bell, Repeat, TrendingUp, Trash2, Sparkles } from 'lucide-react-native';
+import { Award, Bell, Check, ChevronRight, Clock, Cloud, CreditCard, DollarSign, Download, Eye, Fingerprint, Flame, Home, LogOut, PieChart, Repeat, RotateCcw, Sparkles, Trash2, TrendingUp, Upload, Wallet } from 'lucide-react-native';
 import { authClient } from '@/lib/auth/auth-client';
 import { useInvalidateSession } from '@/lib/auth/use-session';
 import * as Haptics from 'expo-haptics';
@@ -236,6 +236,12 @@ export default function SettingsScreen() {
         <Animated.View entering={FadeInUp.delay(40).springify().damping(16)} style={{ paddingHorizontal: 20, paddingTop: 22 }}>
           <SectionLabel>{t('settings.sections.accounts')}</SectionLabel>
           <NavRow icon={<CreditCard size={20} color={C.p400} />} color={C.p400} label={t('settings.manageAccounts')} desc={t('settingsHeader.accountsLinked', { count: accounts.length })} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/accounts'); }} />
+        </Animated.View>
+
+        {/* ── Household ── */}
+        <Animated.View entering={FadeInUp.delay(55).springify().damping(16)} style={{ paddingHorizontal: 20, paddingTop: 20 }}>
+          <SectionLabel>{t('settings.sections.household')}</SectionLabel>
+          <NavRow icon={<Home size={20} color={C.sky} />} color={C.sky} label={t('household.title')} desc={t('settings.householdDesc')} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/household'); }} />
         </Animated.View>
 
         {/* ── Import ── */}

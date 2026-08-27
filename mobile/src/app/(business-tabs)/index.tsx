@@ -32,7 +32,7 @@ export default function BusinessDashboardTab() {
   const { data: allExpenses = [], isLoading } = useQuery({ queryKey: ['biz-expenses', undefined], queryFn: () => getExpenses() });
   const { data: business } = useQuery({ queryKey: ['my-business'], queryFn: getBusiness });
 
-  const myRole = business?.teamMembers.find(m => m.userId === session?.user?.id)?.role;
+  const myRole = business?.members.find(m => m.userId === session?.user?.id)?.role;
   const canReview = myRole === 'owner' || myRole === 'manager';
 
   const totalExpenses = allExpenses.reduce((s, e) => s + e.amount, 0);
