@@ -260,3 +260,30 @@ test("owning a business does not resolve as owning a household", async () => {
   expect(body.household.name).toBe("Home");
   expect(body.household.type).toBe("household");
 });
+
+// ── Raising visibility is announced ──────────────────────────────────────────
+
+test('raising your level notifies the other members, and lowering does not', async () => {
+  // The notification is sent server-side on purpose: one the app chooses to
+  // send is one a modified app can decline to send, and the point is that the
+  // group finds out even when the person raising it would rather they did not.
+  const source = await Bun.file(new URL('./household.ts', import.meta.url)).text();
+  const handler = source.slice(
+    source.indexOf('"/my-share-level"'),
+    source.indexOf('householdRouter.get("/visibility"')
+  );
+
+  expect(handler).toContain('sendPushToUser');
+  // Guarded by `raised`, so a reduction stays private.
+  expect(handler.indexOf('const raised =')).toBeLessThan(handler.indexOf('sendPushToUser'));
+  expect(handler).toContain('if (raised)');
+  // Sent to everyone except the person who changed it.
+  expect(handler).toContain('userId: { not: user.id }');
+});
+
+test('the notification says what changed, not the internal level name', async () => {
+  const source = await Bun.file(new URL('./household.ts', import.meta.url)).text();
+  // "full" tells a recipient nothing about what they can now see.
+  expect(source).toContain('individual transactions');
+  expect(source).toContain('totals only');
+});
