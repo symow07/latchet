@@ -101,29 +101,33 @@ router.post("/entitlement/refresh", async (c) => {
 router.get("/deletion-preview", async (c) => {
   const user = c.get("user")!;
 
-  const [transactions, accounts, plaidItems, emailConnections, ownedBusiness] =
+  const [transactions, accounts, plaidItems, emailConnections, ownedGroups] =
     await Promise.all([
       prisma.transaction.count({ where: { userId: user.id } }),
       prisma.bankAccount.count({ where: { userId: user.id } }),
       prisma.plaidItem.count({ where: { userId: user.id } }),
       prisma.emailConnection.count({ where: { userId: user.id } }),
-      prisma.business.findUnique({
+      // Plural since groups were generalised: a user can own a business AND a
+      // household. Reporting only one would let someone delete their account
+      // having been warned about the company and not about the household they
+      // share with their partner, which is destroyed just as permanently.
+      prisma.group.findMany({
         where: { ownerId: user.id },
-        select: { id: true, name: true },
+        select: { id: true, name: true, type: true },
       }),
     ]);
 
-  const ownedBusinessImpact = ownedBusiness
-    ? {
-        name: ownedBusiness.name,
-        teamMembers: await prisma.teamMember.count({
-          where: { businessId: ownedBusiness.id, userId: { not: user.id } },
-        }),
-        expenses: await prisma.expense.count({
-          where: { businessId: ownedBusiness.id },
-        }),
-      }
-    : null;
+  const ownedGroupImpact = await Promise.all(
+    ownedGroups.map(async (g) => ({
+      id: g.id,
+      type: g.type,
+      name: g.name,
+      members: await prisma.groupMember.count({
+        where: { groupId: g.id, userId: { not: user.id } },
+      }),
+      expenses: await prisma.expense.count({ where: { groupId: g.id } }),
+    }))
+  );
 
   return c.json({
     email: user.email,
@@ -131,7 +135,7 @@ router.get("/deletion-preview", async (c) => {
     accounts,
     linkedBanks: plaidItems,
     connectedInboxes: emailConnections,
-    ownedBusiness: ownedBusinessImpact,
+    ownedGroups: ownedGroupImpact,
   });
 });
 

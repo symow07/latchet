@@ -10,7 +10,7 @@ import { rm, mkdir, writeFile, readFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import { auth } from "../auth";
 import { randomBytes } from "crypto";
-import { getUserBusiness } from "../lib/get-user-business";
+import { getUserBusiness } from "../lib/get-user-group";
 
 const businessRouter = new Hono<{
   Variables: {
@@ -55,20 +55,20 @@ businessRouter.post(
     const user = c.get("user")!;
     const { name } = c.req.valid("json");
 
-    const existing = await prisma.business.findUnique({
-      where: { ownerId: user.id },
-      include: { teamMembers: { include: { user: { select: { id: true, name: true, email: true } } } } },
+    const existing = await prisma.group.findUnique({
+      where: { ownerId_type: { ownerId: user.id, type: "business" } },
+      include: { members: { include: { user: { select: { id: true, name: true, email: true } } } } },
     });
     if (existing) return c.json({ business: existing }, 200);
 
-    const business = await prisma.business.create({
+    const business = await prisma.group.create({
       data: {
         ownerId: user.id,
         name: name?.trim() || `${user.name}'s Business`,
         inviteCode: generateCode(),
-        teamMembers: { create: { userId: user.id, role: "owner" } },
+        members: { create: { userId: user.id, role: "owner" } },
       },
-      include: { teamMembers: { include: { user: { select: { id: true, name: true, email: true } } } } },
+      include: { members: { include: { user: { select: { id: true, name: true, email: true } } } } },
     });
 
     return c.json({ business }, 201);
@@ -87,10 +87,10 @@ businessRouter.get("/", async (c) => {
   const business = await getUserBusiness(user.id);
   if (!business) return c.json({ error: "No business found" }, 404);
 
-  const full = await prisma.business.findUnique({
+  const full = await prisma.group.findUnique({
     where: { id: business.id },
     include: {
-      teamMembers: { include: { user: { select: { id: true, name: true, email: true } } } },
+      members: { include: { user: { select: { id: true, name: true, email: true } } } },
     },
   });
   return c.json({ business: full });
@@ -121,13 +121,13 @@ businessRouter.patch(
     const user = c.get("user")!;
     const patch = c.req.valid("json");
 
-    const business = await prisma.business.findUnique({ where: { ownerId: user.id } });
+    const business = await prisma.group.findUnique({ where: { ownerId_type: { ownerId: user.id, type: "business" } } });
     if (!business) return c.json({ error: "No business found" }, 404);
 
-    const updated = await prisma.business.update({
+    const updated = await prisma.group.update({
       where: { id: business.id },
       data: buildBusinessProfileFields(patch),
-      include: { teamMembers: { include: { user: { select: { id: true, name: true, email: true } } } } },
+      include: { members: { include: { user: { select: { id: true, name: true, email: true } } } } },
     });
 
     return c.json({ business: updated });
@@ -148,7 +148,7 @@ businessRouter.delete(
     const user = c.get("user")!;
     const { confirmName } = c.req.valid("json");
 
-    const business = await prisma.business.findUnique({ where: { ownerId: user.id } });
+    const business = await prisma.group.findUnique({ where: { ownerId_type: { ownerId: user.id, type: "business" } } });
     if (!business) return c.json({ error: "No business found" }, 404);
 
     if (confirmName.trim() !== business.name.trim()) {
@@ -158,7 +158,7 @@ businessRouter.delete(
     // Read the ids before the delete: afterwards nothing links the receipt
     // files to this business and they would sit on the volume forever.
     const expenses = await prisma.expense.findMany({
-      where: { businessId: business.id },
+      where: { groupId: business.id },
       select: { id: true },
     });
 
@@ -166,7 +166,7 @@ businessRouter.delete(
     // which is what was asked for; orphaned files are a disk-space problem,
     // not a correctness one, and the other order risks deleting receipts for a
     // business that then fails to delete.
-    await prisma.business.delete({ where: { id: business.id } });
+    await prisma.group.delete({ where: { id: business.id } });
 
     for (const expense of expenses) {
       for (const type of ["jpg", "png", "webp", "heic"] as const) {
@@ -193,7 +193,7 @@ businessRouter.put(
     const user = c.get("user")!;
     const { image } = c.req.valid("json");
 
-    const business = await prisma.business.findUnique({ where: { ownerId: user.id } });
+    const business = await prisma.group.findUnique({ where: { ownerId_type: { ownerId: user.id, type: "business" } } });
     if (!business) return c.json({ error: "No business found" }, 404);
 
     // Identified from the bytes, never from a client-supplied name: that value
@@ -212,10 +212,10 @@ businessRouter.put(
       if (stale !== type) await rm(logoPath(business.id, stale)).catch(() => {});
     }
 
-    const updated = await prisma.business.update({
+    const updated = await prisma.group.update({
       where: { id: business.id },
       data: { logoUrl: "/api/business/logo" },
-      include: { teamMembers: { include: { user: { select: { id: true, name: true, email: true } } } } },
+      include: { members: { include: { user: { select: { id: true, name: true, email: true } } } } },
     });
 
     return c.json({ business: updated });
@@ -224,16 +224,16 @@ businessRouter.put(
 
 businessRouter.delete("/logo", async (c) => {
   const user = c.get("user")!;
-  const business = await prisma.business.findUnique({ where: { ownerId: user.id } });
+  const business = await prisma.group.findUnique({ where: { ownerId_type: { ownerId: user.id, type: "business" } } });
   if (!business) return c.json({ error: "No business found" }, 404);
 
   for (const type of ["jpg", "png", "webp", "heic"] as const) {
     await rm(logoPath(business.id, type)).catch(() => {});
   }
-  const updated = await prisma.business.update({
+  const updated = await prisma.group.update({
     where: { id: business.id },
     data: { logoUrl: null },
-    include: { teamMembers: { include: { user: { select: { id: true, name: true, email: true } } } } },
+    include: { members: { include: { user: { select: { id: true, name: true, email: true } } } } },
   });
   return c.json({ business: updated });
 });
@@ -267,12 +267,12 @@ businessRouter.get("/logo", async (c) => {
 businessRouter.get("/invite-code", async (c) => {
   const user = c.get("user")!;
 
-  const business = await prisma.business.findUnique({ where: { ownerId: user.id } });
+  const business = await prisma.group.findUnique({ where: { ownerId_type: { ownerId: user.id, type: "business" } } });
   if (!business) return c.json({ error: "No business found" }, 404);
 
   // Generate code if missing
   if (!business.inviteCode) {
-    const updated = await prisma.business.update({
+    const updated = await prisma.group.update({
       where: { id: business.id },
       data: { inviteCode: generateCode() },
     });
@@ -287,21 +287,21 @@ businessRouter.get("/invite-code", async (c) => {
 businessRouter.post("/invite-code/refresh", async (c) => {
   const user = c.get("user")!;
 
-  const business = await prisma.business.findUnique({ where: { ownerId: user.id } });
+  const business = await prisma.group.findUnique({ where: { ownerId_type: { ownerId: user.id, type: "business" } } });
   if (!business) return c.json({ error: "No business found" }, 404);
 
   let code = generateCode();
   // Ensure uniqueness
   for (let i = 0; i < 10; i++) {
     const tryCode = generateCode();
-    const exists = await prisma.business.findUnique({ where: { inviteCode: tryCode } });
+    const exists = await prisma.group.findUnique({ where: { inviteCode: tryCode } });
     if (!exists) {
       code = tryCode;
       break;
     }
   }
 
-  const updated = await prisma.business.update({
+  const updated = await prisma.group.update({
     where: { id: business.id },
     data: { inviteCode: code },
   });
@@ -322,14 +322,14 @@ businessRouter.post(
       return c.json({ error: "Too many join attempts, try again later" }, 429);
     }
 
-    const business = await prisma.business.findUnique({
+    const business = await prisma.group.findUnique({
       where: { inviteCode: code.toUpperCase() },
     });
     if (!business) return c.json({ error: "Invalid invite code" }, 404);
 
     // Check if already a member
-    const existing = await prisma.teamMember.findUnique({
-      where: { businessId_userId: { businessId: business.id, userId: user.id } },
+    const existing = await prisma.groupMember.findUnique({
+      where: { groupId_userId: { groupId: business.id, userId: user.id } },
     });
     if (existing) return c.json({ error: "Already a member of this business" }, 409);
 
@@ -338,8 +338,8 @@ businessRouter.post(
       return c.json({ error: "You own this business" }, 409);
     }
 
-    const member = await prisma.teamMember.create({
-      data: { businessId: business.id, userId: user.id, role: "employee" },
+    const member = await prisma.groupMember.create({
+      data: { groupId: business.id, userId: user.id, role: "employee" },
     });
 
     return c.json({ member, businessName: business.name }, 201);
@@ -357,8 +357,8 @@ businessRouter.get("/members", async (c) => {
   const business = await getUserBusiness(user.id);
   if (!business) return c.json({ error: "Not a member of any business" }, 403);
 
-  const members = await prisma.teamMember.findMany({
-    where: { businessId: business.id },
+  const members = await prisma.groupMember.findMany({
+    where: { groupId: business.id },
     include: { user: { select: { id: true, name: true, email: true, image: true } } },
     orderBy: { createdAt: "asc" },
   });
@@ -384,19 +384,19 @@ businessRouter.get("/members", async (c) => {
 // PUT /api/business/active — choose which business to act in.
 businessRouter.put(
   "/active",
-  zValidator("json", z.object({ businessId: z.string().min(1) })),
+  zValidator("json", z.object({ groupId: z.string().min(1) })),
   async (c) => {
     const user = c.get("user")!;
-    const { businessId } = c.req.valid("json");
+    const { groupId } = c.req.valid("json");
 
     // Selecting a business must never be what grants access to it.
-    const owned = await prisma.business.findFirst({
-      where: { id: businessId, ownerId: user.id },
+    const owned = await prisma.group.findFirst({
+      where: { id: groupId, ownerId: user.id },
     });
     const membership = owned
       ? null
-      : await prisma.teamMember.findUnique({
-          where: { businessId_userId: { businessId, userId: user.id } },
+      : await prisma.groupMember.findUnique({
+          where: { groupId_userId: { groupId, userId: user.id } },
         });
     if (!owned && !membership) {
       return c.json({ error: "You are not a member of that business" }, 403);
@@ -404,10 +404,10 @@ businessRouter.put(
 
     await prisma.userSettings.update({
       where: { userId: user.id },
-      data: { activeBusinessId: businessId },
+      data: { activeGroupId: groupId },
     });
 
-    return c.json({ activeBusinessId: businessId });
+    return c.json({ activeGroupId: groupId });
   }
 );
 
@@ -421,16 +421,16 @@ businessRouter.patch(
     const { memberId } = c.req.param();
     const { role } = c.req.valid("json");
 
-    const business = await prisma.business.findUnique({ where: { ownerId: user.id } });
+    const business = await prisma.group.findUnique({ where: { ownerId_type: { ownerId: user.id, type: "business" } } });
     if (!business) return c.json({ error: "No business found" }, 404);
 
-    const member = await prisma.teamMember.findFirst({
-      where: { id: memberId, businessId: business.id },
+    const member = await prisma.groupMember.findFirst({
+      where: { id: memberId, groupId: business.id },
     });
     if (!member) return c.json({ error: "Member not found" }, 404);
     if (member.userId === user.id) return c.json({ error: "Cannot change own role" }, 400);
 
-    const updated = await prisma.teamMember.update({
+    const updated = await prisma.groupMember.update({
       where: { id: memberId },
       data: { role },
       include: { user: { select: { id: true, name: true, email: true } } },
@@ -446,16 +446,16 @@ businessRouter.delete("/team/:memberId", async (c) => {
   const user = c.get("user")!;
   const { memberId } = c.req.param();
 
-  const business = await prisma.business.findUnique({ where: { ownerId: user.id } });
+  const business = await prisma.group.findUnique({ where: { ownerId_type: { ownerId: user.id, type: "business" } } });
   if (!business) return c.json({ error: "No business found" }, 404);
 
-  const member = await prisma.teamMember.findFirst({
-    where: { id: memberId, businessId: business.id },
+  const member = await prisma.groupMember.findFirst({
+    where: { id: memberId, groupId: business.id },
   });
   if (!member) return c.json({ error: "Member not found" }, 404);
   if (member.userId === user.id) return c.json({ error: "Cannot remove yourself" }, 400);
 
-  await prisma.teamMember.delete({ where: { id: memberId } });
+  await prisma.groupMember.delete({ where: { id: memberId } });
 
   return c.json({ success: true });
 });

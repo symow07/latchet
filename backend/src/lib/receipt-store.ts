@@ -93,7 +93,7 @@ export function receiptPath(id: string, type: ReceiptType, dir = receiptDir()): 
  * thing, a file a business uploaded. Prefixed so it can never collide with an
  * expense id.
  */
-export function logoPath(businessId: string, type: ReceiptType, dir = receiptDir()): string {
-  if (!isSafeId(businessId)) throw new Error("Unsafe business id");
-  return join(dir, `logo-${businessId}.${type}`);
+export function logoPath(groupId: string, type: ReceiptType, dir = receiptDir()): string {
+  if (!isSafeId(groupId)) throw new Error("Unsafe business id");
+  return join(dir, `logo-${groupId}.${type}`);
 }

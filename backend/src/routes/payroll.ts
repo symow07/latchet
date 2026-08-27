@@ -3,7 +3,7 @@ import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { prisma } from "../prisma";
 import { auth } from "../auth";
-import { getUserBusiness } from "../lib/get-user-business";
+import { getUserBusiness } from "../lib/get-user-group";
 
 const payrollRouter = new Hono<{
   Variables: {
@@ -56,8 +56,8 @@ payrollRouter.get("/", async (c) => {
   if (!business) return c.json({ error: "Not a member of any business" }, 403);
 
   // Employees can only see their own salary
-  const myMembership = await prisma.teamMember.findUnique({
-    where: { businessId_userId: { businessId: business.id, userId: user.id } },
+  const myMembership = await prisma.groupMember.findUnique({
+    where: { groupId_userId: { groupId: business.id, userId: user.id } },
   });
   const isEmployee = myMembership?.role === "employee";
 
@@ -65,7 +65,7 @@ payrollRouter.get("/", async (c) => {
   const offset = Math.max(Number(c.req.query("offset")) || 0, 0);
 
   const salaries = await prisma.salary.findMany({
-    where: { businessId: business.id, ...(isEmployee ? { userId: user.id } : {}) },
+    where: { groupId: business.id, ...(isEmployee ? { userId: user.id } : {}) },
     include: {
       user: { select: { id: true, name: true, email: true, image: true } },
       payments: { where: { month, year } },
@@ -80,7 +80,7 @@ payrollRouter.get("/", async (c) => {
       const payment = s.payments[0] ?? unpaidPlaceholder(month, year);
       return {
         id: s.id,
-        businessId: s.businessId,
+        groupId: s.groupId,
         userId: s.userId,
         amount: s.amount,
         currency: s.currency,
@@ -130,22 +130,22 @@ payrollRouter.post(
     if (!business) return c.json({ error: "Not a member of any business" }, 403);
 
     // Role check
-    const myMembership = await prisma.teamMember.findUnique({
-      where: { businessId_userId: { businessId: business.id, userId: me.id } },
+    const myMembership = await prisma.groupMember.findUnique({
+      where: { groupId_userId: { groupId: business.id, userId: me.id } },
     });
     if (!myMembership || myMembership.role === "employee") {
       return c.json({ error: "Only owners and managers can manage payroll" }, 403);
     }
 
     // Ensure target user is a team member
-    const targetMember = await prisma.teamMember.findUnique({
-      where: { businessId_userId: { businessId: business.id, userId } },
+    const targetMember = await prisma.groupMember.findUnique({
+      where: { groupId_userId: { groupId: business.id, userId } },
     });
     if (!targetMember) return c.json({ error: "User is not a member of this business" }, 404);
 
     const salary = await prisma.salary.upsert({
-      where: { businessId_userId: { businessId: business.id, userId } },
-      create: { businessId: business.id, userId, amount, title: title ?? null, currency: currency ?? "USD" },
+      where: { groupId_userId: { groupId: business.id, userId } },
+      create: { groupId: business.id, userId, amount, title: title ?? null, currency: currency ?? "USD" },
       update: { amount, title: title ?? null, currency: currency ?? "USD" },
       include: { user: { select: { id: true, name: true, email: true } } },
     });
@@ -162,15 +162,15 @@ payrollRouter.delete("/:id", async (c) => {
   const business = await getUserBusiness(me.id);
   if (!business) return c.json({ error: "Not a member of any business" }, 403);
 
-  const myMembership = await prisma.teamMember.findUnique({
-    where: { businessId_userId: { businessId: business.id, userId: me.id } },
+  const myMembership = await prisma.groupMember.findUnique({
+    where: { groupId_userId: { groupId: business.id, userId: me.id } },
   });
   if (!myMembership || myMembership.role === "employee") {
     return c.json({ error: "Only owners and managers can manage payroll" }, 403);
   }
 
   const salary = await prisma.salary.findFirst({
-    where: { id, businessId: business.id },
+    where: { id, groupId: business.id },
   });
   if (!salary) return c.json({ error: "Salary record not found" }, 404);
 
@@ -198,15 +198,15 @@ payrollRouter.patch(
     const business = await getUserBusiness(me.id);
     if (!business) return c.json({ error: "Not a member of any business" }, 403);
 
-    const myMembership = await prisma.teamMember.findUnique({
-      where: { businessId_userId: { businessId: business.id, userId: me.id } },
+    const myMembership = await prisma.groupMember.findUnique({
+      where: { groupId_userId: { groupId: business.id, userId: me.id } },
     });
     if (!myMembership || myMembership.role === "employee") {
       return c.json({ error: "Only owners and managers can mark payments" }, 403);
     }
 
     const salary = await prisma.salary.findFirst({
-      where: { id, businessId: business.id },
+      where: { id, groupId: business.id },
     });
     if (!salary) return c.json({ error: "Salary record not found" }, 404);
 
@@ -238,15 +238,15 @@ payrollRouter.patch(
     const business = await getUserBusiness(me.id);
     if (!business) return c.json({ error: "Not a member of any business" }, 403);
 
-    const myMembership = await prisma.teamMember.findUnique({
-      where: { businessId_userId: { businessId: business.id, userId: me.id } },
+    const myMembership = await prisma.groupMember.findUnique({
+      where: { groupId_userId: { groupId: business.id, userId: me.id } },
     });
     if (!myMembership || myMembership.role === "employee") {
       return c.json({ error: "Only owners and managers can mark payments" }, 403);
     }
 
     const salary = await prisma.salary.findFirst({
-      where: { id, businessId: business.id },
+      where: { id, groupId: business.id },
     });
     if (!salary) return c.json({ error: "Salary record not found" }, 404);
 

@@ -15,14 +15,14 @@ test("receipts are served by their own route", () => {
 
 test("serving a receipt is scoped by the caller's membership, not by the id", async () => {
   // findFirst({ where: { id } }) alone would hand any receipt to anyone who
-  // guessed a cuid. The businessId term is what makes the id insufficient.
+  // guessed a cuid. The groupId term is what makes the id insufficient.
   const source = await Bun.file(new URL("./expenses.ts", import.meta.url)).text();
   const start = source.indexOf('expensesRouter.get("/:id/receipt"');
   expect(start).toBeGreaterThan(-1);
   const handler = source.slice(start, source.indexOf("\n});", start));
 
   expect(handler).toContain("getMembership(user.id)");
-  expect(handler).toContain("businessId: membership.businessId");
+  expect(handler).toContain("groupId: membership.groupId");
 });
 
 test("the id from the path is validated before it becomes a filename", async () => {

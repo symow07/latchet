@@ -3,7 +3,7 @@ import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { prisma } from "../prisma";
 import { auth } from "../auth";
-import { getUserBusiness } from "../lib/get-user-business";
+import { getUserBusiness } from "../lib/get-user-group";
 
 const budgetRouter = new Hono<{
   Variables: {
@@ -35,8 +35,8 @@ budgetRouter.get("/", async (c) => {
   const business = await getUserBusiness(user.id);
   if (!business) return c.json({ error: "Not a member of any business" }, 403);
 
-  const budget = await prisma.businessBudget.findUnique({
-    where: { businessId: business.id },
+  const budget = await prisma.groupBudget.findUnique({
+    where: { groupId: business.id },
   });
 
   const { start, end } = currentMonthRange();
@@ -44,7 +44,7 @@ budgetRouter.get("/", async (c) => {
   // Aggregate spending by category (approved + pending = "committed")
   const expenses = await prisma.expense.findMany({
     where: {
-      businessId: business.id,
+      groupId: business.id,
       status: { in: ["approved", "pending"] },
       submittedAt: { gte: start, lte: end },
     },
@@ -110,17 +110,17 @@ budgetRouter.put(
     if (!business) return c.json({ error: "Not a member of any business" }, 403);
 
     // Check role
-    const membership = await prisma.teamMember.findUnique({
-      where: { businessId_userId: { businessId: business.id, userId: user.id } },
+    const membership = await prisma.groupMember.findUnique({
+      where: { groupId_userId: { groupId: business.id, userId: user.id } },
     });
     if (!membership || membership.role === "employee") {
       return c.json({ error: "Only owners and managers can set budgets" }, 403);
     }
 
-    const budget = await prisma.businessBudget.upsert({
-      where: { businessId: business.id },
+    const budget = await prisma.groupBudget.upsert({
+      where: { groupId: business.id },
       create: {
-        businessId: business.id,
+        groupId: business.id,
         totalMonthly,
         categories: categories ? JSON.stringify(categories) : null,
       },

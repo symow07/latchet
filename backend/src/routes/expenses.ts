@@ -3,7 +3,7 @@ import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { prisma } from "../prisma";
 import { auth } from "../auth";
-import { getUserMembership } from "../lib/get-user-business";
+import { getUserMembership } from "../lib/get-user-group";
 import { mkdir, writeFile, readFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import {
@@ -67,7 +67,7 @@ expensesRouter.post(
 
     const expense = await prisma.expense.create({
       data: {
-        businessId: membership.businessId,
+        groupId: membership.groupId,
         submitterId: user.id,
         amount,
         category,
@@ -126,7 +126,7 @@ expensesRouter.get("/:id/receipt", async (c) => {
   if (!membership) return c.json({ error: "Not a member of any business" }, 403);
 
   const expense = await prisma.expense.findFirst({
-    where: { id, businessId: membership.businessId },
+    where: { id, groupId: membership.groupId },
     select: { id: true, imageUrl: true },
   });
   // Deliberately 404 rather than 403 for an expense in another business:
@@ -165,7 +165,7 @@ expensesRouter.get("/", async (c) => {
   const offset = Math.max(Number(c.req.query("offset")) || 0, 0);
 
   const where = {
-    businessId: membership.businessId,
+    groupId: membership.groupId,
     ...(status ? { status } : {}),
   };
 
@@ -197,7 +197,7 @@ expensesRouter.patch("/:id/approve", async (c) => {
   if (membership.role === "employee") return c.json({ error: "Insufficient permissions" }, 403);
 
   const expense = await prisma.expense.findFirst({
-    where: { id, businessId: membership.businessId },
+    where: { id, groupId: membership.groupId },
   });
   if (!expense) return c.json({ error: "Expense not found" }, 404);
   if (expense.status !== "pending") return c.json({ error: "Expense is not pending" }, 400);
@@ -226,7 +226,7 @@ expensesRouter.patch("/:id/reject", async (c) => {
   if (membership.role === "employee") return c.json({ error: "Insufficient permissions" }, 403);
 
   const expense = await prisma.expense.findFirst({
-    where: { id, businessId: membership.businessId },
+    where: { id, groupId: membership.groupId },
   });
   if (!expense) return c.json({ error: "Expense not found" }, 404);
   if (expense.status !== "pending") return c.json({ error: "Expense is not pending" }, 400);

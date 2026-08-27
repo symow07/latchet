@@ -49,16 +49,18 @@ test("the company profile can be edited", () => {
 
 test("editing the company profile is owner-scoped, not membership-scoped", async () => {
   // A manager approves expenses; only the owner changes the company's legal
-  // identity. The handler resolves the row by findUnique({ ownerId }), so a
-  // non-owner has no path to another business's record even knowing its id —
-  // there is no id in the route to supply.
+  // identity. The handler resolves the row by the owner key, so a non-owner
+  // has no path to another business's record even knowing its id — there is
+  // no id in the route to supply. Since groups were generalised the key is
+  // composite, and the type half matters just as much: without it an owner's
+  // household could satisfy a lookup meant for their company.
   const source = await Bun.file(new URL("./business.ts", import.meta.url)).text();
   const handler = source.slice(source.indexOf('businessRouter.patch(\n  "/"'));
   const body = handler.slice(0, handler.indexOf("\n);"));
 
-  expect(body).toContain("findUnique({ where: { ownerId: user.id } })");
+  expect(body).toContain('ownerId_type: { ownerId: user.id, type: "business" }');
   // No membership lookup, which would widen this to managers and employees.
-  expect(body).not.toContain("teamMember.findFirst");
+  expect(body).not.toContain("groupMember.findFirst");
 });
 
 test("deleting the company is possible, and owner-scoped", async () => {
@@ -68,7 +70,7 @@ test("deleting the company is possible, and owner-scoped", async () => {
   const start = source.indexOf('businessRouter.delete(');
   const body = source.slice(start, source.indexOf("\n);", start));
 
-  expect(body).toContain("findUnique({ where: { ownerId: user.id } })");
+  expect(body).toContain('ownerId_type: { ownerId: user.id, type: "business" }');
   // Deleting a company takes every expense and salary with it. An endpoint
   // that does that on an empty body is one stray request from a catastrophe.
   expect(body).toContain("confirmName");
@@ -82,6 +84,6 @@ test("deleting the company cleans up its receipt files", async () => {
   const start = source.indexOf('businessRouter.delete(');
   const body = source.slice(start, source.indexOf("\n);", start));
 
-  expect(body.indexOf("expense.findMany")).toBeLessThan(body.indexOf("business.delete"));
+  expect(body.indexOf("expense.findMany")).toBeLessThan(body.indexOf("group.delete"));
   expect(body).toContain("rm(receiptPath(");
 });

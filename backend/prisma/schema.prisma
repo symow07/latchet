@@ -8,40 +8,40 @@ datasource db {
 }
 
 model User {
-  id            String    @id
-  name          String
-  email         String    @unique
-  emailVerified Boolean   @default(false)
-  image         String?
+  id                    String                 @id
+  name                  String
+  email                 String                 @unique
+  emailVerified         Boolean                @default(false)
+  image                 String?
   /// "free" | "pro". Decided server-side from RevenueCat; never from the client.
-  entitlement   String    @default("free")
+  entitlement           String                 @default("free")
   /// When pro access lapses. Read on every check, so a missed EXPIRATION
   /// webhook cannot leave someone on pro indefinitely.
-  entitlementExpiresAt DateTime?
+  entitlementExpiresAt  DateTime?
   /// RevenueCat's app_user_id. Equals `id` once the client calls setUserId,
   /// which is what lets a webhook find the account a purchase belongs to.
-  revenueCatUserId String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  sessions      Session[]
-  accounts      BankAccount[]
-  authAccounts  Account[]
-  transactions  Transaction[]
-  settings      UserSettings?
-  billReminders BillReminder[]
+  revenueCatUserId      String?
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  sessions              Session[]
+  accounts              BankAccount[]
+  authAccounts          Account[]
+  transactions          Transaction[]
+  settings              UserSettings?
+  billReminders         BillReminder[]
   recurringTransactions RecurringTransaction[]
-  netWorthEntries NetWorthEntry[]
-  categoryBudgets CategoryBudget[]
-  ownedBusiness   Business?
-  teamMemberships TeamMember[]
-  submittedExpenses  Expense[] @relation("SubmittedExpenses")
-  reviewedExpenses   Expense[] @relation("ReviewedExpenses")
-  salaries           Salary[]
-  achievements       Achievement[]
-  pushTokens         PushToken[]
-  plaidItems         PlaidItem[]
-  emailConnections   EmailConnection[]
-  inboxEmails        InboxEmail[]
+  netWorthEntries       NetWorthEntry[]
+  categoryBudgets       CategoryBudget[]
+  ownedGroups           Group[]
+  groupMemberships      GroupMember[]
+  submittedExpenses     Expense[]              @relation("SubmittedExpenses")
+  reviewedExpenses      Expense[]              @relation("ReviewedExpenses")
+  salaries              Salary[]
+  achievements          Achievement[]
+  pushTokens            PushToken[]
+  plaidItems            PlaidItem[]
+  emailConnections      EmailConnection[]
+  inboxEmails           InboxEmail[]
 }
 
 model Session {
@@ -85,121 +85,128 @@ model Verification {
 }
 
 model BankAccount {
-  id           String        @id
-  userId       String
-  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name         String
-  type         String        // cash|checking|savings|credit|investment|other
-  balance      Float         @default(0)
-  currency     String        @default("USD")
-  color        String        @default("#a855f7")
-  icon         String        @default("wallet")
-  isDefault    Boolean       @default(false)
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  transactions Transaction[]
+  id                String        @id
+  userId            String
+  user              User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name              String
+  type              String // cash|checking|savings|credit|investment|other
+  balance           Float         @default(0)
+  currency          String        @default("USD")
+  color             String        @default("#a855f7")
+  icon              String        @default("wallet")
+  isDefault         Boolean       @default(false)
+  /// Opt-in: when set, this account is visible IN FULL to that group,
+  /// regardless of the owner's shareLevel. This is how a couple share a
+  /// joint account without the app inventing joint ownership.
+  sharedWithGroupId String?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  transactions      Transaction[]
+  sharedWithGroup   Group?        @relation(fields: [sharedWithGroupId], references: [id], onDelete: SetNull)
+
+  @@index([sharedWithGroupId])
 }
 
 model Transaction {
-  id          String      @id
-  userId      String
-  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  accountId   String?
-  account     BankAccount? @relation(fields: [accountId], references: [id], onDelete: SetNull)
-  amount      Float
-  category    String      // Food|Gym|Transport|Shopping|Subscriptions|Other
-  type        String      // Expense|Income
-  isImpulse   Boolean     @default(false)
-  note        String?
-  dateISO     String      // YYYY-MM-DD
-  currency    String      @default("USD")
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  id        String       @id
+  userId    String
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accountId String?
+  account   BankAccount? @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  amount    Float
+  category  String // Food|Gym|Transport|Shopping|Subscriptions|Other
+  type      String // Expense|Income
+  isImpulse Boolean      @default(false)
+  note      String?
+  dateISO   String // YYYY-MM-DD
+  currency  String       @default("USD")
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
 
   @@index([userId, dateISO])
 }
 
 model UserSettings {
-  id             String  @id
-  userId         String  @unique
-  user           User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  monthlyBudget  Float   @default(0)
-  startingBalance Float  @default(0)
-  hourlyValue    Float   @default(0)
-  showTimeCost   Boolean @default(false)
-  currency       String  @default("USD")
-  currencySymbol String  @default("$")
-  monthlyIncome  Float   @default(0)
-  savingsGoal    Float   @default(0)
-  spendingStyle  String  @default("moderate")
-  primaryGoal    String  @default("track")
+  id              String   @id
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  monthlyBudget   Float    @default(0)
+  startingBalance Float    @default(0)
+  hourlyValue     Float    @default(0)
+  showTimeCost    Boolean  @default(false)
+  currency        String   @default("USD")
+  currencySymbol  String   @default("$")
+  monthlyIncome   Float    @default(0)
+  savingsGoal     Float    @default(0)
+  spendingStyle   String   @default("moderate")
+  primaryGoal     String   @default("track")
   /// UI language: "en" | "fr" | "zh". Synced so it follows the user's account
   /// across devices; the device language is only the first-run default.
-  locale         String  @default("en")
+  locale          String   @default("en")
   // Which business the user is currently acting in. Membership resolution used
   // findFirst, so a user in more than one business got a non-deterministic
   // answer that could change between requests.
-  activeBusinessId String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  activeGroupId   String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
 
 model BillReminder {
-  id          String    @id
-  userId      String
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name        String
-  amount      Float
-  dueDay      Int       // day of month (1-31)
-  category    String    @default("Other")
-  isRecurring Boolean   @default(true)
-  isPaid      Boolean   @default(false)
-  paidAt      DateTime?
-  nextDueDate String    // YYYY-MM-DD
+  id             String    @id
+  userId         String
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name           String
+  amount         Float
+  dueDay         Int // day of month (1-31)
+  category       String    @default("Other")
+  isRecurring    Boolean   @default(true)
+  isPaid         Boolean   @default(false)
+  paidAt         DateTime?
+  nextDueDate    String // YYYY-MM-DD
   // Last push sent for the *current* nextDueDate. Guards the 5-minute checker
   // against re-notifying a bill that has already fired for this due date —
   // non-recurring bills never advance nextDueDate, so without this they match
   // the due query on every tick forever.
   lastNotifiedAt DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   @@index([userId, nextDueDate])
 }
 
 model RecurringTransaction {
-  id          String    @id
+  id          String   @id
   userId      String
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   accountId   String?
   name        String
   amount      Float
   category    String
-  type        String    // Expense|Income
-  isImpulse   Boolean   @default(false)
-  frequency   String    // daily|weekly|biweekly|monthly|yearly
-  startDate   String    // YYYY-MM-DD
-  nextDate    String    // YYYY-MM-DD
-  lastCreated String?   // YYYY-MM-DD
-  isActive    Boolean   @default(true)
-  currency    String    @default("USD")
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  type        String // Expense|Income
+  isImpulse   Boolean  @default(false)
+  frequency   String // daily|weekly|biweekly|monthly|yearly
+  startDate   String // YYYY-MM-DD
+  nextDate    String // YYYY-MM-DD
+  lastCreated String? // YYYY-MM-DD
+  isActive    Boolean  @default(true)
+  currency    String   @default("USD")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@index([userId])
   @@index([isActive, nextDate])
 }
 
 model NetWorthEntry {
-  id        String   @id
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  date      String   // YYYY-MM-DD
-  assets    Float    @default(0)
-  liabilities Float  @default(0)
-  netWorth  Float    @default(0)
-  breakdown String?  // JSON string
-  createdAt DateTime @default(now())
+  id          String   @id
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date        String // YYYY-MM-DD
+  assets      Float    @default(0)
+  liabilities Float    @default(0)
+  netWorth    Float    @default(0)
+  breakdown   String? // JSON string
+  createdAt   DateTime @default(now())
 }
 
 model CategoryBudget {
@@ -266,42 +273,42 @@ model PlaidItem {
 
 // An account exposed by a Plaid Item, mirrored locally for display + balances.
 model PlaidAccount {
-  id            String    @id @default(cuid())
-  itemId        String
-  item          PlaidItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
-  plaidAccountId String   @unique
-  name          String
-  type          String    // checking|savings|credit|investment|other
-  mask          String?
-  balance       Float     @default(0)
-  currency      String    @default("USD")
-  isEnabled     Boolean   @default(true)
+  id             String    @id @default(cuid())
+  itemId         String
+  item           PlaidItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  plaidAccountId String    @unique
+  name           String
+  type           String // checking|savings|credit|investment|other
+  mask           String?
+  balance        Float     @default(0)
+  currency       String    @default("USD")
+  isEnabled      Boolean   @default(true)
   // The local BankAccount this Plaid account is mirrored into. Bank-synced
   // transactions are booked against it, so they affect a balance and can be
   // filtered by account like any hand-entered row.
-  bankAccountId String?
-  updatedAt     DateTime  @updatedAt
+  bankAccountId  String?
+  updatedAt      DateTime  @updatedAt
 }
 
 // A connected email inbox (Gmail today; provider-agnostic for Outlook/IMAP
 // later). The OAuth refresh token is stored encrypted at rest (AES-256-GCM via
 // lib/crypto.ts, key derived from BETTER_AUTH_SECRET) — same pattern as PlaidItem.
 model EmailConnection {
-  id              String    @id @default(cuid())
-  userId          String
-  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  provider        String    @default("gmail") // "gmail" (OAuth) | "forwarding" | future "outlook"
-  email           String // the connected/owning inbox address
-  refreshTokenEnc String? // OAuth refresh token (gmail); null for forwarding connections
+  id                 String    @id @default(cuid())
+  userId             String
+  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider           String    @default("gmail") // "gmail" (OAuth) | "forwarding" | future "outlook"
+  email              String // the connected/owning inbox address
+  refreshTokenEnc    String? // OAuth refresh token (gmail); null for forwarding connections
   // Forwarding ("inbox inside Budget"): a unique token forms the user's private
   // inbound address  u_<inboundToken>@<INBOUND_EMAIL_DOMAIN>.  forwardingVerified
   // flips true once we receive Gmail's forwarding-confirmation email.
-  inboundToken       String?  @unique
-  forwardingVerified Boolean  @default(false)
-  status          String    @default("active") // active | revoked
-  lastScanAt      DateTime?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  inboundToken       String?   @unique
+  forwardingVerified Boolean   @default(false)
+  status             String    @default("active") // active | revoked
+  lastScanAt         DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
   @@unique([userId, email])
 }
@@ -319,71 +326,87 @@ model EmailConnection {
 // `label` is a digit-stripped remnant kept solely so the inbox screen can show
 // something for an email the parser failed to identify.
 model InboxEmail {
-  id          String   @id @default(cuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   /// Sender's domain only (e.g. "netflix.com") — identifies the merchant, not the person.
-  senderDomain String?
+  senderDomain   String?
   /// Sanitised subject remnant, no digits. May be empty.
-  label       String   @default("")
-  merchant    String?
-  amount      Float?
-  currency    String   @default("USD")
-  cadence     String   @default("unknown") // weekly | monthly | yearly | unknown
-  chargedISO  String? // YYYY-MM-DD best-effort charge date
-  isSubscription Boolean @default(false)
-  status      String   @default("parsed") // parsed | imported | ignored
-  receivedAt  DateTime @default(now())
+  label          String   @default("")
+  merchant       String?
+  amount         Float?
+  currency       String   @default("USD")
+  cadence        String   @default("unknown") // weekly | monthly | yearly | unknown
+  chargedISO     String? // YYYY-MM-DD best-effort charge date
+  isSubscription Boolean  @default(false)
+  status         String   @default("parsed") // parsed | imported | ignored
+  receivedAt     DateTime @default(now())
 
   @@index([userId, receivedAt])
 }
 
-model Business {
-  id          String          @id @default(cuid())
-  ownerId     String          @unique
-  name        String
+model Group {
+  id                   String        @id @default(cuid())
+  ownerId              String
+  name                 String
+  /// "business" | "household". A household is the same shape with different
+  /// labels and a different role vocabulary; see GroupMember.role.
+  type                 String        @default("business")
   // Company profile and tax identity. All optional: a sole trader has no VAT
-  // number, and nothing here should block using the app.
+  // number, and nothing here should block using the app. Unused by households.
   //
   // logoUrl is a path this backend serves, never an arbitrary URL — a stored
   // remote address would be fetched by every client that renders the company.
-  logoUrl     String?
-  address     String?
-  vatNumber   String?
-  taxId       String?
+  logoUrl              String?
+  address              String?
+  vatNumber            String?
+  taxId                String?
   // Month the fiscal year starts, 1-12. Not a date: only the month matters,
   // and storing a full date invites timezone questions that have no answer.
   fiscalYearStartMonth Int?
-  inviteCode  String?         @unique
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
-  owner       User            @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  teamMembers TeamMember[]
-  expenses    Expense[]
-  budget      BusinessBudget?
-  salaries    Salary[]
+  inviteCode           String?       @unique
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+  owner                User          @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  members              GroupMember[]
+  expenses             Expense[]
+  budget               GroupBudget?
+  salaries             Salary[]
+  sharedAccounts       BankAccount[]
+
+  // One business AND one household per owner, not one group in total. The
+  // old `ownerId @unique` predates households and would have made a
+  // small-business owner choose between the two.
+  @@unique([ownerId, type])
 }
 
-model TeamMember {
+model GroupMember {
   id         String   @id @default(cuid())
-  businessId String
+  groupId    String
   userId     String
-  role       String   // "owner" | "manager" | "employee"
+  /// business:  "owner" | "manager" | "employee"
+  /// household: "owner" | "member"
+  role       String
+  /// "summary" | "categories" | "full" — what THIS member reveals about
+  /// themselves to the rest of the group. Self-chosen, never set by anyone
+  /// else, and enforced server-side in lib/share-level.ts. Defaults to the
+  /// least revealing value so a missing choice cannot over-share.
+  shareLevel String   @default("summary")
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
-  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  group      Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([businessId, userId])
+  @@unique([groupId, userId])
 }
 
 model Expense {
   id          String    @id @default(cuid())
-  businessId  String
+  groupId     String
   submitterId String
   reviewerId  String?
   amount      Float
-  category    String    // Travel|Software|Meals|Transport|Office|Other
+  category    String // Travel|Software|Meals|Transport|Office|Other
   description String
   imageUrl    String?
   status      String    @default("pending") // pending|approved|rejected
@@ -391,45 +414,45 @@ model Expense {
   reviewedAt  DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
-  business    Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  group       Group     @relation(fields: [groupId], references: [id], onDelete: Cascade)
   submitter   User      @relation("SubmittedExpenses", fields: [submitterId], references: [id], onDelete: Cascade)
   reviewer    User?     @relation("ReviewedExpenses", fields: [reviewerId], references: [id], onDelete: SetNull)
 
-  @@index([businessId, status])
-  @@index([businessId, submittedAt])
+  @@index([groupId, status])
+  @@index([groupId, submittedAt])
 }
 
-model BusinessBudget {
-  id             String   @id @default(cuid())
-  businessId     String   @unique
-  totalMonthly   Float    @default(0)
-  categories     String?  // JSON: { "Travel": 500, "Meals": 200, ... }
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-  business       Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+model GroupBudget {
+  id           String   @id @default(cuid())
+  groupId      String   @unique
+  totalMonthly Float    @default(0)
+  categories   String? // JSON: { "Travel": 500, "Meals": 200, ... }
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  group        Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
 }
 
 model Salary {
-  id         String          @id @default(cuid())
-  businessId String
-  userId     String
-  amount     Float           // monthly salary amount
-  currency   String          @default("USD")
-  title      String?         // job title / role label
-  createdAt  DateTime        @default(now())
-  updatedAt  DateTime        @updatedAt
-  business   Business        @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  user       User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  payments   SalaryPayment[]
+  id        String          @id @default(cuid())
+  groupId   String
+  userId    String
+  amount    Float // monthly salary amount
+  currency  String          @default("USD")
+  title     String? // job title / role label
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  group     Group           @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  payments  SalaryPayment[]
 
-  @@unique([businessId, userId])
-  @@index([businessId])
+  @@unique([groupId, userId])
+  @@index([groupId])
 }
 
 model SalaryPayment {
   id        String    @id @default(cuid())
   salaryId  String
-  month     Int       // 1–12
+  month     Int // 1–12
   year      Int
   status    String    @default("unpaid") // "paid" | "unpaid"
   paidAt    DateTime?
