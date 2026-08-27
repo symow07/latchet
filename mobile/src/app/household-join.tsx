@@ -22,6 +22,20 @@ import { t } from '@/lib/i18n/core';
  * changes, this screen changes with it — a hardcoded list would keep promising
  * the old terms.
  */
+/** Module scope, so it is not a fresh component type on every render. */
+function Line({ C, ok, label }: {
+  C: ReturnType<typeof useC>; ok: boolean; label: string;
+}) {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 7 }}>
+      {ok ? <Check size={15} color={C.green} /> : <X size={15} color={C.textFaint} />}
+      <Txt size={13} color={ok ? C.text : C.textDim} style={{ marginStart: 9, flex: 1 }}>
+        {label}
+      </Txt>
+    </View>
+  );
+}
+
 export default function HouseholdJoinScreen() {
   const C = useC();
   const insets = useSafeAreaInsets();
@@ -46,15 +60,6 @@ export default function HouseholdJoinScreen() {
     },
     onError: (e: Error) => setError(e.message),
   });
-
-  const Line = ({ ok, label }: { ok: boolean; label: string }) => (
-    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 7 }}>
-      {ok ? <Check size={15} color={C.green} /> : <X size={15} color={C.textFaint} />}
-      <Txt size={13} color={ok ? C.text : C.textDim} style={{ marginStart: 9, flex: 1 }}>
-        {label}
-      </Txt>
-    </View>
-  );
 
   return (
     <ScreenBackground>
@@ -136,14 +141,14 @@ export default function HouseholdJoinScreen() {
                 {t('household.willBeShared')}
               </Txt>
               {preview.joiningMeans.sharedOnJoin.map((key) => (
-                <Line key={key} ok label={t(`household.field_${key}`)} />
+                <Line key={key} C={C} ok label={t(`household.field_${key}`)} />
               ))}
 
               <Txt size={12} color={C.textDim} style={{ marginTop: 14 }}>
                 {t('household.willNotBeShared')}
               </Txt>
               {preview.joiningMeans.notSharedOnJoin.map((key) => (
-                <Line key={key} ok={false} label={t(`household.field_${key}`)} />
+                <Line key={key} C={C} ok={false} label={t(`household.field_${key}`)} />
               ))}
 
               <View style={{ marginTop: 16, paddingTop: 14, borderTopWidth: 1, borderTopColor: C.glassBorder }}>

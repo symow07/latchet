@@ -25,6 +25,45 @@ import { t } from '@/lib/i18n/core';
  * is. Nobody should feel they have to disclose a medical condition to get a
  * decent budgeting experience.
  */
+/**
+ * Defined at module scope, NOT inside the screen.
+ *
+ * A component declared inside another component's body is a new function
+ * identity on every render, so React unmounts and remounts it rather than
+ * updating it — and a remounted TextInput loses focus. The symptom is that
+ * typing "peanuts" into a field leaves "P" in it: the first keystroke sets
+ * state, the re-render swaps the component type, and the keyboard is talking
+ * to an input that no longer exists.
+ *
+ * Found by typing into the simulator, not by reading the diff.
+ */
+function Field({ C, label, value, onChange, placeholder, multiline }: {
+  C: ReturnType<typeof useC>;
+  label: string;
+  value: string | null;
+  onChange: (v: string) => void;
+  placeholder: string;
+  multiline?: boolean;
+}) {
+  return (
+    <View style={{ marginTop: 14 }}>
+      <Txt size={13} color={C.textDim}>{label}</Txt>
+      <TextInput
+        value={value ?? ''}
+        onChangeText={onChange}
+        placeholder={placeholder}
+        placeholderTextColor={C.textFaint}
+        multiline={multiline}
+        style={{
+          marginTop: 6, borderRadius: R.sm, paddingHorizontal: 14, paddingVertical: 11,
+          backgroundColor: C.glass, color: C.text, fontSize: 15,
+          minHeight: multiline ? 72 : undefined, textAlignVertical: multiline ? 'top' : 'center',
+        }}
+      />
+    </View>
+  );
+}
+
 export default function AdvisorProfileScreen() {
   const C = useC();
   const insets = useSafeAreaInsets();
@@ -69,27 +108,6 @@ export default function AdvisorProfileScreen() {
     await deleteHealthProfile();
     setProfile(await getHealthProfile());
   };
-
-  const Field = ({ label, value, onChange, placeholder, multiline }: {
-    label: string; value: string | null;
-    onChange: (v: string) => void; placeholder: string; multiline?: boolean;
-  }) => (
-    <View style={{ marginTop: 14 }}>
-      <Txt size={13} color={C.textDim}>{label}</Txt>
-      <TextInput
-        value={value ?? ''}
-        onChangeText={onChange}
-        placeholder={placeholder}
-        placeholderTextColor={C.textFaint}
-        multiline={multiline}
-        style={{
-          marginTop: 6, borderRadius: R.sm, paddingHorizontal: 14, paddingVertical: 11,
-          backgroundColor: C.glass, color: C.text, fontSize: 15,
-          minHeight: multiline ? 72 : undefined, textAlignVertical: multiline ? 'top' : 'center',
-        }}
-      />
-    </View>
-  );
 
   if (!profile) {
     return (
@@ -138,20 +156,21 @@ export default function AdvisorProfileScreen() {
           </Txt>
 
           <Field
+            C={C}
             label={t('advisorProfile.householdSize')}
             value={profile.householdSize == null ? null : String(profile.householdSize)}
             onChange={(v) => patch({ householdSize: v.trim() === '' ? null : Number(v.replace(/\D/g, '')) || null })}
             placeholder="2"
           />
-          <Field label={t('advisorProfile.city')} value={profile.city}
+          <Field C={C} label={t('advisorProfile.city')} value={profile.city}
                  onChange={(v) => patch({ city: v })} placeholder={t('advisorProfile.cityPlaceholder')} />
-          <Field label={t('advisorProfile.cooking')} value={profile.cookingHabits}
+          <Field C={C} label={t('advisorProfile.cooking')} value={profile.cookingHabits}
                  onChange={(v) => patch({ cookingHabits: v })} placeholder={t('advisorProfile.cookingPlaceholder')} />
-          <Field label={t('advisorProfile.goals')} value={profile.goals}
+          <Field C={C} label={t('advisorProfile.goals')} value={profile.goals}
                  onChange={(v) => patch({ goals: v })} placeholder={t('advisorProfile.goalsPlaceholder')} multiline />
-          <Field label={t('advisorProfile.interests')} value={profile.activityInterests}
+          <Field C={C} label={t('advisorProfile.interests')} value={profile.activityInterests}
                  onChange={(v) => patch({ activityInterests: v })} placeholder={t('advisorProfile.interestsPlaceholder')} />
-          <Field label={t('advisorProfile.dietary')} value={profile.dietaryPreferences}
+          <Field C={C} label={t('advisorProfile.dietary')} value={profile.dietaryPreferences}
                  onChange={(v) => patch({ dietaryPreferences: v })} placeholder={t('advisorProfile.dietaryPlaceholder')} />
         </View>
 
@@ -178,10 +197,10 @@ export default function AdvisorProfileScreen() {
 
             {profile.sensitiveConsentAt && (
               <>
-                <Field label={t('advisorProfile.allergies')} value={profile.allergies}
+                <Field C={C} label={t('advisorProfile.allergies')} value={profile.allergies}
                        onChange={(v) => patch({ allergies: v })}
                        placeholder={t('advisorProfile.allergiesPlaceholder')} />
-                <Field label={t('advisorProfile.conditions')} value={profile.healthConsiderations}
+                <Field C={C} label={t('advisorProfile.conditions')} value={profile.healthConsiderations}
                        onChange={(v) => patch({ healthConsiderations: v })}
                        placeholder={t('advisorProfile.conditionsPlaceholder')} multiline />
                 <View style={{ flexDirection: 'row', marginTop: 14, alignItems: 'flex-start' }}>
