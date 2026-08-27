@@ -960,10 +960,20 @@ Two holes found while building: the business `/join` looked up invite codes
 without scoping by type (codes are unique across the whole table now), and
 accounts could have been shared into a business group. Both closed.
 
+A shared account is an opt-in view rather than a new entity: one switch on
+the household screen, which says before it is flipped that a shared account
+is the one place the shareLevel dial does not apply. Raising your own level
+notifies everyone else — sent server-side, rendered in each recipient's own
+language, because a notification the app chooses to send is one a modified
+app can decline to send.
+
 Verified through real HTTP handlers against a real database, reading the
 serialised bytes rather than object shapes — 10 integration tests, 12 unit
-tests, and two source guards asserting no route can add a member by userId.
-Each was proved by reintroducing the defect.
+tests, and source guards asserting no route can add a member by userId and
+no API client function is unreachable from the UI. Each was proved by
+reintroducing the defect. The whole flow was then exercised end to end
+against the deployed backend on a real session: created, shared an account,
+watched the label change, deleted it again.
 
 ### ☑ Personalised advisor
 

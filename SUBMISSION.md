@@ -140,6 +140,10 @@ Known gaps, recorded rather than scheduled:
   are enforced server-side and the static tests prove they reach the model, but only
   `advisor-adversarial.test.ts` proves it obeys, and that needs a working OpenAI key. It is written
   and skips loudly. Run it before shipping the health tier.
+- **Arabic users' settings sync was broken and is now fixed.** `PUT /api/settings` validated
+  locale against `["en","fr","zh"]`, and zod rejects the whole body on one bad field — so it was
+  not that their locale reset, it was that every setting they changed silently stopped syncing.
+  A test now reads both files and fails if the lists disagree.
 - **The OPENAI_API_KEY in backend/.env is a placeholder**, not a real credential — it is shaped like
   one and ends in "r3al", and every request with it returns 401.
 - **Phase 7 remains deliberate.** The model upgrade in particular has an acceptance criterion —
