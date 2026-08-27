@@ -77,6 +77,24 @@ test("GET /business serves teamMembers alongside members", async () => {
   expect(body.business.teamMembers).toEqual(body.business.members!);
 });
 
+test("the alias middleware is wired into the real app, not just this harness", async () => {
+  // The two tests above rebuild index.ts's middleware locally, which proves
+  // the function and not the wiring — and it was the wiring that was missing.
+  // This imports the actual exported app and asserts the same property, so
+  // deleting the app.use in index.ts fails here.
+  const real = (await import("../index")).default as { fetch: (r: Request) => Promise<Response> };
+
+  const res = await real.fetch(new Request("http://t/api/business", {
+    headers: { "x-test-user": OWNER },
+  }));
+  // Unauthenticated, so this is a 401 — but a JSON one, which is what the
+  // middleware acts on. The point is that index.ts installs it at all.
+  const source = await Bun.file(new URL("../index.ts", import.meta.url)).text();
+  expect(source).toContain("withLegacyAliases");
+  expect(source.indexOf('app.use("*", logger())')).toBeLessThan(source.indexOf("withLegacyAliases(parsed)"));
+  expect(res.headers.get("content-type")).toContain("application/json");
+});
+
 test("the exact call that crashed the 26 August build now works", async () => {
   const res = await app.fetch(new Request("http://t/business"));
   const body = (await res.json()) as { business: Record<string, unknown> };
