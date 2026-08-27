@@ -1195,7 +1195,12 @@
     },
     "deleteTitle": "Supprimer ce foyer",
     "deleteBody": "Le supprime pour tout le monde. Tapez %{name} pour confirmer — les données de chacun restent intactes.",
-    "deleteCta": "Supprimer le foyer"
+    "deleteCta": "Supprimer le foyer",
+    "sharedAccountsTitle": "Comptes partagés",
+    "sharedAccountsBlurb": "Un compte partagé est entièrement visible par tout le foyer — chaque transaction — même si vous ne partagez que les totaux. Le reste demeure au niveau que vous avez choisi.",
+    "accountShared": "Visible par le foyer",
+    "accountPrivate": "Vous uniquement",
+    "sharedActivity": "Activité récente des comptes partagés"
   },
   "advisorProfile": {
     "title": "Profil du conseiller",

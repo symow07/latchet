@@ -1195,7 +1195,12 @@
     },
     "deleteTitle": "Delete this household",
     "deleteBody": "Removes it for everyone. Type %{name} to confirm — each person's own records are untouched.",
-    "deleteCta": "Delete household"
+    "deleteCta": "Delete household",
+    "sharedAccountsTitle": "Shared accounts",
+    "sharedAccountsBlurb": "A shared account is visible to the whole household in full — every transaction on it — even if you only share totals. Everything else stays at the level you chose.",
+    "accountShared": "Visible to the household",
+    "accountPrivate": "Only you",
+    "sharedActivity": "Recent activity on shared accounts"
   },
   "advisorProfile": {
     "title": "Advisor profile",

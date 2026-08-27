@@ -1183,7 +1183,12 @@
     },
     "deleteTitle": "删除这个家庭组",
     "deleteBody": "将为所有人移除。输入 %{name} 以确认——每个人自己的记录不受影响。",
-    "deleteCta": "删除家庭组"
+    "deleteCta": "删除家庭组",
+    "sharedAccountsTitle": "共享账户",
+    "sharedAccountsBlurb": "共享账户会被整个家庭组完整看到——包括其上的每一笔交易——即使你只共享总额。其余内容仍保持你所选择的级别。",
+    "accountShared": "家庭组可见",
+    "accountPrivate": "仅你可见",
+    "sharedActivity": "共享账户的近期活动"
   },
   "advisorProfile": {
     "title": "顾问资料",

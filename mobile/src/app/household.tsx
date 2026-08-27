@@ -1,19 +1,23 @@
 import { useState } from 'react';
-import { View, ScrollView, Pressable, ActivityIndicator, TextInput } from 'react-native';
+import { View, ScrollView, Pressable, ActivityIndicator, TextInput, Switch } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Home, Eye, LogOut, RefreshCw, Users, Check, Trash2 } from 'lucide-react-native';
+import { ArrowLeft, Home, Eye, LogOut, RefreshCw, Users, Check, Trash2, Wallet } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import {
   getHousehold, getDashboard, getVisibility, getInviteCode, refreshInviteCode,
-  setMyShareLevel, leaveHousehold, createHousehold, deleteHousehold,
+  setMyShareLevel, leaveHousehold, createHousehold, deleteHousehold, setAccountSharing,
   SHARE_LEVELS, type ShareLevel,
 } from '@/lib/householdApi';
+import { getAccounts, type Account } from '@/lib/db';
 import { useSession } from '@/lib/auth/use-session';
 import { R, useC } from '@/lib/design';
 import { Txt, GlassCard, BubbleButton, ScreenBackground, EmptyState } from '@/components/ui';
 import { t } from '@/lib/i18n/core';
+// Categories are stored canonically in English and translated for display only —
+// the stored value and the wire format never change. See category-meta.ts.
+import { categoryLabel } from '@/lib/category-meta';
 
 /** Matches the business tabs, which format inline rather than via a helper. */
 const money = (n: number) => `$${n.toFixed(2)}`;
@@ -66,6 +70,15 @@ export default function HouseholdScreen() {
     enabled: hasHousehold && household?.isOwner === true,
   });
 
+  // Local-first accounts, cross-referenced against the server's list of which
+  // ones are shared. The sharing flag is server state and the accounts are
+  // device state, so neither side alone can render this row.
+  const { data: myAccounts = [] } = useQuery<Account[]>({
+    queryKey: ['accounts'],
+    queryFn: getAccounts,
+    enabled: hasHousehold,
+  });
+
   const invalidate = () => qc.invalidateQueries({ queryKey: ['household'] });
 
   const create = useMutation({
@@ -77,6 +90,11 @@ export default function HouseholdScreen() {
     onSuccess: invalidate,
   });
   const refresh = useMutation({ mutationFn: refreshInviteCode, onSuccess: invalidate });
+  const shareAccount = useMutation({
+    mutationFn: ({ id, on }: { id: string; on: boolean }) =>
+      setAccountSharing(id, on ? household!.household!.id : null),
+    onSuccess: invalidate,
+  });
   const leave = useMutation({
     mutationFn: leaveHousehold,
     onSuccess: () => { invalidate(); router.back(); },
@@ -261,7 +279,7 @@ export default function HouseholdScreen() {
                     <View style={{ marginTop: 8 }}>
                       {Object.entries(m.byCategory).map(([cat, amount]) => (
                         <View key={cat} style={{ flexDirection: 'row', marginTop: 3 }}>
-                          <Txt size={12} color={C.textDim} style={{ flex: 1 }}>{cat}</Txt>
+                          <Txt size={12} color={C.textDim} style={{ flex: 1 }}>{categoryLabel(cat)}</Txt>
                           <Txt size={12} color={C.textDim}>{money(amount)}</Txt>
                         </View>
                       ))}
@@ -274,6 +292,71 @@ export default function HouseholdScreen() {
                   )}
                 </GlassCard>
               ))}
+            </View>
+
+            {/* ── Shared accounts, in full ────────────────────────────────
+                An opt-in view rather than a new entity. A shared account is
+                visible to the whole household regardless of its owner's
+                shareLevel, which is the one place the dial does not apply —
+                so the switch says exactly that before it is flipped. */}
+            <View style={{ marginTop: 20 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+                <Wallet size={16} color={C.p400} />
+                <Txt weight="semibold" size={15} style={{ marginStart: 8 }}>
+                  {t('household.sharedAccountsTitle')}
+                </Txt>
+              </View>
+              <Txt size={12} color={C.textDim} style={{ marginBottom: 10, lineHeight: 18 }}>
+                {t('household.sharedAccountsBlurb')}
+              </Txt>
+
+              {myAccounts.map((account) => {
+                const isShared = (dashboard?.sharedAccounts ?? []).some((a) => a.id === account.id);
+                return (
+                  <GlassCard key={account.id} padding={14} radius={R.sm} style={{ marginBottom: 8 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <View style={{ flex: 1 }}>
+                        <Txt weight="semibold" size={14}>{account.name}</Txt>
+                        <Txt size={12} color={C.textDim} style={{ marginTop: 2 }}>
+                          {isShared ? t('household.accountShared') : t('household.accountPrivate')}
+                        </Txt>
+                      </View>
+                      <Switch
+                        value={isShared}
+                        onValueChange={(on) => {
+                          Haptics.selectionAsync();
+                          shareAccount.mutate({ id: account.id, on });
+                        }}
+                        disabled={shareAccount.isPending}
+                        trackColor={{ true: C.p600, false: C.glassBorder }}
+                      />
+                    </View>
+                  </GlassCard>
+                );
+              })}
+
+              {/* What the household actually sees from those accounts. */}
+              {(dashboard?.sharedTransactions?.length ?? 0) > 0 && (
+                <View style={{ marginTop: 10 }}>
+                  <Txt size={12} color={C.textDim} style={{ marginBottom: 8 }}>
+                    {t('household.sharedActivity')}
+                  </Txt>
+                  {(dashboard?.sharedTransactions ?? []).slice(0, 10).map((tx) => (
+                    <View
+                      key={tx.id}
+                      style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 7 }}
+                    >
+                      <View style={{ flex: 1 }}>
+                        <Txt size={13}>{tx.note ?? categoryLabel(tx.category)}</Txt>
+                        <Txt size={11} color={C.textDim} style={{ marginTop: 1 }}>
+                          {tx.dateISO} · {categoryLabel(tx.category)}
+                        </Txt>
+                      </View>
+                      <Txt size={13} weight="semibold">{money(tx.amount)}</Txt>
+                    </View>
+                  ))}
+                </View>
+              )}
             </View>
 
             {/* ── Invite ──────────────────────────────────────────────────── */}
