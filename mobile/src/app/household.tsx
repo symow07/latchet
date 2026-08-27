@@ -81,8 +81,8 @@ export default function HouseholdScreen() {
   });
 
   const myLevel =
-    visibility?.members.find((m) => m.isYou)?.shareLevel ??
-    household?.members?.find((m) => m.userId === session?.user?.id)?.shareLevel ??
+    (visibility?.members ?? []).find((m) => m.isYou)?.shareLevel ??
+    (household?.members ?? []).find((m) => m.userId === session?.user?.id)?.shareLevel ??
     'summary';
 
   if (isLoading) {
@@ -176,7 +176,7 @@ export default function HouseholdScreen() {
                 {t('household.visibilityBlurb')}
               </Txt>
 
-              {visibility?.members.map((m) => (
+              {(visibility?.members ?? []).map((m) => (
                 <GlassCard key={m.userId} padding={14} radius={R.sm} style={{ marginBottom: 8 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                     <View style={{ flex: 1 }}>
@@ -245,7 +245,7 @@ export default function HouseholdScreen() {
                   {t('household.contributionsTitle')}
                 </Txt>
               </View>
-              {dashboard?.members.map((m) => (
+              {(dashboard?.members ?? []).map((m) => (
                 <GlassCard key={m.userId} padding={14} radius={R.sm} style={{ marginBottom: 8 }}>
                   <View style={{ flexDirection: 'row' }}>
                     <Txt weight="semibold" size={14} style={{ flex: 1 }}>{m.name}</Txt>

@@ -30,6 +30,12 @@ export interface Business {
   createdAt: string;
   updatedAt: string;
   members: GroupMember[];
+  /**
+   * What the backend called this before groups were generalised. Still sent by
+   * a deployment that has not caught up, and a shipped build has no say in
+   * when that happens — read it through readMembers/roleOf, never directly.
+   */
+  teamMembers?: GroupMember[];
 }
 
 export interface GroupMember {

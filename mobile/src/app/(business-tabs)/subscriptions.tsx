@@ -20,6 +20,7 @@ import {
   type SalaryRecord,
 } from '@/lib/salaryApi';
 import { type GroupMember } from '@/lib/businessApi';
+import { roleOf } from '@/lib/group-members';
 import { R, glow, useB } from '@/lib/design';
 import { Txt, GlassCard, IconBubble, Pill, BizBackground, BubbleButton } from '@/components/ui';
 import { t } from '@/lib/i18n/core';
@@ -212,7 +213,7 @@ export default function PayrollScreen() {
 
   useFocusEffect(useCallback(() => { qc.invalidateQueries({ queryKey: ['payroll'] }); }, [qc]));
 
-  const myRole = business?.members.find(m => m.userId === session?.user?.id)?.role;
+  const myRole = roleOf(business, session?.user?.id);
   const canEdit = myRole === 'owner' || myRole === 'manager';
   const invalidate = () => qc.invalidateQueries({ queryKey: ['payroll'] });
 

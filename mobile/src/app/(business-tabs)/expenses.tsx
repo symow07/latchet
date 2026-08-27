@@ -22,6 +22,7 @@ import {
   type Expense, type ExpenseStatus, type ExpenseCategory,
 } from '@/lib/expenseApi';
 import { getBusiness } from '@/lib/businessApi';
+import { roleOf } from '@/lib/group-members';
 import { useSession } from '@/lib/auth/use-session';
 import { R, glow, useB } from '@/lib/design';
 import { Txt, GlassCard, IconBubble, Pill, BizBackground, BubbleButton } from '@/components/ui';
@@ -283,7 +284,7 @@ export default function ExpensesScreen() {
   });
   const { data: business } = useQuery({ queryKey: ['my-business'], queryFn: getBusiness });
 
-  const myRole = business?.members.find(m => m.userId === session?.user?.id)?.role;
+  const myRole = roleOf(business, session?.user?.id);
   const canReview = myRole === 'owner' || myRole === 'manager';
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ['biz-expenses'] });

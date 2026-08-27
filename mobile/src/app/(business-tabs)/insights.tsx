@@ -16,6 +16,7 @@ import * as Haptics from 'expo-haptics';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getBudget, setBudget, type BudgetCategory, type BudgetData } from '@/lib/budgetApi';
 import { getBusiness } from '@/lib/businessApi';
+import { roleOf } from '@/lib/group-members';
 import { useSession } from '@/lib/auth/use-session';
 import { useFocusEffect } from 'expo-router';
 import { R, glow, useB } from '@/lib/design';
@@ -174,7 +175,7 @@ export default function BudgetScreen() {
 
   useFocusEffect(useCallback(() => { qc.invalidateQueries({ queryKey: ['biz-budget'] }); }, [qc]));
 
-  const myRole = business?.members.find(m => m.userId === session?.user?.id)?.role;
+  const myRole = roleOf(business, session?.user?.id);
   const canEdit = myRole === 'owner' || myRole === 'manager';
 
   const totalBudget = data?.budget.totalMonthly ?? 0;

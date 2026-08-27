@@ -9,6 +9,7 @@ import { useSession } from '@/lib/auth/use-session';
 import { useQuery } from '@tanstack/react-query';
 import { getExpenses } from '@/lib/expenseApi';
 import { getBusiness } from '@/lib/businessApi';
+import { roleOf } from '@/lib/group-members';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInUp } from 'react-native-reanimated';
@@ -32,7 +33,7 @@ export default function BusinessDashboardTab() {
   const { data: allExpenses = [], isLoading } = useQuery({ queryKey: ['biz-expenses', undefined], queryFn: () => getExpenses() });
   const { data: business } = useQuery({ queryKey: ['my-business'], queryFn: getBusiness });
 
-  const myRole = business?.members.find(m => m.userId === session?.user?.id)?.role;
+  const myRole = roleOf(business, session?.user?.id);
   const canReview = myRole === 'owner' || myRole === 'manager';
 
   const totalExpenses = allExpenses.reduce((s, e) => s + e.amount, 0);
