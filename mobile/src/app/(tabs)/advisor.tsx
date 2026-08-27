@@ -23,9 +23,8 @@ import Animated, { FadeInUp, FadeInDown } from 'react-native-reanimated';
 import { getTransactions, getSettings, addTransaction } from '@/lib/db';
 import {
   analyzeSpending,
-  buildAIPrompt,
-  getAIResponse,
   getQuickInsights,
+  sendAdvisorMessage,
   type SpendingAnalysis,
 } from '@/lib/ai-analysis';
 import { R, glow, useC } from '@/lib/design';
@@ -77,8 +76,11 @@ export default function AdvisorTab() {
   const sendMessageMutation = useMutation({
     mutationFn: async (userMessage: string) => {
       const conversationHistory = messages.map(m => ({ role: m.role, content: m.content }));
-      const prompt = buildAIPrompt(analysis, settings ?? null, userMessage, conversationHistory, getLocale());
-      return getAIResponse(prompt, '');
+      // The chat shape: persona and figures in the system role, the exchange as
+      // real turns. The server prepends the hard safety constraints to that
+      // system message, which is what makes them un-overridable by anything
+      // typed here.
+      return sendAdvisorMessage(analysis, settings ?? null, userMessage, conversationHistory, getLocale());
     },
     onSuccess: (response) => {
       setMessages(prev => [...prev, { id: `msg_${Date.now()}`, role: 'assistant', content: response, timestamp: new Date() }]);

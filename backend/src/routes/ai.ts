@@ -12,6 +12,7 @@ import {
   STATEMENT_CATEGORIES,
 } from "../lib/statement-extract";
 import { normaliseVoiceRows, voiceExtractionPrompt } from "../lib/voice-extract";
+import { buildChatMessages } from "../lib/advisor-safety";
 
 /**
  * AI proxy routes. The mobile app used to call OpenAI directly with a public
@@ -84,17 +85,38 @@ async function openaiChat(body: Record<string, unknown>): Promise<any> {
   return res.json();
 }
 
-const chatSchema = z.object({
-  // The mobile side already assembles the full prompt via buildAIPrompt().
-  prompt: z.string().min(1).max(20000),
-});
+const chatSchema = z
+  .object({
+    // Current shape: the app supplies persona and its own spending figures for
+    // the system role, plus the conversation as real turns.
+    system: z.string().max(20000).optional(),
+    messages: z
+      .array(
+        z.object({
+          role: z.enum(["user", "assistant"]),
+          content: z.string().min(1).max(20000),
+        })
+      )
+      .max(40)
+      .optional(),
+    // Legacy shape: one pre-assembled string, everything in a single user
+    // message. Still accepted because builds sit on devices for weeks, and
+    // breaking the advisor for anyone who has not updated is worse than
+    // carrying this. buildChatMessages gives them the system role regardless.
+    prompt: z.string().min(1).max(20000).optional(),
+  })
+  .refine((v) => v.prompt || v.messages?.length, {
+    message: "Provide either messages or prompt",
+  });
 
 router.post("/chat", zValidator("json", chatSchema), async (c) => {
-  const { prompt } = c.req.valid("json");
+  const input = c.req.valid("json");
   try {
     const data = await openaiChat({
       model: CHAT_MODEL,
-      messages: [{ role: "user", content: prompt }],
+      // The hard constraints are prepended here, server-side, so no client can
+      // omit them — see lib/advisor-safety.ts.
+      messages: buildChatMessages(input),
       temperature: 0.7,
       max_tokens: 600,
     });

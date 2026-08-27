@@ -68,6 +68,39 @@ export function fitConversationHistory(
   return { text: kept.join('\n\n'), dropped: history.length - kept.length };
 }
 
+export interface FittedTurns {
+  /** Turns that fit, oldest to newest, unmodified. */
+  turns: ChatTurn[];
+  /** How many older turns had to be dropped. */
+  dropped: number;
+}
+
+/**
+ * The same budget, keeping turns as turns.
+ *
+ * The chat shape needs real message objects, not a formatted transcript, so
+ * this trims by the same rule without flattening. A single oversized turn is
+ * dropped rather than tail-sliced: truncating one side of a conversation into
+ * a well-formed message is worse than omitting it, because nothing downstream
+ * can tell it happened.
+ */
+export function fitConversationTurns(history: ChatTurn[], available: number): FittedTurns {
+  if (available <= 0) return { turns: [], dropped: history.length };
+
+  const kept: ChatTurn[] = [];
+  let used = 0;
+
+  for (let i = history.length - 1; i >= 0; i--) {
+    const turn = history[i]!;
+    const cost = turn.content.length + 12; // role overhead, roughly
+    if (used + cost > available) break;
+    kept.unshift(turn);
+    used += cost;
+  }
+
+  return { turns: kept, dropped: history.length - kept.length };
+}
+
 /**
  * Characters left for history once the fixed parts of the prompt are counted.
  */

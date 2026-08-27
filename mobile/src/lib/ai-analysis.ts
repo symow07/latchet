@@ -4,7 +4,7 @@ import { api } from './api/api';
 import { hasEnoughHistory, projectMonthlyExpenses } from './calculations';
 import { categoryLabel, DEFAULT_CATEGORIES } from './category-meta';
 import type { AppLocale } from './i18n/core';
-import { fitConversationHistory, historyBudget, omissionNote, localeInstruction } from './prompt-budget';
+import { fitConversationHistory, fitConversationTurns, historyBudget, omissionNote, localeInstruction } from './prompt-budget';
 
 export interface Transaction {
   id: string;
@@ -393,18 +393,39 @@ export function analyzeSpending(
   };
 }
 
+/**
+ * The persona and the user's own figures, with no conversation attached.
+ *
+ * Extracted so the chat shape and the legacy single-string shape cannot drift
+ * apart — the same context has to reach the model either way, and two copies
+ * of a 40-line template is how one of them quietly stops matching.
+ *
+ * Note what is NOT here: the hard safety constraints. Those are prepended
+ * server-side, where a client cannot omit them.
+ */
+export function buildSystemContext(
+  analysis: SpendingAnalysis | null,
+  settings: Settings | null,
+  locale: AppLocale = 'en'
+): string {
+  return buildAIPrompt(analysis, settings, '', [], locale, true);
+}
+
 export function buildAIPrompt(
   analysis: SpendingAnalysis | null,
   settings: Settings | null,
   userMessage: string,
   conversationHistory: { role: 'user' | 'assistant'; content: string }[],
   /** The user's chosen language. Drives the reply language and category names. */
-  locale: AppLocale = 'en'
+  locale: AppLocale = 'en',
+  /** Return only the system half, for the chat shape. */
+  systemOnly = false
 ): string {
   if (!analysis || !settings) {
     const intro = `You are a friendly AI financial advisor built into a personal budgeting app called "Budget". The user has not added any transactions yet, so you don't have spending data to analyze. Be helpful, friendly, and encourage them to start tracking their expenses to get personalized advice.
 
 ${localeInstruction(locale, [])}`;
+    if (systemOnly) return intro;
     const fitted = fitConversationHistory(
       conversationHistory,
       historyBudget(intro.length + userMessage.length)
@@ -492,6 +513,8 @@ GUIDELINES FOR YOUR RESPONSES:
 11. Adapt your tone based on personality: encouraging for spenders, affirming for savers
 12. ${localeInstruction(locale, DEFAULT_CATEGORIES.map(c => categoryLabel(c.name)))}`;
 
+  if (systemOnly) return systemContext;
+
   // The server rejects prompts over 20,000 characters, and history only grows,
   // so trim to fit rather than letting the advisor start failing permanently
   // partway through a long conversation.
@@ -511,14 +534,61 @@ Respond as the AI financial advisor:`;
 }
 
 // Routes through the backend AI proxy (POST /api/ai/chat) so the OpenAI key
-// stays server-side and never ships in the mobile bundle. The full prompt is
-// assembled on-device by buildAIPrompt(); the second arg is retained for
-// call-site compatibility but unused.
+// stays server-side and never ships in the mobile bundle. The prompt is
+// assembled on-device — the spending data is local-first and the server never
+// holds it.
+//
+// The hard safety constraints are NOT sent from here. They are prepended
+// server-side in lib/advisor-safety.ts, because rules shipped inside a
+// client-assembled prompt are only as trustworthy as the build sending them.
 export async function getAIResponse(
   prompt: string,
   _apiKey?: string
 ): Promise<string> {
   const { response } = await api.post<{ response: string }>('/api/ai/chat', { prompt });
+  return response;
+}
+
+/**
+ * The current request shape: persona and figures in the system role, the
+ * conversation as real turns.
+ *
+ * This is what makes the guardrails enforceable rather than advisory. When
+ * everything went in as one `user` message, the GUIDELINES block sat in the
+ * same turn as whatever the user typed, so "ignore the above" addressed it as
+ * a peer. A system message is not a peer.
+ */
+export async function sendAdvisorMessage(
+  analysis: SpendingAnalysis | null,
+  settings: Settings | null,
+  userMessage: string,
+  conversationHistory: { role: 'user' | 'assistant'; content: string }[],
+  locale: AppLocale = 'en'
+): Promise<string> {
+  // Imported lazily: this module is native-free and heavily unit-tested, and
+  // health-profile reaches expo-sqlite.
+  const { getHealthProfile } = await import('./health-profile');
+  const { buildProfileContext } = await import('./health-profile-prompt');
+
+  const profile = await getHealthProfile().catch(() => null);
+  const profileContext = buildProfileContext(profile);
+
+  const system = [buildSystemContext(analysis, settings, locale), profileContext]
+    .filter((part) => part.length > 0)
+    .join('\n\n');
+
+  const fitted = fitConversationTurns(
+    conversationHistory,
+    historyBudget(system.length + userMessage.length)
+  );
+
+  const { response } = await api.post<{ response: string }>('/api/ai/chat', {
+    system,
+    messages: [
+      ...fitted.turns,
+      { role: 'user' as const, content: userMessage },
+    ],
+  });
   return response;
 }
 

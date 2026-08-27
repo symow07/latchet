@@ -20,6 +20,7 @@ import {
   type CloudAccount,
   type CloudTransaction,
 } from './sync-merge';
+import { redactDeviceOnly } from './sync-redaction';
 
 export interface SyncResult {
   success: boolean;
@@ -66,22 +67,27 @@ export async function pushLocalDataToCloud(): Promise<SyncResult> {
 
     // Sequential rather than parallel: the server has a single SQLite writer,
     // so firing every chunk at once only queues them behind each other anyway.
+    // Every outbound payload goes through redactDeviceOnly. The health profile
+    // is in its own table and nothing here reads it, so today this strips
+    // nothing — that is the point. The settings PUT below spreads a whole row,
+    // and the day someone stores a health field on it, this is what stops it
+    // leaving the device. See lib/sync-redaction.ts.
     for (const batch of chunk(transactions, SYNC_CHUNK_SIZE)) {
-      await api.post('/api/transactions/sync', {
+      await api.post('/api/transactions/sync', redactDeviceOnly({
         transactions: batch.map((t) => ({ ...t, isImpulse: bool(t.isImpulse) })),
-      });
+      }));
     }
 
     for (const batch of chunk(accounts, SYNC_CHUNK_SIZE)) {
-      await api.post('/api/accounts/sync', {
+      await api.post('/api/accounts/sync', redactDeviceOnly({
         accounts: batch.map((a) => ({ ...a, isDefault: bool(a.isDefault) })),
-      });
+      }));
     }
 
-    await api.put('/api/settings', {
+    await api.put('/api/settings', redactDeviceOnly({
       ...settings,
       showTimeCost: bool(settings?.showTimeCost),
-    });
+    }));
 
     return { success: true };
   } catch (e) {

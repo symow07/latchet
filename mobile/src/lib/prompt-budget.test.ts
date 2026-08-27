@@ -1,5 +1,5 @@
 import { test, expect } from 'bun:test';
-import { fitConversationHistory, historyBudget, omissionNote, MAX_PROMPT_CHARS, PROMPT_SAFETY_MARGIN, type ChatTurn, localeInstruction } from './prompt-budget';
+import { fitConversationHistory, historyBudget, omissionNote, MAX_PROMPT_CHARS, PROMPT_SAFETY_MARGIN, type ChatTurn, localeInstruction, fitConversationTurns } from './prompt-budget';
 
 const turn = (role: 'user' | 'assistant', content: string): ChatTurn => ({ role, content });
 
@@ -135,4 +135,48 @@ test('no labels means no label sentence', () => {
 test('an unknown locale falls back to English rather than naming nothing', () => {
   expect(localeInstruction('de')).toContain('English');
   expect(localeInstruction('')).toContain('English');
+});
+
+// ── Turn-preserving variant, for the chat shape ──────────────────────────────
+
+test('turns that fit are returned unmodified, oldest first', () => {
+  const history = [
+    { role: 'user' as const, content: 'one' },
+    { role: 'assistant' as const, content: 'two' },
+  ];
+  const out = fitConversationTurns(history, 10_000);
+  expect(out.turns).toEqual(history);
+  expect(out.dropped).toBe(0);
+});
+
+test('the newest turns are kept when the budget runs out', () => {
+  const history = Array.from({ length: 10 }, (_, i) => ({
+    role: 'user' as const,
+    content: `turn ${i}`.padEnd(100, 'x'),
+  }));
+  const out = fitConversationTurns(history, 350);
+  expect(out.turns.length).toBeGreaterThan(0);
+  expect(out.turns.length).toBeLessThan(10);
+  // What survives is the tail — the part nearest the current question.
+  expect(out.turns.at(-1)).toEqual(history.at(-1)!);
+  expect(out.dropped).toBe(10 - out.turns.length);
+});
+
+test('a single oversized turn is dropped, not silently truncated', () => {
+  // A tail-sliced turn is a well-formed message that nothing downstream can
+  // tell is partial. Omitting it at least shows up in `dropped`.
+  const out = fitConversationTurns([{ role: 'user', content: 'x'.repeat(5000) }], 100);
+  expect(out.turns).toEqual([]);
+  expect(out.dropped).toBe(1);
+});
+
+test('no budget drops everything rather than throwing', () => {
+  const history = [{ role: 'user' as const, content: 'hi' }];
+  for (const budget of [0, -1, -9999]) {
+    expect(fitConversationTurns(history, budget)).toEqual({ turns: [], dropped: 1 });
+  }
+});
+
+test('an empty history is empty output', () => {
+  expect(fitConversationTurns([], 1000)).toEqual({ turns: [], dropped: 0 });
 });

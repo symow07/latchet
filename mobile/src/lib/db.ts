@@ -127,6 +127,32 @@ async function performInit(): Promise<SQLite.SQLiteDatabase> {
       color TEXT NOT NULL DEFAULT '#94a3b8',
       createdAt TEXT NOT NULL
     );
+
+    -- The advisor's personal profile. DEVICE-ONLY, never synced.
+    --
+    -- Its own table rather than columns on the settings row, for one specific
+    -- reason: cloud-sync spreads that entire row into PUT /api/settings, so a
+    -- health column added there would upload itself the next time anything
+    -- triggered a sync. Nobody would have written a line of code to send it.
+    --
+    -- The sensitive tier (allergies, conditions) carries its own consent flag
+    -- and its own timestamp, because GDPR Article 9 and China's PIPL both
+    -- require that consent to be separate from everything else the user agreed
+    -- to, and "separate" has to mean recorded separately.
+    CREATE TABLE IF NOT EXISTS health_profile (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      householdSize INTEGER,
+      city TEXT,
+      cookingHabits TEXT,
+      goals TEXT,
+      activityInterests TEXT,
+      dietaryPreferences TEXT,
+      allergies TEXT,
+      healthConsiderations TEXT,
+      standardConsentAt TEXT,
+      sensitiveConsentAt TEXT,
+      updatedAt TEXT
+    );
   `);
 
   // Migration: Add accountId column if it doesn't exist (for older databases)
