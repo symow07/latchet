@@ -1,6 +1,6 @@
 import { test, expect } from "bun:test";
 import {
-  sniffImageType, contentTypeFor, isSafeId, receiptPath, receiptDir,
+  sniffImageType, contentTypeFor, isSafeId, receiptPath, receiptDir, logoPath,
 } from "./receipt-store";
 
 const bytes = (...values: number[]) => new Uint8Array(values);
@@ -74,4 +74,15 @@ test("an explicit RECEIPT_DIR wins", () => {
   process.env.RECEIPT_DIR = "/mnt/uploads";
   expect(receiptDir("file:/data/prod.db")).toBe("/mnt/uploads");
   delete process.env.RECEIPT_DIR;
+});
+
+test("a logo cannot collide with an expense id", () => {
+  // Both live in one directory; without the prefix a business whose id matched
+  // an expense id would overwrite that receipt.
+  expect(logoPath("abc", "png", "/r")).toBe("/r/logo-abc.png");
+  expect(receiptPath("abc", "png", "/r")).toBe("/r/abc.png");
+});
+
+test("an unsafe business id throws rather than building a path", () => {
+  expect(() => logoPath("../../etc/passwd", "png", "/r")).toThrow();
 });

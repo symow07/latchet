@@ -344,6 +344,10 @@ model Business {
   name        String
   // Company profile and tax identity. All optional: a sole trader has no VAT
   // number, and nothing here should block using the app.
+  //
+  // logoUrl is a path this backend serves, never an arbitrary URL — a stored
+  // remote address would be fetched by every client that renders the company.
+  logoUrl     String?
   address     String?
   vatNumber   String?
   taxId       String?

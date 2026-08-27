@@ -799,7 +799,7 @@
     "sectionPreferences": "Préférences",
     "sectionSupport": "Assistance",
     "companyLabel": "Profil de l’entreprise",
-    "companySub": "Nom et adresse",
+    "companySub": "Nom, logo et adresse",
     "taxLabel": "Paramètres fiscaux",
     "taxSub": "TVA, numéro fiscal, exercice",
     "regionLabel": "Devise et région",
@@ -841,7 +841,12 @@
     "deleteWarning": "Cela supprime l'entreprise, toutes les dépenses, tous les salaires et le budget, pour toute l'équipe. C'est irréversible.",
     "typeNameToConfirm": "Tapez %{name} pour confirmer",
     "deleteConfirm": "Supprimer définitivement",
-    "deleting": "Suppression…"
+    "deleting": "Suppression…",
+    "logoLabel": "LOGO",
+    "addLogo": "Ajouter un logo",
+    "replaceLogo": "Remplacer",
+    "removeLogo": "Supprimer",
+    "logoHint": "Visible par toute l'équipe."
   },
   "feedback": {
     "exceededTitle": "Budget dépassé !",

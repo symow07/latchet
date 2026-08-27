@@ -799,7 +799,7 @@
     "sectionPreferences": "Preferences",
     "sectionSupport": "Support",
     "companyLabel": "Company Profile",
-    "companySub": "Name and address",
+    "companySub": "Name, logo and address",
     "taxLabel": "Tax Settings",
     "taxSub": "VAT, tax ID, fiscal year",
     "regionLabel": "Currency & Region",
@@ -841,7 +841,12 @@
     "deleteWarning": "This removes the company, every expense, every salary and the budget, for everyone on the team. It cannot be undone.",
     "typeNameToConfirm": "Type %{name} to confirm",
     "deleteConfirm": "Delete permanently",
-    "deleting": "Deleting…"
+    "deleting": "Deleting…",
+    "logoLabel": "LOGO",
+    "addLogo": "Add a logo",
+    "replaceLogo": "Replace",
+    "removeLogo": "Remove",
+    "logoHint": "Shown to everyone on the team."
   },
   "feedback": {
     "exceededTitle": "Budget Exceeded!",

@@ -794,7 +794,7 @@
     "sectionPreferences": "偏好设置",
     "sectionSupport": "支持",
     "companyLabel": "公司资料",
-    "companySub": "名称与地址",
+    "companySub": "名称、标志与地址",
     "taxLabel": "税务设置",
     "taxSub": "增值税、税号、财年",
     "regionLabel": "货币与地区",
@@ -836,7 +836,12 @@
     "deleteWarning": "这将为团队中的所有人删除该企业、全部报销、全部工资和预算。此操作无法撤销。",
     "typeNameToConfirm": "请输入 %{name} 以确认",
     "deleteConfirm": "永久删除",
-    "deleting": "删除中…"
+    "deleting": "删除中…",
+    "logoLabel": "标志",
+    "addLogo": "添加标志",
+    "replaceLogo": "替换",
+    "removeLogo": "移除",
+    "logoHint": "团队所有成员都能看到。"
   },
   "feedback": {
     "exceededTitle": "预算已超支！",

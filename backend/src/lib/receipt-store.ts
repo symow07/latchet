@@ -85,3 +85,15 @@ export function receiptPath(id: string, type: ReceiptType, dir = receiptDir()): 
   if (!isSafeId(id)) throw new Error("Unsafe receipt id");
   return join(dir, `${id}.${type}`);
 }
+
+/**
+ * Where a company logo lives.
+ *
+ * Same directory and the same volume as receipts — it is the same kind of
+ * thing, a file a business uploaded. Prefixed so it can never collide with an
+ * expense id.
+ */
+export function logoPath(businessId: string, type: ReceiptType, dir = receiptDir()): string {
+  if (!isSafeId(businessId)) throw new Error("Unsafe business id");
+  return join(dir, `logo-${businessId}.${type}`);
+}

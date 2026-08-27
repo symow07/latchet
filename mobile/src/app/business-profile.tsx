@@ -3,9 +3,15 @@ import { View, ScrollView, Pressable, TextInput, ActivityIndicator } from 'react
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Building2, Trash2 } from 'lucide-react-native';
+import { ArrowLeft, Building2, Trash2, ImageIcon, X } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
-import { createBusiness, deleteBusiness, getBusiness, updateBusiness } from '@/lib/businessApi';
+import {
+  createBusiness, deleteBusiness, getBusiness, updateBusiness, uploadLogo, removeLogo,
+} from '@/lib/businessApi';
+import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system';
+import { Image } from 'expo-image';
+import { receiptSource } from '@/lib/receipt-image';
 import { useSession } from '@/lib/auth/use-session';
 import { R, useB } from '@/lib/design';
 import { Txt, GlassCard, BubbleButton, BizBackground, IconBubble } from '@/components/ui';
@@ -64,6 +70,39 @@ export default function BusinessProfileScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       setErr(e.message);
     },
+  });
+
+  const logo = useMutation({
+    mutationFn: async () => {
+      const picked = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        // Square: it renders in a square well here and wherever the company is
+        // shown, and cropping at pick time beats cropping at every render.
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+      if (picked.canceled || !picked.assets?.[0]?.uri) return null;
+      const base64 = await FileSystem.readAsStringAsync(picked.assets[0].uri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+      return uploadLogo(base64);
+    },
+    onSuccess: (result) => {
+      if (!result) return;
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      qc.invalidateQueries({ queryKey: ['business'] });
+    },
+    onError: (e: Error) => setErr(e.message),
+  });
+
+  const clearLogo = useMutation({
+    mutationFn: removeLogo,
+    onSuccess: () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      qc.invalidateQueries({ queryKey: ['business'] });
+    },
+    onError: (e: Error) => setErr(e.message),
   });
 
   const remove = useMutation({
@@ -138,9 +177,49 @@ export default function BusinessProfileScreen() {
           </View>
         ) : (
           <View style={{ paddingHorizontal: 20, paddingTop: 22 }}>
-            <View style={{ alignItems: 'center', marginBottom: 22 }}>
-              <IconBubble color={B.accent} size={64} radius={22}><Building2 size={28} color={B.accent} /></IconBubble>
+            <View style={{ alignItems: 'center', marginBottom: 10 }}>
+              {business.logoUrl ? (
+                <Image
+                  source={receiptSource(business.logoUrl)!}
+                  style={{ width: 84, height: 84, borderRadius: 24, borderWidth: 1, borderColor: B.glassBorder }}
+                  contentFit="cover"
+                  // The path never changes when the logo does, so a cached
+                  // copy would survive a replacement. The updatedAt stamp is
+                  // what makes the new one load.
+                  cachePolicy="none"
+                />
+              ) : (
+                <IconBubble color={B.accent} size={84} radius={24}><Building2 size={34} color={B.accent} /></IconBubble>
+              )}
             </View>
+
+            {isOwner && (
+              <View style={{ alignItems: 'center', marginBottom: 22 }}>
+                <View style={{ flexDirection: 'row', gap: 10 }}>
+                  <Pressable
+                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); logo.mutate(); }}
+                    disabled={logo.isPending}
+                    style={({ pressed }) => ({ opacity: pressed || logo.isPending ? 0.6 : 1, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: `${B.accent}12`, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, borderColor: `${B.accent}2a` })}
+                  >
+                    <ImageIcon size={13} color={B.accent} />
+                    <Txt weight="semibold" size={12} color={B.accent}>
+                      {business.logoUrl ? t('bizSettings.replaceLogo') : t('bizSettings.addLogo')}
+                    </Txt>
+                  </Pressable>
+                  {business.logoUrl && (
+                    <Pressable
+                      onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); clearLogo.mutate(); }}
+                      disabled={clearLogo.isPending}
+                      style={({ pressed }) => ({ opacity: pressed || clearLogo.isPending ? 0.6 : 1, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: `${B.red}12`, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, borderColor: `${B.red}2a` })}
+                    >
+                      <X size={13} color={B.red} />
+                      <Txt weight="semibold" size={12} color={B.red}>{t('bizSettings.removeLogo')}</Txt>
+                    </Pressable>
+                  )}
+                </View>
+                <Txt size={11} color={B.textFaint} style={{ marginTop: 8 }}>{t('bizSettings.logoHint')}</Txt>
+              </View>
+            )}
 
             <Txt weight="semibold" size={11} color={B.textFaint} style={{ letterSpacing: 1.2, marginBottom: 8 }}>
               {t('bizSettings.companyNameLabel')}

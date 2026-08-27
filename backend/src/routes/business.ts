@@ -3,8 +3,11 @@ import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { prisma } from "../prisma";
 import { buildBusinessProfileFields } from "../lib/business-profile";
-import { receiptPath } from "../lib/receipt-store";
-import { rm } from "node:fs/promises";
+import {
+  receiptPath, logoPath, sniffImageType, contentTypeFor, MAX_RECEIPT_BASE64_CHARS,
+} from "../lib/receipt-store";
+import { rm, mkdir, writeFile, readFile } from "node:fs/promises";
+import { dirname } from "node:path";
 import { auth } from "../auth";
 import { randomBytes } from "crypto";
 import { getUserBusiness } from "../lib/get-user-business";
@@ -174,6 +177,90 @@ businessRouter.delete(
     return c.json({ ok: true });
   }
 );
+
+// ─── logo ─────────────────────────────────────────────────────────────────────
+// PUT /api/business/logo — replace the company logo. Owner only.
+// GET /api/business/logo — anyone in the business can see it.
+//
+// The bytes are stored on the volume beside receipts and served back from
+// here. logoUrl holds this path and never a remote URL: a stored address
+// would be fetched by every client that renders the company, handing whoever
+// set it a view of every viewer.
+businessRouter.put(
+  "/logo",
+  zValidator("json", z.object({ image: z.string().max(MAX_RECEIPT_BASE64_CHARS) })),
+  async (c) => {
+    const user = c.get("user")!;
+    const { image } = c.req.valid("json");
+
+    const business = await prisma.business.findUnique({ where: { ownerId: user.id } });
+    if (!business) return c.json({ error: "No business found" }, 404);
+
+    // Identified from the bytes, never from a client-supplied name: that value
+    // decides the filename written to disk.
+    const bytes = Buffer.from(image, "base64");
+    const type = sniffImageType(bytes);
+    if (!type) return c.json({ error: "Unsupported image format" }, 400);
+
+    const path = logoPath(business.id, type);
+    await mkdir(dirname(path), { recursive: true });
+    await writeFile(path, bytes);
+
+    // A logo replaced with a different format leaves the old file behind, and
+    // the GET below would find whichever it tried first.
+    for (const stale of ["jpg", "png", "webp", "heic"] as const) {
+      if (stale !== type) await rm(logoPath(business.id, stale)).catch(() => {});
+    }
+
+    const updated = await prisma.business.update({
+      where: { id: business.id },
+      data: { logoUrl: "/api/business/logo" },
+      include: { teamMembers: { include: { user: { select: { id: true, name: true, email: true } } } } },
+    });
+
+    return c.json({ business: updated });
+  }
+);
+
+businessRouter.delete("/logo", async (c) => {
+  const user = c.get("user")!;
+  const business = await prisma.business.findUnique({ where: { ownerId: user.id } });
+  if (!business) return c.json({ error: "No business found" }, 404);
+
+  for (const type of ["jpg", "png", "webp", "heic"] as const) {
+    await rm(logoPath(business.id, type)).catch(() => {});
+  }
+  const updated = await prisma.business.update({
+    where: { id: business.id },
+    data: { logoUrl: null },
+    include: { teamMembers: { include: { user: { select: { id: true, name: true, email: true } } } } },
+  });
+  return c.json({ business: updated });
+});
+
+businessRouter.get("/logo", async (c) => {
+  const user = c.get("user")!;
+
+  // Scoped by the caller's own membership: a logo belongs to a company, and
+  // the id is never taken from the request.
+  const membership = await getUserBusiness(user.id);
+  if (!membership) return c.json({ error: "Not found" }, 404);
+
+  for (const type of ["jpg", "png", "webp", "heic"] as const) {
+    try {
+      const bytes = await readFile(logoPath(membership.id, type));
+      return new Response(bytes, {
+        headers: {
+          "Content-Type": contentTypeFor(type),
+          "Cache-Control": "private, max-age=86400",
+        },
+      });
+    } catch {
+      // Wrong extension for this logo; try the next.
+    }
+  }
+  return c.json({ error: "Not found" }, 404);
+});
 
 // ─── getInviteCode ────────────────────────────────────────────────────────────
 // GET /api/business/invite-code — owner regenerates/gets invite code

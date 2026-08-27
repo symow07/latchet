@@ -24,6 +24,8 @@ export interface Business {
   taxId?: string | null;
   /** Month the fiscal year starts, 1-12. */
   fiscalYearStartMonth?: number | null;
+  /** Path this backend serves, never a remote URL. */
+  logoUrl?: string | null;
   inviteCode?: string | null;
   createdAt: string;
   updatedAt: string;
@@ -92,6 +94,25 @@ export async function updateBusiness(patch: {
  * The name is retyped by the user and sent for the server to check, so the
  * confirmation is not something a client bug can skip.
  */
+/** Replace the company logo. Owner only; the server enforces that. */
+export async function uploadLogo(base64: string): Promise<Business> {
+  const res = await authedFetch(`${getBackendUrl()}/api/business/logo`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ image: base64 }),
+  });
+  const data = await res.json() as { business: Business; error?: string };
+  if (!res.ok) throw new Error(data.error ?? 'Failed to upload logo');
+  return data.business;
+}
+
+export async function removeLogo(): Promise<Business> {
+  const res = await authedFetch(`${getBackendUrl()}/api/business/logo`, { method: 'DELETE' });
+  const data = await res.json() as { business: Business; error?: string };
+  if (!res.ok) throw new Error(data.error ?? 'Failed to remove logo');
+  return data.business;
+}
+
 export async function deleteBusiness(confirmName: string): Promise<void> {
   const res = await authedFetch(`${getBackendUrl()}/api/business`, {
     method: 'DELETE',
