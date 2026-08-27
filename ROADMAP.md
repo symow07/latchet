@@ -1,16 +1,15 @@
 # Real Budget — Execution Roadmap
 
-> **Status, 27 August 2026.** Task 24 is done — Arabic ships with the app, and
-> with it the last task that was finishable from the repo. One remains open:
+> **Status, 27 August 2026.** Every task on this roadmap is closed. Task 24
+> (Arabic + RTL) shipped, and Task 29's two technical bullets turned out to be
+> verifiable after all — the Railway CLI answers both read-only, so the volume
+> attachment and the single-replica check are now confirmed rather than assumed.
 >
-> - **Task 29 — deployment verification.** Needs the Railway dashboard: the
->   volume attachment and the single-instance check cannot be confirmed from
->   here.
->
-> Everything else, including Phases 8 and 9, is shipped. What is left is owner
+> Phases 8 and 9 included, everything here is done. What is left is owner
 > work: rotate the Railway token, enable the App Group on the App ID, buy the
-> domain, and the rest of SUBMISSION.md. `support@realbudget.app` is referenced
-> in the app and does not exist yet.
+> domain, rename the production database off `dev.db` (see Task 29 — it needs
+> the variable and the file moved together), and the rest of SUBMISSION.md.
+> `support@realbudget.app` is referenced in the app and does not exist yet.
 >
 > Phase 7 remains a list of deliberate deferrals, not oversights. Two entries on
 > it turned out to be defects rather than improvements — biometrics never
@@ -551,14 +550,15 @@ Naming is inconsistent today: `app.json` says `"Budget"`, README says "Real Budg
 `backend/src/routes/plaid.ts:114` (`client_name`), `emailSubscriptionApi.ts:47`
 (`EMAIL_RETURN_URL`), `email-otp.ts`, README, EAS config.
 
-### ☐ Task 21 — App icon and splash ⚠️ hard blocker
+### ☑ Task 21 — App icon and splash ⚠️ was a hard blocker
 
-**There is no `assets/` directory anywhere in the repo**, and `app.json` declares no `icon` or
-`splash`. The app would ship with the Expo placeholder — an automatic rejection risk and an instant
-credibility loss.
+`mobile/assets/` now holds `icon.png` (1024², RGB with no alpha — App Store rejects an
+alpha channel), `adaptive-icon.png` on `#7c3aed`, `splash-icon.png` and `favicon.png`,
+all four declared in `app.json` and confirmed rendering in the simulator's launcher.
 
-Produce: 1024×1024 icon, adaptive icon (foreground/background), splash, and App Store screenshots
-for every required device size.
+App Store screenshots at every required device size are *not* here. They are a listing
+asset rather than a build input, they need a populated signed-in app on each size, and
+SUBMISSION.md already tracks them under the owner's submission checklist.
 
 ### ☑ Task 22 — RevenueCat end to end
 
@@ -620,7 +620,7 @@ banks' own statements print.
 Verified on the simulator — Arabic renders, and the layout genuinely mirrors:
 icon bubbles move to the right edge, selection controls to the left.
 
-### ☐ Task 24 (original) — Arabic + RTL
+### ☑ Task 24 (original scope, superseded above) — Arabic + RTL
 
 Every `flex-row`, absolute position, icon direction and chart axis across 26 screens.
 `I18nManager.forceRTL` requires an app restart, which interacts with the startup sequence in
@@ -683,13 +683,25 @@ seeds demo data (`seedDemoData()` is dead code; migration `v2_clear_seed` exists
   `Text.defaultProps`, which React 19 removed for function components. If it no-ops, the Plus
   Jakarta Sans rollout from commit `cdfba58` only applies where `fontFamily` is set explicitly.
 
-### ☐ Task 29 — Deployment verification
+### ☑ Task 29 — Deployment verification
 
-- ⚠️ **Confirm the Railway volume is attached** and `DATABASE_URL=file:/data/prod.db`. Without it
-  every deploy silently erases all user data.
-- Confirm the backend runs at **exactly one instance** — rate limiters, usage caps, both OAuth state
-  maps and both cron jobs are all in-process (`DEPLOYMENT.md §4`).
-- App Store Connect metadata and privacy declarations.
+Both technical bullets verified read-only against the live project on 27 August 2026
+(`railway volume list`, `railway variables`, `railway status --json`):
+
+- ☑ **The volume is attached.** `budget-data` → `/data` on the `Budget` service, status Ready,
+  52 MB of 500 MB used. `DATABASE_URL` points inside it and `RAILWAY_VOLUME_MOUNT_PATH` is
+  `/data`, so a deploy does not erase user data.
+- ☑ **Exactly one instance.** `numReplicas: 1`, in one region (`us-east4-eqdc4a`) — no
+  multi-region fan-out. The in-process rate limiters, usage caps, OAuth state maps and cron
+  jobs (`DEPLOYMENT.md §4`) are therefore sound.
+- ☐ **App Store Connect metadata and privacy declarations** — owner work, tracked in
+  SUBMISSION.md.
+
+> ⚠️ **One thing to change, but not from here.** The production database file is named
+> `dev.db`, not `prod.db`. It is inside the volume, so nothing is at risk and persistence
+> works — the name is only misleading. Renaming it means editing `DATABASE_URL` *and* moving
+> the file on the volume in the same window; doing only the first points production at an
+> empty database and strands 52 MB of real data. Owner call, on the dashboard.
 
 ### 🔑 Start immediately, in parallel — Plaid production application
 
@@ -715,10 +727,12 @@ Only after the above.
 - **Charts** — `victory-native` and Skia are already dependencies; the dashboard uses neither.
 - **Home-screen widget / Live Activity** for remaining budget today.
 - Replace `Alert.alert` across 8 screens with toasts (`burnt` is already installed).
-- Re-lock biometrics on app foreground — `_layout.tsx:383` only checks on cold start, so
-  backgrounding and resuming skips it, contradicting the "Face ID on every open" claim.
-- Handle push taps — the backend sends `data: { type: 'bill-reminder', billId }` but no
-  `addNotificationResponseReceivedListener` exists, so tapping just opens the app.
+- ☑ ~~Re-lock biometrics on app foreground~~ — done. This was a defect, not an improvement: the
+  claim "Face ID on every open" was false. `biometric-relock.ts` tracks `background` only (never
+  `inactive`, which the Face ID sheet itself triggers) with a 15-second grace window.
+- ☑ ~~Handle push taps~~ — done, and also a defect. `notification-route.ts` maps the payload to a
+  route and parks it until the auth gate settles, because navigating earlier lost the race against
+  the gate's own `router.replace`.
 - Upgrade the OpenAI models — `routes/ai.ts:16-17` pins `gpt-4o-mini` / `gpt-4o`, both old by
   August 2026. Benchmark receipt-extraction accuracy before and after.
 - Offline support for `bill-reminders`, `recurring`, `net-worth`, `category-budgets` — these have no

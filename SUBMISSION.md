@@ -95,6 +95,10 @@ Known gaps, recorded rather than scheduled:
   speaking into it needs a signed-in personal account on a device.
 - **Notification quick-add's OS half is unverified** — iOS drawing the action and delivering the
   response needs one run on a signed-in device.
+- **The production database file is called `dev.db`.** It sits inside the Railway volume, so
+  persistence is fine and nothing is at risk — the name is just wrong. Renaming needs
+  `DATABASE_URL` changed and the file moved on the volume in one window; doing only the former
+  points production at an empty database.
 - **Phase 7 remains deliberate.** The model upgrade in particular has an acceptance criterion —
   benchmark receipt accuracy before and after — that needs an API key and a corpus.
 
