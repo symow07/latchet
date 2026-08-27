@@ -322,8 +322,14 @@ businessRouter.post(
       return c.json({ error: "Too many join attempts, try again later" }, 429);
     }
 
-    const business = await prisma.group.findUnique({
-      where: { inviteCode: code.toUpperCase() },
+    // Scoped to type. Invite codes are unique across ALL groups now that
+    // households share the table, so an unscoped lookup would let a household
+    // code join someone to this business endpoint — and land them in a group
+    // whose role vocabulary and visibility rules are not the ones they were
+    // shown. Same 404 either way: a wrong-type code must not be distinguishable
+    // from a nonexistent one, or the endpoint reports which codes are real.
+    const business = await prisma.group.findFirst({
+      where: { inviteCode: code.toUpperCase(), type: "business" },
     });
     if (!business) return c.json({ error: "Invalid invite code" }, 404);
 

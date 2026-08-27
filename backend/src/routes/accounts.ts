@@ -165,4 +165,46 @@ router.post("/sync", async (c) => {
   return c.json({ synced: validated.length });
 });
 
+// ─── sharing one account with a household ────────────────────────────────────
+// PUT /api/v1/accounts/:id/share  { groupId: string | null }
+//
+// The opt-in behind "joint account". Sharing is per account and per group, and
+// it is the ACCOUNT OWNER who decides — there is no endpoint by which a group
+// claims an account. Passing null un-shares.
+router.put(
+  "/:id/share",
+  zValidator("json", z.object({ groupId: z.string().min(1).max(64).nullable() })),
+  async (c) => {
+    const user = c.get("user")!;
+    const id = c.req.param("id");
+    const { groupId } = c.req.valid("json");
+
+    // Ownership of the account, first. Without this the route would let anyone
+    // who knows an account id publish it to a group they control.
+    const account = await prisma.bankAccount.findFirst({
+      where: { id, userId: user.id },
+      select: { id: true },
+    });
+    if (!account) return c.json({ error: "Account not found" }, 404);
+
+    if (groupId !== null) {
+      // Membership of the target, second. Sharing INTO a group you do not
+      // belong to would be a way to push data at strangers.
+      const membership = await prisma.groupMember.findUnique({
+        where: { groupId_userId: { groupId, userId: user.id } },
+        include: { group: { select: { type: true } } },
+      });
+      if (!membership) return c.json({ error: "Not a member of that group" }, 403);
+      // Business groups have expense submission for this; an account-wide
+      // window into someone's personal finances is not part of employment.
+      if (membership.group.type !== "household") {
+        return c.json({ error: "Accounts can only be shared with a household" }, 400);
+      }
+    }
+
+    await prisma.bankAccount.update({ where: { id }, data: { sharedWithGroupId: groupId } });
+    return c.json({ id, sharedWithGroupId: groupId });
+  }
+);
+
 export { router as accountsRouter };
