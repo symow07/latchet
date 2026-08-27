@@ -33,8 +33,10 @@ import { t } from '@/lib/i18n/core';
 import { Lock } from 'lucide-react-native';
 import { drainPendingCaptures } from '@/lib/pending-drain';
 import { drainSharedItems } from '@/lib/share-drain';
-import { useSharedReceiptStore } from '@/lib/shared-receipt-store';
+import { shouldRelock } from '@/lib/biometric-relock';
+import { usePendingNavigationStore } from '@/lib/pending-navigation-store';
 import { listenForQuickAdd } from '@/lib/quick-add-notify';
+import { listenForNotificationTaps } from '@/lib/notification-taps';
 
 // Silence verbose console.log in release builds (startup/gate/api tracing stays
 // available in dev via expo.log). warn/error still surface for crash reporting.
@@ -225,13 +227,13 @@ function RootLayoutNav({ colorScheme }: { colorScheme: 'light' | 'dark' | null |
 
   // Open a receipt shared in from another app, once the auth gate has settled.
   // Any earlier and the redirect below replaces the route out from under it.
-  const sharedReceipt = useSharedReceiptStore((s) => s.uri);
-  const clearSharedReceipt = useSharedReceiptStore((s) => s.setUri);
+  const pendingRoute = usePendingNavigationStore((s) => s.route);
+  const clearPendingRoute = usePendingNavigationStore((s) => s.setRoute);
   useEffect(() => {
-    if (!sharedReceipt || sessionLoading || !accountTypeLoaded) return;
-    clearSharedReceipt(null);
-    router.push({ pathname: '/receipt-scan', params: { sharedUri: sharedReceipt } });
-  }, [sharedReceipt, sessionLoading, accountTypeLoaded, router, clearSharedReceipt]);
+    if (!pendingRoute || sessionLoading || !accountTypeLoaded) return;
+    clearPendingRoute(null);
+    router.push(pendingRoute as Parameters<typeof router.push>[0]);
+  }, [pendingRoute, sessionLoading, accountTypeLoaded, router, clearPendingRoute]);
 
   // Register the device for push notifications (bill reminders, badge alerts)
   // and schedule the daily streak nudge — once per authenticated user.
@@ -349,12 +351,55 @@ function RootLayoutNav({ colorScheme }: { colorScheme: 'light' | 'dark' | null |
  * notification path is a listener instead, because iOS delivers the response
  * rather than leaving it somewhere to be found.
  */
+/**
+ * Ask for Face ID again when the app comes back from the background.
+ *
+ * The setting reads "Require Face ID / Fingerprint on open" and only ever
+ * honoured a cold start: backgrounding and returning walked straight into the
+ * user's finances, which is exactly the case the setting exists for.
+ *
+ * Only `background` is tracked, never `inactive`. iOS reports `inactive` while
+ * the Face ID sheet itself is up, and for the app-switcher preview — treating
+ * those as leaving would re-lock during the very prompt meant to unlock.
+ *
+ * The stored flag is re-read on each return rather than cached, so switching
+ * the setting off takes effect without restarting the app.
+ */
+function useBiometricRelock(onRelock: () => void) {
+  const backgroundedAt = useRef<number | null>(null);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'background') {
+        backgroundedAt.current = Date.now();
+        return;
+      }
+      if (state !== 'active') return;
+
+      const wentAway = backgroundedAt.current;
+      backgroundedAt.current = null;
+      if (wentAway === null) return;
+
+      AsyncStorage.getItem('@biometric_lock')
+        .then((value) => {
+          if (shouldRelock({ enabled: value === 'true', backgroundedAt: wentAway, now: Date.now() })) {
+            onRelock();
+          }
+        })
+        // Failing to read the flag must not lock someone out of an app they
+        // never asked to lock.
+        .catch(() => {});
+    });
+    return () => subscription.remove();
+  }, [onRelock]);
+}
+
 function usePendingCaptures(dbReady: boolean) {
   // Parked, not navigated to. The drain runs as soon as the database is ready,
   // which is before the auth gate has decided where the user belongs — a push
   // here is wiped by the router.replace that follows. RootLayoutNav opens it
   // once that has settled.
-  const parkReceipt = useSharedReceiptStore((s) => s.setUri);
+  const setPendingRoute = usePendingNavigationStore((s) => s.setRoute);
 
   useEffect(() => {
     if (!dbReady) return;
@@ -381,7 +426,7 @@ function usePendingCaptures(dbReady: boolean) {
         // A shared photo cannot be written blind — it has to go through the
         // vision model and a review. Opening the reader is what the user asked
         // for by sharing it, so the navigation is expected rather than intrusive.
-        if (receiptUri) parkReceipt(receiptUri);
+        if (receiptUri) setPendingRoute({ pathname: '/receipt-scan', params: { sharedUri: receiptUri } });
       } catch (e) {
         console.warn('[share] drain failed', e);
       }
@@ -389,15 +434,18 @@ function usePendingCaptures(dbReady: boolean) {
 
     drain();
     const stopListening = listenForQuickAdd(refresh);
+    // Tapping a bill reminder used to open the app wherever it was last left.
+    const stopTaps = listenForNotificationTaps((route) => setPendingRoute(route));
     const sub = AppState.addEventListener('change', (state) => {
       if (state === 'active') drain();
     });
     return () => {
       cancelled = true;
       stopListening();
+      stopTaps();
       sub.remove();
     };
-  }, [dbReady, parkReceipt]);
+  }, [dbReady, setPendingRoute]);
 }
 
 export default function RootLayout() {
@@ -410,6 +458,8 @@ export default function RootLayout() {
   const [stage, setStage] = useState<string>('Booting…');
 
   usePendingCaptures(dbReady);
+  // useCallback so the listener is not torn down and rebuilt on every render.
+  useBiometricRelock(useCallback(() => setLocked(true), []));
 
   const [fontsLoaded] = useFonts({
     PlusJakartaSans_400Regular,
