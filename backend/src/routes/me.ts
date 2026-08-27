@@ -136,6 +136,12 @@ router.get("/deletion-preview", async (c) => {
     linkedBanks: plaidItems,
     connectedInboxes: emailConnections,
     ownedGroups: ownedGroupImpact,
+    // Builds older than 28 Aug 2026 read a single `ownedBusiness` object here.
+    // The generic aliaser cannot cover this one: the field was not just
+    // renamed, it went from one object to a list. Without it an old client
+    // shows the delete-account sheet with no warning that a company dies with
+    // the account — which is quieter than a crash and worse.
+    ownedBusiness: ownedGroupImpact.find((g) => g.type === "business") ?? null,
   });
 });
 

@@ -33,6 +33,7 @@ import { revenueCatRouter } from "./routes/revenuecat";
 import { emailRouter } from "./routes/email";
 import { installErrorHandlers } from "./lib/http-errors";
 import { prisma } from "./prisma";
+import { withLegacyAliases } from "./lib/legacy-aliases";
 
 const app = new Hono<{
   Variables: {
@@ -67,6 +68,26 @@ app.use(
 );
 
 app.use("*", logger());
+
+// Older app builds read teamMembers/businessId where the API now sends
+// members/groupId. Applied globally rather than per route: the rename touched
+// several routers and the failure mode is a crash on the first screen, so
+// missing one is worse than aliasing a payload that does not need it.
+// Additive only — see lib/legacy-aliases.ts, including when to remove it.
+app.use("*", async (c, next) => {
+  await next();
+  const body = c.res.headers.get("content-type");
+  if (!body?.includes("application/json")) return;
+  try {
+    const parsed = await c.res.clone().json();
+    c.res = new Response(JSON.stringify(withLegacyAliases(parsed)), {
+      status: c.res.status,
+      headers: c.res.headers,
+    });
+  } catch {
+    // A body that is not parseable JSON is left exactly as it was.
+  }
+});
 
 // Request-id tagging, Prisma/Zod error mapping and a JSON 404. Registered here
 // so the id middleware runs ahead of every route.
