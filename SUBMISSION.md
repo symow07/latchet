@@ -42,15 +42,48 @@ Add the DNS records, set `EMAIL_FROM` to something at `realbudget.app`. Until th
 `onboarding@resend.dev` only delivers to your own verified address — fine for testing, useless for
 users.
 
-### 5. Run an EAS build · 1 hour
+### 5. Run an EAS build · blocked on two things, neither of them code
+
 ```
 eas build --profile preview --platform ios
 ```
-`mobile/ios/` already exists with RevenueCatUI Pods installed, so prebuild and pod install
-demonstrably work — the part most likely to fail already passes. This is the **first device
-verification of six features**: Import v2, subscription consolidation, account deletion,
-RevenueCat, i18n, and category labels. Expect to find things. Better now, in one build, than five
-at once during review.
+
+**Two blockers, found by trying it on 27 August 2026.**
+
+1. **This account's free-plan iOS builds are used up for the month**, resetting
+   Tue 1 Sep. Cloud builds fail immediately with that message. Upgrading is a
+   purchase decision and yours alone.
+2. **The `preview` profile is a device build and has no credentials.** Every
+   build this project has ever run — all of them — used `preview-simulator`.
+   No device build has been attempted, so no Apple distribution certificate or
+   provisioning profile exists on EAS. `--profile preview` will stop at an
+   Apple Developer login.
+
+`--local` is not a way around it either: it shells out to fastlane, which is
+not installed on this machine.
+
+**What was verified instead, without EAS.** The same artifact was built
+directly with Xcode 26.6 (`-configuration Release -sdk iphonesimulator`),
+which exercises the identical prebuild → pods → native compile → JS bundle
+path:
+
+- **BUILD SUCCEEDED**, 4,112 compile steps, no errors.
+- `main.jsbundle` produced at 11.7 MB — the production bundle builds.
+- `BudgetShareExtension.appex` embedded in `PlugIns/`.
+- App icons present (`Assets.car`, `AppIcon60x60@2x.png`).
+- Installed and launched: the session persisted, SecureStore worked, and both
+  new features (household sharing, advisor profile) render correctly from the
+  bundled JS with no Metro attached.
+
+One trap worth writing down: building with `CODE_SIGNING_ALLOWED=NO` strips
+every entitlement, and the app then dies at startup with `KeyChainException: A
+required entitlement isn't present` from expo-secure-store. That is the build
+flag, not the app — Xcode's default simulator signing works fine. It cost
+about twenty minutes to rule out as a real bug.
+
+Still genuinely unverified: anything that needs real hardware — Face ID,
+notification delivery, the share sheet under a real App Group, and voice
+recording.
 
 ### 6. Privacy policy hosting + support email · 30 min
 GitHub Pages cannot publish from a private repo on the free plan. Cheapest path: a separate public
