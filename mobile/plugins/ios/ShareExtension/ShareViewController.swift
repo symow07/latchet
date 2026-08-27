@@ -45,7 +45,14 @@ final class ShareViewController: SLComposeServiceViewController {
   }
 
   override func presentationAnimationDidFinish() {
-    placeholder = "Add a note, or an amount like 12.50"
+    // NSLocalizedString with no explicit bundle reads Bundle.main, which for
+    // an extension is the extension's own bundle — the app's .lproj files are
+    // in a different bundle entirely and never reach here.
+    placeholder = NSLocalizedString(
+      "share.placeholder",
+      value: "Add a note, or an amount like 12.50",
+      comment: "Placeholder in the share sheet's note field"
+    )
   }
 
   override func didSelectPost() {

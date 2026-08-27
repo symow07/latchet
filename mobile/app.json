@@ -22,9 +22,22 @@
         "android.permission.CAMERA",
         "android.permission.USE_BIOMETRIC",
         "android.permission.USE_FINGERPRINT"
-      ]
+      ],
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#7c3aed"
+      }
     },
     "plugins": [
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 180,
+          "resizeMode": "contain",
+          "backgroundColor": "#0c0716"
+        }
+      ],
       "expo-router",
       [
         "expo-camera",
@@ -55,7 +68,8 @@
       "./plugins/withAppIntents",
       "./plugins/withShareExtension",
       "./plugins/withAppShortcutLocalization",
-      "expo-localization"
+      "expo-localization",
+      "expo-audio"
     ],
     "experiments": {
       "typedRoutes": true
@@ -66,6 +80,10 @@
         "projectId": "97dd0e8e-7c1e-4253-818c-703d222403b8"
       }
     },
-    "owner": "symow"
+    "owner": "symow",
+    "icon": "./assets/icon.png",
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
   }
 }

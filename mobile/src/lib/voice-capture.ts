@@ -1,7 +1,7 @@
 /**
  * Speaking a day's spending into transactions.
  *
- * The recording needs expo-av and the upload needs the API client, so both
+ * The recording needs expo-audio and the upload needs the API client, so both
  * live in voice-api.ts. This module is the part worth testing without a
  * microphone or a network: what gets written if the user confirms, and what
  * does not.

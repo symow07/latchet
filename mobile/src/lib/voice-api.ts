@@ -1,24 +1,17 @@
 /**
  * Recording speech and sending it for extraction.
  *
- * The native half: expo-av for the microphone, the API client for the upload.
- * Kept apart from voice-capture.ts so the decision logic there — what gets
- * written, what does not — stays testable without a simulator.
+ * The recorder itself is a hook — `useAudioRecorder` — so it lives in the
+ * component that owns the button. This module keeps the two parts that are not
+ * hooks: asking for the microphone, and turning a finished recording into
+ * transactions.
  *
- * KNOWN DEBT: expo-av is deprecated. Expo's own docs say to use expo-audio
- * instead, and expo-av will not survive many more SDK bumps. It is used here
- * anyway because it is already a dependency and already compiled into the
- * native project, where expo-audio is neither — adding it means a new native
- * module and a rebuild, and its recording API is hook-based, so this file
- * would be restructured rather than edited.
- *
- * That port is worth doing before the next SDK upgrade forces it, and it is
- * cheap while this feature is new. It was not done in the same change as
- * shipping the feature because there was no way to run a build and confirm
- * the port worked, and an unverified rewrite of the recording path is a worse
- * position than a deprecation warning.
+ * Ported from expo-av, which Expo deprecated in favour of expo-audio. The old
+ * API handed out a Recording object a plain module could own; the new one does
+ * not, which is why the shape here changed rather than just the imports.
  */
-import { Audio } from 'expo-av';
+import { requestRecordingPermissionsAsync, setAudioModeAsync } from 'expo-audio';
+import type { RecordingOptions } from 'expo-audio';
 import * as FileSystem from 'expo-file-system';
 import { api } from './api/api';
 import { todayISO } from './dates';
@@ -32,30 +25,24 @@ import type { VoiceResult, VoiceRow } from './voice-capture';
  * two-minute recording to a few hundred kilobytes — it has to survive being
  * base64'd into a JSON body, which inflates it by a third.
  */
-const SPEECH_RECORDING: Audio.RecordingOptions = {
+export const SPEECH_RECORDING: RecordingOptions = {
   isMeteringEnabled: true,
+  extension: '.m4a',
+  sampleRate: 22050,
+  numberOfChannels: 1,
+  bitRate: 32000,
   android: {
     extension: '.m4a',
-    outputFormat: Audio.AndroidOutputFormat.MPEG_4,
-    audioEncoder: Audio.AndroidAudioEncoder.AAC,
-    sampleRate: 22050,
-    numberOfChannels: 1,
-    bitRate: 32000,
+    outputFormat: 'mpeg4',
+    audioEncoder: 'aac',
   },
   ios: {
     extension: '.m4a',
-    outputFormat: Audio.IOSOutputFormat.MPEG4AAC,
-    audioQuality: Audio.IOSAudioQuality.MEDIUM,
-    sampleRate: 22050,
-    numberOfChannels: 1,
-    bitRate: 32000,
+    outputFormat: 'mp4f',
+    audioQuality: 96,
     linearPCMBitDepth: 16,
     linearPCMIsBigEndian: false,
     linearPCMIsFloat: false,
-  },
-  web: {
-    mimeType: 'audio/webm',
-    bitsPerSecond: 32000,
   },
 };
 
@@ -63,34 +50,27 @@ export type MicPermission = 'granted' | 'denied';
 
 /** Ask for the microphone, and configure the session so iOS records at all. */
 export async function requestMicrophone(): Promise<MicPermission> {
-  const { granted } = await Audio.requestPermissionsAsync();
+  const { granted } = await requestRecordingPermissionsAsync();
   if (!granted) return 'denied';
-  // Without allowsRecordingIOS the recording starts and captures silence.
-  await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
+  // Without allowsRecording the recording starts and captures silence.
+  await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
   return 'granted';
 }
 
-export async function startRecording(): Promise<Audio.Recording> {
-  const recording = new Audio.Recording();
-  await recording.prepareToRecordAsync(SPEECH_RECORDING);
-  await recording.startAsync();
-  return recording;
+/** Release the recording session so other audio can play normally again. */
+export async function releaseMicrophone(): Promise<void> {
+  await setAudioModeAsync({ allowsRecording: false }).catch(() => {});
 }
 
 /**
- * Stop, read the file, and hand it to the server.
+ * Send a finished recording for transcription and extraction.
  *
- * The recording is deleted once uploaded. It is a voice note about someone's
+ * The file is deleted once uploaded. It is a voice note about someone's
  * finances and there is no reason to keep it on disk after the transcript has
  * been read back.
  */
-export async function finishAndExtract(recording: Audio.Recording): Promise<VoiceResult> {
-  await recording.stopAndUnloadAsync();
-  await Audio.setAudioModeAsync({ allowsRecordingIOS: false });
-
-  const uri = recording.getURI();
-  if (!uri) throw new Error('Recording produced no file');
-
+export async function extractFromRecording(uri: string): Promise<VoiceResult> {
+  await releaseMicrophone();
   try {
     const base64 = await FileSystem.readAsStringAsync(uri, {
       encoding: FileSystem.EncodingType.Base64,
@@ -120,14 +100,8 @@ export async function finishAndExtract(recording: Audio.Recording): Promise<Voic
   }
 }
 
-/** Abandon a recording without uploading it. */
-export async function cancelRecording(recording: Audio.Recording): Promise<void> {
-  try {
-    await recording.stopAndUnloadAsync();
-  } catch {
-    // Already stopped; nothing to undo.
-  }
-  await Audio.setAudioModeAsync({ allowsRecordingIOS: false }).catch(() => {});
-  const uri = recording.getURI();
+/** Throw away a recording without uploading it. */
+export async function discardRecording(uri: string | null): Promise<void> {
+  await releaseMicrophone();
   if (uri) await FileSystem.deleteAsync(uri, { idempotent: true }).catch(() => {});
 }

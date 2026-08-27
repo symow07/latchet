@@ -23,6 +23,15 @@ const APP_GROUP = "group.com.realbudget.app";
 const SOURCE_DIR = path.join("plugins", "ios", "ShareExtension");
 const FILES = ["ShareViewController.swift", "Info.plist", "ShareExtension.entitlements"];
 
+/**
+ * The extension's own translations.
+ *
+ * It is a separate bundle, so the app's .lproj files do not reach it and its
+ * one piece of prose would have stayed English in a translated app.
+ */
+const REGIONS = ["en", "fr", "zh-Hans"];
+const STRINGS_TABLE = "Localizable.strings";
+
 /** Settings the generated target does not get right on its own. */
 function buildSettings(bundleId, marketingVersion) {
   return {
@@ -123,6 +132,55 @@ module.exports = function withShareExtension(config) {
     objects.PBXTargetDependency = objects.PBXTargetDependency || {};
     objects.PBXContainerItemProxy = objects.PBXContainerItemProxy || {};
     project.addTargetDependency(appTarget.uuid, [target.uuid]);
+
+    // The extension's own .lproj files, attached to the extension's resources
+    // rather than the app's. A .xcstrings catalog is not an option here for
+    // the same reason as the app: it requires iOS 17 and this deploys to 15.1.
+    const variantChildren = [];
+    for (const region of REGIONS) {
+      const relative = path.join(`${region}.lproj`, STRINGS_TABLE);
+      const from = path.join(projectRoot, SOURCE_DIR, relative);
+      if (!fs.existsSync(from)) {
+        throw new Error(`[withShareExtension] missing ${SOURCE_DIR}/${relative}`);
+      }
+      const to = path.join(destination, relative);
+      fs.mkdirSync(path.dirname(to), { recursive: true });
+      fs.copyFileSync(from, to);
+
+      const fileRef = project.generateUuid();
+      objects.PBXFileReference[fileRef] = {
+        isa: "PBXFileReference",
+        lastKnownFileType: "text.plist.strings",
+        name: region.includes("-") ? `"${region}"` : region,
+        path: `"${path.join(TARGET, relative)}"`,
+        sourceTree: '"<group>"',
+      };
+      objects.PBXFileReference[`${fileRef}_comment`] = region;
+      variantChildren.push({ value: fileRef, comment: region });
+    }
+
+    objects.PBXVariantGroup = objects.PBXVariantGroup || {};
+    const variantGroup = project.generateUuid();
+    objects.PBXVariantGroup[variantGroup] = {
+      isa: "PBXVariantGroup",
+      children: variantChildren,
+      name: STRINGS_TABLE,
+      sourceTree: '"<group>"',
+    };
+    objects.PBXVariantGroup[`${variantGroup}_comment`] = STRINGS_TABLE;
+
+    const stringsBuildFile = project.generateUuid();
+    objects.PBXBuildFile[stringsBuildFile] = { isa: "PBXBuildFile", fileRef: variantGroup };
+    objects.PBXBuildFile[`${stringsBuildFile}_comment`] = `${STRINGS_TABLE} in Resources`;
+
+    project.addToPbxGroup(
+      { uuid: variantGroup, basename: STRINGS_TABLE, group: TARGET },
+      project.findPBXGroupKey({ name: TARGET }),
+    );
+    project.pbxResourcesBuildPhaseObj(target.uuid).files.push({
+      value: stringsBuildFile,
+      comment: `${STRINGS_TABLE} in Resources`,
+    });
 
     return cfg;
   });
