@@ -103,6 +103,12 @@ Known gaps, recorded rather than scheduled:
   persistence is fine and nothing is at risk — the name is just wrong. Renaming needs
   `DATABASE_URL` changed and the file moved on the volume in one window; doing only the former
   points production at an empty database.
+- **The advisor's refusal behaviour has never been tested against a live model.** The guardrails
+  are enforced server-side and the static tests prove they reach the model, but only
+  `advisor-adversarial.test.ts` proves it obeys, and that needs a working OpenAI key. It is written
+  and skips loudly. Run it before shipping the health tier.
+- **The OPENAI_API_KEY in backend/.env is a placeholder**, not a real credential — it is shaped like
+  one and ends in "r3al", and every request with it returns 401.
 - **Phase 7 remains deliberate.** The model upgrade in particular has an acceptance criterion —
   benchmark receipt accuracy before and after — that needs an API key and a corpus.
 

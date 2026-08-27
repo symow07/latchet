@@ -1,6 +1,12 @@
 # Real Budget — Execution Roadmap
 
-> **Status, 27 August 2026.** Every task on this roadmap is closed. Task 24
+> **Status, 27 August 2026 (later).** Two pre-launch features were added after
+> this roadmap closed — household sharing and a personalised advisor. Both are
+> built, tested and deployed; see Phase 10 at the end. One thing in them is
+> unverified and says so: the advisor's refusal behaviour has never been run
+> against a live model, because no working OpenAI key exists in this project.
+>
+> **Earlier status.** Every task on the original roadmap is closed. Task 24
 > (Arabic + RTL) shipped, and Task 29's two technical bullets turned out to be
 > verifiable after all — the Railway CLI answers both read-only, so the volume
 > attachment and the single-replica check are now confirmed rather than assumed.
@@ -929,3 +935,58 @@ Everything flagged in the last review, fixed and verified.
   registered CLDR pluralizer, and a restart prompt that only appears when the direction actually
   changes.
 
+---
+
+## Phase 10 — Added after the roadmap closed
+
+### ☑ Household sharing
+
+Business mode already was this feature with different labels, so Business
+became Group and TeamMember became GroupMember rather than growing a parallel
+model. `Group.type` discriminates; `ownerId` went from UNIQUE to
+UNIQUE(ownerId, type), because the old constraint would have forced anyone who
+owns a company to choose between it and sharing a household — the exact user
+this is for.
+
+`GroupMember.shareLevel` is chosen BY a member ABOUT themselves: summary,
+categories, or full. `projectMember` takes no viewer argument at all, so
+nobody — owner included — can raise someone else's level or see more than they
+chose. An unrecognised level projects as summary, never as full. Joining is
+invite-code only, the preview states the cost before anyone accepts, and
+leaving is unilateral, immediate, and un-shares every account that member had
+opted in.
+
+Two holes found while building: the business `/join` looked up invite codes
+without scoping by type (codes are unique across the whole table now), and
+accounts could have been shared into a business group. Both closed.
+
+Verified through real HTTP handlers against a real database, reading the
+serialised bytes rather than object shapes — 10 integration tests, 12 unit
+tests, and two source guards asserting no route can add a member by userId.
+Each was proved by reintroducing the defect.
+
+### ☑ Personalised advisor
+
+The prerequisite was not in the spec: the advisor had **no system role**. Every
+request went to OpenAI as one `user` message, so its GUIDELINES block sat in
+the same turn as whatever the user typed. Health guardrails on top of that
+would have been decorative. `POST /api/v1/ai/chat` now takes a system string
+and real turns, and the hard constraints are prepended **server-side** — a
+client cannot omit them, and the old single-prompt shape still gets them.
+
+The profile is device-only: its own SQLite table, never synced, never in
+/api/settings. Its own table specifically because cloud-sync spreads the whole
+settings row into PUT /api/settings, so a health column added there would
+upload itself with nobody writing a line of code that sent it.
+`redactDeviceOnly` wraps every outbound payload and strips such fields by
+name; it strips nothing today and exists for the version of this code that
+comes next.
+
+Sensitive fields are gated at write AND at render, so a row holding values
+without consent — an older build, a restored backup — surfaces nothing.
+
+⚠️ **Refusal behaviour is UNVERIFIED.** `advisor-adversarial.test.ts` is
+written and skipped: this project has no working OpenAI key. The static tests
+prove the constraints reach the model; only that suite proves it obeys. Run
+`RUN_LIVE_AI_TESTS=1 OPENAI_API_KEY=sk-… bun test src/lib/advisor-adversarial.test.ts`
+before shipping the health tier.
