@@ -1,26 +1,32 @@
 # Real Budget — Execution Roadmap
 
-> **Status, 26 August 2026.** 27 of 30 tasks are shipped and marked ☑ below, plus a
-> Phase 8 (fast capture) added afterwards — see the end of this file. Phase 8 adds one
-> owner action: the App Group must be enabled in the Apple Developer portal before
-> share-sheet capture works on a real device.
-> Three remain open, and none of them is code:
+> **Status, 27 August 2026.** Task 21 is done — the app has an icon, so the
+> last hard blocker in the code is cleared. One task remains open and one is
+> half done, and neither is finishable from the repo:
 >
-> - **Task 21 — app icon and splash.** Needs design. Still no `assets/`, and
->   `app.json` declares no `icon`, so prebuild is shipping Expo's placeholder.
->   The roadmap calls this a hard blocker and it still is.
-> - **Task 24 — Arabic and RTL.** Deliberately deferred to v1.1. The i18n
->   scaffolding is in place, so it costs nothing to wait.
 > - **Task 29 — deployment verification.** Needs the Railway dashboard: the
 >   volume attachment and the single-instance check cannot be confirmed from
->   the repo.
+>   here.
+> - **Task 24 — Arabic and RTL.** The groundwork is done and the reason the
+>   strings are not is structural, not effort — see the task.
+>
+> Everything else, including Phases 8 and 9, is shipped. What is left is owner
+> work: rotate the Railway token, enable the App Group on the App ID, buy the
+> domain, and the rest of SUBMISSION.md. `support@realbudget.app` is referenced
+> in the app and does not exist yet.
+>
+> Phase 7 remains a list of deliberate deferrals, not oversights. Two entries on
+> it turned out to be defects rather than improvements — biometrics never
+> re-locked on foreground, and notification taps went nowhere — and both are now
+> fixed. The rest are feature work, and the model upgrade has an acceptance
+> criterion (benchmark before and after) that cannot be met without an API key
+> and a corpus.
 >
 > One thing left unresolved rather than silently decided: Task 20 chose
 > "Budget" as the app name, and `app.json` says so, but `README.md` still
 > leads with "Real Budget" — which also matches the bundle id and the domain.
-> Both readings are defensible (long brand, short app name), so it is marked
-> done on the code rollout and the store listing name is tracked in
-> SUBMISSION.md item 9.
+> Both readings are defensible, so it is marked done on the code rollout and
+> the store listing name is tracked in SUBMISSION.md item 9.
 
 > **For the agent working this file.** This is a self-contained work order. You do not need
 > prior context. Every task states the file, the defect, the fix, and how to verify it.
@@ -875,3 +881,28 @@ Still open from the four speed-ups chosen:
   in a different target, so it needs its own `.lproj` resources.
 - **expo-av → expo-audio** — `voice-api.ts` documents this debt. Worth doing before the next SDK
   bump forces it.
+
+---
+
+## Phase 9 — Closing the flagged gaps
+
+Everything flagged in the last review, fixed and verified.
+
+- ☑ **Biometrics re-lock on foreground.** The setting said "on open" and only honoured a cold
+  start. Tracks `background` and never `inactive` — iOS reports `inactive` while the Face ID sheet
+  itself is up — with a 15-second grace so Control Centre does not demand authentication.
+- ☑ **Notification taps go somewhere.** The backend always sent `{ type, billId }` and nothing read
+  it. An unrecognised type routes nowhere rather than becoming a pathname.
+- ☑ **Delete a business.** Owner-scoped, gated on retyping the name, and it removes the receipt
+  files — whose ids have to be read before the row goes.
+- ☑ **Company logo.** Stored where receipts are, prefixed so it cannot collide with an expense id.
+  Owner uploads, the whole team sees it.
+- ☑ **The Chinese option says which Chinese.** `简体中文`, because the strings are Simplified.
+- ☑ **The share extension's own translations.** It is a separate bundle; the app's `.lproj` files
+  never reached it.
+- ☑ **expo-av → expo-audio.** A reshape rather than a rename: the recorder is a hook now, so it
+  lives in the component and `voice-api` keeps only what is not a hook.
+- ☑ **Task 21 — app icon and splash.** Generated, wired, and confirmed rendering in the launcher.
+- ◐ **Task 24 — RTL groundwork.** 191 properties across 28 files, with a test that fails on new
+  physical ones.
+

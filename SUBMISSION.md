@@ -81,30 +81,22 @@ longest-lead external dependency from your launch — apply now, but don't wait 
 
 ## Remaining agent work
 
-Both items previously listed here are done: `ExpenseCategory` is localised through
-`expenseCategoryLabel`, and `.github/workflows/ci.yml` runs install → typecheck → test on both
-halves, with a step that applies migrations to an empty database.
+Nothing. Everything previously listed here is done, including the two items this file wrongly
+still claimed were outstanding, the app icon, and every gap flagged in the last review.
 
-- **The share extension's own text.** `ShareViewController`'s placeholder is a plain Swift string
-  in a separate target, so it needs its own `.lproj` resources — the app's `.lproj` files do not
-  reach it.
-- **Localised Siri phrases for the extension's target**, same reason.
-- **`expo-av` → `expo-audio`.** `voice-api.ts` documents the debt. Worth doing before the next SDK
-  bump forces it.
+Known gaps, recorded rather than scheduled:
 
-Known gaps, not scheduled:
-
-- **A company logo still has nowhere to live.** Receipts now upload to the volume, but the profile
-  screen has no logo field: it would need the same treatment, and nobody has asked for it.
-- **Receipts submitted before this change are gone.** Their `file://` paths only ever resolved on
-  the submitter's own phone; the app labels them unavailable rather than showing a broken image.
-- **No delete-business endpoint.** A company record can be created and edited but not removed
-  except by deleting the account.
-- **Traditional Chinese narrows to Simplified.** `normalizeLocale` maps `zh-Hant` to `zh`.
+- **Arabic needs its plural forms first.** Arabic has six — zero, one, two, few, many, other — and
+  every countable key in the app has two. The strings cannot be written honestly until the keys are
+  reshaped. RTL layout groundwork is done and guarded by a test.
+- **Receipts submitted before they were uploaded are gone.** Those `file://` paths only ever
+  resolved on the submitter's own phone; the app labels them unavailable.
+- **Recording is unverified since the expo-audio port.** It compiles, links and resolves; actually
+  speaking into it needs a signed-in personal account on a device.
 - **Notification quick-add's OS half is unverified** — iOS drawing the action and delivering the
   response needs one run on a signed-in device.
-
----
+- **Phase 7 remains deliberate.** The model upgrade in particular has an acceptance criterion —
+  benchmark receipt accuracy before and after — that needs an API key and a corpus.
 
 ## Deferred to v1.1, deliberately
 
