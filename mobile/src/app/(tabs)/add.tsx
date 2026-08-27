@@ -188,7 +188,7 @@ export default function AddTransactionScreen() {
                   placeholder="0.00"
                   placeholderTextColor="rgba(255,255,255,0.35)"
                   keyboardType="decimal-pad"
-                  style={{ flex: 1, marginLeft: 8, fontSize: 52, fontFamily: 'PlusJakartaSans_700Bold', color: '#fff', padding: 0 }}
+                  style={{ flex: 1, marginStart: 8, fontSize: 52, fontFamily: 'PlusJakartaSans_700Bold', color: '#fff', padding: 0 }}
                   selectionColor={C.p300}
                 />
               </View>

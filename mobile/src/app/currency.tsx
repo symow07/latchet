@@ -82,7 +82,7 @@ export default function CurrencyScreen() {
             style={{ flex: 1, color: B.text, fontSize: 15, fontFamily: 'PlusJakartaSans_500Medium', paddingVertical: 13 }}
           />
         </View>
-        <Txt size={11} color={B.textFaint} style={{ marginTop: 8, marginLeft: 4 }}>
+        <Txt size={11} color={B.textFaint} style={{ marginTop: 8, marginStart: 4 }}>
           {t('bizSettings.currencyNote')}
         </Txt>
       </View>

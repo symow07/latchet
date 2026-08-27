@@ -202,7 +202,7 @@ export default function TransactionsScreen() {
                     return (
                       <GlassCard key={tx.id} padding={14} radius={R.lg}>
                         <View className="flex-row items-center">
-                          <View style={{ width: 48, height: 48, borderRadius: 18, alignItems: 'center', justifyContent: 'center', marginRight: 12, backgroundColor: `${color}1f`, borderWidth: 1, borderColor: `${color}33` }}>
+                          <View style={{ width: 48, height: 48, borderRadius: 18, alignItems: 'center', justifyContent: 'center', marginEnd: 12, backgroundColor: `${color}1f`, borderWidth: 1, borderColor: `${color}33` }}>
                             <Txt size={20}>{meta(tx.category).icon}</Txt>
                           </View>
 

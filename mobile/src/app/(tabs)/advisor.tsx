@@ -235,7 +235,7 @@ export default function AdvisorTab() {
 
               {quickInsights.length > 0 && (
                 <View style={{ marginBottom: 16 }}>
-                  <Txt weight="bold" size={11} color={C.textFaint} style={{ marginBottom: 10, marginLeft: 2, letterSpacing: 1 }}>{t('advisor.quickInsights')}</Txt>
+                  <Txt weight="bold" size={11} color={C.textFaint} style={{ marginBottom: 10, marginStart: 2, letterSpacing: 1 }}>{t('advisor.quickInsights')}</Txt>
                   <View style={{ gap: 8 }}>
                     {quickInsights.map((insight, idx) => (
                       <Animated.View key={idx} entering={FadeInUp.delay(100 * idx).duration(300)}>
@@ -248,7 +248,7 @@ export default function AdvisorTab() {
                 </View>
               )}
 
-              <Txt weight="bold" size={11} color={C.textFaint} style={{ marginBottom: 10, marginLeft: 2, letterSpacing: 1 }}>{t('advisor.tryAsking')}</Txt>
+              <Txt weight="bold" size={11} color={C.textFaint} style={{ marginBottom: 10, marginStart: 2, letterSpacing: 1 }}>{t('advisor.tryAsking')}</Txt>
               <View style={{ gap: 10 }}>
                 {suggestedPrompts().map((prompt, idx) => (
                   <Animated.View key={idx} entering={FadeInUp.delay(200 + 100 * idx).duration(300)}>
@@ -315,7 +315,7 @@ export default function AdvisorTab() {
         {/* ── Input ── */}
         <View style={{ paddingHorizontal: 20, paddingTop: 10, paddingBottom: 28 }}>
           {recording || extracting ? (
-            <Txt size={12} color={recording ? C.rose : C.textFaint} style={{ marginBottom: 8, marginLeft: 4 }}>
+            <Txt size={12} color={recording ? C.rose : C.textFaint} style={{ marginBottom: 8, marginStart: 4 }}>
               {recording ? t('voice.listening') : t('voice.thinking')}
             </Txt>
           ) : null}

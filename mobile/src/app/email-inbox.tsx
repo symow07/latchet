@@ -155,7 +155,7 @@ export default function EmailInboxScreen() {
                     <GlassCard key={item.id} padding={14}>
                       <View className="flex-row items-center">
                         <IconBubble color={C.p500} size={42}><Mail size={19} color={C.p400} /></IconBubble>
-                        <View style={{ flex: 1, marginLeft: 12 }}>
+                        <View style={{ flex: 1, marginStart: 12 }}>
                           <Txt weight="bold" size={15} color={C.text} numberOfLines={1}>
                             {item.merchant || item.label || item.senderDomain || 'Unrecognised email'}
                           </Txt>

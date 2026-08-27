@@ -227,7 +227,7 @@ export default function HealthScoreScreen() {
             style={{ backgroundColor: 'rgba(255,255,255,0.2)' }}
           >
             <TrendIcon size={16} color="white" />
-            <Text className="text-white ml-2">
+            <Text className="text-white ms-2">
               {healthScore.trend === 'up' && t('healthScore.trendUp', { value: healthScore.trendValue })}
               {healthScore.trend === 'down' && t('healthScore.trendDown', { value: healthScore.trendValue })}
               {healthScore.trend === 'stable' && t('healthScore.stableThisWeek')}
@@ -265,7 +265,7 @@ export default function HealthScoreScreen() {
             }}
           >
             <View className="flex-row items-center mb-3">
-              <Text className="text-3xl mr-3">{personality.icon}</Text>
+              <Text className="text-3xl me-3">{personality.icon}</Text>
               <View className="flex-1">
                 <Text style={{ color: C.text }} className="text-lg font-bold">{personality.title}</Text>
                 <Text style={{ color: C.textDim }} className="text-sm" numberOfLines={2}>
@@ -278,7 +278,7 @@ export default function HealthScoreScreen() {
 
         {/* Score Breakdown */}
         <View className="px-4 mb-4">
-          <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-3 ml-1">{t('healthScore.breakdown')}</Text>
+          <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-3 ms-1">{t('healthScore.breakdown')}</Text>
 
           {breakdownItems.map((item, idx) => (
             <Animated.View
@@ -292,7 +292,7 @@ export default function HealthScoreScreen() {
                 <View className="flex-row items-center justify-between mb-3">
                   <View className="flex-row items-center">
                     <View
-                      className="w-10 h-10 rounded-xl items-center justify-center mr-3"
+                      className="w-10 h-10 rounded-xl items-center justify-center me-3"
                       style={{ backgroundColor: `${item.color}20` }}
                     >
                       <item.icon size={20} color={item.color} />
@@ -325,7 +325,7 @@ export default function HealthScoreScreen() {
         {/* Suggestions */}
         {healthScore.suggestions.length > 0 && (
           <View className="px-4 mb-4">
-            <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-3 ml-1">
+            <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-3 ms-1">
               {t('healthScore.howToImprove')}
             </Text>
 
@@ -343,7 +343,7 @@ export default function HealthScoreScreen() {
                   }}
                 >
                   <Lightbulb size={18} color="#f59e0b" style={{ marginTop: 2 }} />
-                  <Text style={{ color: C.textDim }} className="text-sm ml-3 flex-1">{suggestion}</Text>
+                  <Text style={{ color: C.textDim }} className="text-sm ms-3 flex-1">{suggestion}</Text>
                 </View>
               </Animated.View>
             ))}
@@ -366,7 +366,7 @@ export default function HealthScoreScreen() {
             >
               <View className="flex-row items-center justify-between">
                 <View className="flex-row items-center">
-                  <View className="w-12 h-12 rounded-xl bg-white/20 items-center justify-center mr-3">
+                  <View className="w-12 h-12 rounded-xl bg-white/20 items-center justify-center me-3">
                     <Sparkles size={24} color="white" />
                   </View>
                   <View>

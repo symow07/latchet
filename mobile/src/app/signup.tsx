@@ -178,7 +178,7 @@ export default function SignUpScreen() {
 
             {/* Name */}
             <View className="mb-4">
-              <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-2.5 ml-1 tracking-wider uppercase">
+              <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-2.5 ms-1 tracking-wider uppercase">
                 {t('auth.fullName')}
               </Text>
               <View
@@ -192,7 +192,7 @@ export default function SignUpScreen() {
                   placeholder={t('fields.namePlaceholder')}
                   placeholderTextColor="#4b5563"
                   autoCapitalize="words"
-                  className="flex-1 ml-3 text-base"
+                  className="flex-1 ms-3 text-base"
                   selectionColor={C.p500}
                 />
               </View>
@@ -200,7 +200,7 @@ export default function SignUpScreen() {
 
             {/* Email */}
             <View className="mb-4">
-              <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-2.5 ml-1 tracking-wider uppercase">
+              <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-2.5 ms-1 tracking-wider uppercase">
                 {t('auth.email')}
               </Text>
               <View
@@ -216,7 +216,7 @@ export default function SignUpScreen() {
                   keyboardType="email-address"
                   autoCapitalize="none"
                   autoCorrect={false}
-                  className="flex-1 ml-3 text-base"
+                  className="flex-1 ms-3 text-base"
                   selectionColor={C.p500}
                 />
               </View>
@@ -224,7 +224,7 @@ export default function SignUpScreen() {
 
             {/* Password */}
             <View className="mb-4">
-              <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-2.5 ml-1 tracking-wider uppercase">
+              <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-2.5 ms-1 tracking-wider uppercase">
                 {t('auth.password')}
               </Text>
               <View
@@ -238,7 +238,7 @@ export default function SignUpScreen() {
                   placeholder={t('fields.passwordHint')}
                   placeholderTextColor="#4b5563"
                   secureTextEntry={!showPassword}
-                  className="flex-1 ml-3 text-base"
+                  className="flex-1 ms-3 text-base"
                   selectionColor={C.p500}
                 />
                 <Pressable onPress={() => setShowPassword(p => !p)} hitSlop={8}>
@@ -249,7 +249,7 @@ export default function SignUpScreen() {
 
             {/* Confirm Password */}
             <View className="mb-7">
-              <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-2.5 ml-1 tracking-wider uppercase">
+              <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-2.5 ms-1 tracking-wider uppercase">
                 {t('auth.confirmPassword')}
               </Text>
               <View
@@ -263,7 +263,7 @@ export default function SignUpScreen() {
                   placeholder={t('fields.repeatPassword')}
                   placeholderTextColor="#4b5563"
                   secureTextEntry={!showPassword}
-                  className="flex-1 ml-3 text-base"
+                  className="flex-1 ms-3 text-base"
                   selectionColor={C.p500}
                   returnKeyType="done"
                   onSubmitEditing={() => signUpMutation.mutate()}
@@ -293,7 +293,7 @@ export default function SignUpScreen() {
                   <ActivityIndicator color="white" size="small" />
                 ) : (
                   <>
-                    <Text className="text-white font-bold text-base mr-2">{t('auth.createAccount')}</Text>
+                    <Text className="text-white font-bold text-base me-2">{t('auth.createAccount')}</Text>
                     <ArrowRight size={18} color="white" />
                   </>
                 )}

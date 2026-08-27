@@ -300,7 +300,7 @@ export default function ReceiptScanScreen() {
               }}
             >
               <AlertCircle size={18} color="#ef4444" />
-              <Text style={{ color: '#f87171', marginLeft: 10, flex: 1, fontSize: 13 }}>{errorMsg}</Text>
+              <Text style={{ color: '#f87171', marginStart: 10, flex: 1, fontSize: 13 }}>{errorMsg}</Text>
               <Pressable onPress={() => setErrorMsg(null)}>
                 <Text style={{ color: '#f87171', fontWeight: '600', fontSize: 13 }}>{t('receiptScan.dismiss')}</Text>
               </Pressable>
@@ -360,7 +360,7 @@ export default function ReceiptScanScreen() {
                     backgroundColor: 'rgba(255,255,255,0.2)',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    marginRight: 16,
+                    marginEnd: 16,
                   }}
                 >
                   <Camera size={26} color="white" />
@@ -400,7 +400,7 @@ export default function ReceiptScanScreen() {
                     backgroundColor: 'rgba(168,85,247,0.15)',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    marginRight: 16,
+                    marginEnd: 16,
                   }}
                 >
                   <ImageIcon size={26} color={C.p500} />
@@ -418,7 +418,7 @@ export default function ReceiptScanScreen() {
 
             {/* Tips */}
             <View style={{ marginTop: 32 }}>
-              <Text style={{ color: C.textFaint, fontSize: 11, fontWeight: '600', marginBottom: 12, marginLeft: 4 }}>
+              <Text style={{ color: C.textFaint, fontSize: 11, fontWeight: '600', marginBottom: 12, marginStart: 4 }}>
                 {t('receiptScan.tipsTitle')}
               </Text>
               {[
@@ -445,7 +445,7 @@ export default function ReceiptScanScreen() {
                       backgroundColor: 'rgba(168,85,247,0.15)',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      marginRight: 12,
+                      marginEnd: 12,
                     }}
                   >
                     <Text style={{ color: C.p500, fontSize: 11, fontWeight: 'bold' }}>{i + 1}</Text>
@@ -537,7 +537,7 @@ export default function ReceiptScanScreen() {
                       marginBottom: i < 2 ? 10 : 0,
                     }}
                   >
-                    <ActivityIndicator size="small" color={C.p500} style={{ marginRight: 10 }} />
+                    <ActivityIndicator size="small" color={C.p500} style={{ marginEnd: 10 }} />
                     <Text style={{ color: C.p400, fontSize: 13 }}>{line}</Text>
                   </View>
                 )
@@ -585,7 +585,7 @@ export default function ReceiptScanScreen() {
                   }}
                 >
                   <Sparkles size={14} color={C.p500} />
-                  <Text style={{ color: C.p400, fontSize: 12, marginLeft: 5, fontWeight: '600' }}>
+                  <Text style={{ color: C.p400, fontSize: 12, marginStart: 5, fontWeight: '600' }}>
                     {t('receiptScan.aiExtracted')}
                   </Text>
                 </View>
@@ -594,7 +594,7 @@ export default function ReceiptScanScreen() {
 
             {/* Amount */}
             <View style={{ marginBottom: 14 }}>
-              <Text style={{ color: C.textDim, fontSize: 11, fontWeight: '600', marginBottom: 8, marginLeft: 4 }}>
+              <Text style={{ color: C.textDim, fontSize: 11, fontWeight: '600', marginBottom: 8, marginStart: 4 }}>
                 AMOUNT
               </Text>
               <View
@@ -609,7 +609,7 @@ export default function ReceiptScanScreen() {
                   borderColor: 'rgba(168,85,247,0.2)',
                 }}
               >
-                <DollarSign size={20} color={C.p500} style={{ marginRight: 10 }} />
+                <DollarSign size={20} color={C.p500} style={{ marginEnd: 10 }} />
                 <TextInput
                   value={amount}
                   onChangeText={setAmount}
@@ -624,7 +624,7 @@ export default function ReceiptScanScreen() {
 
             {/* Category */}
             <View style={{ marginBottom: 14 }}>
-              <Text style={{ color: C.textDim, fontSize: 11, fontWeight: '600', marginBottom: 8, marginLeft: 4 }}>
+              <Text style={{ color: C.textDim, fontSize: 11, fontWeight: '600', marginBottom: 8, marginStart: 4 }}>
                 CATEGORY
               </Text>
               <ScrollView
@@ -656,7 +656,7 @@ export default function ReceiptScanScreen() {
                           alignItems: 'center',
                         }}
                       >
-                        <Tag size={13} color={active ? colors.color : '#6b7280'} style={{ marginRight: 5 }} />
+                        <Tag size={13} color={active ? colors.color : '#6b7280'} style={{ marginEnd: 5 }} />
                         <Text
                           style={{
                             color: active ? colors.color : '#9ca3af',
@@ -675,7 +675,7 @@ export default function ReceiptScanScreen() {
 
             {/* Note */}
             <View style={{ marginBottom: 14 }}>
-              <Text style={{ color: C.textDim, fontSize: 11, fontWeight: '600', marginBottom: 8, marginLeft: 4 }}>
+              <Text style={{ color: C.textDim, fontSize: 11, fontWeight: '600', marginBottom: 8, marginStart: 4 }}>
                 {t('receiptScan.noteMerchant')}
               </Text>
               <View
@@ -690,7 +690,7 @@ export default function ReceiptScanScreen() {
                   borderColor: C.glassBorder,
                 }}
               >
-                <FileText size={18} color="#6b7280" style={{ marginRight: 10 }} />
+                <FileText size={18} color="#6b7280" style={{ marginEnd: 10 }} />
                 <TextInput
                   value={note}
                   onChangeText={(t) => setNote(t.slice(0, 50))}
@@ -705,7 +705,7 @@ export default function ReceiptScanScreen() {
 
             {/* Type toggle */}
             <View style={{ marginBottom: 14 }}>
-              <Text style={{ color: C.textDim, fontSize: 11, fontWeight: '600', marginBottom: 8, marginLeft: 4 }}>
+              <Text style={{ color: C.textDim, fontSize: 11, fontWeight: '600', marginBottom: 8, marginStart: 4 }}>
                 TYPE
               </Text>
               <View style={{ flexDirection: 'row', gap: 10 }}>
@@ -756,7 +756,7 @@ export default function ReceiptScanScreen() {
 
             {/* Date */}
             <View style={{ marginBottom: 14 }}>
-              <Text style={{ color: C.textDim, fontSize: 11, fontWeight: '600', marginBottom: 8, marginLeft: 4 }}>
+              <Text style={{ color: C.textDim, fontSize: 11, fontWeight: '600', marginBottom: 8, marginStart: 4 }}>
                 DATE
               </Text>
               <View
@@ -771,7 +771,7 @@ export default function ReceiptScanScreen() {
                   borderColor: C.glassBorder,
                 }}
               >
-                <Calendar size={18} color="#6b7280" style={{ marginRight: 10 }} />
+                <Calendar size={18} color="#6b7280" style={{ marginEnd: 10 }} />
                 <TextInput
                   value={dateISO}
                   onChangeText={setDateISO}
@@ -807,7 +807,7 @@ export default function ReceiptScanScreen() {
                     backgroundColor: isImpulse ? 'rgba(236,72,153,0.2)' : 'rgba(255,255,255,0.06)',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    marginRight: 12,
+                    marginEnd: 12,
                   }}
                 >
                   <Zap size={18} color={isImpulse ? '#ec4899' : '#6b7280'} />
@@ -940,14 +940,14 @@ export default function ReceiptScanScreen() {
               {saveMutation.isPending ? (
                 <>
                   <ActivityIndicator size="small" color="white" />
-                  <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 17, marginLeft: 10 }}>
+                  <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 17, marginStart: 10 }}>
                     {t('receiptScan.saving')}
                   </Text>
                 </>
               ) : (
                 <>
                   <Check size={20} color="white" />
-                  <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 17, marginLeft: 8 }}>
+                  <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 17, marginStart: 8 }}>
                     {t('receiptScan.saveTransaction')}
                   </Text>
                 </>

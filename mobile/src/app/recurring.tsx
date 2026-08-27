@@ -253,7 +253,7 @@ function RecurringCard({
                 backgroundColor: `${accentColor}18`,
                 alignItems: 'center',
                 justifyContent: 'center',
-                marginRight: 12,
+                marginEnd: 12,
               }}
             >
               <Text style={{ fontSize: 22 }}>{emoji}</Text>
@@ -293,7 +293,7 @@ function RecurringCard({
             </View>
 
             {/* Amount */}
-            <View style={{ alignItems: 'flex-end', marginLeft: 8 }}>
+            <View style={{ alignItems: 'flex-end', marginStart: 8 }}>
               <Text
                 style={{
                   color: isExpense ? '#ef4444' : '#22c55e',
@@ -331,7 +331,7 @@ function RecurringCard({
           >
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <Calendar size={12} color="#6b7280" />
-              <Text style={{ color: C.textFaint, fontSize: 12, marginLeft: 5 }}>
+              <Text style={{ color: C.textFaint, fontSize: 12, marginStart: 5 }}>
                 Next: {formatDateShort(item.nextDate)}
               </Text>
             </View>
@@ -613,7 +613,7 @@ function AddRecurringModal({
                   onChangeText={setName}
                   placeholder={t('fields.recurringPlaceholder')}
                   placeholderTextColor="#4b5563"
-                  style={{ flex: 1, color: C.text, fontSize: 15, marginLeft: 10 }}
+                  style={{ flex: 1, color: C.text, fontSize: 15, marginStart: 10 }}
                 />
               </View>
 
@@ -627,7 +627,7 @@ function AddRecurringModal({
                   placeholder="0.00"
                   placeholderTextColor="#4b5563"
                   keyboardType="decimal-pad"
-                  style={{ flex: 1, color: C.text, fontSize: 15, marginLeft: 6 }}
+                  style={{ flex: 1, color: C.text, fontSize: 15, marginStart: 6 }}
                 />
               </View>
 
@@ -645,7 +645,7 @@ function AddRecurringModal({
                 }}
               >
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Text style={{ fontSize: 18, marginRight: 10 }}>
+                  <Text style={{ fontSize: 18, marginEnd: 10 }}>
                     {getCategoryEmoji(category)}
                   </Text>
                   <Text style={{ color: C.text, fontSize: 15 }}>{category}</Text>
@@ -686,7 +686,7 @@ function AddRecurringModal({
                         borderColor: C.glassBorder,
                       }}
                     >
-                      <Text style={{ fontSize: 18, marginRight: 12 }}>{cat.emoji}</Text>
+                      <Text style={{ fontSize: 18, marginEnd: 12 }}>{cat.emoji}</Text>
                       <Text
                         style={{
                           color: category === cat.label ? '#22c55e' : '#d1d5db',
@@ -697,7 +697,7 @@ function AddRecurringModal({
                         {cat.label}
                       </Text>
                       {category === cat.label && (
-                        <Check size={16} color="#22c55e" style={{ marginLeft: 'auto' }} />
+                        <Check size={16} color="#22c55e" style={{ marginStart: 'auto' }} />
                       )}
                     </Pressable>
                   ))}
@@ -718,7 +718,7 @@ function AddRecurringModal({
                 }}
               >
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Repeat size={16} color="#6b7280" style={{ marginRight: 10 }} />
+                  <Repeat size={16} color="#6b7280" style={{ marginEnd: 10 }} />
                   <Text style={{ color: C.text, fontSize: 15 }}>
                     {getFrequencyLabel(frequency)}
                   </Text>
@@ -990,7 +990,7 @@ export default function RecurringScreen() {
                   color: 'rgba(255,255,255,0.6)',
                   fontSize: 10,
                   fontWeight: '700',
-                  marginLeft: 5,
+                  marginStart: 5,
                   letterSpacing: 0.6,
                 }}
               >
@@ -1021,7 +1021,7 @@ export default function RecurringScreen() {
                   color: 'rgba(255,255,255,0.6)',
                   fontSize: 10,
                   fontWeight: '700',
-                  marginLeft: 5,
+                  marginStart: 5,
                   letterSpacing: 0.6,
                 }}
               >
@@ -1113,7 +1113,7 @@ export default function RecurringScreen() {
                     fontWeight: '700',
                     letterSpacing: 1,
                     marginBottom: 10,
-                    marginLeft: 2,
+                    marginStart: 2,
                   }}
                 >
                   ACTIVE
@@ -1142,7 +1142,7 @@ export default function RecurringScreen() {
                     fontWeight: '700',
                     letterSpacing: 1,
                     marginBottom: 10,
-                    marginLeft: 2,
+                    marginStart: 2,
                     marginTop: activeItems.length > 0 ? 18 : 0,
                   }}
                 >

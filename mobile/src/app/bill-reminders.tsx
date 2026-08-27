@@ -226,7 +226,7 @@ function BillCard({
                   backgroundColor: `${color}18`,
                   alignItems: 'center',
                   justifyContent: 'center',
-                  marginRight: 12,
+                  marginEnd: 12,
                 }}
               >
                 <Text style={{ fontSize: 20 }}>{emoji}</Text>
@@ -252,7 +252,7 @@ function BillCard({
             </View>
 
             {/* Right: amount + badge */}
-            <View style={{ alignItems: 'flex-end', marginLeft: 8 }}>
+            <View style={{ alignItems: 'flex-end', marginStart: 8 }}>
               <Text style={{ color: C.text, fontSize: 16, fontWeight: '700' }}>
                 {formatAmount(bill.amount)}
               </Text>
@@ -281,13 +281,13 @@ function BillCard({
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <Calendar size={12} color="#6b7280" />
-              <Text style={{ color: C.textFaint, fontSize: 12, marginLeft: 4 }}>
+              <Text style={{ color: C.textFaint, fontSize: 12, marginStart: 4 }}>
                 {formatDate(bill.nextDueDate)}
               </Text>
               {bill.isRecurring && (
                 <View
                   style={{
-                    marginLeft: 8,
+                    marginStart: 8,
                     paddingHorizontal: 6,
                     paddingVertical: 1,
                     borderRadius: 4,
@@ -481,7 +481,7 @@ function AddBillModal({
                   onChangeText={setName}
                   placeholder={t('fields.billPlaceholder')}
                   placeholderTextColor="#4b5563"
-                  style={{ flex: 1, color: C.text, fontSize: 15, marginLeft: 10 }}
+                  style={{ flex: 1, color: C.text, fontSize: 15, marginStart: 10 }}
                 />
               </View>
 
@@ -508,7 +508,7 @@ function AddBillModal({
                       placeholder="0.00"
                       placeholderTextColor="#4b5563"
                       keyboardType="decimal-pad"
-                      style={{ flex: 1, color: C.text, fontSize: 15, marginLeft: 6 }}
+                      style={{ flex: 1, color: C.text, fontSize: 15, marginStart: 6 }}
                     />
                   </View>
                 </View>
@@ -534,7 +534,7 @@ function AddBillModal({
                       placeholder="1–31"
                       placeholderTextColor="#4b5563"
                       keyboardType="number-pad"
-                      style={{ flex: 1, color: C.text, fontSize: 15, marginLeft: 6 }}
+                      style={{ flex: 1, color: C.text, fontSize: 15, marginStart: 6 }}
                     />
                   </View>
                 </View>
@@ -558,7 +558,7 @@ function AddBillModal({
                 }}
               >
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Text style={{ fontSize: 18, marginRight: 10 }}>
+                  <Text style={{ fontSize: 18, marginEnd: 10 }}>
                     {getCategoryEmoji(category)}
                   </Text>
                   <Text style={{ color: C.text, fontSize: 15 }}>{category}</Text>
@@ -599,7 +599,7 @@ function AddBillModal({
                         borderColor: C.glassBorder,
                       }}
                     >
-                      <Text style={{ fontSize: 18, marginRight: 12 }}>{cat.emoji}</Text>
+                      <Text style={{ fontSize: 18, marginEnd: 12 }}>{cat.emoji}</Text>
                       <Text
                         style={{
                           color: category === cat.label ? C.p500 : '#d1d5db',
@@ -610,7 +610,7 @@ function AddBillModal({
                         {cat.label}
                       </Text>
                       {category === cat.label && (
-                        <Check size={16} color={C.p500} style={{ marginLeft: 'auto' }} />
+                        <Check size={16} color={C.p500} style={{ marginStart: 'auto' }} />
                       )}
                     </Pressable>
                   ))}
@@ -900,7 +900,7 @@ export default function BillRemindersScreen() {
                     fontWeight: '700',
                     letterSpacing: 1,
                     marginBottom: 10,
-                    marginLeft: 2,
+                    marginStart: 2,
                   }}
                 >
                   UPCOMING
@@ -929,7 +929,7 @@ export default function BillRemindersScreen() {
                     fontWeight: '700',
                     letterSpacing: 1,
                     marginBottom: 10,
-                    marginLeft: 2,
+                    marginStart: 2,
                     marginTop: sorted.filter((b) => !b.isPaid).length > 0 ? 16 : 0,
                   }}
                 >

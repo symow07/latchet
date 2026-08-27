@@ -93,7 +93,7 @@ function EditBudgetModal({ visible, onClose, currentData }: { visible: boolean; 
             <FieldLabel>{t('businessInsights.totalBudget')}</FieldLabel>
             <GlassCard padding={0} radius={R.md} border={`${B.accent}33`} style={{ marginBottom: 22 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14 }}>
-                <Txt weight="bold" size={20} color={B.accent} style={{ marginRight: 8 }}>$</Txt>
+                <Txt weight="bold" size={20} color={B.accent} style={{ marginEnd: 8 }}>$</Txt>
                 <TextInput value={total} onChangeText={setTotal} placeholder="0" placeholderTextColor={B.textFaint} keyboardType="decimal-pad" style={{ flex: 1, color: B.text, fontSize: 24, fontFamily: 'PlusJakartaSans_700Bold', padding: 0 }} selectionColor={B.accent} />
               </View>
             </GlassCard>
@@ -105,10 +105,10 @@ function EditBudgetModal({ visible, onClose, currentData }: { visible: boolean; 
                 return (
                   <GlassCard key={cat.key} padding={0} radius={R.sm}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 10 }}>
-                      <IconBubble color={cat.color} size={34} radius={10} style={{ marginRight: 12 }}><Icon size={16} color={cat.color} /></IconBubble>
+                      <IconBubble color={cat.color} size={34} radius={10} style={{ marginEnd: 12 }}><Icon size={16} color={cat.color} /></IconBubble>
                       <Txt size={14} color={B.textDim} style={{ flex: 1 }}>{cat.label}</Txt>
                       <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: B.glass, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 7, borderWidth: 1, borderColor: B.glassBorder, minWidth: 90 }}>
-                        <Txt size={14} color={B.textFaint} style={{ marginRight: 4 }}>$</Txt>
+                        <Txt size={14} color={B.textFaint} style={{ marginEnd: 4 }}>$</Txt>
                         <TextInput value={catVals[cat.key] ?? ''} onChangeText={v => setCatVals(prev => ({ ...prev, [cat.key]: v }))} placeholder="—" placeholderTextColor={B.textFaint} keyboardType="decimal-pad" style={{ color: B.text, fontSize: 15, fontFamily: 'PlusJakartaSans_600SemiBold', minWidth: 55, padding: 0 }} selectionColor={cat.color} />
                       </View>
                     </View>
@@ -143,7 +143,7 @@ function CategoryRow({ cat, spent, budget, index }: { cat: typeof ALL_CATEGORIES
       border={overBudget ? `${B.red}33` : warning ? `${B.amber}2a` : B.glassBorder}
     >
       <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
-        <IconBubble color={cat.color} size={40} radius={13} style={{ marginRight: 12 }}><Icon size={18} color={cat.color} /></IconBubble>
+        <IconBubble color={cat.color} size={40} radius={13} style={{ marginEnd: 12 }}><Icon size={18} color={cat.color} /></IconBubble>
         <View style={{ flex: 1 }}>
           <Txt weight="semibold" size={14} color={B.text}>{cat.label}</Txt>
           {budget > 0 ? (

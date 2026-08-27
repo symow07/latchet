@@ -583,7 +583,30 @@ Tier model: **free** = manual tracking, import, budgets, subscriptions, business
 String extraction across all 26 screens. Locale-aware currency and date formatting (depends on
 Task 12). Wire locale to `UserSettings`.
 
-### ☐ Task 24 — Arabic + RTL
+### ◐ Task 24 — Arabic + RTL — groundwork done, translation not
+
+The half that touches every screen is finished: 191 physical layout properties
+across 28 files became logical ones — `marginLeft` → `marginStart`, Tailwind's
+`ml-` → `ms-`, and so on. Yoga flips `flexDirection: 'row'` on its own in RTL
+but never flips a `marginLeft`, which is how an RTL layout ends up with every
+gap on the wrong side of every element. `rtl-readiness.test.ts` fails on any
+new physical property, so the next screen written cannot quietly undo it, and
+LTR was checked on the simulator afterwards to confirm nothing moved.
+
+The Arabic strings are deliberately not written, for a reason that is
+structural rather than a matter of review effort: **Arabic has six plural forms
+— zero, one, two, few (3–10), many (11–99), other — and every countable key in
+this app has two.** `%{count} transactions` would be grammatically wrong for 3,
+for 15, and for most counts a real user sees. Translating the values without
+first reshaping the keys produces confidently broken Arabic, and reshaping them
+means revisiting every `t(..., { count })` call site.
+
+What remains, in order: add the plural forms to the countable keys, write the
+979 strings with someone who reads Arabic, then `I18nManager.forceRTL` with the
+restart it requires — and a pass through every screen in RTL, which needs a
+signed-in session on a device.
+
+### ☐ Task 24 (original) — Arabic + RTL
 
 Every `flex-row`, absolute position, icon direction and chart axis across 26 screens.
 `I18nManager.forceRTL` requires an app restart, which interacts with the startup sequence in

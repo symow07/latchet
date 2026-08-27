@@ -178,7 +178,7 @@ export default function AccountsScreen() {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               router.back();
             }}
-            className="w-10 h-10 rounded-full bg-white/10 items-center justify-center mr-3"
+            className="w-10 h-10 rounded-full bg-white/10 items-center justify-center me-3"
           >
             <ArrowLeft size={20} color="white" />
           </Pressable>
@@ -234,7 +234,7 @@ export default function AccountsScreen() {
                   style={{ backgroundColor: C.glass }}
                 >
                   <View
-                    className="w-12 h-12 rounded-xl items-center justify-center mr-4"
+                    className="w-12 h-12 rounded-xl items-center justify-center me-4"
                     style={{ backgroundColor: `${account.color}20` }}
                   >
                     <Icon size={24} color={account.color} />
@@ -311,7 +311,7 @@ export default function AccountsScreen() {
           <ScrollView className="flex-1 px-5 py-6">
             {/* Account Name */}
             <View className="mb-6">
-              <Text style={{ color: C.textDim }} className="text-sm mb-2 ml-1">{t('accounts.accountName')}</Text>
+              <Text style={{ color: C.textDim }} className="text-sm mb-2 ms-1">{t('accounts.accountName')}</Text>
               <View
                 className="rounded-2xl px-4 py-4"
                 style={{ backgroundColor: C.glass }}
@@ -329,7 +329,7 @@ export default function AccountsScreen() {
 
             {/* Account Type */}
             <View className="mb-6">
-              <Text style={{ color: C.textDim }} className="text-sm mb-2 ml-1">{t('accounts.accountType')}</Text>
+              <Text style={{ color: C.textDim }} className="text-sm mb-2 ms-1">{t('accounts.accountType')}</Text>
               <View className="flex-row flex-wrap gap-2">
                 {ACCOUNT_TYPES().map((t) => {
                   const Icon = t.icon;
@@ -356,7 +356,7 @@ export default function AccountsScreen() {
                       >
                         <Icon size={18} color={isSelected ? C.p500 : '#9ca3af'} />
                         <Text
-                          className={`ml-2 ${isSelected ? 'text-purple-400' : ''}`}
+                          className={`ms-2 ${isSelected ? 'text-purple-400' : ''}`}
                         >
                           {t.label}
                         </Text>
@@ -369,14 +369,14 @@ export default function AccountsScreen() {
 
             {/* Current Balance */}
             <View className="mb-6">
-              <Text style={{ color: C.textDim }} className="text-sm mb-2 ml-1">
+              <Text style={{ color: C.textDim }} className="text-sm mb-2 ms-1">
                 {type === 'credit' ? t('accounts.balanceOwed') : t('accounts.balanceCurrent')}
               </Text>
               <View
                 className="flex-row items-center rounded-2xl px-4 py-4"
                 style={{ backgroundColor: C.glass }}
               >
-                <Text style={{ color: C.text }} className="text-xl mr-1">{settings?.currencySymbol || '$'}</Text>
+                <Text style={{ color: C.text }} className="text-xl me-1">{settings?.currencySymbol || '$'}</Text>
                 <TextInput
                   value={balance}
                   onChangeText={setBalance}
@@ -391,7 +391,7 @@ export default function AccountsScreen() {
 
             {/* Color */}
             <View className="mb-6">
-              <Text style={{ color: C.textDim }} className="text-sm mb-2 ml-1">{t('accounts.color')}</Text>
+              <Text style={{ color: C.textDim }} className="text-sm mb-2 ms-1">{t('accounts.color')}</Text>
               <View className="flex-row flex-wrap gap-3">
                 {ACCOUNT_COLORS.map((c) => (
                   <Pressable
@@ -428,7 +428,7 @@ export default function AccountsScreen() {
               >
                 <View className="flex-row items-center justify-center py-4 rounded-2xl bg-red-500/10">
                   <Trash2 size={20} color="#ef4444" />
-                  <Text className="text-red-400 font-semibold ml-2">{t('accounts.delete')}</Text>
+                  <Text className="text-red-400 font-semibold ms-2">{t('accounts.delete')}</Text>
                 </View>
               </Pressable>
             )}

@@ -112,7 +112,7 @@ function SubscriptionCard({ sub, onCancelGuide }: { sub: DetectedSubscription; o
     <GlassCard padding={0} radius={R.lg} tint={isUrgent ? `${B.amber}0a` : B.glass} border={isUrgent ? `${B.amber}2a` : B.glassBorder} style={{ overflow: 'hidden' }}>
       <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setExpanded(v => !v); }} style={({ pressed }) => ({ opacity: pressed ? 0.8 : 1, padding: 16 })}>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <IconBubble color={B.accent} size={44} radius={14} style={{ marginRight: 13 }}><Wrench size={20} color={B.accent} /></IconBubble>
+          <IconBubble color={B.accent} size={44} radius={14} style={{ marginEnd: 13 }}><Wrench size={20} color={B.accent} /></IconBubble>
           <View style={{ flex: 1 }}>
             <Txt weight="bold" size={15} color={B.text} numberOfLines={1}>{sub.name}</Txt>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 3 }}>
@@ -132,7 +132,7 @@ function SubscriptionCard({ sub, onCancelGuide }: { sub: DetectedSubscription; o
               <Txt weight="semibold" size={10} color={isUrgent ? B.amber : isOverdue ? B.red : B.textFaint}>{formatNextCharge(sub.nextChargeDate)}</Txt>
             </View>
           </View>
-          <View style={{ marginLeft: 10 }}>
+          <View style={{ marginStart: 10 }}>
             {expanded ? <ChevronUp size={16} color={B.textFaint} /> : <ChevronDown size={16} color={B.textFaint} />}
           </View>
         </View>
@@ -263,7 +263,7 @@ export default function BusinessToolsScreen() {
                 <GlassCard padding={0} radius={R.lg} tint={`${B.amber}0a`} border={`${B.amber}26`} style={{ overflow: 'hidden' }}>
                   {upcoming.map((sub, i) => (
                     <View key={sub.key} style={{ flexDirection: 'row', alignItems: 'center', padding: 14, borderBottomWidth: i < upcoming.length - 1 ? 1 : 0, borderBottomColor: `${B.amber}14` }}>
-                      <Zap size={14} color={B.amber} style={{ marginRight: 10 }} />
+                      <Zap size={14} color={B.amber} style={{ marginEnd: 10 }} />
                       <Txt weight="semibold" size={14} color={B.text} style={{ flex: 1 }} numberOfLines={1}>{sub.name}</Txt>
                       <View style={{ alignItems: 'flex-end' }}>
                         <Txt weight="bold" size={14} color={B.amber}>${sub.amount.toFixed(2)}</Txt>

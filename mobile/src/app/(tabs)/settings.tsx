@@ -32,7 +32,7 @@ import { Txt, GlassCard, IconBubble, BubbleButton, ScreenBackground } from '@/co
 
 function SectionLabel({ children }: { children: string }) {
   const C = useC();
-  return <Txt weight="bold" size={11} color={C.lilac} style={{ marginBottom: 12, marginLeft: 4, letterSpacing: 1.2 }}>{children}</Txt>;
+  return <Txt weight="bold" size={11} color={C.lilac} style={{ marginBottom: 12, marginStart: 4, letterSpacing: 1.2 }}>{children}</Txt>;
 }
 
 function NavRow({ icon, color, label, desc, onPress }: { icon: React.ReactNode; color: string; label: string; desc: string; onPress: () => void }) {
@@ -80,7 +80,7 @@ function MoneyInput({ icon, color, label, hint, value, onChangeText, placeholder
           {suffix ? <Txt size={16} color={C.textFaint}>{suffix}</Txt> : null}
         </View>
       </GlassCard>
-      <Txt size={11} color={C.textFaint} style={{ marginTop: 6, marginLeft: 4 }}>{hint}</Txt>
+      <Txt size={11} color={C.textFaint} style={{ marginTop: 6, marginStart: 4 }}>{hint}</Txt>
     </View>
   );
 }
@@ -357,7 +357,7 @@ export default function SettingsScreen() {
               );
             })}
           </GlassCard>
-          <Txt size={11} color={C.textFaint} style={{ marginTop: 6, marginLeft: 4 }}>
+          <Txt size={11} color={C.textFaint} style={{ marginTop: 6, marginStart: 4 }}>
             {t('language.subtitle')}
           </Txt>
         </View>

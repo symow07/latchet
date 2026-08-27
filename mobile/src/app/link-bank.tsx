@@ -183,7 +183,7 @@ export default function LinkBankScreen() {
       >
         <View className="flex-row items-center mb-2">
           <Shield size={18} color="#22c55e" />
-          <Text className="text-green-400 font-semibold ml-2">{t('bankExtra.security')}</Text>
+          <Text className="text-green-400 font-semibold ms-2">{t('bankExtra.security')}</Text>
         </View>
         <Text style={{ color: C.textDim }} className="text-sm leading-5">
           {t('bank.oauthNote')}
@@ -211,7 +211,7 @@ export default function LinkBankScreen() {
                 color={isSyncing ? '#6b7280' : '#3b82f6'}
                 style={isSyncing ? { transform: [{ rotate: '45deg' }] } : undefined}
               />
-              <Text style={{ color: C.textFaint }} className={`text-xs ml-1 ${isSyncing ? '' : 'text-blue-400'}`}>
+              <Text style={{ color: C.textFaint }} className={`text-xs ms-1 ${isSyncing ? '' : 'text-blue-400'}`}>
                 {isSyncing ? t('bank.syncing') : t('bank.syncAll')}
               </Text>
             </Pressable>
@@ -249,7 +249,7 @@ export default function LinkBankScreen() {
                     <View className="flex-row items-center justify-between">
                       <View className="flex-row items-center flex-1">
                         <View
-                          className="w-12 h-12 rounded-xl items-center justify-center mr-3"
+                          className="w-12 h-12 rounded-xl items-center justify-center me-3"
                           style={{ backgroundColor: 'rgba(59, 130, 246, 0.2)' }}
                         >
                           <Text className="text-2xl">{bank.institutionLogo}</Text>
@@ -265,12 +265,12 @@ export default function LinkBankScreen() {
 
                       <View className="flex-row items-center">
                         {isExpired && (
-                          <View className="bg-red-500/20 rounded-full px-2 py-1 mr-2">
+                          <View className="bg-red-500/20 rounded-full px-2 py-1 me-2">
                             <Text className="text-red-400 text-xs">{t('bankExtra.expired')}</Text>
                           </View>
                         )}
                         {isExpiring && !isExpired && (
-                          <View className="bg-amber-500/20 rounded-full px-2 py-1 mr-2">
+                          <View className="bg-amber-500/20 rounded-full px-2 py-1 me-2">
                             <Text className="text-amber-400 text-xs">{t('bankExtra.expiring')}</Text>
                           </View>
                         )}
@@ -320,7 +320,7 @@ export default function LinkBankScreen() {
             }}
           >
             <Link2 size={20} color="#3b82f6" />
-            <Text className="text-blue-400 font-semibold ml-2">
+            <Text className="text-blue-400 font-semibold ms-2">
               {linkedBanks.length > 0 ? t('bank.linkAnother') : t('bank.linkFirst')}
             </Text>
           </View>
@@ -335,7 +335,7 @@ export default function LinkBankScreen() {
         >
           <View className="flex-row items-center mb-2">
             <Info size={16} color="#6b7280" />
-            <Text style={{ color: C.textFaint }} className="text-sm ml-2">{t('bankExtra.preferManual')}</Text>
+            <Text style={{ color: C.textFaint }} className="text-sm ms-2">{t('bankExtra.preferManual')}</Text>
           </View>
           <Text style={{ color: C.textFaint }} className="text-xs">
             {t('bank.optionalNote')}
@@ -361,7 +361,7 @@ export default function LinkBankScreen() {
             >
               <View className="flex-row items-center flex-1">
                 <View
-                  className="w-12 h-12 rounded-xl items-center justify-center mr-3"
+                  className="w-12 h-12 rounded-xl items-center justify-center me-3"
                   style={{ backgroundColor: 'rgba(168,85,247,0.15)' }}
                 >
                   <Building2 size={22} color={C.p500} />
@@ -397,23 +397,23 @@ export default function LinkBankScreen() {
         >
           <View className="flex-row items-center mb-2">
             <Lock size={16} color={C.p500} />
-            <Text className="text-purple-400 font-semibold ml-2">{t('bankExtra.howItWorks')}</Text>
+            <Text className="text-purple-400 font-semibold ms-2">{t('bankExtra.howItWorks')}</Text>
           </View>
           <View className="gap-2">
             <View className="flex-row items-start">
-              <Text style={{ color: C.textDim }} className="text-xs mr-2">1.</Text>
+              <Text style={{ color: C.textDim }} className="text-xs me-2">1.</Text>
               <Text style={{ color: C.textDim }} className="text-xs flex-1">
                 {t('bank.step1')}
               </Text>
             </View>
             <View className="flex-row items-start">
-              <Text style={{ color: C.textDim }} className="text-xs mr-2">2.</Text>
+              <Text style={{ color: C.textDim }} className="text-xs me-2">2.</Text>
               <Text style={{ color: C.textDim }} className="text-xs flex-1">
                 {t('bank.step2')}
               </Text>
             </View>
             <View className="flex-row items-start">
-              <Text style={{ color: C.textDim }} className="text-xs mr-2">3.</Text>
+              <Text style={{ color: C.textDim }} className="text-xs me-2">3.</Text>
               <Text style={{ color: C.textDim }} className="text-xs flex-1">
                 {t('bank.step3')}
               </Text>
@@ -440,7 +440,7 @@ export default function LinkBankScreen() {
           >
             <View className="flex-row items-center mb-4">
               <View
-                className="w-14 h-14 rounded-xl items-center justify-center mr-4"
+                className="w-14 h-14 rounded-xl items-center justify-center me-4"
                 style={{ backgroundColor: 'rgba(59, 130, 246, 0.2)' }}
               >
                 <Text className="text-3xl">{selectedBank.institutionLogo}</Text>
@@ -461,7 +461,7 @@ export default function LinkBankScreen() {
               >
                 <View className="bg-blue-600 rounded-lg py-3 flex-row items-center justify-center">
                   <RefreshCw size={16} color="white" />
-                  <Text style={{ color: C.text }} className="font-semibold ml-2">
+                  <Text style={{ color: C.text }} className="font-semibold ms-2">
                     {isSyncing ? t('bank.syncing') : t('bank.syncNow')}
                   </Text>
                 </View>
@@ -476,7 +476,7 @@ export default function LinkBankScreen() {
                   style={{ backgroundColor: 'rgba(239, 68, 68, 0.2)' }}
                 >
                   <Unlink size={16} color="#ef4444" />
-                  <Text className="text-red-400 font-semibold ml-2">{t('bankExtra.disconnect')}</Text>
+                  <Text className="text-red-400 font-semibold ms-2">{t('bankExtra.disconnect')}</Text>
                 </View>
               </Pressable>
             </View>
@@ -544,7 +544,7 @@ export default function LinkBankScreen() {
               {consent.dataAccessed.map((item, idx) => (
                 <View key={idx} className="flex-row items-center mb-1">
                   <Check size={14} color="#22c55e" />
-                  <Text style={{ color: C.textDim }} className="text-sm ml-2">{item}</Text>
+                  <Text style={{ color: C.textDim }} className="text-sm ms-2">{item}</Text>
                 </View>
               ))}
             </View>
@@ -552,7 +552,7 @@ export default function LinkBankScreen() {
             <View className="border-t border-gray-800 pt-3">
               <View className="flex-row items-center">
                 <Clock size={14} color="#f59e0b" />
-                <Text className="text-amber-400 text-xs ml-2">
+                <Text className="text-amber-400 text-xs ms-2">
                   {t('bank.consentExpires', { date: new Date(consent.expiresAt).toLocaleDateString(getIntlTag()) })}
                 </Text>
               </View>
@@ -594,21 +594,21 @@ export default function LinkBankScreen() {
 
               <View className="gap-3">
                 <View className="flex-row items-center">
-                  <View className="w-8 h-8 rounded-full bg-green-500/20 items-center justify-center mr-3">
+                  <View className="w-8 h-8 rounded-full bg-green-500/20 items-center justify-center me-3">
                     <Check size={16} color="#22c55e" />
                   </View>
                   <Text style={{ color: C.textDim }} className="flex-1">{t('bankExtra.viewBalances')}</Text>
                 </View>
 
                 <View className="flex-row items-center">
-                  <View className="w-8 h-8 rounded-full bg-green-500/20 items-center justify-center mr-3">
+                  <View className="w-8 h-8 rounded-full bg-green-500/20 items-center justify-center me-3">
                     <Check size={16} color="#22c55e" />
                   </View>
                   <Text style={{ color: C.textDim }} className="flex-1">{t('bankExtra.readHistory')}</Text>
                 </View>
 
                 <View className="flex-row items-center">
-                  <View className="w-8 h-8 rounded-full bg-red-500/20 items-center justify-center mr-3">
+                  <View className="w-8 h-8 rounded-full bg-red-500/20 items-center justify-center me-3">
                     <AlertTriangle size={16} color="#ef4444" />
                   </View>
                   <Text style={{ color: C.textFaint }} className="flex-1">{t('bankExtra.noPayments')}</Text>
@@ -622,7 +622,7 @@ export default function LinkBankScreen() {
             >
               <View className="flex-row items-center">
                 <Lock size={16} color="#22c55e" />
-                <Text className="text-green-400 text-sm ml-2 flex-1">
+                <Text className="text-green-400 text-sm ms-2 flex-1">
                   {t('bank.neverStore')}
                 </Text>
               </View>

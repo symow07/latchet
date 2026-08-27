@@ -103,7 +103,7 @@ function AddSalaryModal({ visible, onClose, members, existingUserIds }: { visibl
                       const initials = (m.user?.name ?? '?').split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase();
                       return (
                         <Pressable key={m.userId} onPress={() => { setSelectedUserId(m.userId); setDropOpen(false); setErr(''); }} style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 11, backgroundColor: selectedUserId === m.userId ? `${B.accent}12` : 'transparent' })}>
-                          <View style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: `${B.accent}1f`, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+                          <View style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: `${B.accent}1f`, alignItems: 'center', justifyContent: 'center', marginEnd: 12 }}>
                             <Txt weight="bold" size={13} color={B.accent}>{initials}</Txt>
                           </View>
                           <View style={{ flex: 1 }}>
@@ -125,7 +125,7 @@ function AddSalaryModal({ visible, onClose, members, existingUserIds }: { visibl
             <FieldLabel>{t('businessPayroll.monthlySalary')}</FieldLabel>
             <GlassCard padding={0} radius={R.md} border={`${B.accent}33`} style={{ marginBottom: 22 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14 }}>
-                <Txt weight="bold" size={20} color={B.accent} style={{ marginRight: 8 }}>$</Txt>
+                <Txt weight="bold" size={20} color={B.accent} style={{ marginEnd: 8 }}>$</Txt>
                 <TextInput value={amount} onChangeText={v => { setAmount(v); setErr(''); }} placeholder="0.00" placeholderTextColor={B.textFaint} keyboardType="decimal-pad" style={{ flex: 1, color: B.text, fontSize: 24, fontFamily: 'PlusJakartaSans_700Bold', padding: 0 }} selectionColor={B.accent} />
               </View>
             </GlassCard>
@@ -160,7 +160,7 @@ function EmployeeRow({ record, month, canEdit, onToggle, onDelete }: { record: S
   return (
     <GlassCard padding={16} radius={R.lg} tint={paid ? `${B.teal}0a` : B.glass} border={paid ? `${B.teal}26` : B.glassBorder}>
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-        <View style={{ width: 46, height: 46, borderRadius: 15, backgroundColor: paid ? `${B.teal}1f` : `${B.accent}1f`, borderWidth: 1.5, borderColor: paid ? `${B.teal}40` : `${B.accent}33`, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+        <View style={{ width: 46, height: 46, borderRadius: 15, backgroundColor: paid ? `${B.teal}1f` : `${B.accent}1f`, borderWidth: 1.5, borderColor: paid ? `${B.teal}40` : `${B.accent}33`, alignItems: 'center', justifyContent: 'center', marginEnd: 12 }}>
           <Txt weight="bold" size={15} color={paid ? B.teal : B.accent}>{initials}</Txt>
         </View>
         <View style={{ flex: 1 }}>

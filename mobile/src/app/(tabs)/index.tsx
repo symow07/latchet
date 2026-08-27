@@ -315,12 +315,12 @@ return { icon: Flame, color: C.p400, title: t('feedback.streakTitle', { days: st
                   </View>
                   <View className="flex-row">
                     {accounts.slice(0, 3).map((account, idx) => (
-                      <View key={account.id} style={{ width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: account.color, marginLeft: idx > 0 ? -10 : 0, borderWidth: 2, borderColor: C.bg }}>
+                      <View key={account.id} style={{ width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: account.color, marginStart: idx > 0 ? -10 : 0, borderWidth: 2, borderColor: C.bg }}>
                         <Txt weight="bold" size={12} color="#fff">{account.name.charAt(0)}</Txt>
                       </View>
                     ))}
                     {accounts.length > 3 && (
-                      <View style={{ width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: C.bgRaise, marginLeft: -10, borderWidth: 2, borderColor: C.bg }}>
+                      <View style={{ width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: C.bgRaise, marginStart: -10, borderWidth: 2, borderColor: C.bg }}>
                         <Txt weight="bold" size={12} color="#fff">+{accounts.length - 3}</Txt>
                       </View>
                     )}

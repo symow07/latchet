@@ -192,7 +192,7 @@ export default function LoginScreen() {
 
             {/* Email */}
             <View className="mb-4">
-              <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-2.5 ml-1 tracking-wider uppercase">
+              <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-2.5 ms-1 tracking-wider uppercase">
                 {t('auth.email')}
               </Text>
               <View
@@ -209,7 +209,7 @@ export default function LoginScreen() {
                   autoCapitalize="none"
                   autoCorrect={false}
                   autoComplete="email"
-                  className="flex-1 ml-3 text-base"
+                  className="flex-1 ms-3 text-base"
                   selectionColor={C.p500}
                   returnKeyType="next"
                 />
@@ -218,7 +218,7 @@ export default function LoginScreen() {
 
             {/* Password */}
             <View className="mb-7">
-              <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-2.5 ml-1 tracking-wider uppercase">
+              <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-2.5 ms-1 tracking-wider uppercase">
                 {t('auth.password')}
               </Text>
               <View
@@ -232,7 +232,7 @@ export default function LoginScreen() {
                   placeholder={t('fields.yourPassword')}
                   placeholderTextColor="#4b5563"
                   secureTextEntry={!showPassword}
-                  className="flex-1 ml-3 text-base"
+                  className="flex-1 ms-3 text-base"
                   selectionColor={C.p500}
                   returnKeyType="done"
                   onSubmitEditing={handleLogin}
@@ -264,7 +264,7 @@ export default function LoginScreen() {
                   <ActivityIndicator color="white" size="small" />
                 ) : (
                   <>
-                    <Text className="text-white font-bold text-base mr-2">{t('auth.signIn')}</Text>
+                    <Text className="text-white font-bold text-base me-2">{t('auth.signIn')}</Text>
                     <ArrowRight size={18} color="white" />
                   </>
                 )}

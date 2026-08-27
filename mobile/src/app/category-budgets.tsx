@@ -166,7 +166,7 @@ function EditModal({
                     borderRadius: 12,
                     alignItems: 'center',
                     justifyContent: 'center',
-                    marginRight: 12,
+                    marginEnd: 12,
                     backgroundColor: category.bg,
                   }}
                 >
@@ -198,7 +198,7 @@ function EditModal({
                   borderColor: category.color + '44',
                 }}
               >
-                <DollarSign size={20} color={category.color} style={{ marginRight: 8 }} />
+                <DollarSign size={20} color={category.color} style={{ marginEnd: 8 }} />
                 <TextInput
                   value={currentAmount}
                   onChangeText={onChangeAmount}
@@ -246,7 +246,7 @@ function EditModal({
                       justifyContent: 'center',
                     }}
                   >
-                    <Check size={16} color="white" style={{ marginRight: 6 }} />
+                    <Check size={16} color="white" style={{ marginEnd: 6 }} />
                     <Text style={{ color: '#fff', fontWeight: '700', fontSize: 15 }}>
                       {isSaving ? t('categoryBudgets.saving') : t('categoryBudgets.setBudget')}
                     </Text>
@@ -388,7 +388,7 @@ export default function CategoryBudgetsScreen() {
         contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 20, paddingBottom: 100 }}
       >
         {/* Current month label */}
-        <Text style={{ color: C.textFaint, fontSize: 12, fontWeight: '600', marginBottom: 14, marginLeft: 2 }}>
+        <Text style={{ color: C.textFaint, fontSize: 12, fontWeight: '600', marginBottom: 14, marginStart: 2 }}>
           {new Date().toLocaleString('default', { month: 'long', year: 'numeric' }).toUpperCase()}
         </Text>
 
@@ -423,7 +423,7 @@ export default function CategoryBudgetsScreen() {
                       backgroundColor: cat.bg,
                       alignItems: 'center',
                       justifyContent: 'center',
-                      marginRight: 12,
+                      marginEnd: 12,
                     }}
                   >
                     <Text style={{ fontSize: 24 }}>{cat.emoji}</Text>
@@ -510,7 +510,7 @@ export default function CategoryBudgetsScreen() {
                       backgroundColor: 'rgba(239,68,68,0.1)',
                     }}
                   >
-                    <Trash2 size={12} color="#ef4444" style={{ marginRight: 4 }} />
+                    <Trash2 size={12} color="#ef4444" style={{ marginEnd: 4 }} />
                     <Text style={{ color: '#ef4444', fontSize: 11, fontWeight: '600' }}>
                       {t('categoryBudgets.removeLimit')}
                     </Text>

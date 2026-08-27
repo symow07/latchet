@@ -129,7 +129,7 @@ export default function BusinessDashboardTab() {
           <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push('/business-tools'); }} style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}>
             <GlassCard padding={20} radius={R.lg} tint={B.slate900} border={`${B.accent}22`}>
               <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 14 }}>
-                <IconBubble color={B.accent} size={40} radius={13} style={{ marginRight: 12 }}><Wrench size={18} color={B.accent} /></IconBubble>
+                <IconBubble color={B.accent} size={40} radius={13} style={{ marginEnd: 12 }}><Wrench size={18} color={B.accent} /></IconBubble>
                 <View style={{ flex: 1 }}>
                   <Txt weight="bold" size={15} color={B.text}>{t('business.businessTools')}</Txt>
                   <Txt size={12} color={B.textFaint} style={{ marginTop: 1 }}>

@@ -213,7 +213,7 @@ export default function AccountTypeScreen() {
                     color: selected ? 'white' : '#4b5563',
                     fontWeight: '700',
                     fontSize: 17,
-                    marginRight: 8,
+                    marginEnd: 8,
                   }}
                 >
                   {selected ? t('common.continue') : t('accountKind.selectPrompt')}

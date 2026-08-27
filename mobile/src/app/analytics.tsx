@@ -138,7 +138,7 @@ export default function AnalyticsScreen() {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               setActiveTab(tab.id);
             }}
-            className="mr-3"
+            className="me-3"
           >
             <View
               className={`flex-row items-center px-4 py-2 rounded-full ${
@@ -147,14 +147,14 @@ export default function AnalyticsScreen() {
             >
               <tab.icon size={16} color={activeTab === tab.id ? 'white' : '#9ca3af'} />
               <Text
-                className={`ml-2 text-sm font-medium ${
+                className={`ms-2 text-sm font-medium ${
                   activeTab === tab.id ? '' : 'text-gray-400'
                 }`}
               >
                 {tab.label}
               </Text>
               {tab.id === 'alerts' && analytics && analytics.alertCount > 0 && (
-                <View className="ml-2 bg-red-500 rounded-full w-5 h-5 items-center justify-center">
+                <View className="ms-2 bg-red-500 rounded-full w-5 h-5 items-center justify-center">
                   <Text style={{ color: C.text }} className="text-xs font-bold">{analytics.alertCount}</Text>
                 </View>
               )}
@@ -172,7 +172,7 @@ export default function AnalyticsScreen() {
         {activeTab === 'overview' && analytics && (
           <Animated.View entering={FadeInUp.duration(400)} className="px-4 pt-4">
             {/* Top Waste Categories */}
-            <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-3 ml-1">
+            <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-3 ms-1">
               {t('analytics.topWaste')}
             </Text>
             {analytics.wasteCategories.map((waste, idx) => (
@@ -182,7 +182,7 @@ export default function AnalyticsScreen() {
             {/* Spending Patterns */}
             {analytics.spendingPatterns.length > 0 && (
               <>
-                <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-3 ml-1 mt-6">
+                <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-3 ms-1 mt-6">
                   {t('analytics.patternsDetected')}
                 </Text>
                 {analytics.spendingPatterns.map((pattern, idx) => (
@@ -199,7 +199,7 @@ export default function AnalyticsScreen() {
               >
                 <View className="flex-row items-center justify-between">
                   <View className="flex-row items-center">
-                    <View className="w-10 h-10 rounded-xl bg-purple-500/20 items-center justify-center mr-3">
+                    <View className="w-10 h-10 rounded-xl bg-purple-500/20 items-center justify-center me-3">
                       <RefreshCw size={20} color={C.p500} />
                     </View>
                     <View>
@@ -226,7 +226,7 @@ export default function AnalyticsScreen() {
         {/* Subscriptions Tab */}
         {activeTab === 'subscriptions' && analytics && (
           <Animated.View entering={FadeInUp.duration(400)} className="px-4 pt-4">
-            <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-3 ml-1">
+            <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-3 ms-1">
               DETECTED RECURRING CHARGES ({analytics.subscriptions.length})
             </Text>
             {analytics.subscriptions.length === 0 ? (
@@ -251,7 +251,7 @@ export default function AnalyticsScreen() {
         {activeTab === 'insights' && analytics && (
           <Animated.View entering={FadeInUp.duration(400)} className="px-4 pt-4">
             {/* Waste Category Tips */}
-            <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-3 ml-1">
+            <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-3 ms-1">
               {t('analytics.savingsTips')}
             </Text>
             {analytics.wasteCategories.map((waste, idx) => (
@@ -265,7 +265,7 @@ export default function AnalyticsScreen() {
                   style={{ backgroundColor: C.glass }}
                 >
                   <View className="flex-row items-start">
-                    <View className="w-8 h-8 rounded-lg bg-amber-500/20 items-center justify-center mr-3">
+                    <View className="w-8 h-8 rounded-lg bg-amber-500/20 items-center justify-center me-3">
                       <Lightbulb size={16} color="#f59e0b" />
                     </View>
                     <View className="flex-1">
@@ -283,7 +283,7 @@ export default function AnalyticsScreen() {
             {/* Spending Patterns Insights */}
             {analytics.spendingPatterns.length > 0 && (
               <>
-                <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-3 ml-1 mt-6">
+                <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-3 ms-1 mt-6">
                   {t('analytics.behavioralInsights')}
                 </Text>
                 {analytics.spendingPatterns.map((pattern, idx) => (
@@ -293,7 +293,7 @@ export default function AnalyticsScreen() {
                     style={{ backgroundColor: C.glass }}
                   >
                     <View className="flex-row items-start">
-                      <View className="w-8 h-8 rounded-lg bg-blue-500/20 items-center justify-center mr-3">
+                      <View className="w-8 h-8 rounded-lg bg-blue-500/20 items-center justify-center me-3">
                         {pattern.type === 'weekend' ? (
                           <Calendar size={16} color="#3b82f6" />
                         ) : (
@@ -320,7 +320,7 @@ export default function AnalyticsScreen() {
             {/* Duplicate Charges */}
             {analytics.duplicateCharges.length > 0 && (
               <>
-                <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-3 ml-1">
+                <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-3 ms-1">
                   {t('analytics.duplicateCharges')}
                 </Text>
                 {analytics.duplicateCharges.map((dup, idx) => (
@@ -331,7 +331,7 @@ export default function AnalyticsScreen() {
                   >
                     <View className="flex-row items-center mb-2">
                       <AlertCircle size={16} color="#ef4444" />
-                      <Text className="text-red-400 font-medium ml-2">{t('analytics.duplicateDetected')}</Text>
+                      <Text className="text-red-400 font-medium ms-2">{t('analytics.duplicateDetected')}</Text>
                     </View>
                     <Text style={{ color: C.text }} >{dup.description}</Text>
                     <Text style={{ color: C.textDim }} className="text-sm">
@@ -348,7 +348,7 @@ export default function AnalyticsScreen() {
             {/* Unusual Transactions */}
             {analytics.unusualTransactions.length > 0 && (
               <>
-                <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-3 ml-1 mt-4">
+                <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-3 ms-1 mt-4">
                   {t('analytics.unusualTransactions')}
                 </Text>
                 {analytics.unusualTransactions.map((unusual, idx) => (
@@ -409,7 +409,7 @@ function WasteCategoryCard({
         <View className="flex-row items-center justify-between mb-3">
           <View className="flex-row items-center">
             <View
-              className="w-8 h-8 rounded-lg items-center justify-center mr-3"
+              className="w-8 h-8 rounded-lg items-center justify-center me-3"
               style={{ backgroundColor: `${color}20` }}
             >
               <Text style={{ color, fontWeight: 'bold' }}>#{index + 1}</Text>
@@ -459,7 +459,7 @@ function SubscriptionCard({
         <Text style={{ color: C.text }} className="font-semibold flex-1" numberOfLines={1}>
           {subscription.description}
         </Text>
-        <View className="bg-purple-500/20 rounded-full px-2 py-0.5 ml-2">
+        <View className="bg-purple-500/20 rounded-full px-2 py-0.5 ms-2">
           <Text className="text-purple-400 text-xs capitalize">{subscription.frequency}</Text>
         </View>
       </View>
@@ -503,14 +503,14 @@ function SpendingPatternCard({
         ) : (
           <TrendingUp size={16} color="#3b82f6" />
         )}
-        <Text className="text-blue-400 font-medium ml-2">
+        <Text className="text-blue-400 font-medium ms-2">
           {pattern.type === 'weekend' ? t('analytics.weekendSpike') : t('analytics.seasonalChange')}
         </Text>
       </View>
       <Text style={{ color: C.textDim }} className="text-sm">{pattern.insight}</Text>
       <View className="flex-row mt-2">
         {pattern.topCategories.map((cat, idx) => (
-          <View key={idx} className="bg-blue-500/20 rounded-full px-2 py-1 mr-2">
+          <View key={idx} className="bg-blue-500/20 rounded-full px-2 py-1 me-2">
             <Text className="text-blue-300 text-xs">
               {categoryLabel(cat.category)}: {formatCurrency(cat.amount)}
             </Text>
@@ -545,7 +545,7 @@ function UnusualTransactionCard({
       <View className="flex-row items-center justify-between mb-2">
         <View className="flex-row items-center">
           <AlertTriangle size={16} color={colors.text} />
-          <Text style={{ color: colors.text }} className="font-medium ml-2 capitalize">
+          <Text style={{ color: colors.text }} className="font-medium ms-2 capitalize">
             {unusual.severity} Priority
           </Text>
         </View>

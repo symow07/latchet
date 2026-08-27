@@ -120,7 +120,7 @@ function MemberRow({ member, isMe, isOwner, onRemove, onChangeRole }: { member: 
   return (
     <GlassCard padding={14} radius={R.md}>
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-        <View style={{ width: 44, height: 44, borderRadius: 14, backgroundColor: `${meta.color}1f`, borderWidth: 1, borderColor: `${meta.color}40`, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+        <View style={{ width: 44, height: 44, borderRadius: 14, backgroundColor: `${meta.color}1f`, borderWidth: 1, borderColor: `${meta.color}40`, alignItems: 'center', justifyContent: 'center', marginEnd: 12 }}>
           <Txt weight="bold" size={15} color={meta.color}>{initials}</Txt>
         </View>
         <View style={{ flex: 1 }}>

@@ -213,7 +213,7 @@ export default function BusinessSettingsScreen() {
                 const body = (
                   <GlassCard padding={14} radius={R.md}>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                      <IconBubble color={item.color} size={38} radius={12} style={{ marginRight: 13 }}><Icon size={17} color={item.color} /></IconBubble>
+                      <IconBubble color={item.color} size={38} radius={12} style={{ marginEnd: 13 }}><Icon size={17} color={item.color} /></IconBubble>
                       <View style={{ flex: 1 }}>
                         <Txt weight="semibold" size={15} color={B.text}>{item.label}</Txt>
                         <Txt size={12} color={B.textFaint} style={{ marginTop: 1 }} numberOfLines={1}>{item.sub}</Txt>
@@ -288,7 +288,7 @@ export default function BusinessSettingsScreen() {
               );
             })}
           </GlassCard>
-          <Txt size={11} color={B.textFaint} style={{ marginTop: 6, marginLeft: 4 }}>
+          <Txt size={11} color={B.textFaint} style={{ marginTop: 6, marginStart: 4 }}>
             {t('language.subtitle')}
           </Txt>
         </View>

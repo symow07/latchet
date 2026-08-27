@@ -186,7 +186,7 @@ function NetWorthChart({ entries }: { entries: NetWorthEntry[] }) {
               key={entry.id ?? i}
               style={{
                 width: barWidth,
-                marginRight: i < data.length - 1 ? 4 : 0,
+                marginEnd: i < data.length - 1 ? 4 : 0,
                 alignItems: 'center',
                 justifyContent: 'flex-end',
                 height: CHART_HEIGHT,
@@ -244,7 +244,7 @@ function InputRow({ label, value, onChange, iconComponent, placeholder }: InputR
   const C = useC();
   return (
     <View className="flex-row items-center mb-3">
-      <View className="w-9 h-9 rounded-xl items-center justify-center mr-3" style={{ backgroundColor: C.glassStrong }}>
+      <View className="w-9 h-9 rounded-xl items-center justify-center me-3" style={{ backgroundColor: C.glassStrong }}>
         {iconComponent}
       </View>
       <Text style={{ color: C.textDim }} className="text-sm flex-1">{label}</Text>
@@ -252,7 +252,7 @@ function InputRow({ label, value, onChange, iconComponent, placeholder }: InputR
         className="flex-row items-center rounded-xl px-3 py-2"
         style={{ backgroundColor: C.glassStrong, minWidth: 110 }}
       >
-        <Text style={{ color: C.textFaint }} className="text-sm mr-1">$</Text>
+        <Text style={{ color: C.textFaint }} className="text-sm me-1">$</Text>
         <TextInput
           value={value}
           onChangeText={onChange}
@@ -374,7 +374,7 @@ function AddModal({ visible, onClose, onSubmit, isSubmitting }: AddModalProps) {
             <View className="mb-5">
               <View className="flex-row items-center mb-3">
                 <View
-                  className="w-7 h-7 rounded-lg items-center justify-center mr-2"
+                  className="w-7 h-7 rounded-lg items-center justify-center me-2"
                   style={{ backgroundColor: 'rgba(34,197,94,0.15)' }}
                 >
                   <TrendingUp size={14} color="#22c55e" />
@@ -425,7 +425,7 @@ function AddModal({ visible, onClose, onSubmit, isSubmitting }: AddModalProps) {
             <View className="mb-6">
               <View className="flex-row items-center mb-3">
                 <View
-                  className="w-7 h-7 rounded-lg items-center justify-center mr-2"
+                  className="w-7 h-7 rounded-lg items-center justify-center me-2"
                   style={{ backgroundColor: 'rgba(239,68,68,0.15)' }}
                 >
                   <TrendingDown size={14} color="#ef4444" />
@@ -553,17 +553,17 @@ function SnapshotRow({ entry, prevEntry, index }: SnapshotRowProps) {
             height: 36,
             borderRadius: 3,
             backgroundColor: isPositive ? '#22c55e' : '#ef4444',
-            marginRight: 12,
+            marginEnd: 12,
           }}
         />
 
         <View style={{ flex: 1 }}>
           <Text style={{ color: C.text }} className="font-semibold text-sm">{formatDate(entry.date)}</Text>
           <View className="flex-row items-center mt-1">
-            <Text style={{ color: C.textFaint }} className="text-xs mr-2">
+            <Text style={{ color: C.textFaint }} className="text-xs me-2">
               Assets {formatCurrency(entry.assets)}
             </Text>
-            <Text style={{ color: C.textFaint }} className="text-xs mr-2">·</Text>
+            <Text style={{ color: C.textFaint }} className="text-xs me-2">·</Text>
             <Text style={{ color: C.textFaint }} className="text-xs">
               Liabilities {formatCurrency(entry.liabilities)}
             </Text>
@@ -591,7 +591,7 @@ function SnapshotRow({ entry, prevEntry, index }: SnapshotRowProps) {
                 style={{
                   color: deltaPositive ? '#22c55e' : '#ef4444',
                   fontSize: 10,
-                  marginLeft: 2,
+                  marginStart: 2,
                 }}
               >
                 {deltaPositive ? '+' : ''}{formatCurrency(delta)}
@@ -721,7 +721,7 @@ export default function NetWorthScreen() {
                       color: deltaPositive ? '#4ade80' : '#f87171',
                       fontSize: 12,
                       fontWeight: '600',
-                      marginLeft: 4,
+                      marginStart: 4,
                     }}
                   >
                     {t('netWorth.sinceLast', { delta: `${deltaPositive ? '+' : ''}${formatCurrencyFull(netWorthDelta)}` })}
@@ -746,7 +746,7 @@ export default function NetWorthScreen() {
           >
             <View className="flex-row items-center mb-1">
               <TrendingUp size={13} color="#4ade80" />
-              <Text className="text-green-400 text-xs font-semibold ml-1">{t('netWorth.assets')}</Text>
+              <Text className="text-green-400 text-xs font-semibold ms-1">{t('netWorth.assets')}</Text>
             </View>
             <Text className="text-white font-bold text-base">{formatCurrency(currentAssets)}</Text>
           </View>
@@ -757,7 +757,7 @@ export default function NetWorthScreen() {
           >
             <View className="flex-row items-center mb-1">
               <TrendingDown size={13} color="#f87171" />
-              <Text className="text-red-400 text-xs font-semibold ml-1">{t('netWorth.liabilities')}</Text>
+              <Text className="text-red-400 text-xs font-semibold ms-1">{t('netWorth.liabilities')}</Text>
             </View>
             <Text className="text-white font-bold text-base">{formatCurrency(currentLiabilities)}</Text>
           </View>
@@ -934,7 +934,7 @@ function BreakdownLine({ icon, label, value, color, negate }: BreakdownLineProps
     <View className="flex-row items-center justify-between mb-2">
       <View className="flex-row items-center">
         <View
-          className="w-7 h-7 rounded-lg items-center justify-center mr-2"
+          className="w-7 h-7 rounded-lg items-center justify-center me-2"
           style={{ backgroundColor: `${color}18` }}
         >
           {icon}

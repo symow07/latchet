@@ -143,7 +143,7 @@ export default function OnboardingScreen() {
                 style={{ backgroundColor: 'rgba(168, 85, 247, 0.2)', borderWidth: 1, borderColor: 'rgba(168, 85, 247, 0.5)' }}
               >
                 <View className="flex-row items-center">
-                  <Text className="text-3xl mr-3">{currency.symbol}</Text>
+                  <Text className="text-3xl me-3">{currency.symbol}</Text>
                   <View>
                     <Text style={{ color: C.text }} className="font-semibold">{currency.code}</Text>
                     <Text style={{ color: C.textDim }} className="text-sm">{currency.name}</Text>
@@ -159,7 +159,7 @@ export default function OnboardingScreen() {
                 indicator is the only cue that it scrolls at all. */}
             {showCurrencyPicker && (
               <ScrollView className="max-h-96 mb-4" showsVerticalScrollIndicator>
-                <Text style={{ color: C.textFaint }} className="text-xs mb-2 ml-1">{t('onboarding.popular')}</Text>
+                <Text style={{ color: C.textFaint }} className="text-xs mb-2 ms-1">{t('onboarding.popular')}</Text>
                 {popularCurrencies.map((c) => (
                   <Pressable
                     key={c.code}
@@ -177,7 +177,7 @@ export default function OnboardingScreen() {
                       }}
                     >
                       <View className="flex-row items-center">
-                        <Text numberOfLines={1} className="text-base mr-3 w-12">{c.symbol}</Text>
+                        <Text numberOfLines={1} className="text-base me-3 w-12">{c.symbol}</Text>
                         <Text style={{ color: C.text }} >{c.code} - {c.name}</Text>
                       </View>
                       {currency.code === c.code && <Check size={18} color={C.p500} />}
@@ -185,7 +185,7 @@ export default function OnboardingScreen() {
                   </Pressable>
                 ))}
 
-                <Text style={{ color: C.textFaint }} className="text-xs mb-2 mt-4 ml-1">{t('onboarding.allCurrencies')}</Text>
+                <Text style={{ color: C.textFaint }} className="text-xs mb-2 mt-4 ms-1">{t('onboarding.allCurrencies')}</Text>
                 {CURRENCIES.filter(c => !popularCurrencies.find(p => p.code === c.code)).map((c) => (
                   <Pressable
                     key={c.code}
@@ -203,7 +203,7 @@ export default function OnboardingScreen() {
                       }}
                     >
                       <View className="flex-row items-center">
-                        <Text numberOfLines={1} className="text-base mr-3 w-12">{c.symbol}</Text>
+                        <Text numberOfLines={1} className="text-base me-3 w-12">{c.symbol}</Text>
                         <Text style={{ color: C.text }} className="text-sm">{c.code} - {c.name}</Text>
                       </View>
                       {currency.code === c.code && <Check size={18} color={C.p500} />}
@@ -222,15 +222,15 @@ export default function OnboardingScreen() {
             <Text style={{ color: C.textDim }} className="mb-6">{t('onboarding.incomeHint')}</Text>
 
             <View className="mb-6">
-              <Text style={{ color: C.textDim }} className="text-sm mb-2 ml-1">{t('onboarding.monthlyIncome')}</Text>
+              <Text style={{ color: C.textDim }} className="text-sm mb-2 ms-1">{t('onboarding.monthlyIncome')}</Text>
               <View
                 className="flex-row items-center rounded-2xl px-4 py-4"
                 style={{ backgroundColor: C.glass }}
               >
-                <View className="w-10 h-10 rounded-xl bg-green-500/20 items-center justify-center mr-3">
+                <View className="w-10 h-10 rounded-xl bg-green-500/20 items-center justify-center me-3">
                   <DollarSign size={20} color="#22c55e" />
                 </View>
-                <Text style={{ color: C.text }} className="text-xl mr-1">{currency.symbol}</Text>
+                <Text style={{ color: C.text }} className="text-xl me-1">{currency.symbol}</Text>
                 <TextInput
                   value={monthlyIncome}
                   onChangeText={setMonthlyIncome}
@@ -247,15 +247,15 @@ export default function OnboardingScreen() {
             </View>
 
             <View>
-              <Text style={{ color: C.textDim }} className="text-sm mb-2 ml-1">{t('onboarding.savingsGoal')}</Text>
+              <Text style={{ color: C.textDim }} className="text-sm mb-2 ms-1">{t('onboarding.savingsGoal')}</Text>
               <View
                 className="flex-row items-center rounded-2xl px-4 py-4"
                 style={{ backgroundColor: C.glass }}
               >
-                <View className="w-10 h-10 rounded-xl bg-purple-500/20 items-center justify-center mr-3">
+                <View className="w-10 h-10 rounded-xl bg-purple-500/20 items-center justify-center me-3">
                   <Target size={20} color={C.p500} />
                 </View>
-                <Text style={{ color: C.text }} className="text-xl mr-1">{currency.symbol}</Text>
+                <Text style={{ color: C.text }} className="text-xl me-1">{currency.symbol}</Text>
                 <TextInput
                   value={savingsGoal}
                   onChangeText={setSavingsGoal}
@@ -337,7 +337,7 @@ export default function OnboardingScreen() {
                         borderColor: 'rgba(168, 85, 247, 0.5)',
                       }}
                     >
-                      <View className="w-12 h-12 rounded-xl bg-purple-500/20 items-center justify-center mr-4">
+                      <View className="w-12 h-12 rounded-xl bg-purple-500/20 items-center justify-center me-4">
                         <Icon size={24} color={C.p500} />
                       </View>
                       <View className="flex-1">
@@ -413,7 +413,7 @@ export default function OnboardingScreen() {
                 style={{ backgroundColor: C.glass }}
               >
                 <ArrowLeft size={20} color="#9ca3af" />
-                <Text style={{ color: C.textDim }} className="font-semibold ml-2">{t('common.back')}</Text>
+                <Text style={{ color: C.textDim }} className="font-semibold ms-2">{t('common.back')}</Text>
               </Pressable>
             )}
 
@@ -434,7 +434,7 @@ export default function OnboardingScreen() {
                   justifyContent: 'center',
                 }}
               >
-                <Text className="text-white font-bold text-lg mr-2">
+                <Text className="text-white font-bold text-lg me-2">
                   {step === STEPS.length - 1
                     ? saveMutation.isPending
                       ? t('onboarding.settingUp')

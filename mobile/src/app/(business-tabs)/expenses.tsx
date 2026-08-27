@@ -129,7 +129,7 @@ function SubmitModal({ visible, onClose, onDone }: { visible: boolean; onClose: 
             <FieldLabel>{t('businessExpenses.amount')}</FieldLabel>
             <GlassCard padding={0} radius={R.md} style={{ marginBottom: 14 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14 }}>
-                <Txt weight="bold" size={20} color={B.accent} style={{ marginRight: 8 }}>$</Txt>
+                <Txt weight="bold" size={20} color={B.accent} style={{ marginEnd: 8 }}>$</Txt>
                 <TextInput value={amount} onChangeText={t => { setAmount(t); setErr(''); }} placeholder="0.00" placeholderTextColor={B.textFaint} keyboardType="decimal-pad" style={{ flex: 1, color: B.text, fontSize: 24, fontFamily: 'PlusJakartaSans_700Bold', padding: 0 }} selectionColor={B.accent} />
               </View>
             </GlassCard>
@@ -138,7 +138,7 @@ function SubmitModal({ visible, onClose, onDone }: { visible: boolean; onClose: 
             <Pressable onPress={() => setCatOpen(v => !v)}>
               <GlassCard padding={0} radius={R.md} border={catOpen ? `${B.accent}55` : B.glassBorder} style={{ marginBottom: catOpen ? 0 : 14 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 12 }}>
-                  <IconBubble color={selCat.color} size={32} radius={10} style={{ marginRight: 12 }}><CatIcon size={16} color={selCat.color} /></IconBubble>
+                  <IconBubble color={selCat.color} size={32} radius={10} style={{ marginEnd: 12 }}><CatIcon size={16} color={selCat.color} /></IconBubble>
                   <Txt size={15} color={B.textDim} style={{ flex: 1 }}>{expenseCategoryLabel(cat)}</Txt>
                   <ChevronDown size={16} color={B.textFaint} />
                 </View>
@@ -150,7 +150,7 @@ function SubmitModal({ visible, onClose, onDone }: { visible: boolean; onClose: 
                   const Icon = c.icon; const active = cat === c.label;
                   return (
                     <Pressable key={c.label} onPress={() => { setCat(c.label); setCatOpen(false); }} style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 11, backgroundColor: active ? `${B.accent}12` : 'transparent' })}>
-                      <IconBubble color={c.color} size={28} radius={8} style={{ marginRight: 12 }}><Icon size={14} color={c.color} /></IconBubble>
+                      <IconBubble color={c.color} size={28} radius={8} style={{ marginEnd: 12 }}><Icon size={14} color={c.color} /></IconBubble>
                       <Txt size={14} color={active ? B.accent : B.textDim} style={{ flex: 1 }}>{expenseCategoryLabel(c.label)}</Txt>
                       {active && <Check size={14} color={B.accent} />}
                     </Pressable>
@@ -212,7 +212,7 @@ function ExpenseCard({ expense, canReview, onApprove, onReject }: { expense: Exp
   return (
     <GlassCard padding={16} radius={R.lg}>
       <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 8 }}>
-        <IconBubble color={meta.color} size={44} radius={14} style={{ marginRight: 12 }}><CatIcon size={20} color={meta.color} /></IconBubble>
+        <IconBubble color={meta.color} size={44} radius={14} style={{ marginEnd: 12 }}><CatIcon size={20} color={meta.color} /></IconBubble>
         <View style={{ flex: 1 }}>
           <Txt weight="semibold" size={15} color={B.text} numberOfLines={2}>{expense.description}</Txt>
           <Txt size={12} color={B.textFaint} style={{ marginTop: 2 }}>{expense.submitter.name} · {date}</Txt>

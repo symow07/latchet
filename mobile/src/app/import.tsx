@@ -510,7 +510,7 @@ export default function ImportScreen() {
             className="rounded-2xl p-4 flex-row items-start"
             style={{ backgroundColor: 'rgba(34, 197, 94, 0.1)', borderWidth: 1, borderColor: 'rgba(34, 197, 94, 0.2)' }}
           >
-            <View className="w-10 h-10 rounded-xl bg-green-500/20 items-center justify-center mr-3">
+            <View className="w-10 h-10 rounded-xl bg-green-500/20 items-center justify-center me-3">
               <Shield size={20} color="#22c55e" />
             </View>
             <View className="flex-1">
@@ -525,7 +525,7 @@ export default function ImportScreen() {
         {/* Upload Step */}
         {step === 'upload' && (
           <Animated.View entering={FadeInUp.delay(200).duration(400)} className="px-4 pt-6">
-            <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-3 ml-1">{t('importExtra.chooseSource')}</Text>
+            <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-3 ms-1">{t('importExtra.chooseSource')}</Text>
             <View className="gap-3">
               {([
                 { source: 'bank' as ImportSource, emoji: '', title: t('import.sourceBank'), sub: t('import.sourceBankSub'), color: '#3b82f6' },
@@ -537,7 +537,7 @@ export default function ImportScreen() {
                     className="rounded-2xl p-4 flex-row items-center"
                     style={{ backgroundColor: `${s.color}14`, borderWidth: 1, borderColor: `${s.color}33` }}
                   >
-                    <View style={{ width: 48, height: 48, borderRadius: 16, backgroundColor: `${s.color}22`, alignItems: 'center', justifyContent: 'center', marginRight: 14 }}>
+                    <View style={{ width: 48, height: 48, borderRadius: 16, backgroundColor: `${s.color}22`, alignItems: 'center', justifyContent: 'center', marginEnd: 14 }}>
                       <Text style={{ fontSize: 24 }}>{s.emoji}</Text>
                     </View>
                     <View className="flex-1">
@@ -550,27 +550,27 @@ export default function ImportScreen() {
               ))}
             </View>
 
-            <Text style={{ color: C.textFaint }} className="text-xs mt-4 ml-1 leading-4">
+            <Text style={{ color: C.textFaint }} className="text-xs mt-4 ms-1 leading-4">
               {t('import.directNote')}
             </Text>
 
             {/* Supported Formats */}
             <View className="mt-6">
-              <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-3 ml-1">{t('import.supportedFormats')}</Text>
+              <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-3 ms-1">{t('import.supportedFormats')}</Text>
               <View
                 className="rounded-xl p-4"
                 style={{ backgroundColor: C.glass }}
               >
                 <View className="flex-row items-center">
                   <FileText size={20} color="#6b7280" />
-                  <Text style={{ color: C.textDim }} className="ml-3">{t('import.csvTitle')}</Text>
+                  <Text style={{ color: C.textDim }} className="ms-3">{t('import.csvTitle')}</Text>
                 </View>
                 <Text style={{ color: C.textFaint }} className="text-xs mt-2">
                   {t('import.csvNote')}
                 </Text>
                 <View className="flex-row items-center mt-4">
                   <FileText size={20} color="#6b7280" />
-                  <Text style={{ color: C.textDim }} className="ml-3">{t('import.pdfTitle')}</Text>
+                  <Text style={{ color: C.textDim }} className="ms-3">{t('import.pdfTitle')}</Text>
                 </View>
                 <Text style={{ color: C.textFaint }} className="text-xs mt-2">
                   {t('import.pdfNote')}
@@ -614,7 +614,7 @@ export default function ImportScreen() {
               const current = mapping[field.key] ?? inspection.mapping[field.key];
               return (
                 <View key={field.key} className="mb-5">
-                  <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-2 ml-1">
+                  <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-2 ms-1">
                     {field.label.toUpperCase()}
                     {field.required ? ' (required)' : ' (optional)'}
                   </Text>
@@ -805,7 +805,7 @@ export default function ImportScreen() {
 
             {/* Transaction List */}
             <View className="px-4">
-              <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-3 ml-1">
+              <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-3 ms-1">
                 TRANSACTIONS ({transactions.length})
               </Text>
               {transactions.map((tx, idx) => (
@@ -823,7 +823,7 @@ export default function ImportScreen() {
                     >
                       {/* Main Row */}
                       <View className="flex-row items-center justify-between">
-                        <View className="flex-1 mr-3">
+                        <View className="flex-1 me-3">
                           <Text style={{ color: C.text }} className="font-medium" numberOfLines={1}>
                             {tx.description}
                           </Text>
@@ -901,7 +901,7 @@ export default function ImportScreen() {
                                 }`}
                               >
                                 <Edit3 size={16} color={tx.isImpulse ? '#ec4899' : '#9ca3af'} />
-                                <Text style={{ color: C.textDim }} className={`ml-2 text-sm ${tx.isImpulse ? 'text-pink-400' : ''}`}>
+                                <Text style={{ color: C.textDim }} className={`ms-2 text-sm ${tx.isImpulse ? 'text-pink-400' : ''}`}>
                                   {tx.isImpulse ? t('import.impulse') : t('import.markImpulse')}
                                 </Text>
                               </View>
@@ -981,14 +981,14 @@ export default function ImportScreen() {
               {importing ? (
                 <>
                   <ActivityIndicator size="small" color="white" />
-                  <Text className="text-white font-bold text-lg ml-3">
+                  <Text className="text-white font-bold text-lg ms-3">
                     Importing... ({importedCount}/{transactions.length})
                   </Text>
                 </>
               ) : (
                 <>
                   <Check size={20} color="white" />
-                  <Text className="text-white font-bold text-lg ml-2">
+                  <Text className="text-white font-bold text-lg ms-2">
                     Import {transactions.length} Transactions
                   </Text>
                 </>
