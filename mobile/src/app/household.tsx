@@ -3,11 +3,11 @@ import { View, ScrollView, Pressable, ActivityIndicator, TextInput } from 'react
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Home, Eye, LogOut, RefreshCw, Users, Check } from 'lucide-react-native';
+import { ArrowLeft, Home, Eye, LogOut, RefreshCw, Users, Check, Trash2 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import {
   getHousehold, getDashboard, getVisibility, getInviteCode, refreshInviteCode,
-  setMyShareLevel, leaveHousehold, createHousehold,
+  setMyShareLevel, leaveHousehold, createHousehold, deleteHousehold,
   SHARE_LEVELS, type ShareLevel,
 } from '@/lib/householdApi';
 import { useSession } from '@/lib/auth/use-session';
@@ -44,6 +44,8 @@ export default function HouseholdScreen() {
   const qc = useQueryClient();
   const { data: session } = useSession();
   const [newName, setNewName] = useState('');
+  // Typed confirmation for deleting a household, matching the company flow.
+  const [confirmName, setConfirmName] = useState('');
 
   const { data: household, isLoading } = useQuery({ queryKey: ['household'], queryFn: getHousehold });
   const hasHousehold = !!household?.household;
@@ -78,6 +80,10 @@ export default function HouseholdScreen() {
   const leave = useMutation({
     mutationFn: leaveHousehold,
     onSuccess: () => { invalidate(); router.back(); },
+  });
+  const destroy = useMutation({
+    mutationFn: () => deleteHousehold(confirmName.trim()),
+    onSuccess: () => { setConfirmName(''); invalidate(); },
   });
 
   const myLevel =
@@ -291,22 +297,71 @@ export default function HouseholdScreen() {
               </GlassCard>
             )}
 
-            {/* ── Leave ───────────────────────────────────────────────────── */}
-            {!household?.isOwner && (
-              <Pressable
-                onPress={() => { Haptics.selectionAsync(); leave.mutate(); }}
-                disabled={leave.isPending}
-                style={{ marginTop: 22, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}
-              >
-                <LogOut size={16} color="#f87171" />
-                <Txt size={14} color="#f87171" weight="semibold" style={{ marginStart: 8 }}>
-                  {t('household.leave')}
+            {/* ── Deleting, for the owner ─────────────────────────────────
+                The owner cannot leave — there would be nobody to own the
+                group — so the way out is deleting it. The endpoint existed
+                before this UI did, which meant an owner had no way to undo
+                creating one. Typed confirmation, because this takes the
+                shared view away from everyone at once. */}
+            {household?.isOwner && (
+              <GlassCard padding={16} radius={R.md} style={{ marginTop: 22 }} border="rgba(239,68,68,0.28)">
+                <Txt weight="semibold" size={14} color="#f87171">
+                  {t('household.deleteTitle')}
                 </Txt>
-              </Pressable>
+                <Txt size={12} color={C.textDim} style={{ marginTop: 6, lineHeight: 18 }}>
+                  {t('household.deleteBody', { name: household!.household!.name })}
+                </Txt>
+                <TextInput
+                  value={confirmName}
+                  onChangeText={setConfirmName}
+                  placeholder={household!.household!.name}
+                  placeholderTextColor={C.textFaint}
+                  autoCorrect={false}
+                  style={{
+                    marginTop: 12, borderRadius: R.sm, paddingHorizontal: 14, paddingVertical: 11,
+                    backgroundColor: C.glass, color: C.text, fontSize: 15,
+                  }}
+                />
+                <Pressable
+                  onPress={() => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning); destroy.mutate(); }}
+                  disabled={confirmName.trim() !== household!.household!.name.trim() || destroy.isPending}
+                  style={{ marginTop: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}
+                >
+                  <Trash2 size={15} color={confirmName.trim() === household!.household!.name.trim() ? '#f87171' : C.textFaint} />
+                  <Txt
+                    size={14}
+                    weight="semibold"
+                    color={confirmName.trim() === household!.household!.name.trim() ? '#f87171' : C.textFaint}
+                    style={{ marginStart: 8 }}
+                  >
+                    {t('household.deleteCta')}
+                  </Txt>
+                </Pressable>
+              </GlassCard>
             )}
-            <Txt size={11} color={C.textDim} style={{ marginTop: 8, textAlign: 'center', lineHeight: 16 }}>
-              {t('household.leaveNotice')}
-            </Txt>
+
+            {/* ── Leave ──
+                Members only. An owner has no "leave" — there would be nobody
+                left to own the group — so the note about leaving belongs
+                inside this branch rather than under both. It was outside, and
+                owners were being told what happens when they leave. */}
+            {!household?.isOwner && (
+              <>
+                <Pressable
+                  onPress={() => { Haptics.selectionAsync(); leave.mutate(); }}
+                  disabled={leave.isPending}
+                  style={{ marginTop: 22, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}
+                >
+                  <LogOut size={16} color="#f87171" />
+                  <Txt size={14} color="#f87171" weight="semibold" style={{ marginStart: 8 }}>
+                    {t('household.leave')}
+                  </Txt>
+                </Pressable>
+                <Txt size={11} color={C.textDim} style={{ marginTop: 8, textAlign: 'center', lineHeight: 16 }}>
+                  {t('household.leaveNotice')}
+                </Txt>
+              </>
+            )}
           </>
         )}
       </ScrollView>

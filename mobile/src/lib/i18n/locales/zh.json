@@ -1180,7 +1180,10 @@
     "sharedAccountCount": {
       "zero": "无共享账户",
       "other": "%{count} 个共享账户"
-    }
+    },
+    "deleteTitle": "删除这个家庭组",
+    "deleteBody": "将为所有人移除。输入 %{name} 以确认——每个人自己的记录不受影响。",
+    "deleteCta": "删除家庭组"
   },
   "advisorProfile": {
     "title": "顾问资料",

@@ -1192,7 +1192,10 @@
       "zero": "Aucun compte partagé",
       "one": "%{count} compte partagé",
       "other": "%{count} comptes partagés"
-    }
+    },
+    "deleteTitle": "Supprimer ce foyer",
+    "deleteBody": "Le supprime pour tout le monde. Tapez %{name} pour confirmer — les données de chacun restent intactes.",
+    "deleteCta": "Supprimer le foyer"
   },
   "advisorProfile": {
     "title": "Profil du conseiller",

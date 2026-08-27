@@ -1192,7 +1192,10 @@
       "zero": "No shared accounts",
       "one": "%{count} shared account",
       "other": "%{count} shared accounts"
-    }
+    },
+    "deleteTitle": "Delete this household",
+    "deleteBody": "Removes it for everyone. Type %{name} to confirm — each person's own records are untouched.",
+    "deleteCta": "Delete household"
   },
   "advisorProfile": {
     "title": "Advisor profile",
