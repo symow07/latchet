@@ -86,6 +86,24 @@ export async function updateBusiness(patch: {
   return data.business;
 }
 
+/**
+ * Delete the company and everything hanging off it.
+ *
+ * The name is retyped by the user and sent for the server to check, so the
+ * confirmation is not something a client bug can skip.
+ */
+export async function deleteBusiness(confirmName: string): Promise<void> {
+  const res = await authedFetch(`${getBackendUrl()}/api/business`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ confirmName }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({})) as { error?: string };
+    throw new Error(data.error ?? 'Failed to delete business');
+  }
+}
+
 export async function getInviteCode(): Promise<{ code: string; businessName: string }> {
   const res = await authedFetch(`${getBackendUrl()}/api/business/invite-code`, {
   });

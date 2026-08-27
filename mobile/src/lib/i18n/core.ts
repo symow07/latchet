@@ -23,7 +23,10 @@ export const LOCALE_LABELS: Record<AppLocale, string> = {
   // have to read English to find it.
   en: 'English',
   fr: 'Français',
-  zh: '中文',
+  // Named as Simplified rather than just "中文". The strings are Simplified,
+  // and a Traditional reader choosing an unqualified "Chinese" and getting
+  // Simplified has been misled; choosing "简体中文" and getting it has not.
+  zh: '简体中文',
 };
 
 const DATE_FNS_LOCALES: Record<AppLocale, DateFnsLocale> = {
@@ -72,6 +75,15 @@ i18n.pluralization.register('zh', (_i18n, count) =>
 let activeLocale: AppLocale = 'en';
 
 /** Narrow an arbitrary tag ("fr-CA", "zh-Hant-TW") to a locale we ship. */
+/**
+ * Narrow a device tag to a language we ship.
+ *
+ * `zh-Hant` narrows to `zh`, which is Simplified. That is deliberate: shipping
+ * a machine-converted Traditional locale would mean 900 strings nobody has
+ * read, and script conversion does not fix the vocabulary that actually
+ * differs — 軟體 against 软件, 網路 against 网络. A Traditional reader gets
+ * Simplified, which they can read, and the picker says which one it is.
+ */
 export function normalizeLocale(tag: string | null | undefined): AppLocale | null {
   const base = (tag ?? '').toLowerCase().split(/[-_]/)[0];
   return (SUPPORTED_LOCALES as readonly string[]).includes(base ?? '')

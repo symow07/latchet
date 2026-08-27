@@ -835,7 +835,13 @@
     "createTitle": "No business set up",
     "createBody": "Your account is set to Business, but the company record was never created. This normally happens during sign-up; if it failed, create it here.",
     "createButton": "Create my business",
-    "creating": "Creating…"
+    "creating": "Creating…",
+    "dangerZone": "DANGER ZONE",
+    "deleteBusiness": "Delete this business",
+    "deleteWarning": "This removes the company, every expense, every salary and the budget, for everyone on the team. It cannot be undone.",
+    "typeNameToConfirm": "Type %{name} to confirm",
+    "deleteConfirm": "Delete permanently",
+    "deleting": "Deleting…"
   },
   "feedback": {
     "exceededTitle": "Budget Exceeded!",

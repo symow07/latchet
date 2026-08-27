@@ -3,6 +3,8 @@ import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { prisma } from "../prisma";
 import { buildBusinessProfileFields } from "../lib/business-profile";
+import { receiptPath } from "../lib/receipt-store";
+import { rm } from "node:fs/promises";
 import { auth } from "../auth";
 import { randomBytes } from "crypto";
 import { getUserBusiness } from "../lib/get-user-business";
@@ -126,6 +128,50 @@ businessRouter.patch(
     });
 
     return c.json({ business: updated });
+  }
+);
+
+// ─── deleteBusiness ───────────────────────────────────────────────────────────
+// DELETE /api/business — remove the company and everything hanging off it.
+//
+// Owner only, and gated on retyping the company name. The cascade takes every
+// expense, salary and budget with it, so an accidental tap here is not
+// recoverable from inside the app — the UI asks too, but an endpoint that
+// deletes a company on an empty body is one stray request from a catastrophe.
+businessRouter.delete(
+  "/",
+  zValidator("json", z.object({ confirmName: z.string().min(1) })),
+  async (c) => {
+    const user = c.get("user")!;
+    const { confirmName } = c.req.valid("json");
+
+    const business = await prisma.business.findUnique({ where: { ownerId: user.id } });
+    if (!business) return c.json({ error: "No business found" }, 404);
+
+    if (confirmName.trim() !== business.name.trim()) {
+      return c.json({ error: "Name does not match" }, 400);
+    }
+
+    // Read the ids before the delete: afterwards nothing links the receipt
+    // files to this business and they would sit on the volume forever.
+    const expenses = await prisma.expense.findMany({
+      where: { businessId: business.id },
+      select: { id: true },
+    });
+
+    // The row goes first. If receipt cleanup fails the company is still gone,
+    // which is what was asked for; orphaned files are a disk-space problem,
+    // not a correctness one, and the other order risks deleting receipts for a
+    // business that then fails to delete.
+    await prisma.business.delete({ where: { id: business.id } });
+
+    for (const expense of expenses) {
+      for (const type of ["jpg", "png", "webp", "heic"] as const) {
+        await rm(receiptPath(expense.id, type)).catch(() => {});
+      }
+    }
+
+    return c.json({ ok: true });
   }
 );
 

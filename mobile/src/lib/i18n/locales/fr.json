@@ -835,7 +835,13 @@
     "createTitle": "Aucune entreprise configurée",
     "createBody": "Votre compte est de type Entreprise, mais la fiche entreprise n'a jamais été créée. Cela se fait normalement à l'inscription ; si cela a échoué, créez-la ici.",
     "createButton": "Créer mon entreprise",
-    "creating": "Création…"
+    "creating": "Création…",
+    "dangerZone": "ZONE SENSIBLE",
+    "deleteBusiness": "Supprimer cette entreprise",
+    "deleteWarning": "Cela supprime l'entreprise, toutes les dépenses, tous les salaires et le budget, pour toute l'équipe. C'est irréversible.",
+    "typeNameToConfirm": "Tapez %{name} pour confirmer",
+    "deleteConfirm": "Supprimer définitivement",
+    "deleting": "Suppression…"
   },
   "feedback": {
     "exceededTitle": "Budget dépassé !",

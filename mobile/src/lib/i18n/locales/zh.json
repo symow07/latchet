@@ -830,7 +830,13 @@
     "createTitle": "尚未设置企业",
     "createBody": "你的账户类型是企业，但企业记录从未创建。这通常在注册时完成；如果当时失败了，可以在这里创建。",
     "createButton": "创建我的企业",
-    "creating": "创建中…"
+    "creating": "创建中…",
+    "dangerZone": "危险操作",
+    "deleteBusiness": "删除该企业",
+    "deleteWarning": "这将为团队中的所有人删除该企业、全部报销、全部工资和预算。此操作无法撤销。",
+    "typeNameToConfirm": "请输入 %{name} 以确认",
+    "deleteConfirm": "永久删除",
+    "deleting": "删除中…"
   },
   "feedback": {
     "exceededTitle": "预算已超支！",

@@ -60,3 +60,28 @@ test("editing the company profile is owner-scoped, not membership-scoped", async
   // No membership lookup, which would widen this to managers and employees.
   expect(body).not.toContain("teamMember.findFirst");
 });
+
+test("deleting the company is possible, and owner-scoped", async () => {
+  expect(has("DELETE", "/")).toBe(true);
+
+  const source = await Bun.file(new URL("./business.ts", import.meta.url)).text();
+  const start = source.indexOf('businessRouter.delete(');
+  const body = source.slice(start, source.indexOf("\n);", start));
+
+  expect(body).toContain("findUnique({ where: { ownerId: user.id } })");
+  // Deleting a company takes every expense and salary with it. An endpoint
+  // that does that on an empty body is one stray request from a catastrophe.
+  expect(body).toContain("confirmName");
+  expect(body).toContain("Name does not match");
+});
+
+test("deleting the company cleans up its receipt files", async () => {
+  // The ids have to be read before the row goes; afterwards nothing links the
+  // files to the business and they sit on the volume forever.
+  const source = await Bun.file(new URL("./business.ts", import.meta.url)).text();
+  const start = source.indexOf('businessRouter.delete(');
+  const body = source.slice(start, source.indexOf("\n);", start));
+
+  expect(body.indexOf("expense.findMany")).toBeLessThan(body.indexOf("business.delete"));
+  expect(body).toContain("rm(receiptPath(");
+});

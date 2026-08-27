@@ -6,7 +6,7 @@ import zh from './locales/zh.json';
 // The real configuration, plural rules and all — not a reimplementation.
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { i18n, setLocale, normalizeLocale, SUPPORTED_LOCALES } from './core';
+import { i18n, setLocale, normalizeLocale, SUPPORTED_LOCALES, LOCALE_LABELS } from './core';
 
 /** Point the shared instance at a locale and return it. */
 function makeI18n(locale: string) {
@@ -296,4 +296,18 @@ test('no screen renders a hardcoded English string', async () => {
     }
   }
   expect(offenders).toEqual([]);
+});
+
+test('the Chinese option says which Chinese it is', () => {
+  // The strings are Simplified. An unqualified "中文" invites a Traditional
+  // reader to pick it and be misled.
+  expect(LOCALE_LABELS.zh).toBe('简体中文');
+});
+
+test('Traditional tags narrow to Simplified rather than falling back to English', () => {
+  // Simplified is readable for a Traditional reader; English is not the
+  // better answer just because the script differs.
+  expect(normalizeLocale('zh-Hant')).toBe('zh');
+  expect(normalizeLocale('zh-Hant-TW')).toBe('zh');
+  expect(normalizeLocale('zh-HK')).toBe('zh');
 });

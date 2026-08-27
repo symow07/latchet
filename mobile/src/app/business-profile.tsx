@@ -3,9 +3,9 @@ import { View, ScrollView, Pressable, TextInput, ActivityIndicator } from 'react
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Building2 } from 'lucide-react-native';
+import { ArrowLeft, Building2, Trash2 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
-import { createBusiness, getBusiness, updateBusiness } from '@/lib/businessApi';
+import { createBusiness, deleteBusiness, getBusiness, updateBusiness } from '@/lib/businessApi';
 import { useSession } from '@/lib/auth/use-session';
 import { R, useB } from '@/lib/design';
 import { Txt, GlassCard, BubbleButton, BizBackground, IconBubble } from '@/components/ui';
@@ -38,6 +38,8 @@ export default function BusinessProfileScreen() {
   const [name, setName] = useState<string | null>(null);
   const [address, setAddress] = useState<string | null>(null);
   const [err, setErr] = useState('');
+  const [confirmName, setConfirmName] = useState('');
+  const [dangerOpen, setDangerOpen] = useState(false);
 
   // Seeded from the server the first time it arrives, then left alone so a
   // background refetch cannot overwrite what the user is typing.
@@ -57,6 +59,19 @@ export default function BusinessProfileScreen() {
     onSuccess: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       qc.invalidateQueries({ queryKey: ['business'] });
+    },
+    onError: (e: Error) => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      setErr(e.message);
+    },
+  });
+
+  const remove = useMutation({
+    mutationFn: () => deleteBusiness(confirmName),
+    onSuccess: () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      qc.invalidateQueries();
+      router.back();
     },
     onError: (e: Error) => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -174,6 +189,60 @@ export default function BusinessProfileScreen() {
               <GlassCard padding={14} radius={R.md}>
                 <Txt size={13} color={B.textDim}>{t('bizSettings.ownerOnly')}</Txt>
               </GlassCard>
+            )}
+
+            {/* Danger zone — owner only, and folded away until asked for, so
+                the destructive action is never one mis-tap from the save
+                button it sits under. */}
+            {isOwner && (
+              <View style={{ marginTop: 40 }}>
+                <Txt weight="bold" size={11} color={B.red} style={{ letterSpacing: 1.4, marginBottom: 10 }}>
+                  {t('bizSettings.dangerZone')}
+                </Txt>
+
+                {!dangerOpen ? (
+                  <Pressable
+                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setDangerOpen(true); }}
+                    style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
+                  >
+                    <GlassCard padding={14} radius={R.md} tint={`${B.red}0e`} border={`${B.red}2a`}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                        <Trash2 size={16} color={B.red} />
+                        <Txt weight="semibold" size={14} color={B.red}>{t('bizSettings.deleteBusiness')}</Txt>
+                      </View>
+                    </GlassCard>
+                  </Pressable>
+                ) : (
+                  <GlassCard padding={16} radius={R.md} tint={`${B.red}0e`} border={`${B.red}2a`}>
+                    <Txt size={13} color={B.textDim} style={{ lineHeight: 19, marginBottom: 14 }}>
+                      {t('bizSettings.deleteWarning')}
+                    </Txt>
+                    <Txt size={12} color={B.textFaint} style={{ marginBottom: 8 }}>
+                      {t('bizSettings.typeNameToConfirm', { name: business.name })}
+                    </Txt>
+                    <TextInput
+                      value={confirmName}
+                      onChangeText={(v) => { setConfirmName(v); setErr(''); }}
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      placeholder={business.name}
+                      placeholderTextColor={B.textFaint}
+                      selectionColor={B.red}
+                      style={{ color: B.text, fontSize: 15, fontFamily: 'PlusJakartaSans_600SemiBold', backgroundColor: B.glass, borderRadius: R.md, padding: 13, borderWidth: 1, borderColor: `${B.red}44`, marginBottom: 14 }}
+                    />
+                    <BubbleButton
+                      label={remove.isPending ? t('bizSettings.deleting') : t('bizSettings.deleteConfirm')}
+                      onPress={() => remove.mutate()}
+                      // The server checks the name too; this only stops the
+                      // request being sent while it obviously cannot succeed.
+                      disabled={remove.isPending || confirmName.trim() !== business.name.trim()}
+                      radius={R.md}
+                      colors={[B.red, B.red]}
+                      glowColor={B.red}
+                    />
+                  </GlassCard>
+                )}
+              </View>
             )}
           </View>
         )}
