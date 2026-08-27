@@ -48,7 +48,8 @@
       "subscription": "ABONNEMENT",
       "language": "LANGUE",
       "danger": "ZONE SENSIBLE",
-      "household": "Foyer"
+      "household": "Foyer",
+      "advisor": "Conseiller"
     },
     "manageAccounts": "Gérer les comptes",
     "importTransactions": "Importer des transactions",
@@ -68,7 +69,8 @@
     "savingLabel": "Enregistrement…",
     "saveLabel": "Enregistrer !",
     "savedLabel": "Enregistré !",
-    "householdDesc": "Partagez un budget avec vos proches"
+    "householdDesc": "Partagez un budget avec vos proches",
+    "advisorProfileDesc": "Ce que le conseiller sait de votre foyer"
   },
   "subscription": {
     "upgradeTitle": "Passer à Pro",
@@ -221,7 +223,8 @@
     "analyzing": "Analyse de vos finances…",
     "analyzed": "J'ai analysé vos dépenses",
     "quickInsights": "APERÇUS RAPIDES",
-    "tryAsking": "ESSAYEZ DE DEMANDER"
+    "tryAsking": "ESSAYEZ DE DEMANDER",
+    "disclaimer": "Conseils budgétaires uniquement — ni médicaux, ni nutritionnels, ni financiers."
   },
   "bank": {
     "connectSection": "CONNECTER UNE BANQUE",
@@ -1190,5 +1193,33 @@
       "one": "%{count} compte partagé",
       "other": "%{count} comptes partagés"
     }
+  },
+  "advisorProfile": {
+    "title": "Profil du conseiller",
+    "storageTitle": "Stocké sur cet appareil uniquement",
+    "storageBody": "Ces informations n'atteignent jamais nos serveurs et ne font pas partie de la sauvegarde cloud. Elles ne sont transmises au fournisseur d'IA qu'à l'intérieur de la question posée, et uniquement lorsque vous utilisez le conseiller.",
+    "standardTitle": "À propos de votre foyer",
+    "standardBody": "De quoi permettre au conseiller de parler de vos coûts réels plutôt que de moyennes. Cela suffit à obtenir l'essentiel du bénéfice.",
+    "householdSize": "Personnes dans votre foyer",
+    "city": "Ville",
+    "cityPlaceholder": "Casablanca",
+    "cooking": "Habitudes de cuisine",
+    "cookingPlaceholder": "Je cuisine souvent",
+    "goals": "Votre objectif d'épargne",
+    "goalsPlaceholder": "Un apport, d'ici deux ans",
+    "interests": "Loisirs qui coûtent",
+    "interestsPlaceholder": "Escalade, vélo",
+    "dietary": "Préférences alimentaires",
+    "dietaryPlaceholder": "Végétarien, halal, casher…",
+    "sensitiveTitle": "Santé et allergies",
+    "sensitiveBody": "Activer cette option permet au conseiller d'expliquer pourquoi certaines catégories vous coûtent plus cher — les produits sans gluten et spécialisés sont réellement plus chers.",
+    "sensitiveOptional": "Entièrement facultatif, et distinct de tout ce qui précède. Vous pouvez le désactiver à tout moment, ce qui efface ce que vous avez saisi ici.",
+    "allergies": "Allergies",
+    "allergiesPlaceholder": "Arachides",
+    "conditions": "Considérations de santé",
+    "conditionsPlaceholder": "Tout ce qui modifie vos dépenses en nourriture ou en activité",
+    "neverAdvises": "Le conseiller ne nommera jamais un produit, ne dira jamais si quelque chose est sûr à consommer, et ne donnera aucun conseil médical. Il explique uniquement les coûts.",
+    "deleteAll": "Supprimer mon profil",
+    "deleteNote": "Supprime immédiatement de cet appareil tout ce qui figure sur cet écran. Rien n'est récupérable."
   }
 }

@@ -68,6 +68,19 @@ export function DeleteAccountModal({
     setDeleteError(null);
     try {
       const result = await deleteAccount(typed.trim());
+
+      // The advisor profile is device-only, so the server's cascade cannot
+      // reach it — deleting the account server-side would otherwise leave a
+      // health profile sitting in local SQLite belonging to an account that no
+      // longer exists. Best-effort: the account IS gone either way, and
+      // failing the whole flow over local cleanup would be worse.
+      try {
+        const { deleteHealthProfile } = await import('@/lib/health-profile');
+        await deleteHealthProfile();
+      } catch (e) {
+        console.warn('[delete-account] local advisor profile not cleared:', e);
+      }
+
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       onDeleted(result.unrevoked);
     } catch (e) {

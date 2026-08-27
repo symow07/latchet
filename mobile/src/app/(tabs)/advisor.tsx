@@ -314,6 +314,16 @@ export default function AdvisorTab() {
           )}
         </ScrollView>
 
+        {/* ── Disclaimer ──
+            Persistent and on-screen, not a modal nobody reads. It sits directly
+            above the input because that is where someone is looking when they
+            decide what to ask, which is the moment it has to be true. */}
+        <View style={{ paddingHorizontal: 20, paddingTop: 8 }}>
+          <Txt size={11} color={C.textFaint} style={{ textAlign: 'center', lineHeight: 15 }}>
+            {t('advisor.disclaimer')}
+          </Txt>
+        </View>
+
         {/* ── Input ── */}
         <View style={{ paddingHorizontal: 20, paddingTop: 10, paddingBottom: 28 }}>
           {recording || extracting ? (

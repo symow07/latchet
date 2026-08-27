@@ -13,7 +13,7 @@ import { useRouter } from 'expo-router';
 import { getSettings, updateSettings, getAccounts, resetAllData } from '@/lib/db';
 import { exportTransactionsCSV, exportTransactionsJSON } from '@/lib/export-data';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Award, Bell, Check, ChevronRight, Clock, Cloud, CreditCard, DollarSign, Download, Eye, Fingerprint, Flame, Home, LogOut, PieChart, Repeat, RotateCcw, Sparkles, Trash2, TrendingUp, Upload, Wallet } from 'lucide-react-native';
+import { Award, Bell, Check, ChevronRight, Clock, Cloud, CreditCard, DollarSign, Download, Eye, Fingerprint, Flame, HeartPulse, Home, LogOut, PieChart, Repeat, RotateCcw, Sparkles, Trash2, TrendingUp, Upload, Wallet } from 'lucide-react-native';
 import { authClient } from '@/lib/auth/auth-client';
 import { useInvalidateSession } from '@/lib/auth/use-session';
 import * as Haptics from 'expo-haptics';
@@ -242,6 +242,12 @@ export default function SettingsScreen() {
         <Animated.View entering={FadeInUp.delay(55).springify().damping(16)} style={{ paddingHorizontal: 20, paddingTop: 20 }}>
           <SectionLabel>{t('settings.sections.household')}</SectionLabel>
           <NavRow icon={<Home size={20} color={C.sky} />} color={C.sky} label={t('household.title')} desc={t('settings.householdDesc')} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/household'); }} />
+        </Animated.View>
+
+        {/* ── Advisor ── */}
+        <Animated.View entering={FadeInUp.delay(60).springify().damping(16)} style={{ paddingHorizontal: 20, paddingTop: 20 }}>
+          <SectionLabel>{t('settings.sections.advisor')}</SectionLabel>
+          <NavRow icon={<HeartPulse size={20} color={C.amber} />} color={C.amber} label={t('advisorProfile.title')} desc={t('settings.advisorProfileDesc')} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/advisor-profile'); }} />
         </Animated.View>
 
         {/* ── Import ── */}

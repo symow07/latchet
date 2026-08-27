@@ -46,7 +46,8 @@
       "subscription": "订阅",
       "language": "语言",
       "danger": "危险操作",
-      "household": "家庭组"
+      "household": "家庭组",
+      "advisor": "顾问"
     },
     "manageAccounts": "管理账户",
     "importTransactions": "导入交易",
@@ -66,7 +67,8 @@
     "savingLabel": "保存中…",
     "saveLabel": "保存！",
     "savedLabel": "已保存！",
-    "householdDesc": "与同住的人共享预算"
+    "householdDesc": "与同住的人共享预算",
+    "advisorProfileDesc": "顾问对你家庭情况的了解"
   },
   "subscription": {
     "upgradeTitle": "升级到 Pro",
@@ -217,7 +219,8 @@
     "analyzing": "正在分析你的财务…",
     "analyzed": "我已分析了你的消费",
     "quickInsights": "快速洞察",
-    "tryAsking": "试着问问"
+    "tryAsking": "试着问问",
+    "disclaimer": "仅为预算建议——非医疗、营养或理财建议。"
   },
   "bank": {
     "connectSection": "连接银行",
@@ -1178,5 +1181,33 @@
       "zero": "无共享账户",
       "other": "%{count} 个共享账户"
     }
+  },
+  "advisorProfile": {
+    "title": "顾问资料",
+    "storageTitle": "仅存储在本设备",
+    "storageBody": "这些内容不会传到我们的服务器，也不包含在云备份中。只有在你使用顾问时，才会随你提出的问题发送给 AI 服务方。",
+    "standardTitle": "关于你的家庭",
+    "standardBody": "足以让顾问谈论你的真实开支而非平均值。仅凭这些就能获得大部分价值。",
+    "householdSize": "家庭人数",
+    "city": "城市",
+    "cityPlaceholder": "卡萨布兰卡",
+    "cooking": "烹饪习惯",
+    "cookingPlaceholder": "大多数晚上自己做饭",
+    "goals": "你的储蓄目标",
+    "goalsPlaceholder": "首付，大约两年内",
+    "interests": "有花费的兴趣爱好",
+    "interestsPlaceholder": "攀岩、骑行",
+    "dietary": "饮食偏好",
+    "dietaryPlaceholder": "素食、清真、洁食……",
+    "sensitiveTitle": "健康与过敏",
+    "sensitiveBody": "开启后，顾问可以解释为什么某些分类对你来说更贵——无麸质主食和特殊产品确实更贵。",
+    "sensitiveOptional": "完全可选，并与上面的内容分开。你可以随时关闭，关闭会清除此处输入的内容。",
+    "allergies": "过敏",
+    "allergiesPlaceholder": "花生",
+    "conditions": "健康状况",
+    "conditionsPlaceholder": "任何会改变你在饮食或运动上花费的情况",
+    "neverAdvises": "顾问绝不会指名某个产品、判断某样东西你能否安全食用，也不会提供医疗建议。它只解释开支。",
+    "deleteAll": "删除我的资料",
+    "deleteNote": "立即从本设备移除此页面上的所有内容。不可恢复。"
   }
 }

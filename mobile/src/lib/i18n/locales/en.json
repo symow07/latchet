@@ -48,7 +48,8 @@
       "subscription": "SUBSCRIPTION",
       "language": "LANGUAGE",
       "danger": "CAREFUL ZONE",
-      "household": "Household"
+      "household": "Household",
+      "advisor": "Advisor"
     },
     "manageAccounts": "Manage Accounts",
     "importTransactions": "Import Transactions",
@@ -68,7 +69,8 @@
     "savingLabel": "Saving…",
     "saveLabel": "Save!",
     "savedLabel": "Saved!",
-    "householdDesc": "Share a budget with the people you live with"
+    "householdDesc": "Share a budget with the people you live with",
+    "advisorProfileDesc": "What the advisor knows about your household"
   },
   "subscription": {
     "upgradeTitle": "Upgrade to Pro",
@@ -221,7 +223,8 @@
     "analyzing": "Analyzing your finances…",
     "analyzed": "I've analyzed your spending",
     "quickInsights": "QUICK INSIGHTS",
-    "tryAsking": "TRY ASKING"
+    "tryAsking": "TRY ASKING",
+    "disclaimer": "Budget guidance only — not medical, nutritional or financial advice."
   },
   "bank": {
     "connectSection": "CONNECT A BANK",
@@ -1190,5 +1193,33 @@
       "one": "%{count} shared account",
       "other": "%{count} shared accounts"
     }
+  },
+  "advisorProfile": {
+    "title": "Advisor profile",
+    "storageTitle": "Stored on this device only",
+    "storageBody": "This never reaches our servers and is not part of cloud backup. It is sent to the AI provider only inside the question you ask, and only while you use the advisor.",
+    "standardTitle": "About your household",
+    "standardBody": "Enough for the advisor to talk about your actual costs rather than averages. This alone gives you most of the benefit.",
+    "householdSize": "People in your household",
+    "city": "City",
+    "cityPlaceholder": "Casablanca",
+    "cooking": "Cooking habits",
+    "cookingPlaceholder": "Cook most nights",
+    "goals": "What you're saving for",
+    "goalsPlaceholder": "A deposit, in about two years",
+    "interests": "Interests that cost money",
+    "interestsPlaceholder": "Climbing, cycling",
+    "dietary": "Dietary preferences",
+    "dietaryPlaceholder": "Vegetarian, halal, kosher…",
+    "sensitiveTitle": "Health and allergies",
+    "sensitiveBody": "Turning this on lets the advisor explain why some categories cost you more — gluten-free staples and specialist products genuinely are more expensive.",
+    "sensitiveOptional": "Entirely optional, and separate from everything above. You can switch it off at any time, which erases what you entered here.",
+    "allergies": "Allergies",
+    "allergiesPlaceholder": "Peanuts",
+    "conditions": "Health considerations",
+    "conditionsPlaceholder": "Anything that changes what you spend on food or activity",
+    "neverAdvises": "The advisor will never name a product, say whether something is safe for you to eat, or give medical advice. It only explains costs.",
+    "deleteAll": "Delete my profile",
+    "deleteNote": "Removes everything on this screen from this device immediately. Nothing is recoverable."
   }
 }

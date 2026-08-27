@@ -76,3 +76,16 @@ test('every outbound sync payload is redacted at the call site', async () => {
     expect(afterComma).toContain('redactDeviceOnly');
   }
 });
+
+test('account deletion clears the device-only advisor profile', async () => {
+  // The server cascade cannot reach local SQLite, so deleting the account
+  // would otherwise strand a health profile belonging to an account that no
+  // longer exists.
+  const source = await Bun.file(
+    new URL('../components/DeleteAccountModal.tsx', import.meta.url)
+  ).text();
+  const handler = source.slice(source.indexOf('const result = await deleteAccount('));
+  expect(handler).toContain('deleteHealthProfile');
+  // Before the success callback, not after some later render.
+  expect(handler.indexOf('deleteHealthProfile')).toBeLessThan(handler.indexOf('onDeleted('));
+});
