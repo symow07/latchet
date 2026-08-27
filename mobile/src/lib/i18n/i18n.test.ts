@@ -3,6 +3,7 @@ import { I18n } from 'i18n-js';
 import en from './locales/en.json';
 import fr from './locales/fr.json';
 import zh from './locales/zh.json';
+import ar from './locales/ar.json';
 // The real configuration, plural rules and all — not a reimplementation.
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -32,11 +33,51 @@ test('Chinese covers every English key except singular forms it has no use for',
   expect(missing).toEqual([]);
 });
 
-test('no locale carries keys English does not', () => {
-  // A stray key is a translation of something that no longer exists.
+test('Arabic covers every English key', () => {
+  const arKeys = new Set(flatten(ar));
+  expect(flatten(en).filter((k) => !arKeys.has(k))).toEqual([]);
+});
+
+test('no locale carries keys English does not, beyond plural forms', () => {
+  // A stray key is a translation of something that no longer exists. Arabic is
+  // the exception by design: it has six plural forms where English has two, so
+  // `.two`, `.few` and `.many` exist there and nowhere else.
   const enKeys = new Set(flatten(en));
+  const PLURAL_FORM = /\.(zero|one|two|few|many|other)$/;
   expect(flatten(fr).filter((k) => !enKeys.has(k))).toEqual([]);
   expect(flatten(zh).filter((k) => !enKeys.has(k))).toEqual([]);
+  expect(flatten(ar).filter((k) => !enKeys.has(k) && !PLURAL_FORM.test(k))).toEqual([]);
+});
+
+test('Arabic picks the right form in every band', () => {
+  const i = makeI18n('ar');
+  // zero, one, two, few (3-10), many (11-99), other (100+). The bands repeat
+  // every hundred, which is why 103 is few and 111 is many.
+  expect(i.t('common.days', { count: 0 })).toBe('لا أيام');
+  expect(i.t('common.days', { count: 1 })).toBe('يوم واحد');
+  expect(i.t('common.days', { count: 2 })).toBe('يومان');
+  expect(i.t('common.days', { count: 5 })).toBe('5 أيام');
+  expect(i.t('common.days', { count: 30 })).toBe('30 يومًا');
+  expect(i.t('common.days', { count: 100 })).toBe('100 يوم');
+  expect(i.t('common.days', { count: 103 })).toBe('103 أيام');
+  expect(i.t('common.days', { count: 111 })).toBe('111 يومًا');
+});
+
+test('every Arabic countable key defines all six forms', () => {
+  // A key missing `few` falls through to `other`, which is the wrong noun form
+  // for 3-10 — grammatically wrong rather than merely blunt, and invisible
+  // unless someone counts to three.
+  const FORMS = ['zero', 'one', 'two', 'few', 'many', 'other'];
+  const countable = flatten(ar)
+    .filter((k) => /\.(zero|one|two|few|many)$/.test(k))
+    .map((k) => k.replace(/\.[a-z]+$/, ''));
+
+  const incomplete: string[] = [];
+  for (const base of new Set(countable)) {
+    const has = new Set(flatten(ar).filter((k) => k.startsWith(`${base}.`)).map((k) => k.split('.').pop()));
+    if (FORMS.some((f) => !has.has(f))) incomplete.push(base);
+  }
+  expect(incomplete).toEqual([]);
 });
 
 // ── Pluralisation ────────────────────────────────────────────────────────────
@@ -99,8 +140,8 @@ test('an unsupported language is rejected rather than guessed at', () => {
   expect(normalizeLocale(null)).toBeNull();
 });
 
-test('the shipped set is exactly the three languages', () => {
-  expect([...SUPPORTED_LOCALES]).toEqual(['en', 'fr', 'zh']);
+test('the shipped set is exactly the four languages', () => {
+  expect([...SUPPORTED_LOCALES]).toEqual(['en', 'fr', 'zh', 'ar']);
 });
 
 // ── Length, which breaks fixed-width UI ──────────────────────────────────────
@@ -228,7 +269,7 @@ const ALLOWED = new Set([
   // Canonical stored values — see category-meta.ts and tx-display.ts.
   'Travel', 'Software', 'Meals', 'Office', 'Transport', 'Food', 'Gym', 'Shopping',
   'Subscriptions', 'Other', 'Expense', 'Income', 'Approved', 'Rejected', 'Pending',
-  'Owner', 'Admin', 'Member', 'Manager', 'Employee', 'Business',
+  'Owner', 'Admin', 'Member', 'Manager', 'Employee',
   // Brand and format literals that are the same in every language.
   'Budget', 'Alipay 支付宝', 'WeChat Pay 微信', 'YYYY-MM-DD', 'ABC123',
 ]);

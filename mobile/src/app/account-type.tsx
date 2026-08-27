@@ -38,7 +38,7 @@ function ACCOUNT_TYPES(): {
   },
   {
     id: 'business',
-    label: 'Business',
+    label: t('accountKind.businessLabel'),
     subtitle: t('accountKind.businessSub'),
     description: t('accountKind.businessDesc'),
     icon: Briefcase,

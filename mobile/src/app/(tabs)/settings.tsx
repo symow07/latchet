@@ -337,7 +337,12 @@ export default function SettingsScreen() {
                     // navigator is mounted on, which is what actually re-renders
                     // the other screens. Invalidating queries here was not
                     // enough: it only re-renders what subscribes to them.
-                    await chooseLanguage(code);
+                    if (await chooseLanguage(code)) {
+                      // Direction is decided natively at launch, so nothing on
+                      // screen flips until the app is reopened. Saying so beats
+                      // leaving the layout facing the wrong way unexplained.
+                      Alert.alert(t('language.restartTitle'), t('language.restartBody'));
+                    }
                   }}
                   style={{
                     flexDirection: 'row',

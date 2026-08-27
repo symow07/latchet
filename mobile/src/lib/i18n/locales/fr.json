@@ -87,7 +87,9 @@
   "language": {
     "title": "Langue",
     "subtitle": "Les changements s'appliquent immédiatement",
-    "systemDefault": "Utiliser la langue de l'appareil"
+    "systemDefault": "Utiliser la langue de l'appareil",
+    "restartTitle": "Redémarrez pour terminer",
+    "restartBody": "L'arabe se lit de droite à gauche. Fermez et rouvrez Budget pour que la mise en page suive — la langue est déjà changée."
   },
   "deleteAccount": {
     "entry": "Supprimer le compte",
@@ -934,7 +936,8 @@
     "businessDesc": "Gérez les dépenses, les revenus et le reporting financier de votre entreprise.",
     "question": "Comment allez-vous\nutiliser Budget ?",
     "questionSub": "Choisissez le type de compte qui vous convient. Ce choix est définitif.",
-    "selectPrompt": "Sélectionnez un type de compte"
+    "selectPrompt": "Sélectionnez un type de compte",
+    "businessLabel": "Entreprise"
   },
   "analyticsTabs": {
     "overview": "Aperçu",

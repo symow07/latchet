@@ -86,9 +86,9 @@ still claimed were outstanding, the app icon, and every gap flagged in the last 
 
 Known gaps, recorded rather than scheduled:
 
-- **Arabic needs its plural forms first.** Arabic has six — zero, one, two, few, many, other — and
-  every countable key in the app has two. The strings cannot be written honestly until the keys are
-  reshaped. RTL layout groundwork is done and guarded by a test.
+- **Arabic is written but unread by a native speaker.** The six CLDR plural forms are implemented
+  and the pluralizer is tested at 0, 1, 2, 5, 30, 100, 103 and 111, so the grammar is structurally
+  right; the wording still deserves a review by someone who reads Arabic.
 - **Receipts submitted before they were uploaded are gone.** Those `file://` paths only ever
   resolved on the submitter's own phone; the app labels them unavailable.
 - **Recording is unverified since the expo-audio port.** It compiles, links and resolves; actually
@@ -100,5 +100,5 @@ Known gaps, recorded rather than scheduled:
 
 ## Deferred to v1.1, deliberately
 
-Arabic and RTL (Task 24). The i18n scaffolding is in place, so it costs nothing to wait, and it
-touches every screen at exactly the moment everything else is stabilising.
+Nothing. Arabic and RTL (Task 24) were the entry here and shipped instead — the app runs in
+English, French, Simplified Chinese and Arabic, and mirrors its layout for the last of those.

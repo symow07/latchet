@@ -85,7 +85,9 @@
   "language": {
     "title": "语言",
     "subtitle": "更改立即生效",
-    "systemDefault": "使用设备语言"
+    "systemDefault": "使用设备语言",
+    "restartTitle": "重启以完成",
+    "restartBody": "阿拉伯语从右向左阅读。请关闭并重新打开 Budget，让布局随之翻转——语言已经切换。"
   },
   "deleteAccount": {
     "entry": "删除账户",
@@ -929,7 +931,8 @@
     "businessDesc": "管理企业支出、收入与财务报表。",
     "question": "你打算怎么\n使用 Budget？",
     "questionSub": "选择适合你的账户类型。之后无法更改。",
-    "selectPrompt": "请选择账户类型"
+    "selectPrompt": "请选择账户类型",
+    "businessLabel": "企业"
   },
   "analyticsTabs": {
     "overview": "概览",

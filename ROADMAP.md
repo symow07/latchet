@@ -1,14 +1,11 @@
 # Real Budget — Execution Roadmap
 
-> **Status, 27 August 2026.** Task 21 is done — the app has an icon, so the
-> last hard blocker in the code is cleared. One task remains open and one is
-> half done, and neither is finishable from the repo:
+> **Status, 27 August 2026.** Task 24 is done — Arabic ships with the app, and
+> with it the last task that was finishable from the repo. One remains open:
 >
 > - **Task 29 — deployment verification.** Needs the Railway dashboard: the
 >   volume attachment and the single-instance check cannot be confirmed from
 >   here.
-> - **Task 24 — Arabic and RTL.** The groundwork is done and the reason the
->   strings are not is structural, not effort — see the task.
 >
 > Everything else, including Phases 8 and 9, is shipped. What is left is owner
 > work: rotate the Railway token, enable the App Group on the App ID, buy the
@@ -589,28 +586,39 @@ Tier model: **free** = manual tracking, import, budgets, subscriptions, business
 String extraction across all 26 screens. Locale-aware currency and date formatting (depends on
 Task 12). Wire locale to `UserSettings`.
 
-### ◐ Task 24 — Arabic + RTL — groundwork done, translation not
+### ☑ Task 24 — Arabic + RTL
 
-The half that touches every screen is finished: 191 physical layout properties
-across 28 files became logical ones — `marginLeft` → `marginStart`, Tailwind's
-`ml-` → `ms-`, and so on. Yoga flips `flexDirection: 'row'` on its own in RTL
-but never flips a `marginLeft`, which is how an RTL layout ends up with every
-gap on the wrong side of every element. `rtl-readiness.test.ts` fails on any
-new physical property, so the next screen written cannot quietly undo it, and
-LTR was checked on the simulator afterwards to confirm nothing moved.
+Two halves, both finished.
 
-The Arabic strings are deliberately not written, for a reason that is
-structural rather than a matter of review effort: **Arabic has six plural forms
-— zero, one, two, few (3–10), many (11–99), other — and every countable key in
-this app has two.** `%{count} transactions` would be grammatically wrong for 3,
-for 15, and for most counts a real user sees. Translating the values without
-first reshaping the keys produces confidently broken Arabic, and reshaping them
-means revisiting every `t(..., { count })` call site.
+**Layout.** 191 physical layout properties across 28 files became logical ones —
+`marginLeft` → `marginStart`, Tailwind's `ml-` → `ms-`, and so on. Yoga flips
+`flexDirection: 'row'` on its own in RTL but never flips a `marginLeft`, which
+is how an RTL layout ends up with every gap on the wrong side of every element.
+`rtl-readiness.test.ts` fails on any new physical property, so the next screen
+written cannot quietly undo it.
 
-What remains, in order: add the plural forms to the countable keys, write the
-979 strings with someone who reads Arabic, then `I18nManager.forceRTL` with the
-restart it requires — and a pass through every screen in RTL, which needs a
-signed-in session on a device.
+**Strings.** 979 keys in `ar.json`, and the plural problem is the reason the
+count is really 1019. Arabic has six CLDR categories — zero, one, two, few
+(3–10), many (11–99), other (100+) — and i18n-js ships no Arabic pluralizer, so
+`core.ts` registers one. The bands repeat every hundred, which is why it is
+`count % 100` and not `count`: 103 is *few*, not *other*. English keys carrying
+a `%{count}` gained `zero`/`two`/`few`/`many` siblings; the 38 extra keys are
+exactly those forms, verified by a test that asserts the key sets are otherwise
+identical.
+
+**Direction.** `I18nManager.forceRTL` only takes effect at the next launch, and
+nothing here can force one — `expo-updates` is not installed. So the language
+screen tells the truth instead: `rtlRestartRequired` compares the target
+locale's directionality against `I18nManager.isRTL`, and only when they differ
+does the screen ask the user to reopen the app. Switching fr → zh restarts
+nothing; en → ar does.
+
+Locale-aware formatting uses `ar-MA` rather than `ar`: Morocco is where the
+import screen's banks are, and it yields Western digits, which is what the
+banks' own statements print.
+
+Verified on the simulator — Arabic renders, and the layout genuinely mirrors:
+icon bubbles move to the right edge, selection controls to the left.
 
 ### ☐ Task 24 (original) — Arabic + RTL
 
@@ -618,9 +626,9 @@ Every `flex-row`, absolute position, icon direction and chart axis across 26 scr
 `I18nManager.forceRTL` requires an app restart, which interacts with the startup sequence in
 `mobile/src/app/_layout.tsx` — handle deliberately.
 
-> **Recommendation:** ship v1 as English/French/Chinese with scaffolding in place, Arabic as v1.1.
-> Same total work, much smaller surface to get wrong while everything else is stabilizing.
-> Confirm with the owner before starting.
+> **Recommendation, not taken:** this argued for shipping v1 as English/French/Chinese and
+> holding Arabic for v1.1. The owner chose to finish it now, and it is finished — see the
+> entry above.
 
 ---
 
@@ -903,6 +911,7 @@ Everything flagged in the last review, fixed and verified.
 - ☑ **expo-av → expo-audio.** A reshape rather than a rename: the recorder is a hook now, so it
   lives in the component and `voice-api` keeps only what is not a hook.
 - ☑ **Task 21 — app icon and splash.** Generated, wired, and confirmed rendering in the launcher.
-- ◐ **Task 24 — RTL groundwork.** 191 properties across 28 files, with a test that fails on new
-  physical ones.
+- ☑ **Task 24 — Arabic + RTL.** 191 layout properties made logical, 1019 Arabic keys including a
+  registered CLDR pluralizer, and a restart prompt that only appears when the direction actually
+  changes.
 

@@ -29,7 +29,8 @@ export interface LocaleStore {
   locale: AppLocale;
   /** Bumped on every change; used as a remount key, never rendered. */
   version: number;
-  choose: (locale: AppLocale) => Promise<void>;
+  /** Resolves true when the layout direction changed and a restart is needed. */
+  choose: (locale: AppLocale) => Promise<boolean>;
   /** Sync the store to a locale applied outside it, e.g. at startup. */
   sync: (locale: AppLocale) => void;
 }
@@ -39,9 +40,10 @@ export const useLocaleStore = create<LocaleStore>((set, get) => ({
   version: 0,
 
   choose: async (locale: AppLocale) => {
-    if (get().locale === locale) return;
-    await chooseLocale(locale);
+    if (get().locale === locale) return false;
+    const restartNeeded = await chooseLocale(locale);
     set((s) => ({ locale, version: s.version + 1 }));
+    return restartNeeded;
   },
 
   sync: (locale: AppLocale) => {

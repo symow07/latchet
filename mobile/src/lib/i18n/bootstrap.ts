@@ -10,6 +10,8 @@ import { getSettings, updateSettings } from '../db';
 import { deviceLocale } from './index';
 import { setLocale, normalizeLocale, type AppLocale } from './core';
 import { applyChosenLocale } from './apply';
+import { I18nManager } from 'react-native';
+import { isRtlLocale, rtlRestartRequired } from './rtl';
 
 const CHOSEN_KEY = '@locale_chosen_v1';
 
@@ -21,6 +23,7 @@ export async function initLocale(): Promise<AppLocale> {
     if (chosen) {
       const stored = normalizeLocale((await getSettings())?.locale) ?? 'en';
       setLocale(stored);
+      applyLayoutDirection(stored);
       return stored;
     }
 
@@ -28,6 +31,7 @@ export async function initLocale(): Promise<AppLocale> {
     // changing the phone's language later does not silently override a choice.
     const fromDevice = deviceLocale();
     setLocale(fromDevice);
+    applyLayoutDirection(fromDevice);
     await updateSettings({ locale: fromDevice }).catch(() => {});
     await AsyncStorage.setItem(CHOSEN_KEY, '1');
     return fromDevice;
@@ -38,9 +42,29 @@ export async function initLocale(): Promise<AppLocale> {
 }
 
 /** Persist a language the user picked and apply it immediately. */
-export async function chooseLocale(locale: AppLocale): Promise<void> {
+export async function chooseLocale(locale: AppLocale): Promise<boolean> {
+  // Whether the layout direction changed, so the caller can say so. Read
+  // before the flag is written, or it always compares equal to itself.
+  const restartNeeded = rtlRestartRequired(locale, I18nManager.isRTL);
+
   await applyChosenLocale(locale, async (chosen) => {
     await AsyncStorage.setItem(CHOSEN_KEY, '1').catch(() => {});
     await updateSettings({ locale: chosen }).catch(() => {});
   });
+
+  applyLayoutDirection(locale);
+  return restartNeeded;
+}
+
+/**
+ * Tell React Native which way this language reads.
+ *
+ * Nothing already on screen moves: direction is decided natively at launch, so
+ * this takes effect the next time the app starts. allowRTL must be on or
+ * forceRTL is ignored outright.
+ */
+export function applyLayoutDirection(locale: AppLocale): void {
+  const rtl = isRtlLocale(locale);
+  I18nManager.allowRTL(true);
+  if (I18nManager.isRTL !== rtl) I18nManager.forceRTL(rtl);
 }

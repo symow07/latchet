@@ -270,7 +270,12 @@ export default function BusinessSettingsScreen() {
                     // navigator is mounted on. That remount is what re-renders
                     // the rest of the app, including this screen's own rows,
                     // which are built per render for exactly that reason.
-                    await chooseLanguage(code);
+                    if (await chooseLanguage(code)) {
+                      // Direction is decided natively at launch, so nothing on
+                      // screen flips until the app is reopened. Saying so beats
+                      // leaving the layout facing the wrong way unexplained.
+                      Alert.alert(t('language.restartTitle'), t('language.restartBody'));
+                    }
                   }}
                   style={{
                     flexDirection: 'row',

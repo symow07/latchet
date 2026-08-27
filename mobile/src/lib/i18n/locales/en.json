@@ -87,7 +87,9 @@
   "language": {
     "title": "Language",
     "subtitle": "Changes apply straight away",
-    "systemDefault": "Use device language"
+    "systemDefault": "Use device language",
+    "restartTitle": "Restart to finish",
+    "restartBody": "Arabic reads right to left. Close and reopen Budget so the layout flips with it — the language has already changed."
   },
   "deleteAccount": {
     "entry": "Delete Account",
@@ -934,7 +936,8 @@
     "businessDesc": "Manage business expenses, revenue, and financial reporting.",
     "question": "How will you\nuse Budget?",
     "questionSub": "Choose the account type that fits your needs. You can't change this later.",
-    "selectPrompt": "Select an account type"
+    "selectPrompt": "Select an account type",
+    "businessLabel": "Business"
   },
   "analyticsTabs": {
     "overview": "Overview",

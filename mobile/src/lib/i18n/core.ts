@@ -9,13 +9,14 @@
  * key falls back to English rather than showing a raw key to a user.
  */
 import { I18n } from 'i18n-js';
-import { enUS, fr as frLocale, zhCN, type Locale as DateFnsLocale } from 'date-fns/locale';
+import { enUS, fr as frLocale, zhCN, ar as arLocale, type Locale as DateFnsLocale } from 'date-fns/locale';
 
 import en from './locales/en.json';
 import fr from './locales/fr.json';
 import zh from './locales/zh.json';
+import ar from './locales/ar.json';
 
-export const SUPPORTED_LOCALES = ['en', 'fr', 'zh'] as const;
+export const SUPPORTED_LOCALES = ['en', 'fr', 'zh', 'ar'] as const;
 export type AppLocale = (typeof SUPPORTED_LOCALES)[number];
 
 export const LOCALE_LABELS: Record<AppLocale, string> = {
@@ -27,12 +28,14 @@ export const LOCALE_LABELS: Record<AppLocale, string> = {
   // and a Traditional reader choosing an unqualified "Chinese" and getting
   // Simplified has been misled; choosing "简体中文" and getting it has not.
   zh: '简体中文',
+  ar: 'العربية',
 };
 
 const DATE_FNS_LOCALES: Record<AppLocale, DateFnsLocale> = {
   en: enUS,
   fr: frLocale,
   zh: zhCN,
+  ar: arLocale,
 };
 
 /** BCP-47 tags for Intl (currency and number formatting). */
@@ -40,9 +43,13 @@ const INTL_TAGS: Record<AppLocale, string> = {
   en: 'en-US',
   fr: 'fr-FR',
   zh: 'zh-CN',
+  // Morocco rather than a generic ar: this app's import screen names CIH and
+  // Attijariwafa, and ar-MA formats currency and dates the way its users read
+  // them. ar-MA also uses Western digits, which ar-EG would not.
+  ar: 'ar-MA',
 };
 
-export const i18n = new I18n({ en, fr, zh });
+export const i18n = new I18n({ en, fr, zh, ar });
 
 i18n.enableFallback = true;
 i18n.defaultLocale = 'en';
@@ -71,6 +78,29 @@ i18n.pluralization.register('fr', (_i18n, count) => {
 i18n.pluralization.register('zh', (_i18n, count) =>
   count === 0 ? ['zero', 'other'] : ['other']
 );
+
+/**
+ * Arabic, which has six forms where English has two.
+ *
+ * CLDR: 0 is zero, 1 is one, 2 is two, 3–10 is few, 11–99 is many, and
+ * everything else — 100, 101, 1000 — is other. The bands repeat every hundred,
+ * so 103 is few and 111 is many.
+ *
+ * This is why the Arabic strings could not simply be translated over the
+ * English keys: "%{count} transactions" needs a different noun form for 3, for
+ * 15 and for 100, and a two-form key cannot express that. Each form falls
+ * through to `other`, so a key that only defines `other` still renders — it is
+ * just less correct, not broken.
+ */
+i18n.pluralization.register('ar', (_i18n, count) => {
+  if (count === 0) return ['zero', 'other'];
+  if (count === 1) return ['one', 'other'];
+  if (count === 2) return ['two', 'other'];
+  const within = count % 100;
+  if (within >= 3 && within <= 10) return ['few', 'other'];
+  if (within >= 11 && within <= 99) return ['many', 'other'];
+  return ['other'];
+});
 
 let activeLocale: AppLocale = 'en';
 
