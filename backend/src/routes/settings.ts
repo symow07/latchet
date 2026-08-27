@@ -21,8 +21,12 @@ const settingsSchema = z.object({
     .enum(["save", "track", "reduce_debt", "budget"])
     .optional()
     .default("track"),
-  // Must match SUPPORTED_LOCALES in mobile/src/lib/i18n/core.ts.
-  locale: z.enum(["en", "fr", "zh"]).optional().default("en"),
+  // Must match SUPPORTED_LOCALES in mobile/src/lib/i18n/core.ts, and
+  // locale-parity.test.ts fails if it does not. "ar" was missing for a while
+  // after Arabic shipped, which did not merely reset the locale — zValidator
+  // rejects the whole body, so an Arabic user's ENTIRE settings sync 400'd.
+  // Exactly what the primaryGoal comment above describes, repeated.
+  locale: z.enum(["en", "fr", "zh", "ar"]).optional().default("en"),
 });
 
 const router = new Hono<{

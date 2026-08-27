@@ -5,6 +5,7 @@ import { prisma } from "../prisma";
 import { auth } from "../auth";
 import { generateInviteCode, makeJoinRateLimiter } from "../lib/group-invites";
 import { sendPushToUser } from "../lib/expo-push";
+import { visibilityRaisedNotification } from "../lib/household-notify";
 import { getUserGroup, getUserGroupMembership } from "../lib/get-user-group";
 import {
   projectMember,
@@ -46,19 +47,7 @@ const checkJoinRateLimit = makeJoinRateLimiter();
 
 const HOUSEHOLD_ROLES = ["owner", "member"] as const;
 
-/**
- * Plain-language wording for the notification body.
- *
- * Deliberately not the raw level name: "full" tells a recipient nothing about
- * what changed for them. Not localised, because the server does not know the
- * recipient's locale — UserSettings.locale is per user and this is sent to
- * several at once. A follow-up would look it up per recipient.
- */
-const VISIBILITY_WORDING: Record<string, string> = {
-  summary: "totals only",
-  categories: "totals and spending by category",
-  full: "totals, categories and individual transactions",
-};
+
 
 /** The group summary every screen needs, with no member finances in it. */
 function publicGroup(g: { id: string; name: string; type: string; ownerId: string }) {
@@ -246,20 +235,29 @@ householdRouter.patch(
       // app chooses to send is one a modified app can decline to send, and the
       // whole point is that the group finds out even when the person raising
       // it would rather they did not.
+      // Each recipient's own locale: the same event, rendered per person.
+      // UserSettings.locale is per user, which is what makes this possible
+      // without the client telling the server anything.
       const others = await prisma.groupMember.findMany({
         where: { groupId: membership.groupId, userId: { not: user.id } },
-        select: { userId: true },
+        select: {
+          userId: true,
+          user: { select: { settings: { select: { locale: true } } } },
+        },
       });
       const name = user.name || user.email;
       await Promise.all(
-        others.map((m) =>
-          sendPushToUser(
-            m.userId,
-            "Household visibility changed",
-            `${name} now shares ${VISIBILITY_WORDING[shareLevel]} with the household.`,
-            { type: "household-visibility", groupId: membership.groupId }
-          )
-        )
+        others.map((m) => {
+          const { title, body } = visibilityRaisedNotification(
+            m.user.settings?.locale,
+            name,
+            shareLevel
+          );
+          return sendPushToUser(m.userId, title, body, {
+            type: "household-visibility",
+            groupId: membership.groupId,
+          });
+        })
       );
     }
 

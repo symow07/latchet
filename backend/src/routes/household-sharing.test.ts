@@ -281,9 +281,16 @@ test('raising your level notifies the other members, and lowering does not', asy
   expect(handler).toContain('userId: { not: user.id }');
 });
 
-test('the notification says what changed, not the internal level name', async () => {
+test('the notification is rendered in each recipient\'s own language', async () => {
+  // The same event goes to several people; UserSettings.locale is per user, so
+  // it is rendered per recipient rather than once in English.
   const source = await Bun.file(new URL('./household.ts', import.meta.url)).text();
-  // "full" tells a recipient nothing about what they can now see.
-  expect(source).toContain('individual transactions');
-  expect(source).toContain('totals only');
+  const handler = source.slice(
+    source.indexOf('"/my-share-level"'),
+    source.indexOf('householdRouter.get("/visibility"')
+  );
+  expect(handler).toContain('visibilityRaisedNotification');
+  expect(handler).toContain('settings: { select: { locale: true } }');
+  // Rendered inside the per-recipient map, not hoisted out of it.
+  expect(handler.indexOf('others.map')).toBeLessThan(handler.indexOf('visibilityRaisedNotification'));
 });
