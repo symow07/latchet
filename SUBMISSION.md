@@ -121,6 +121,18 @@ longest-lead external dependency from your launch — apply now, but don't wait 
 Nothing. Everything previously listed here is done, including the two items this file wrongly
 still claimed were outstanding, the app icon, and every gap flagged in the last review.
 
+⚠️ **Every build that exists predates two fixes it needs.** The newest build — 26 August,
+`00f35e33` — calls the business backend with bare `fetch` and `credentials: 'include'`, which
+attaches nothing on this stack. Every business screen therefore requests logged out, gets a 403,
+and renders an empty state; that is the reported "the business profile doesn't work". Fixed in
+`5a1d2b4`. Separately, the same build reads `business.teamMembers`, renamed to `members` on 27
+August, which crashes once a business row exists — now absorbed server-side by
+`lib/legacy-aliases.ts`, verified by running that exact binary against production.
+
+Nothing in the App Store or on a phone gets either fix without a new build. EAS iOS builds are
+exhausted until 1 September; a working simulator build can be produced locally with Xcode in the
+meantime (see step 5).
+
 Known gaps, recorded rather than scheduled:
 
 - **Arabic is written but unread by a native speaker.** The six CLDR plural forms are implemented
@@ -146,6 +158,11 @@ Known gaps, recorded rather than scheduled:
   A test now reads both files and fails if the lists disagree.
 - **The OPENAI_API_KEY in backend/.env is a placeholder**, not a real credential — it is shaped like
   one and ends in "r3al", and every request with it returns 401.
+- **The Gmail OAuth half of email subscriptions is dead code.** `getEmailAuthUrl`,
+  `scanEmailSubscriptions`, `disconnectEmail` and `saveEmailSubscriptions` have no caller — the app
+  uses email *forwarding* instead, which is a different and working path. Wiring the OAuth route up
+  needs `GOOGLE_CLIENT_ID`/`SECRET`, which are unset. Left in place rather than deleted, since the
+  backend and the deletion-revocation flow both still reference it.
 - **Phase 7 remains deliberate.** The model upgrade in particular has an acceptance criterion —
   benchmark receipt accuracy before and after — that needs an API key and a corpus.
 
