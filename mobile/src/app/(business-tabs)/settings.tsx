@@ -2,10 +2,7 @@ import { useEffect, useState } from 'react';
 import { View, ScrollView, Pressable, Switch, Linking, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import {
-  Briefcase, ChevronRight, Bell, Shield, Globe,
-  FileText, HelpCircle, LogOut, Building2, Check,
-} from 'lucide-react-native';
+import { Bell, Briefcase, Building2, Check, ChevronRight, FileText, Globe, HelpCircle, LogOut, Shield, Users } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { authClient } from '@/lib/auth/auth-client';
 import { useInvalidateSession, useSession } from '@/lib/auth/use-session';
@@ -23,6 +20,7 @@ import { R, glow, useB } from '@/lib/design';
 import { Txt, GlassCard, IconBubble, Pill, BizBackground } from '@/components/ui';
 import { t, SUPPORTED_LOCALES, LOCALE_LABELS } from '@/lib/i18n/core';
 import { useLocaleStore } from '@/lib/i18n/locale-store';
+import { readMembers } from '@/lib/group-members';
 
 interface SettingsRow {
   icon: React.ComponentType<{ size: number; color: string }>;
@@ -113,6 +111,8 @@ export default function BusinessSettingsScreen() {
    *
    * Every row does something. They used to be chevrons over nothing.
    */
+  const memberCount = readMembers(business).length;
+
   const SECTIONS: Section[] = [
     {
       title: t('bizSettings.sectionBusiness'),
@@ -138,6 +138,23 @@ export default function BusinessSettingsScreen() {
             ? `${settings.currency} · ${settings.currencySymbol ?? ''}`.trim()
             : t('bizSettings.regionSub'),
           onPress: () => router.push('/currency'),
+        },
+      ],
+    },
+    {
+      // Team moved out of the tab bar. Six tabs was too many to scan, and a
+      // team is managed occasionally rather than daily — but it is its own
+      // section rather than a row under Preferences, because it is a place
+      // you go, not a setting you flip.
+      title: t('bizSettings.sectionTeam'),
+      items: [
+        {
+          icon: Users, color: '#8b5cf6',
+          label: t('tabs.team'),
+          sub: memberCount > 0
+            ? t('bizSettings.teamSub', { count: memberCount })
+            : t('bizSettings.teamSubEmpty'),
+          onPress: () => router.push('/business-team'),
         },
       ],
     },

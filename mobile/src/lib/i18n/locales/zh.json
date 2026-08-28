@@ -220,7 +220,8 @@
     "analyzed": "我已分析了你的消费",
     "quickInsights": "快速洞察",
     "tryAsking": "试着问问",
-    "disclaimer": "仅为预算建议——非医疗、营养或理财建议。"
+    "disclaimer": "仅为预算建议——非医疗、营养或理财建议。",
+    "error": "连接顾问时出错。请稍后再试。"
   },
   "bank": {
     "connectSection": "连接银行",
@@ -779,7 +780,8 @@
     "expenses": "支出",
     "team": "团队",
     "payroll": "薪酬",
-    "budget": "预算"
+    "budget": "预算",
+    "money": "资金"
   },
   "settingsRows": {
     "billRemindersLabel": "账单提醒",
@@ -849,7 +851,13 @@
     "addLogo": "添加标志",
     "replaceLogo": "替换",
     "removeLogo": "移除",
-    "logoHint": "团队所有成员都能看到。"
+    "logoHint": "团队所有成员都能看到。",
+    "sectionTeam": "团队",
+    "teamSubEmpty": "邀请成员加入公司",
+    "teamSub": {
+      "zero": "暂无成员",
+      "other": "%{count} 位成员"
+    }
   },
   "feedback": {
     "exceededTitle": "预算已超支！",
@@ -1217,5 +1225,14 @@
     "neverAdvises": "顾问绝不会指名某个产品、判断某样东西你能否安全食用，也不会提供医疗建议。它只解释开支。",
     "deleteAll": "删除我的资料",
     "deleteNote": "立即从本设备移除此页面上的所有内容。不可恢复。"
+  },
+  "businessAdvisor": {
+    "introTitle": "询问你的公司",
+    "introBody": "它可以看到本期的预算、支出、薪资以及待审报销，并会在缺少所需数据时明确说明，而不是猜测。",
+    "noBusiness": "请先在「设置 → 公司」中完善公司信息，顾问才有数据可用。",
+    "placeholder": "询问公司的财务",
+    "q1": "本月我们在预算之内吗？",
+    "q2": "是什么在推高我们的支出？",
+    "q3": "还有多少薪资未支付？"
   }
 }

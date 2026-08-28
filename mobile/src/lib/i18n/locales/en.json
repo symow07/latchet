@@ -224,7 +224,8 @@
     "analyzed": "I've analyzed your spending",
     "quickInsights": "QUICK INSIGHTS",
     "tryAsking": "TRY ASKING",
-    "disclaimer": "Budget guidance only — not medical, nutritional or financial advice."
+    "disclaimer": "Budget guidance only — not medical, nutritional or financial advice.",
+    "error": "Something went wrong reaching the advisor. Try again in a moment."
   },
   "bank": {
     "connectSection": "CONNECT A BANK",
@@ -784,7 +785,8 @@
     "expenses": "Expenses",
     "team": "Team",
     "payroll": "Payroll",
-    "budget": "Budget"
+    "budget": "Budget",
+    "money": "Money"
   },
   "settingsRows": {
     "billRemindersLabel": "Bill Reminders",
@@ -854,7 +856,14 @@
     "addLogo": "Add a logo",
     "replaceLogo": "Replace",
     "removeLogo": "Remove",
-    "logoHint": "Shown to everyone on the team."
+    "logoHint": "Shown to everyone on the team.",
+    "sectionTeam": "Team",
+    "teamSubEmpty": "Invite people to your company",
+    "teamSub": {
+      "zero": "No members yet",
+      "one": "%{count} member",
+      "other": "%{count} members"
+    }
   },
   "feedback": {
     "exceededTitle": "Budget Exceeded!",
@@ -1229,5 +1238,14 @@
     "neverAdvises": "The advisor will never name a product, say whether something is safe for you to eat, or give medical advice. It only explains costs.",
     "deleteAll": "Delete my profile",
     "deleteNote": "Removes everything on this screen from this device immediately. Nothing is recoverable."
+  },
+  "businessAdvisor": {
+    "introTitle": "Ask about your company",
+    "introBody": "It can see your budget, spending, payroll and pending expenses for this period, and will say when a figure it needs is missing rather than guess.",
+    "noBusiness": "Set up your company first — Settings → Company — and the advisor will have figures to work from.",
+    "placeholder": "Ask about the company's money",
+    "q1": "Are we inside budget this month?",
+    "q2": "What is driving our spending?",
+    "q3": "How much payroll is still unpaid?"
   }
 }

@@ -226,6 +226,7 @@ app.route("/api/recurring", recurringRouter);
 app.route("/api/net-worth", netWorthRouter);
 app.route("/api/category-budgets", categoryBudgetsRouter);
 app.route("/api/business", businessRouter);
+app.route("/api/household", householdRouter);
 app.route("/api/expenses", expensesRouter);
 app.route("/api/business/budget", budgetRouter);
 app.route("/api/payroll", payrollRouter);

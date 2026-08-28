@@ -1,3 +1,4 @@
+import type { StyleProp, ViewStyle } from 'react-native';
 import {
   View, ScrollView, Pressable, Modal, TextInput,
   ActivityIndicator, Alert, KeyboardAvoidingView, Platform,
@@ -163,7 +164,21 @@ function CategoryRow({ cat, spent, budget, index }: { cat: typeof ALL_CATEGORIES
   );
 }
 
-export default function BudgetScreen() {
+/**
+ * Also rendered inside the Money tab, which supplies the background, the
+ * heading and the segmented control. `embedded` drops this screen's own
+ * chrome so the two do not stack — the action button stays, because it acts
+ * on this view specifically.
+ */
+/** BizBackground normally; a bare View when the Money tab already drew one. */
+function Wrapper({ style, children }: { style?: StyleProp<ViewStyle>; children: React.ReactNode }) {
+  const embedded = !!(style && typeof style === 'object' && 'flex' in (style as object));
+  return embedded
+    ? <View style={style}>{children}</View>
+    : <BizBackground style={style}>{children}</BizBackground>;
+}
+
+export default function BudgetScreen({ embedded }: { embedded?: boolean } = {}) {
   const B = useB();
   const insets = useSafeAreaInsets();
   const qc = useQueryClient();
@@ -193,16 +208,18 @@ export default function BudgetScreen() {
   })).filter(r => r.spent > 0 || r.budget > 0);
 
   return (
-    <BizBackground style={{ paddingTop: insets.top }}>
+    <Wrapper style={embedded ? { flex: 1 } : { paddingTop: insets.top }}>
       <EditBudgetModal visible={showEdit} onClose={() => setShowEdit(false)} currentData={data} />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 110 }}>
         {/* Header */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 16, paddingBottom: 14 }}>
-          <View>
-            <Txt weight="bold" size={12} color={B.accent} style={{ letterSpacing: 1.6 }}>{t('business.label')}</Txt>
-            <Txt weight="bold" size={25} color={B.text} style={{ marginTop: 2 }}>{t('businessInsights.budget')}</Txt>
-          </View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: embedded ? 0 : 16, paddingBottom: embedded ? 4 : 14 }}>
+          {embedded ? <View /> : (
+            <View>
+              <Txt weight="bold" size={12} color={B.accent} style={{ letterSpacing: 1.6 }}>{t('business.label')}</Txt>
+              <Txt weight="bold" size={25} color={B.text} style={{ marginTop: 2 }}>{t('businessInsights.budget')}</Txt>
+            </View>
+          )}
           {canEdit && (
             <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setShowEdit(true); }} style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 9, borderRadius: 13, backgroundColor: `${B.accent}22`, borderWidth: 1.5, borderColor: `${B.accent}44` })}>
               <SlidersHorizontal size={15} color={B.accent} />
@@ -296,6 +313,6 @@ export default function BudgetScreen() {
           </>
         )}
       </ScrollView>
-    </BizBackground>
+    </Wrapper>
   );
 }

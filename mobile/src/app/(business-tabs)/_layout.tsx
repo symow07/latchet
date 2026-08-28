@@ -3,7 +3,7 @@ import { useLocaleStore } from '@/lib/i18n/locale-store';
 import { t } from '@/lib/i18n/core';
 import { View, Platform } from 'react-native';
 import { BlurView } from 'expo-blur';
-import { LayoutDashboard, Receipt, Users, Wallet, PieChart, Settings } from 'lucide-react-native';
+import { LayoutDashboard, Receipt, Sparkles, Wallet, Settings } from 'lucide-react-native';
 import { useB } from '@/lib/design';
 
 function TabIcon({ name, color, focused }: { name: string; color: string; focused: boolean }) {
@@ -13,9 +13,8 @@ function TabIcon({ name, color, focused }: { name: string; color: string; focuse
     switch (name) {
       case 'dashboard': return <LayoutDashboard {...props} />;
       case 'expenses': return <Receipt {...props} />;
-      case 'team': return <Users {...props} />;
-      case 'payroll': return <Wallet {...props} />;
-      case 'budget': return <PieChart {...props} />;
+      case 'advisor': return <Sparkles {...props} />;
+      case 'money': return <Wallet {...props} />;
       case 'settings': return <Settings {...props} />;
       default: return <LayoutDashboard {...props} />;
     }
@@ -78,10 +77,16 @@ export default function BusinessTabLayout() {
     >
       <Tabs.Screen name="index" options={{ title: t('tabs.dashboard'), tabBarIcon: ({ color, focused }) => <TabIcon name="dashboard" color={color} focused={focused} /> }} />
       <Tabs.Screen name="expenses" options={{ title: t('tabs.expenses'), tabBarIcon: ({ color, focused }) => <TabIcon name="expenses" color={color} focused={focused} /> }} />
-      <Tabs.Screen name="team" options={{ title: t('tabs.team'), tabBarIcon: ({ color, focused }) => <TabIcon name="team" color={color} focused={focused} /> }} />
-      <Tabs.Screen name="subscriptions" options={{ title: t('tabs.payroll'), tabBarIcon: ({ color, focused }) => <TabIcon name="payroll" color={color} focused={focused} /> }} />
-      <Tabs.Screen name="insights" options={{ title: t('tabs.budget'), tabBarIcon: ({ color, focused }) => <TabIcon name="budget" color={color} focused={focused} /> }} />
+      <Tabs.Screen name="advisor" options={{ title: t('tabs.advisor'), tabBarIcon: ({ color, focused }) => <TabIcon name="advisor" color={color} focused={focused} /> }} />
+      <Tabs.Screen name="money" options={{ title: t('tabs.money'), tabBarIcon: ({ color, focused }) => <TabIcon name="money" color={color} focused={focused} /> }} />
       <Tabs.Screen name="settings" options={{ title: t('tabs.settings'), tabBarIcon: ({ color, focused }) => <TabIcon name="settings" color={color} focused={focused} /> }} />
+
+      {/* Still routes, deliberately off the bar. Payroll and Budget are hosted
+          by the Money tab, which renders them with `embedded`; keeping them
+          registered means a deep link or a stale navigation state still
+          resolves instead of 404ing. */}
+      <Tabs.Screen name="subscriptions" options={{ href: null }} />
+      <Tabs.Screen name="insights" options={{ href: null }} />
     </Tabs>
   );
 }

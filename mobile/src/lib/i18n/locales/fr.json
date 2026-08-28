@@ -224,7 +224,8 @@
     "analyzed": "J'ai analysé vos dépenses",
     "quickInsights": "APERÇUS RAPIDES",
     "tryAsking": "ESSAYEZ DE DEMANDER",
-    "disclaimer": "Conseils budgétaires uniquement — ni médicaux, ni nutritionnels, ni financiers."
+    "disclaimer": "Conseils budgétaires uniquement — ni médicaux, ni nutritionnels, ni financiers.",
+    "error": "Impossible de joindre le conseiller. Réessayez dans un instant."
   },
   "bank": {
     "connectSection": "CONNECTER UNE BANQUE",
@@ -784,7 +785,8 @@
     "expenses": "Dépenses",
     "team": "Équipe",
     "payroll": "Paie",
-    "budget": "Budget"
+    "budget": "Budget",
+    "money": "Finances"
   },
   "settingsRows": {
     "billRemindersLabel": "Rappels de factures",
@@ -854,7 +856,14 @@
     "addLogo": "Ajouter un logo",
     "replaceLogo": "Remplacer",
     "removeLogo": "Supprimer",
-    "logoHint": "Visible par toute l'équipe."
+    "logoHint": "Visible par toute l'équipe.",
+    "sectionTeam": "Équipe",
+    "teamSubEmpty": "Invitez des personnes",
+    "teamSub": {
+      "zero": "Aucun membre",
+      "one": "%{count} membre",
+      "other": "%{count} membres"
+    }
   },
   "feedback": {
     "exceededTitle": "Budget dépassé !",
@@ -1229,5 +1238,14 @@
     "neverAdvises": "Le conseiller ne nommera jamais un produit, ne dira jamais si quelque chose est sûr à consommer, et ne donnera aucun conseil médical. Il explique uniquement les coûts.",
     "deleteAll": "Supprimer mon profil",
     "deleteNote": "Supprime immédiatement de cet appareil tout ce qui figure sur cet écran. Rien n'est récupérable."
+  },
+  "businessAdvisor": {
+    "introTitle": "Interrogez votre entreprise",
+    "introBody": "Il voit votre budget, vos dépenses, votre masse salariale et les notes de frais en attente pour la période, et signale les chiffres manquants au lieu de les deviner.",
+    "noBusiness": "Configurez d'abord votre entreprise — Réglages → Entreprise — pour donner des chiffres au conseiller.",
+    "placeholder": "Posez une question sur les finances",
+    "q1": "Sommes-nous dans le budget ce mois-ci ?",
+    "q2": "Qu'est-ce qui tire nos dépenses ?",
+    "q3": "Quelle part des salaires reste à payer ?"
   }
 }
