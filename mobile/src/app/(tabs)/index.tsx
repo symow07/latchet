@@ -28,6 +28,7 @@ import { presentBadgeEarned } from '@/lib/notifications';
 import { Flame, Zap, TrendingDown, Calendar, Award, Target, AlertTriangle, Sparkles, Wallet, ChevronRight, BarChart3, Heart, Building2, CreditCard } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
+import { CountUp, BreathingLight } from '@/components/motion';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInUp } from 'react-native-reanimated';
@@ -219,6 +220,10 @@ return { icon: Flame, color: C.p400, title: t('feedback.streakTitle', { days: st
           </Txt>
 
           {/* Balance hero card */}
+          {/* The app's one authored moment. Everything else on this screen
+              stays still so that this reads as a peak rather than as more of
+              the same — seventy identical entrances was what made the old
+              version feel flat. */}
           <Section delay={40}>
             <LinearGradient
               colors={[C.p700, C.p600, C.p800]}
@@ -226,16 +231,23 @@ return { icon: Flame, color: C.p400, title: t('feedback.streakTitle', { days: st
               end={{ x: 1, y: 1 }}
               style={[{ borderRadius: R.xl, padding: 22, marginTop: 18, overflow: 'hidden' }, glow(C.p600, 0.45, 26, C.glowScale)]}
             >
-              <View
-                style={{ position: 'absolute', top: -40, right: -30, width: 160, height: 160, borderRadius: 80, backgroundColor: C.glassStrong }}
-              />
+              {/* The decorative blob, now breathing. It sits on the card's own
+                  gradient, which is where there is enough contrast for the
+                  motion to actually register. */}
+              <BreathingLight color={C.glassStrong} />
               <View className="flex-row items-center justify-between">
                 <Txt weight="semibold" size={13} color="rgba(255,255,255,0.8)">{t('dashboard.currentBalance')}</Txt>
                 <IconBubble color="#ffffff" size={36} radius={14} style={{ backgroundColor: 'rgba(255,255,255,0.18)', borderColor: C.glassBorder }}>
                   <Wallet size={18} color="#fff" />
                 </IconBubble>
               </View>
-              <Txt weight="bold" size={42} color="#fff" style={{ marginTop: 6 }}>{formatCurrency(balance)}</Txt>
+              <CountUp
+                value={balance}
+                format={formatCurrency}
+                size={42}
+                color="#fff"
+                style={{ marginTop: 6 }}
+              />
 
               <View className="flex-row justify-between items-end" style={{ marginTop: 18 }}>
                 <View className="flex-row items-center" style={{ gap: 10 }}>

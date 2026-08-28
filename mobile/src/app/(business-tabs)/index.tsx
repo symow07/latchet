@@ -1,6 +1,7 @@
 import { View, ScrollView, Pressable, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import { CountUp, BreathingLight } from '@/components/motion';
 import {
   TrendingDown, DollarSign, Briefcase, Clock,
   Wrench, ChevronRight, AlertCircle,
@@ -23,6 +24,9 @@ function Label({ children }: { children: string }) {
   const B = useB();
   return <Txt weight="bold" size={11} color={B.textFaint} style={{ letterSpacing: 1.4, marginBottom: 12 }}>{children}</Txt>;
 }
+
+/** The screen prints "$0.00" everywhere; the hero must count to the same shape. */
+const bizCurrency = (n: number) => `$${n.toFixed(2)}`;
 
 export default function BusinessDashboardTab() {
   const B = useB();
@@ -60,26 +64,34 @@ export default function BusinessDashboardTab() {
         {/* Header */}
         <View style={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           <View>
-            <Txt weight="bold" size={12} color={B.accent} style={{ letterSpacing: 1.6 }}>{t('business.label')}</Txt>
-            <Txt weight="bold" size={25} color={B.text} style={{ marginTop: 2 }}>{t('bizStats.greeting', { name: firstName })}</Txt>
+            <Txt weight="bold" size={25} color={B.text}>{t('bizStats.greeting', { name: firstName })}</Txt>
           </View>
           <IconBubble color={B.accent} size={42} radius={14}><Briefcase size={19} color={B.accent} /></IconBubble>
         </View>
 
         {/* Business balance banner */}
+        {/* Business mode's authored moment, matching the personal dashboard:
+            the figure counts, the light breathes, and the rest holds still. */}
         <Animated.View entering={FadeInUp.delay(40).springify().damping(16)} style={{ marginHorizontal: 20, marginBottom: 20 }}>
           <LinearGradient
             colors={[B.heroFrom, B.heroTo]}
             start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-            style={[{ borderRadius: R.lg, padding: 22, borderWidth: 1, borderColor: `${B.accent}33` }, glow(B.accentDeep, 0.3, 22, B.glowScale)]}
+            style={[{ borderRadius: R.lg, padding: 22, borderWidth: 1, borderColor: `${B.accent}33`, overflow: 'hidden' }, glow(B.accentDeep, 0.3, 22, B.glowScale)]}
           >
+            <BreathingLight color={B.glassStrong} size={150} top={-46} right={-34} />
             <Txt weight="semibold" size={12} color="rgba(255,255,255,0.5)" style={{ letterSpacing: 1, marginBottom: 6 }}>
               {business?.name?.toUpperCase() ?? t('bizStats.yourBusiness')}
             </Txt>
             {isLoading ? (
               <ActivityIndicator color={B.accent} size="small" style={{ alignSelf: 'flex-start', marginVertical: 6 }} />
             ) : (
-              <Txt weight="bold" size={38} color="#fff" style={{ marginBottom: 4 }}>${approvedTotal.toFixed(2)}</Txt>
+              <CountUp
+                value={approvedTotal}
+                format={bizCurrency}
+                size={38}
+                color="#fff"
+                style={{ marginBottom: 4 }}
+              />
             )}
             <Txt weight="semibold" size={13} color={B.accentSoft}>
               {pending.length > 0 && canReview

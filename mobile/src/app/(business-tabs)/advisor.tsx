@@ -131,9 +131,6 @@ export default function BusinessAdvisorScreen() {
         style={{ flex: 1 }}
       >
         <View style={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 10 }}>
-          <Txt weight="bold" size={12} color={B.accent} style={{ letterSpacing: 1.6 }}>
-            {t('business.label')}
-          </Txt>
           <Txt weight="bold" size={25} color={B.text} style={{ marginTop: 2 }}>
             {t('tabs.advisor')}
           </Txt>

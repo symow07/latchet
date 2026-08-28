@@ -5,20 +5,18 @@ import {
 import { useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import {
-  Users, UserPlus, Crown, Shield, User2, Copy, RefreshCw,
-  LogIn, X, Check, ChevronDown,
-} from 'lucide-react-native';
+import { ArrowLeft, Check, ChevronDown, Copy, Crown, LogIn, RefreshCw, Shield, User2, UserPlus, Users, X } from 'lucide-react-native';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useRouter } from 'expo-router';
 import { useSession } from '@/lib/auth/use-session';
 import {
   getBusiness, getMembers, getInviteCode, refreshInviteCode,
   joinBusiness, updateMemberRole, removeMember, type GroupMember,
 } from '@/lib/businessApi';
 import { R, glow, useB } from '@/lib/design';
-import { Txt, GlassCard, IconBubble, Pill, BizBackground, BubbleButton } from '@/components/ui';
+import { Txt, GlassCard, Pill, BizBackground, BubbleButton } from '@/components/ui';
 import { t } from '@/lib/i18n/core';
 
 const ROLE_META: Record<string, { label: string; color: string; icon: React.ComponentType<{ size: number; color: string }> }> = {
@@ -174,6 +172,7 @@ export default function TeamScreen() {
   const B = useB();
   const insets = useSafeAreaInsets();
   const qc = useQueryClient();
+  const router = useRouter();
   const { data: session } = useSession();
   const userId = session?.user?.id;
 
@@ -205,9 +204,23 @@ export default function TeamScreen() {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 110 }} refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={B.accent} />}>
         {/* Header */}
         <View style={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-          <View>
-            <Txt weight="bold" size={12} color={B.accent} style={{ letterSpacing: 1.6 }}>{t('business.label')}</Txt>
-            <Txt weight="bold" size={25} color={B.text} style={{ marginTop: 2 }}>{t('businessTeam.title')}</Txt>
+          <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+            {/* Team was a tab until it moved into Settings, and a tab needs no
+                way back. As a pushed screen it did — and shipped without one,
+                which left the only route out of it a swipe people had no
+                reason to guess at. */}
+            <Pressable
+              onPress={() => { Haptics.selectionAsync(); router.back(); }}
+              hitSlop={14}
+              style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+            >
+              <ArrowLeft size={24} color={B.text} />
+            </Pressable>
+            {/* Spacing lives on the title, not as marginEnd on the Pressable —
+                measured at 4.3pt that way against the 14 it was given. */}
+            <Txt weight="bold" size={25} color={B.text} style={{ marginStart: 14 }}>
+              {t('businessTeam.title')}
+            </Txt>
           </View>
           {!isInBusiness && (
             <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setShowJoin(true); }} style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 9, borderRadius: 13, backgroundColor: `${B.accent}22`, borderWidth: 1.5, borderColor: `${B.accent}44` })}>

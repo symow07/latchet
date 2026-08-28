@@ -267,8 +267,7 @@ export default function PayrollScreen({ embedded }: { embedded?: boolean } = {})
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: embedded ? 0 : 16, paddingBottom: embedded ? 4 : 14 }}>
           {embedded ? <View /> : (
             <View>
-              <Txt weight="bold" size={12} color={B.accent} style={{ letterSpacing: 1.6 }}>{t('business.label')}</Txt>
-              <Txt weight="bold" size={25} color={B.text} style={{ marginTop: 2 }}>{t('businessPayroll.title')}</Txt>
+              <Txt weight="bold" size={25} color={B.text}>{t('businessPayroll.title')}</Txt>
             </View>
           )}
           {canEdit && (

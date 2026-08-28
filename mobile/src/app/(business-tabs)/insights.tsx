@@ -216,8 +216,7 @@ export default function BudgetScreen({ embedded }: { embedded?: boolean } = {}) 
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: embedded ? 0 : 16, paddingBottom: embedded ? 4 : 14 }}>
           {embedded ? <View /> : (
             <View>
-              <Txt weight="bold" size={12} color={B.accent} style={{ letterSpacing: 1.6 }}>{t('business.label')}</Txt>
-              <Txt weight="bold" size={25} color={B.text} style={{ marginTop: 2 }}>{t('businessInsights.budget')}</Txt>
+              <Txt weight="bold" size={25} color={B.text}>{t('businessInsights.budget')}</Txt>
             </View>
           )}
           {canEdit && (

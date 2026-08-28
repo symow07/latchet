@@ -200,8 +200,7 @@ export default function BusinessSettingsScreen() {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 110 }}>
         {/* Header */}
         <View style={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 18 }}>
-          <Txt weight="bold" size={12} color={B.accent} style={{ letterSpacing: 1.6 }}>{t('business.label')}</Txt>
-          <Txt weight="bold" size={25} color={B.text} style={{ marginTop: 2 }}>{t('businessSettings.title')}</Txt>
+          <Txt weight="bold" size={25} color={B.text}>{t('businessSettings.title')}</Txt>
         </View>
 
         {/* Profile card */}

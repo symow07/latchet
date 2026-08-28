@@ -304,8 +304,7 @@ export default function ExpensesScreen() {
         {/* Header */}
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 16, paddingBottom: 14 }}>
           <View>
-            <Txt weight="bold" size={12} color={B.accent} style={{ letterSpacing: 1.6 }}>{t('business.label')}</Txt>
-            <Txt weight="bold" size={25} color={B.text} style={{ marginTop: 2 }}>{t('businessExpenses.title')}</Txt>
+            <Txt weight="bold" size={25} color={B.text}>{t('businessExpenses.title')}</Txt>
           </View>
           <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setShowSubmit(true); }} style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 9, borderRadius: 13, backgroundColor: `${B.accent}22`, borderWidth: 1.5, borderColor: `${B.accent}44` })}>
             <Plus size={16} color={B.accent} />
@@ -318,7 +317,7 @@ export default function ExpensesScreen() {
           <GlassCard style={{ flex: 1 }} padding={16} radius={R.md} tint={`${B.red}10`} border={`${B.red}26`}>
             <Txt weight="semibold" size={11} color={B.textFaint} style={{ marginBottom: 4 }}>{t('businessExpenses.total')}</Txt>
             <Txt weight="bold" size={22} color={B.text}>${totalAll.toFixed(2)}</Txt>
-            <Txt size={11} color={B.textFaint} style={{ marginTop: 2 }}>{t('businessExpenses.expenseCount', { count: expenses.length })}</Txt>
+            <Txt size={11} color={B.textFaint}>{t('businessExpenses.expenseCount', { count: expenses.length })}</Txt>
           </GlassCard>
           <GlassCard style={{ flex: 1 }} padding={16} radius={R.md} tint={`${B.teal}10`} border={`${B.teal}26`}>
             <Txt weight="semibold" size={11} color={B.textFaint} style={{ marginBottom: 4 }}>{t('businessExpenses.approved')}</Txt>

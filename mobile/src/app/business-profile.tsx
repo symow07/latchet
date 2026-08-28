@@ -143,7 +143,6 @@ export default function BusinessProfileScreen() {
             <ArrowLeft size={20} color={B.text} />
           </Pressable>
           <View style={{ flex: 1 }}>
-            <Txt weight="bold" size={12} color={B.accent} style={{ letterSpacing: 1.6 }}>{t('business.label')}</Txt>
             <Txt weight="bold" size={22} color={B.text}>{t('bizSettings.companyLabel')}</Txt>
           </View>
         </View>

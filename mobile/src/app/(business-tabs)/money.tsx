@@ -51,9 +51,6 @@ export default function MoneyTab() {
   return (
     <BizBackground style={{ paddingTop: insets.top }}>
       <View style={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 12 }}>
-        <Txt weight="bold" size={12} color={B.accent} style={{ letterSpacing: 1.6 }}>
-          {t('business.label')}
-        </Txt>
         <Txt weight="bold" size={25} color={B.text} style={{ marginTop: 2, marginBottom: 14 }}>
           {t('tabs.money')}
         </Txt>

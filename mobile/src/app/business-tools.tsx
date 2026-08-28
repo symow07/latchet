@@ -200,8 +200,7 @@ export default function BusinessToolsScreen() {
           </Pressable>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
             <View style={{ flex: 1 }}>
-              <Txt weight="bold" size={12} color={B.accent} style={{ letterSpacing: 1.6 }}>{t('business.label')}</Txt>
-              <Txt weight="bold" size={25} color={B.text} style={{ marginTop: 2 }}>{t('businessTools.title')}</Txt>
+              <Txt weight="bold" size={25} color={B.text}>{t('businessTools.title')}</Txt>
             </View>
             <IconBubble color={B.accent} size={44} radius={14}><Wrench size={20} color={B.accent} /></IconBubble>
           </View>
