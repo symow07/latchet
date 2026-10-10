@@ -1,16 +1,11 @@
 import {
-  View, ScrollView, Pressable, TextInput,
-  Modal, KeyboardAvoidingView, Platform, ActivityIndicator,
-  RefreshControl, Alert, Image,
+  View, ScrollView, ActivityIndicator, RefreshControl, Alert, Image, Pressable,
 } from 'react-native';
 import { useState } from 'react';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
+import { format } from 'date-fns';
 import {
-  Receipt, Plus, X, Check, XCircle,
-  Plane, Laptop, Coffee, Car, Building, Tag,
-  ChevronDown, Clock, Camera, ImageIcon,
-} from 'lucide-react-native';
+  Receipt, Plus, Check, XCircle, Clock, Camera, ImageIcon,
+} from '@/components/icons';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
@@ -24,60 +19,77 @@ import {
 import { getBusiness } from '@/lib/businessApi';
 import { roleOf } from '@/lib/group-members';
 import { useSession } from '@/lib/auth/use-session';
-import { R, glow, useB } from '@/lib/design';
-import { Txt, GlassCard, IconBubble, Pill, BizBackground, BubbleButton } from '@/components/ui';
-import { t } from '@/lib/i18n/core';
+import { formatCurrency } from '@/lib/calculations';
+import { BAR, R, S, useB, type BizPalette } from '@/lib/design';
+import {
+  Amount, Card, CircleAction, Empty, Field, FilterChip, FormError,
+  Header, PrimaryButton, Screen, Sheet, Stat, Touchable, Type,
+} from '@/components/kit';
+import { t, getDateFnsLocale } from '@/lib/i18n/core';
 import { expenseCategoryLabel, expenseStatusLabel } from '@/lib/expense-meta';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-type CatMeta = { label: ExpenseCategory; icon: React.ComponentType<{ size: number; color: string }>; color: string };
+const CATEGORIES: ExpenseCategory[] = ['Travel', 'Software', 'Meals', 'Transport', 'Office', 'Other'];
 
-const CATEGORIES: CatMeta[] = [
-  { label: 'Travel', icon: Plane, color: '#818cf8' },
-  { label: 'Software', icon: Laptop, color: '#14b8a6' },
-  { label: 'Meals', icon: Coffee, color: '#f59e0b' },
-  { label: 'Transport', icon: Car, color: '#3b82f6' },
-  { label: 'Office', icon: Building, color: '#f472b6' },
-  { label: 'Other', icon: Tag, color: '#a78bfa' },
-];
+const STATUS_FILTERS: (ExpenseStatus | 'all')[] = ['all', 'pending', 'approved', 'rejected'];
 
-const STATUS_FILTERS: { value: ExpenseStatus | 'all' }[] = [
-  { value: 'all' },
-  { value: 'pending' },
-  { value: 'approved' },
-  { value: 'rejected' },
-];
-
-const STATUS_COLOR: Record<ExpenseStatus, string> = { pending: '#f59e0b', approved: '#14b8a6', rejected: '#ef4444' };
-
-function catMeta(cat: string): CatMeta {
-  return CATEGORIES.find(c => c.label === cat) ?? CATEGORIES[5];
+/**
+ * A category's mark, from the palette's own ramp.
+ *
+ * These used to be six hardcoded hexes — indigo, teal, amber, blue, pink and,
+ * on the *business* screen, the personal profile's violet. §2.5 supplies a
+ * muted eight-step ramp that clears 3:1 on each ground and is verified in both
+ * schemes, and it exists precisely so screens stop inventing colours.
+ */
+function catColor(pal: BizPalette, category: string): string {
+  const index = CATEGORIES.indexOf(category as ExpenseCategory);
+  return pal.cat[(index < 0 ? CATEGORIES.length - 1 : index) % pal.cat.length]!;
 }
 
-function FieldLabel({ children }: { children: string }) {
-  const B = useB();
-  return <Txt weight="bold" size={11} color={B.textFaint} style={{ letterSpacing: 1.2, marginBottom: 8 }}>{children}</Txt>;
+function statusTone(pal: BizPalette, status: ExpenseStatus): string {
+  return status === 'approved' ? pal.positive : status === 'rejected' ? pal.negative : pal.warning;
 }
 
-// ─── Submit Modal ──────────────────────────────────────────────────────────────
-function SubmitModal({ visible, onClose, onDone }: { visible: boolean; onClose: () => void; onDone: () => void }) {
+// ── Submit ───────────────────────────────────────────────────────────────────
+
+function SubmitSheet({
+  visible, onClose, onDone,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  onDone: () => void;
+}) {
   const B = useB();
   const [amount, setAmount] = useState('');
-  const [desc, setDesc] = useState('');
-  const [cat, setCat] = useState<ExpenseCategory>('Other');
-  const [catOpen, setCatOpen] = useState(false);
+  const [description, setDescription] = useState('');
+  const [category, setCategory] = useState<ExpenseCategory>('Other');
   const [imageUri, setImageUri] = useState<string | null>(null);
-  const [err, setErr] = useState('');
+  const [error, setError] = useState('');
+
+  function reset() {
+    setAmount('');
+    setDescription('');
+    setCategory('Other');
+    setImageUri(null);
+    setError('');
+  }
 
   async function pickImage() {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, quality: 0.7, base64: false });
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'], allowsEditing: true, quality: 0.7, base64: false,
+    });
     if (!result.canceled && result.assets[0]) setImageUri(result.assets[0].uri);
   }
+
   async function takePhoto() {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== 'granted') { Alert.alert(t('dialogs.permissionNeeded'), t('dialogs.cameraNeeded')); return; }
-    const result = await ImagePicker.launchCameraAsync({ allowsEditing: true, quality: 0.7, base64: false });
+    if (status !== 'granted') {
+      Alert.alert(t('dialogs.permissionNeeded'), t('dialogs.cameraNeeded'));
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true, quality: 0.7, base64: false,
+    });
     if (!result.canceled && result.assets[0]) setImageUri(result.assets[0].uri);
   }
 
@@ -91,187 +103,268 @@ function SubmitModal({ visible, onClose, onDone }: { visible: boolean; onClose: 
             encoding: FileSystem.EncodingType.Base64,
           })
         : null;
-      const num = parseFloat(amount);
-      if (isNaN(num) || num <= 0) throw new Error('Enter a valid amount');
-      if (!desc.trim()) throw new Error('Description is required');
-      return submitExpense({ amount: num, category: cat, description: desc.trim(), image: base64 });
+      const value = parseFloat(amount);
+      if (isNaN(value) || value <= 0) throw new Error(t('businessExpenses.amount'));
+      if (!description.trim()) throw new Error(t('businessExpenses.description'));
+      return submitExpense({
+        amount: value, category, description: description.trim(), image: base64,
+      });
     },
     onSuccess: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setAmount(''); setDesc(''); setCat('Other'); setImageUri(null); setErr('');
-      onDone(); onClose();
+      reset();
+      onDone();
+      onClose();
     },
-    onError: (e: Error) => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error); setErr(e.message); },
+    onError: (e: Error) => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      setError(e.message);
+    },
   });
 
-  const selCat = CATEGORIES.find(c => c.label === cat)!;
-  const CatIcon = selCat.icon;
-
-  function handleClose() { setAmount(''); setDesc(''); setCat('Other'); setImageUri(null); setErr(''); onClose(); }
-
   return (
-    <Modal visible={visible} animationType="slide" transparent presentationStyle="overFullScreen">
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1, justifyContent: 'flex-end' }}>
-        <Pressable style={{ flex: 1 }} onPress={handleClose} />
-        <View style={{ backgroundColor: B.slate900, borderTopLeftRadius: 30, borderTopRightRadius: 30, borderWidth: 1, borderColor: `${B.accent}26`, padding: 22, paddingBottom: 44, maxHeight: '92%' }}>
-          <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-            <View style={{ width: 40, height: 4, backgroundColor: B.slate700, borderRadius: 2, alignSelf: 'center', marginBottom: 20 }} />
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 22 }}>
-              <Txt weight="bold" size={20} color={B.text}>{t('businessExpenses.new')}</Txt>
-              <Pressable onPress={handleClose} hitSlop={10}><X size={22} color={B.textFaint} /></Pressable>
-            </View>
+    <Sheet
+      pal={B}
+      visible={visible}
+      title={t('businessExpenses.new')}
+      onClose={() => { reset(); onClose(); }}
+    >
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{ paddingHorizontal: S.card, paddingBottom: 8 }}
+      >
+        <Field
+          pal={B}
+          label={t('businessExpenses.amount')}
+          value={amount}
+          onChangeText={(v) => { setAmount(v); setError(''); }}
+          placeholder="0"
+          keyboardType="decimal-pad"
+        />
 
-            {!!err && (
-              <GlassCard padding={12} radius={R.sm} tint={`${B.red}16`} border={`${B.red}33`} style={{ marginBottom: 14 }}>
-                <Txt size={13} color={B.red} style={{ textAlign: 'center' }}>{err}</Txt>
-              </GlassCard>
-            )}
+        <Field
+          pal={B}
+          label={t('businessExpenses.description')}
+          value={description}
+          onChangeText={(v) => { setDescription(v); setError(''); }}
+          placeholder={t('businessExpenses.descPlaceholder')}
+          style={{ marginTop: 16 }}
+        />
 
-            <FieldLabel>{t('businessExpenses.amount')}</FieldLabel>
-            <GlassCard padding={0} radius={R.md} style={{ marginBottom: 14 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14 }}>
-                <Txt weight="bold" size={20} color={B.accent} style={{ marginEnd: 8 }}>$</Txt>
-                <TextInput value={amount} onChangeText={t => { setAmount(t); setErr(''); }} placeholder="0.00" placeholderTextColor={B.textFaint} keyboardType="decimal-pad" style={{ flex: 1, color: B.text, fontSize: 24, fontFamily: 'PlusJakartaSans_700Bold', padding: 0 }} selectionColor={B.accent} />
-              </View>
-            </GlassCard>
-
-            <FieldLabel>{t('businessExpenses.category')}</FieldLabel>
-            <Pressable onPress={() => setCatOpen(v => !v)}>
-              <GlassCard padding={0} radius={R.md} border={catOpen ? `${B.accent}55` : B.glassBorder} style={{ marginBottom: catOpen ? 0 : 14 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 12 }}>
-                  <IconBubble color={selCat.color} size={32} radius={10} style={{ marginEnd: 12 }}><CatIcon size={16} color={selCat.color} /></IconBubble>
-                  <Txt size={15} color={B.textDim} style={{ flex: 1 }}>{expenseCategoryLabel(cat)}</Txt>
-                  <ChevronDown size={16} color={B.textFaint} />
-                </View>
-              </GlassCard>
-            </Pressable>
-            {catOpen && (
-              <GlassCard padding={0} radius={R.md} tint={B.bgDeep} style={{ marginBottom: 14, overflow: 'hidden' }}>
-                {CATEGORIES.map(c => {
-                  const Icon = c.icon; const active = cat === c.label;
-                  return (
-                    <Pressable key={c.label} onPress={() => { setCat(c.label); setCatOpen(false); }} style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 11, backgroundColor: active ? `${B.accent}12` : 'transparent' })}>
-                      <IconBubble color={c.color} size={28} radius={8} style={{ marginEnd: 12 }}><Icon size={14} color={c.color} /></IconBubble>
-                      <Txt size={14} color={active ? B.accent : B.textDim} style={{ flex: 1 }}>{expenseCategoryLabel(c.label)}</Txt>
-                      {active && <Check size={14} color={B.accent} />}
-                    </Pressable>
-                  );
-                })}
-              </GlassCard>
-            )}
-
-            <FieldLabel>{t('businessExpenses.description')}</FieldLabel>
-            <TextInput value={desc} onChangeText={t => { setDesc(t); setErr(''); }} placeholder={t('businessExpenses.descPlaceholder')} placeholderTextColor={B.textFaint} multiline numberOfLines={3} style={{ color: B.text, fontSize: 15, fontFamily: 'PlusJakartaSans_500Medium', backgroundColor: B.glass, borderRadius: R.md, padding: 14, borderWidth: 1, borderColor: B.glassBorder, textAlignVertical: 'top', minHeight: 80, marginBottom: 14 }} selectionColor={B.accent} />
-
-            <FieldLabel>{t('businessExpenses.receipt')}</FieldLabel>
-            {imageUri ? (
-              <View style={{ marginBottom: 14 }}>
-                <Image source={{ uri: imageUri }} style={{ width: '100%', height: 140, borderRadius: R.md, marginBottom: 8 }} resizeMode="cover" />
-                <Pressable onPress={() => setImageUri(null)} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: `${B.red}16`, borderRadius: 12, paddingVertical: 9, borderWidth: 1, borderColor: `${B.red}33` }}>
-                  <X size={14} color={B.red} />
-                  <Txt weight="semibold" size={13} color={B.red}>{t('businessExpenses.removeImage')}</Txt>
-                </Pressable>
-              </View>
-            ) : (
-              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 14 }}>
-                <Pressable onPress={takePhoto} style={({ pressed }) => ({ flex: 1, opacity: pressed ? 0.7 : 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: `${B.accent}0e`, borderRadius: 14, paddingVertical: 13, borderWidth: 1, borderColor: `${B.accent}2a` })}>
-                  <Camera size={16} color={B.accent} />
-                  <Txt weight="semibold" size={13} color={B.accent}>{t('businessExpenses.camera')}</Txt>
-                </Pressable>
-                <Pressable onPress={pickImage} style={({ pressed }) => ({ flex: 1, opacity: pressed ? 0.7 : 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: `${B.accent}0e`, borderRadius: 14, paddingVertical: 13, borderWidth: 1, borderColor: `${B.accent}2a` })}>
-                  <ImageIcon size={16} color={B.accent} />
-                  <Txt weight="semibold" size={13} color={B.accent}>{t('businessExpenses.gallery')}</Txt>
-                </Pressable>
-              </View>
-            )}
-
-            <View style={{ marginTop: 4 }}>
-              <BubbleButton
-                label={mutation.isPending ? t('businessExpenses.submitting') : t('businessExpenses.submitExpense')}
-                onPress={() => mutation.mutate()}
-                disabled={mutation.isPending}
-                radius={R.md}
-                colors={[B.accentDeep, B.accent]}
-                glowColor={B.accent}
-              />
-            </View>
-          </ScrollView>
+        <Type role="meta" color={B.inkDim} style={{ marginTop: 16, marginBottom: 8 }}>
+          {t('businessExpenses.category')}
+        </Type>
+        {/* Shown, not hidden behind a dropdown. Six options is a list, and a
+            closed select is one more state to misread. */}
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+          {CATEGORIES.map((c) => (
+            <FilterChip
+              key={c}
+              pal={B}
+              label={expenseCategoryLabel(c)}
+              mark={catColor(B, c)}
+              active={category === c}
+              onPress={() => setCategory(c)}
+            />
+          ))}
         </View>
-      </KeyboardAvoidingView>
-    </Modal>
+
+        <Type role="meta" color={B.inkDim} style={{ marginTop: 16, marginBottom: 8 }}>
+          {t('businessExpenses.receipt')}
+        </Type>
+        {imageUri ? (
+          <View>
+            <Image
+              source={{ uri: imageUri }}
+              style={{ width: '100%', height: 150, borderRadius: R.md }}
+              resizeMode="cover"
+            />
+            <Touchable
+              pal={B}
+              bleed={0}
+              onPress={() => setImageUri(null)}
+              accessibilityLabel={t('businessExpenses.removeImage')}
+              style={{ alignItems: 'center', paddingVertical: 14 }}
+            >
+              <Type role="meta" color={B.negative}>{t('businessExpenses.removeImage')}</Type>
+            </Touchable>
+          </View>
+        ) : (
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            {([
+              { label: t('businessExpenses.camera'), icon: Camera, onPress: takePhoto },
+              { label: t('businessExpenses.gallery'), icon: ImageIcon, onPress: pickImage },
+            ]).map(({ label, icon: Icon, onPress }) => (
+              <Touchable
+                key={label}
+                pal={B}
+                bleed={0}
+                onPress={onPress}
+                accessibilityLabel={label}
+                style={{
+                  flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+                  gap: 8, minHeight: 52, borderRadius: R.pill, backgroundColor: B.groundSunk,
+                }}
+              >
+                <Icon size={17} color={B.ink} strokeWidth={S.stroke} />
+                <Type role="meta" color={B.ink}>{label}</Type>
+              </Touchable>
+            ))}
+          </View>
+        )}
+
+        <FormError pal={B} message={error} />
+
+        <PrimaryButton
+          pal={B}
+          label={mutation.isPending
+            ? t('businessExpenses.submitting')
+            : t('businessExpenses.submitExpense')}
+          onPress={() => mutation.mutate()}
+          disabled={mutation.isPending}
+          style={{ marginTop: 24 }}
+        />
+      </ScrollView>
+    </Sheet>
   );
 }
 
-// ─── Expense Card ────────────────────────────────────────────────────────────────
-function ExpenseCard({ expense, canReview, onApprove, onReject }: { expense: Expense; canReview: boolean; onApprove: (id: string) => void; onReject: (id: string) => void }) {
-  const B = useB();
+// ── One expense ──────────────────────────────────────────────────────────────
+
+function ExpenseCard({
+  pal, expense, canReview, onApprove, onReject,
+}: {
+  pal: BizPalette;
+  expense: Expense;
+  canReview: boolean;
+  onApprove: (id: string) => void;
+  onReject: (id: string) => void;
+}) {
   const [showImage, setShowImage] = useState(false);
-  const meta = catMeta(expense.category);
-  const CatIcon = meta.icon;
-  const date = new Date(expense.submittedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const date = format(new Date(expense.submittedAt), 'd MMM', { locale: getDateFnsLocale() });
 
   return (
-    <GlassCard padding={16} radius={R.lg}>
-      <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 8 }}>
-        <IconBubble color={meta.color} size={44} radius={14} style={{ marginEnd: 12 }}><CatIcon size={20} color={meta.color} /></IconBubble>
-        <View style={{ flex: 1 }}>
-          <Txt weight="semibold" size={15} color={B.text} numberOfLines={2}>{expense.description}</Txt>
-          <Txt size={12} color={B.textFaint} style={{ marginTop: 2 }}>{expense.submitter.name} · {date}</Txt>
+    <Card pal={pal}>
+      <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12 }}>
+        <View
+          style={{
+            width: 40, height: 40, borderRadius: 20,
+            backgroundColor: catColor(pal, expense.category),
+            alignItems: 'center', justifyContent: 'center',
+          }}
+        >
+          <Type role="cardTitle" color={pal.groundAlt}>
+            {expenseCategoryLabel(expense.category).charAt(0).toUpperCase()}
+          </Type>
         </View>
-        <View style={{ alignItems: 'flex-end', gap: 5 }}>
-          <Txt weight="bold" size={17} color={B.text}>${expense.amount.toFixed(2)}</Txt>
-          <Pill label={expense.status.toUpperCase()} color={STATUS_COLOR[expense.status]} />
+        <View style={{ flex: 1 }}>
+          <Type role="cardTitle" color={pal.ink} numberOfLines={2}>{expense.description}</Type>
+          <Type role="meta" color={pal.inkDim} numberOfLines={1}>
+            {expense.submitter.name} · {date}
+          </Type>
+        </View>
+        <View style={{ alignItems: 'flex-end', gap: 4 }}>
+          <Amount
+            value={expense.amount}
+            format={formatCurrency}
+            size={17}
+            weight="semibold"
+            color={pal.ink}
+          />
+          {/* Sentence case, not `status.toUpperCase()`. The status also has a
+              word, so it never depends on telling two tints apart. */}
+          <Type role="meta" color={statusTone(pal, expense.status)}>
+            {expenseStatusLabel(expense.status)}
+          </Type>
         </View>
       </View>
 
-      {isLegacyLocalReceipt(expense.imageUrl) && (
+      {isLegacyLocalReceipt(expense.imageUrl) ? (
         // Submitted before receipts were uploaded: the bytes only ever existed
         // on the submitter's phone, so say so instead of showing a broken box.
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-          <ImageIcon size={12} color={B.textFaint} />
-          <Txt size={11} color={B.textFaint}>{t('businessExpenses.receiptUnavailable')}</Txt>
-        </View>
-      )}
+        <Type role="meta" color={pal.inkDim} style={{ marginTop: 12 }}>
+          {t('businessExpenses.receiptUnavailable')}
+        </Type>
+      ) : null}
 
-      {hasLoadableReceipt(expense.imageUrl) && (
-        <Pressable onPress={() => setShowImage(v => !v)} style={{ marginBottom: 8 }}>
+      {hasLoadableReceipt(expense.imageUrl) ? (
+        <Pressable onPress={() => setShowImage((v) => !v)} style={{ marginTop: 12 }}>
           {showImage ? (
-            <Image source={receiptSource(expense.imageUrl)!} style={{ width: '100%', height: 160, borderRadius: 12 }} resizeMode="cover" />
+            <Image
+              source={receiptSource(expense.imageUrl)!}
+              style={{ width: '100%', height: 170, borderRadius: R.sm }}
+              resizeMode="cover"
+            />
           ) : (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: `${B.accent}10`, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 6, alignSelf: 'flex-start', borderWidth: 1, borderColor: `${B.accent}22` }}>
-              <ImageIcon size={12} color={B.accent} />
-              <Txt weight="semibold" size={11} color={B.accent}>{t('businessExpenses.viewReceipt')}</Txt>
-            </View>
+            <Type role="meta" color={pal.accent}>{t('businessExpenses.viewReceipt')}</Type>
           )}
         </Pressable>
-      )}
+      ) : null}
 
-      {expense.reviewer && (
-        <Txt size={12} color={B.textFaint} style={{ marginBottom: 6 }}>
-          {t(expense.status === 'approved' ? 'businessExpenses.approvedBy' : 'businessExpenses.rejectedBy', { name: expense.reviewer.name })}
-        </Txt>
-      )}
+      {expense.reviewer ? (
+        <Type role="meta" color={pal.inkDim} style={{ marginTop: 12 }}>
+          {t(
+            expense.status === 'approved'
+              ? 'businessExpenses.approvedBy'
+              : 'businessExpenses.rejectedBy',
+            { name: expense.reviewer.name }
+          )}
+        </Type>
+      ) : null}
 
-      {canReview && expense.status === 'pending' && (
-        <View style={{ flexDirection: 'row', gap: 8, marginTop: 6 }}>
-          <Pressable onPress={() => onApprove(expense.id)} style={({ pressed }) => ({ flex: 1, opacity: pressed ? 0.7 : 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: `${B.teal}16`, borderRadius: 12, paddingVertical: 11, gap: 5, borderWidth: 1, borderColor: `${B.teal}33` })}>
-            <Check size={14} color={B.teal} strokeWidth={3} />
-            <Txt weight="bold" size={13} color={B.teal}>{t('businessExpenses.approve')}</Txt>
-          </Pressable>
-          <Pressable onPress={() => onReject(expense.id)} style={({ pressed }) => ({ flex: 1, opacity: pressed ? 0.7 : 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: `${B.red}16`, borderRadius: 12, paddingVertical: 11, gap: 5, borderWidth: 1, borderColor: `${B.red}33` })}>
-            <XCircle size={14} color={B.red} />
-            <Txt weight="bold" size={13} color={B.red}>{t('businessExpenses.reject')}</Txt>
-          </Pressable>
+      {/* §6.18 — a filled positive pill and an outlined negative one. Approve
+          is the expected outcome and carries the weight; reject is available
+          without being equally inviting. */}
+      {canReview && expense.status === 'pending' ? (
+        <View style={{ flexDirection: 'row', gap: 12, marginTop: 16 }}>
+          <Touchable
+            pal={pal}
+            bleed={0}
+            onPress={() => onApprove(expense.id)}
+            accessibilityLabel={t('businessExpenses.approve')}
+            style={{
+              flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+              gap: 7, minHeight: 46, borderRadius: R.pill, backgroundColor: pal.positive,
+            }}
+          >
+            <Check size={16} color={pal.groundAlt} strokeWidth={2.4} />
+            <Type role="meta" color={pal.groundAlt}>{t('businessExpenses.approve')}</Type>
+          </Touchable>
+          <Touchable
+            pal={pal}
+            bleed={0}
+            onPress={() => onReject(expense.id)}
+            accessibilityLabel={t('businessExpenses.reject')}
+            style={{
+              flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+              gap: 7, minHeight: 46, borderRadius: R.pill,
+              borderWidth: 1, borderColor: pal.negative,
+            }}
+          >
+            <XCircle size={16} color={pal.negative} strokeWidth={S.stroke} />
+            <Type role="meta" color={pal.negative}>{t('businessExpenses.reject')}</Type>
+          </Touchable>
         </View>
-      )}
-    </GlassCard>
+      ) : null}
+    </Card>
   );
 }
 
-// ─── Main Screen ─────────────────────────────────────────────────────────────────
+// ── Screen ───────────────────────────────────────────────────────────────────
+
+/**
+ * Expenses — DESIGN-PROMPT.md §33.
+ *
+ * The two summary boxes at the top used to be a pink-tinted card beside a
+ * green-tinted one, each outlined in its own hue and captioned in tracked-out
+ * caps. §1.1 allows one dark object per screen and §1.5 separates surfaces
+ * with shadow, so the pair became a single ink card with two figures on it —
+ * which is also the only honest reading, since one is a subset of the other.
+ */
 export default function ExpensesScreen() {
-  const B = useB();
   const insets = useSafeAreaInsets();
+  const B = useB();
   const qc = useQueryClient();
   const { data: session } = useSession();
 
@@ -286,81 +379,140 @@ export default function ExpensesScreen() {
 
   const myRole = roleOf(business, session?.user?.id);
   const canReview = myRole === 'owner' || myRole === 'manager';
-
   const invalidate = () => qc.invalidateQueries({ queryKey: ['biz-expenses'] });
 
-  const approveMut = useMutation({ mutationFn: approveExpense, onSuccess: () => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); invalidate(); }, onError: (e: Error) => Alert.alert(t('common.error'), e.message) });
-  const rejectMut = useMutation({ mutationFn: rejectExpense, onSuccess: () => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning); invalidate(); }, onError: (e: Error) => Alert.alert(t('common.error'), e.message) });
+  const approveMut = useMutation({
+    mutationFn: approveExpense,
+    onSuccess: () => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); invalidate(); },
+    onError: (e: Error) => Alert.alert(t('common.error'), e.message),
+  });
+  const rejectMut = useMutation({
+    mutationFn: rejectExpense,
+    onSuccess: () => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning); invalidate(); },
+    onError: (e: Error) => Alert.alert(t('common.error'), e.message),
+  });
 
-  const totalAll = expenses.reduce((s, e) => s + e.amount, 0);
-  const totalApproved = expenses.filter(e => e.status === 'approved').reduce((s, e) => s + e.amount, 0);
-  const pendingCount = expenses.filter(e => e.status === 'pending').length;
+  const total = expenses.reduce((sum, e) => sum + e.amount, 0);
+  const approved = expenses.filter((e) => e.status === 'approved').reduce((sum, e) => sum + e.amount, 0);
+  const pendingCount = expenses.filter((e) => e.status === 'pending').length;
 
   return (
-    <BizBackground style={{ paddingTop: insets.top }}>
-      <SubmitModal visible={showSubmit} onClose={() => setShowSubmit(false)} onDone={invalidate} />
+    <Screen pal={B}>
+      <SubmitSheet visible={showSubmit} onClose={() => setShowSubmit(false)} onDone={invalidate} />
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 110 }} refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={B.accent} />}>
-        {/* Header */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 16, paddingBottom: 14 }}>
-          <View>
-            <Txt weight="bold" size={25} color={B.text}>{t('businessExpenses.title')}</Txt>
-          </View>
-          <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setShowSubmit(true); }} style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 9, borderRadius: 13, backgroundColor: `${B.accent}22`, borderWidth: 1.5, borderColor: `${B.accent}44` })}>
-            <Plus size={16} color={B.accent} />
-            <Txt weight="bold" size={13} color={B.accent}>{t('businessExpenses.add')}</Txt>
-          </Pressable>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingTop: 8, paddingBottom: BAR.clearance(insets.bottom) }}
+        refreshControl={
+          <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={B.accent} />
+        }
+      >
+        <Header
+          pal={B}
+          title={t('businessExpenses.title')}
+          actions={
+            <CircleAction pal={B} label={t('businessExpenses.add')} onPress={() => setShowSubmit(true)}>
+              <Plus size={19} color={B.ink} strokeWidth={S.stroke} />
+            </CircleAction>
+          }
+        />
+
+        <View style={{ paddingHorizontal: S.screen, marginTop: 24 }}>
+          <Card pal={B} radius={24} padding={S.card + 2} contentStyle={{ backgroundColor: B.inkSoft }}>
+            <Type role="meta" color={B.onInk} style={{ opacity: 0.7 }}>
+              {t('businessExpenses.total')}
+            </Type>
+            <Amount
+              value={total}
+              format={formatCurrency}
+              size={40}
+              color={B.onInk}
+              style={{ marginTop: 6 }}
+            />
+            <Type role="meta" color={B.onInk} style={{ opacity: 0.7, marginTop: 6 }}>
+              {t('businessExpenses.expenseCount', { count: expenses.length })}
+            </Type>
+
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 16 }}>
+              <Stat
+                pal={B}
+                label={t('businessExpenses.approved')}
+                value={approved}
+                format={formatCurrency}
+                size={17}
+                tone={B.onInk}
+                labelTone={B.onInk}
+              />
+              <Stat
+                pal={B}
+                label={pendingCount > 0
+                  ? t('businessExpenses.pendingReview', { count: pendingCount })
+                  : t('businessExpenses.nonePending')}
+                value={total - approved}
+                format={formatCurrency}
+                size={17}
+                tone={B.onInk}
+                labelTone={B.onInk}
+                align="flex-end"
+              />
+            </View>
+          </Card>
         </View>
 
-        {/* Summary */}
-        <View style={{ flexDirection: 'row', paddingHorizontal: 20, gap: 10, marginBottom: 18 }}>
-          <GlassCard style={{ flex: 1 }} padding={16} radius={R.md} tint={`${B.red}10`} border={`${B.red}26`}>
-            <Txt weight="semibold" size={11} color={B.textFaint} style={{ marginBottom: 4 }}>{t('businessExpenses.total')}</Txt>
-            <Txt weight="bold" size={22} color={B.text}>${totalAll.toFixed(2)}</Txt>
-            <Txt size={11} color={B.textFaint}>{t('businessExpenses.expenseCount', { count: expenses.length })}</Txt>
-          </GlassCard>
-          <GlassCard style={{ flex: 1 }} padding={16} radius={R.md} tint={`${B.teal}10`} border={`${B.teal}26`}>
-            <Txt weight="semibold" size={11} color={B.textFaint} style={{ marginBottom: 4 }}>{t('businessExpenses.approved')}</Txt>
-            <Txt weight="bold" size={22} color={B.teal}>${totalApproved.toFixed(2)}</Txt>
-            <Txt size={11} color={B.textFaint} style={{ marginTop: 2 }}>{pendingCount > 0 ? `${pendingCount} pending review` : 'none pending'}</Txt>
-          </GlassCard>
-        </View>
-
-        {/* Filters */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, marginBottom: 18 }} contentContainerStyle={{ paddingHorizontal: 20, gap: 8 }}>
-          {STATUS_FILTERS.map(f => {
-            const active = filter === f.value;
-            return (
-              <Pressable key={f.value} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setFilter(f.value as ExpenseStatus | 'all'); }} style={({ pressed }) => ({ opacity: pressed ? 0.75 : 1, paddingHorizontal: 16, paddingVertical: 8, borderRadius: R.pill, backgroundColor: active ? `${B.accent}1f` : B.glass, borderWidth: 1.5, borderColor: active ? `${B.accent}55` : 'transparent' })}>
-                <Txt weight="bold" size={13} color={active ? B.accent : B.textFaint}>{expenseStatusLabel(f.value)}</Txt>
-              </Pressable>
-            );
-          })}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={{ flexGrow: 0, marginTop: S.section }}
+          contentContainerStyle={{ paddingHorizontal: S.screen, gap: 8 }}
+        >
+          {STATUS_FILTERS.map((value) => (
+            <FilterChip
+              key={value}
+              pal={B}
+              label={expenseStatusLabel(value)}
+              active={filter === value}
+              onPress={() => setFilter(value)}
+            />
+          ))}
         </ScrollView>
 
-        {/* List */}
-        <View style={{ paddingHorizontal: 20, gap: 10 }}>
-          {isLoading ? (
-            <View style={{ alignItems: 'center', paddingVertical: 56 }}><ActivityIndicator color={B.accent} size="large" /></View>
-          ) : expenses.length === 0 ? (
-            <GlassCard padding={40} radius={R.lg} style={{ alignItems: 'center' }}>
-              {filter === 'pending' ? <Clock size={32} color={B.slate700} /> : <Receipt size={32} color={B.slate700} />}
-              <Txt weight="semibold" size={14} color={B.textDim} style={{ marginTop: 12, marginBottom: 4 }}>{filter === 'pending' ? t('businessExpenses.noPending') : t('businessExpenses.noneYet')}</Txt>
-              <Txt size={12} color={B.textFaint}>{filter === 'pending' ? t('businessExpenses.allCaughtUp') : t('businessExpenses.tapAddFirst')}</Txt>
-            </GlassCard>
-          ) : (
-            expenses.map(expense => (
+        {isLoading ? (
+          <View style={{ alignItems: 'center', paddingVertical: 64 }}>
+            <ActivityIndicator color={B.accent} />
+          </View>
+        ) : expenses.length === 0 ? (
+          <Empty
+            pal={B}
+            icon={
+              filter === 'pending'
+                ? <Clock size={26} color={B.accent} strokeWidth={S.stroke} />
+                : <Receipt size={26} color={B.accent} strokeWidth={S.stroke} />
+            }
+            title={filter === 'pending'
+              ? t('businessExpenses.noPending')
+              : t('businessExpenses.noneYet')}
+            body={filter === 'pending'
+              ? t('businessExpenses.allCaughtUp')
+              : t('businessExpenses.tapAddFirst')}
+            actionLabel={filter === 'pending' ? undefined : t('businessExpenses.add')}
+            onAction={filter === 'pending' ? undefined : () => setShowSubmit(true)}
+            style={{ marginTop: 64 }}
+          />
+        ) : (
+          <View style={{ paddingHorizontal: S.screen, gap: 12, marginTop: S.section }}>
+            {expenses.map((expense) => (
               <ExpenseCard
                 key={expense.id}
+                pal={B}
                 expense={expense}
                 canReview={canReview}
-                onApprove={id => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); approveMut.mutate(id); }}
-                onReject={id => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); rejectMut.mutate(id); }}
+                onApprove={(id) => approveMut.mutate(id)}
+                onReject={(id) => rejectMut.mutate(id)}
               />
-            ))
-          )}
-        </View>
+            ))}
+          </View>
+        )}
       </ScrollView>
-    </BizBackground>
+    </Screen>
   );
 }

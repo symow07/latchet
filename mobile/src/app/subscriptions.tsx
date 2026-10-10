@@ -1,45 +1,55 @@
-import {
-  View,
-  Text,
-  ScrollView,
-  Pressable,
-  ActivityIndicator,
-} from 'react-native';
 import { useState } from 'react';
-import { useC, type Palette } from '@/lib/design';
+import { ActivityIndicator, ScrollView, View } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
-import {
-  ArrowLeft,
-  RefreshCw,
-  CheckCircle,
-  Clock,
-  XCircle,
-  CreditCard,
-  Repeat,
-  Search,
-} from 'lucide-react-native';
-import * as Haptics from 'expo-haptics';
-import Animated, { FadeInUp, FadeInDown } from 'react-native-reanimated';
-import { format, parseISO, differenceInDays } from 'date-fns';
+import { RefreshCw } from '@/components/icons';
+import { differenceInCalendarDays, format, parseISO } from 'date-fns';
 
 import { getSubscriptions, type Subscription } from '@/lib/db';
 import { EmailScanCard } from '@/components/EmailScanCard';
-import { ScreenBackground } from '@/components/ui';
 import {
-  scanAndSaveSubscriptions,
   monthlySubscriptionTotal,
+  scanAndSaveSubscriptions,
 } from '@/lib/subscription-detection';
 import { formatCurrency } from '@/lib/calculations';
+import { categoryMarkIndex } from '@/lib/category-meta';
+import { S, useC } from '@/lib/design';
+import {
+  BalanceCard,
+  Card,
+  CircleAction,
+  Empty,
+  InfoRow,
+  Meter,
+  Screen,
+  Segmented,
+  SubHeader,
+  Type,
+} from '@/components/kit';
 import { t, getDateFnsLocale } from '@/lib/i18n/core';
 
 type SegmentKey = 'confirmed' | 'possible' | 'canceled';
 
-// Built per call, not at module scope: t() at module scope resolves once at
-// import and freezes the startup language.
-function segments(): { key: SegmentKey; label: string }[] {
+/**
+ * Subscriptions — DESIGN-PROMPT.md §22: monthly total, then confirmed /
+ * possible / cancelled.
+ *
+ * The old screen said the status four times over. Every row carried a status
+ * icon, a status-tinted icon well, a violet cadence badge and — in the
+ * "possible" segment — a confidence bar that changed between green, amber and
+ * red at 60% and 40%. All of that sat under a segmented control that had
+ * *already* filtered the list to one status, so every row in view was the
+ * same status as every other. The colour was carrying no information at all.
+ *
+ * It now says it once: the segment. Rows are a merchant, a cadence, when the
+ * next charge lands, and a price. Confidence keeps its bar because it is the
+ * one number that varies inside a segment, and the bar is `accentMark` like
+ * every other meter in the app rather than a traffic light.
+ *
+ * There is also one scan control instead of three. The header refresh always
+ * works; the empty state offers the same action in words.
+ */
+function segments(): readonly { key: SegmentKey; label: string }[] {
   return [
     { key: 'confirmed', label: t('subStatus.confirmed') },
     { key: 'possible', label: t('subStatus.possible') },
@@ -47,242 +57,37 @@ function segments(): { key: SegmentKey; label: string }[] {
   ];
 }
 
-function cadenceLabel(cadence: Subscription['cadence']): string {
-  switch (cadence) {
-    case 'weekly': return 'Weekly';
-    case 'monthly': return 'Monthly';
-    case 'yearly': return 'Yearly';
-    default: return 'Unknown';
-  }
-}
-
-function nextChargeMeta(nextExpectedAt: string | null, C: Palette): { label: string; color: string } | null {
+/** When the next charge lands, in the words the app already has for it. */
+function nextChargeLabel(nextExpectedAt: string | null): string | null {
   if (!nextExpectedAt) return null;
-  const today = new Date();
-  const nextDate = parseISO(nextExpectedAt);
-  const daysUntil = differenceInDays(nextDate, today);
-  const formatted = format(nextDate, 'MMM d', { locale: getDateFnsLocale() });
+  const next = parseISO(nextExpectedAt);
+  const days = differenceInCalendarDays(next, new Date());
+  const on = format(next, 'd MMM', { locale: getDateFnsLocale() });
 
-  if (daysUntil < 0) {
-    return { label: `Overdue (${formatted})`, color: '#ef4444' };
-  }
-  if (daysUntil <= 7) {
-    return { label: `Next: ${formatted}`, color: '#f59e0b' };
-  }
-  return { label: `Next: ${formatted}`, color: C.textDim };
-}
-
-function SkeletonCard() {
-  const C = useC();
-  return (
-    <View
-      className="mx-4 mb-3 rounded-2xl overflow-hidden"
-      style={{ backgroundColor: C.glass, padding: 16 }}
-    >
-      <View className="flex-row items-center gap-3">
-        <View className="w-11 h-11 rounded-xl bg-white/10" />
-        <View className="flex-1 gap-2">
-          <View className="h-4 rounded-md bg-white/10 w-3/5" />
-          <View className="h-3 rounded-md bg-white/10 w-2/5" />
-        </View>
-        <View className="h-5 w-16 rounded-full bg-white/10" />
-      </View>
-    </View>
-  );
-}
-
-function SubscriptionCard({
-  sub,
-  segment,
-  index,
-  onPress,
-}: {
-  sub: Subscription;
-  segment: SegmentKey;
-  index: number;
-  onPress: () => void;
-}) {
-  const C = useC();
-  const nextMeta = nextChargeMeta(sub.nextExpectedAt, C);
-
-  const statusIcon =
-    sub.status === 'confirmed' ? (
-      <CheckCircle size={18} color="#22c55e" />
-    ) : sub.status === 'canceled' ? (
-      <XCircle size={18} color="#6b7280" />
-    ) : (
-      <Clock size={18} color="#f59e0b" />
-    );
-
-  return (
-    <Animated.View entering={FadeInUp.delay(index * 60).springify()}>
-      <Pressable
-        onPress={() => {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          onPress();
-        }}
-        style={({ pressed }) => ({
-          marginHorizontal: 16,
-          marginBottom: 10,
-          borderRadius: 18,
-          backgroundColor: pressed ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.05)',
-          padding: 16,
-          borderWidth: 1,
-          borderColor: pressed ? 'rgba(168,85,247,0.3)' : 'rgba(255,255,255,0.06)',
-        })}
-      >
-        <View className="flex-row items-start gap-3">
-          {/* Icon block */}
-          <View
-            className="w-11 h-11 rounded-xl items-center justify-center"
-            style={{
-              backgroundColor:
-                sub.status === 'confirmed'
-                  ? 'rgba(34,197,94,0.15)'
-                  : sub.status === 'canceled'
-                  ? 'rgba(107,114,128,0.15)'
-                  : 'rgba(245,158,11,0.15)',
-            }}
-          >
-            <CreditCard
-              size={20}
-              color={
-                sub.status === 'confirmed'
-                  ? '#22c55e'
-                  : sub.status === 'canceled'
-                  ? '#6b7280'
-                  : '#f59e0b'
-              }
-            />
-          </View>
-
-          {/* Info */}
-          <View className="flex-1 gap-1">
-            <View className="flex-row items-center gap-2">
-              <Text
-                className="font-bold text-base"
-                numberOfLines={1}
-                style={{ flex: 1 }}
-              >
-                {sub.merchantDisplay}
-              </Text>
-              {statusIcon}
-            </View>
-
-            <View className="flex-row items-center gap-2 flex-wrap">
-              {/* Cadence badge */}
-              <View
-                className="px-2 py-0.5 rounded-full"
-                style={{ backgroundColor: 'rgba(168,85,247,0.18)' }}
-              >
-                <Text className="text-xs font-semibold" style={{ color: C.p400 }}>
-                  {cadenceLabel(sub.cadence)}
-                </Text>
-              </View>
-
-              {/* Amount */}
-              <Text style={{ color: C.text }} className="font-semibold text-sm">
-                {formatCurrency(sub.typicalAmount)}
-              </Text>
-
-              {/* Next charge */}
-              {nextMeta && sub.status !== 'canceled' && (
-                <Text className="text-xs" style={{ color: nextMeta.color }}>
-                  {nextMeta.label}
-                </Text>
-              )}
-            </View>
-
-            {/* Confidence bar for 'possible' segment */}
-            {segment === 'possible' && (
-              <View className="mt-2 gap-1">
-                <View className="flex-row justify-between">
-                  <Text className="text-xs" style={{ color: C.textDim }}>
-                    {t('subscriptionsScreen.confidence')}
-                  </Text>
-                  <Text className="text-xs font-semibold" style={{ color: '#f59e0b' }}>
-                    {Math.round(sub.confidenceScore)}%
-                  </Text>
-                </View>
-                <View
-                  className="h-1.5 rounded-full overflow-hidden"
-                  style={{ backgroundColor: C.glassStrong }}
-                >
-                  <View
-                    className="h-full rounded-full"
-                    style={{
-                      width: `${sub.confidenceScore}%`,
-                      backgroundColor:
-                        sub.confidenceScore >= 60 ? '#22c55e' : sub.confidenceScore >= 40 ? '#f59e0b' : '#ef4444',
-                    }}
-                  />
-                </View>
-              </View>
-            )}
-          </View>
-        </View>
-      </Pressable>
-    </Animated.View>
-  );
-}
-
-function EmptyState({ segment }: { segment: SegmentKey }) {
-  const C = useC();
-  const configs: Record<SegmentKey, { icon: React.ReactNode; title: string; subtitle: string }> = {
-    confirmed: {
-      icon: <CheckCircle size={36} color="#22c55e" />,
-      title: t('subStatus.noConfirmed'),
-      subtitle: t('subStatus.noConfirmedBody'),
-    },
-    possible: {
-      icon: <Clock size={36} color="#f59e0b" />,
-      title: t('subStatus.noPossible'),
-      subtitle: t('subStatus.noPossibleBody'),
-    },
-    canceled: {
-      icon: <XCircle size={36} color="#6b7280" />,
-      title: t('subStatus.noCanceled'),
-      subtitle: t('misc2.noCanceledBody'),
-    },
-  };
-  const { icon, title, subtitle } = configs[segment];
-
-  return (
-    <Animated.View entering={FadeInDown.delay(100).springify()} className="items-center py-14 px-8">
-      <View
-        className="w-20 h-20 rounded-full items-center justify-center mb-4"
-        style={{ backgroundColor: C.glass }}
-      >
-        {icon}
-      </View>
-      <Text style={{ color: C.text }} className="font-bold text-lg text-center mb-2">{title}</Text>
-      <Text className="text-center text-sm leading-5" style={{ color: C.textDim }}>
-        {subtitle}
-      </Text>
-    </Animated.View>
-  );
+  if (days < 0) return `${t('subStatus.overdue')} · ${on}`;
+  if (days === 0) return t('subStatus.today');
+  if (days === 1) return t('subStatus.tomorrow');
+  return `${t('subStatus.inDays', { count: days })} · ${on}`;
 }
 
 export default function SubscriptionsScreen() {
   const C = useC();
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const [segment, setSegment] = useState<SegmentKey>('confirmed');
   const [isScanning, setIsScanning] = useState(false);
 
-  const { data: allSubscriptions = [], isLoading } = useQuery<Subscription[]>({
+  const { data: all = [], isLoading } = useQuery<Subscription[]>({
     queryKey: ['subscriptions'],
     queryFn: () => getSubscriptions(),
   });
 
-  const filtered = allSubscriptions.filter(s => s.status === segment);
-  const monthlyTotal = monthlySubscriptionTotal(allSubscriptions);
-  const activeCount = allSubscriptions.filter(s => s.status !== 'canceled').length;
+  const filtered = all.filter((s) => s.status === segment);
+  const monthlyTotal = monthlySubscriptionTotal(all);
+  const activeCount = all.filter((s) => s.status !== 'canceled').length;
 
   async function handleScan() {
     if (isScanning) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setIsScanning(true);
     try {
       await scanAndSaveSubscriptions();
@@ -294,195 +99,144 @@ export default function SubscriptionsScreen() {
     }
   }
 
+  const emptyCopy: Record<SegmentKey, { title: string; body: string }> = {
+    confirmed: { title: t('subStatus.noConfirmed'), body: t('subStatus.noConfirmedBody') },
+    possible: { title: t('subStatus.noPossible'), body: t('subStatus.noPossibleBody') },
+    canceled: { title: t('subStatus.noCanceled'), body: t('misc2.noCanceledBody') },
+  };
+
   return (
-    <ScreenBackground>
-      {/* Header */}
-      <LinearGradient
-        colors={[C.p600, C.p500, C.p400, C.scheme === 'light' ? C.p300 : '#1e1b2e']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={{
-          paddingTop: insets.top + 16,
-          paddingBottom: 24,
-          paddingHorizontal: 16,
-          borderBottomLeftRadius: 32,
-          borderBottomRightRadius: 32,
-        }}
-      >
-        {/* Top row */}
-        <View className="flex-row items-center justify-between mb-5">
-          <Pressable
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              router.back();
-            }}
-            className="w-10 h-10 rounded-full items-center justify-center"
-            style={{ backgroundColor: 'rgba(255,255,255,0.18)' }}
-          >
-            <ArrowLeft size={20} color="white" />
-          </Pressable>
-
-          <View className="flex-1 items-center px-3">
-            <Text className="text-white text-lg font-bold">{t('subscriptionsScreen.title')}</Text>
-            {activeCount > 0 && (
-              <Text className="text-white/70 text-xs mt-0.5">
-                {formatCurrency(monthlyTotal)}/mo from {activeCount} active
-              </Text>
-            )}
-          </View>
-
-          <Pressable
-            onPress={handleScan}
-            className="w-10 h-10 rounded-full items-center justify-center"
-            style={{ backgroundColor: 'rgba(255,255,255,0.18)' }}
-            disabled={isScanning}
-          >
-            {isScanning ? (
-              <ActivityIndicator size="small" color="white" />
-            ) : (
-              <RefreshCw size={18} color="white" />
-            )}
-          </Pressable>
-        </View>
-
-        {/* Segment pills */}
-        <View
-          className="flex-row rounded-2xl p-1"
-          style={{ backgroundColor: 'rgba(0,0,0,0.25)' }}
-        >
-          {segments().map(seg => (
-            <Pressable
-              key={seg.key}
-              onPress={() => {
-                Haptics.selectionAsync();
-                setSegment(seg.key);
-              }}
-              style={{
-                flex: 1,
-                paddingVertical: 8,
-                borderRadius: 14,
-                alignItems: 'center',
-                backgroundColor: segment === seg.key ? 'rgba(255,255,255,0.2)' : 'transparent',
-              }}
-            >
-              <Text
-                className="text-sm font-semibold"
-                style={{
-                  color: segment === seg.key ? 'white' : 'rgba(255,255,255,0.55)',
-                }}
-              >
-                {seg.label}
-              </Text>
-              {allSubscriptions.filter(s => s.status === seg.key).length > 0 && (
-                <View
-                  className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full items-center justify-center"
-                  style={{
-                    backgroundColor: segment === seg.key ? C.p500 : 'rgba(168,85,247,0.5)',
-                  }}
-                >
-                  <Text className="text-white text-[9px] font-bold">
-                    {allSubscriptions.filter(s => s.status === seg.key).length}
-                  </Text>
-                </View>
-              )}
-            </Pressable>
-          ))}
-        </View>
-      </LinearGradient>
-
-      {/* Content */}
+    <Screen pal={C}>
       <ScrollView
-        className="flex-1"
-        contentContainerStyle={{ paddingTop: 20, paddingBottom: 40 }}
         showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingTop: 8, paddingBottom: 60 }}
       >
-        {/* Email scanner — find subscriptions from receipt emails */}
-        <EmailScanCard accent={C.p500} />
-
-        {isLoading ? (
-          <>
-            <SkeletonCard />
-            <SkeletonCard />
-            <SkeletonCard />
-          </>
-        ) : filtered.length === 0 ? (
-          <>
-            <EmptyState segment={segment} />
-            {/* CTA if no subscriptions at all */}
-            {allSubscriptions.length === 0 && (
-              <Animated.View entering={FadeInUp.delay(200).springify()} className="mx-4">
-                <Pressable
-                  onPress={handleScan}
-                  disabled={isScanning}
-                  className="rounded-2xl overflow-hidden"
-                >
-                  <LinearGradient
-                    colors={[C.p600, C.p500]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 16, gap: 10 }}
-                  >
-                    {isScanning ? (
-                      <ActivityIndicator color="white" />
-                    ) : (
-                      <Search size={18} color="white" />
-                    )}
-                    <Text className="text-white font-bold text-base">
-                      {isScanning ? t('subscriptionsScreen.scanning') : t('subscriptionsScreen.scanFor')}
-                    </Text>
-                  </LinearGradient>
-                </Pressable>
-                <Text className="text-center text-xs mt-3" style={{ color: C.textDim }}>
-                  {t('subscriptionsScreen.analyzesHint')}
-                </Text>
-              </Animated.View>
-            )}
-          </>
-        ) : (
-          filtered.map((sub, i) => (
-            <SubscriptionCard
-              key={sub.id}
-              sub={sub}
-              segment={segment}
-              index={i}
-              onPress={() => router.push(`/subscription-detail?id=${sub.id}`)}
-            />
-          ))
-        )}
-
-        {/* Scan CTA footer when we have subscriptions but user is looking at a non-empty list */}
-        {!isLoading && allSubscriptions.length > 0 && (
-          <Animated.View
-            entering={FadeInUp.delay(300).springify()}
-            className="mx-4 mt-4"
-          >
-            <Pressable
-              onPress={handleScan}
-              disabled={isScanning}
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 8,
-                paddingVertical: 14,
-                borderRadius: 16,
-                borderWidth: 1,
-                borderColor: 'rgba(168,85,247,0.3)',
-                backgroundColor: 'rgba(168,85,247,0.08)',
-              }}
+        <SubHeader
+          pal={C}
+          title={t('subscriptionsScreen.title')}
+          onBack={() => router.back()}
+          action={
+            <CircleAction
+              pal={C}
+              label={t('subscriptionsScreen.rescan')}
+              onPress={isScanning ? undefined : handleScan}
             >
               {isScanning ? (
-                <ActivityIndicator size="small" color={C.p500} />
+                <ActivityIndicator size="small" color={C.ink} />
               ) : (
-                <Repeat size={16} color={C.p500} />
+                <RefreshCw size={18} color={C.ink} strokeWidth={S.stroke} />
               )}
-              <Text className="font-semibold text-sm" style={{ color: C.p500 }}>
-                {isScanning ? t('subscriptionsScreen.scanning') : t('subscriptionsScreen.rescan')}
-              </Text>
-            </Pressable>
-          </Animated.View>
+            </CircleAction>
+          }
+        />
+
+        <BalanceCard
+          pal={C}
+          label={t('subscriptionsScreen.monthlyTotal')}
+          amount={monthlyTotal}
+          format={formatCurrency}
+          caption={t('subscriptionsScreen.activeCaption', { count: activeCount })}
+          style={{ paddingHorizontal: S.screen, marginTop: 24 }}
+        />
+
+        <Segmented
+          pal={C}
+          options={segments()}
+          value={segment}
+          onChange={setSegment}
+          style={{ marginTop: 24, marginHorizontal: S.screen }}
+        />
+
+        <View style={{ marginTop: S.section }}>
+          <EmailScanCard accent={C.accent} />
+        </View>
+
+        {isLoading ? (
+          <View style={{ paddingTop: 48, alignItems: 'center' }}>
+            <ActivityIndicator color={C.accent} />
+          </View>
+        ) : filtered.length === 0 ? (
+          <Empty
+            pal={C}
+            icon={<RefreshCw size={26} color={C.accent} strokeWidth={S.stroke} />}
+            title={emptyCopy[segment].title}
+            body={emptyCopy[segment].body}
+            // Only where scanning would actually change what is on screen —
+            // an offer to re-scan under an empty "cancelled" list is noise.
+            actionLabel={
+              segment !== 'canceled'
+                ? isScanning
+                  ? t('subscriptionsScreen.scanning')
+                  : t('subscriptionsScreen.scanFor')
+                : undefined
+            }
+            onAction={segment !== 'canceled' ? handleScan : undefined}
+            style={{ marginTop: 40 }}
+          />
+        ) : (
+          <View style={{ paddingHorizontal: S.screen }}>
+            <Card pal={C} padding={0} contentStyle={{ paddingHorizontal: S.card }}>
+              {filtered.map((sub, i) => {
+                const next = sub.status === 'canceled' ? null : nextChargeLabel(sub.nextExpectedAt);
+                const meta = [t(`frequency.${sub.cadence}`), next].filter(Boolean).join(' · ');
+                const mark = C.cat[categoryMarkIndex(sub.merchantNormalized, C.cat.length)];
+                return (
+                  <View
+                    key={sub.id}
+                    style={i > 0 ? { borderTopWidth: 1, borderTopColor: C.hairline } : undefined}
+                  >
+                    <InfoRow
+                      pal={C}
+                      title={sub.merchantDisplay}
+                      meta={meta}
+                      amount={sub.typicalAmount}
+                      format={formatCurrency}
+                      onPress={() => router.push(`/subscription-detail?id=${sub.id}`)}
+                      lead={
+                        <View
+                          style={{
+                            width: 40,
+                            height: 40,
+                            borderRadius: 20,
+                            backgroundColor: mark,
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}
+                        >
+                          <Type role="cardTitle" color={C.groundAlt}>
+                            {sub.merchantDisplay.trim().charAt(0).toUpperCase() || '?'}
+                          </Type>
+                        </View>
+                      }
+                      // Confidence is the only figure that varies within the
+                      // "possible" segment, so it is the only one that earns
+                      // a meter — and it is one colour, not a traffic light.
+                      footer={
+                        segment === 'possible' ? (
+                          <View style={{ marginTop: 12, gap: 6 }}>
+                            <Type role="meta" color={C.inkDim}>
+                              {`${t('subscriptionsScreen.confidence')} ${Math.round(sub.confidenceScore)}%`}
+                            </Type>
+                            <Meter
+                              pal={C}
+                              ratio={sub.confidenceScore / 100}
+                              label={t('subscriptionsScreen.confidence')}
+                            />
+                          </View>
+                        ) : null
+                      }
+                    />
+                  </View>
+                );
+              })}
+            </Card>
+
+            <Type role="meta" color={C.inkDim} style={{ marginTop: 12 }}>
+              {t('subscriptionsScreen.analyzesHint')}
+            </Type>
+          </View>
         )}
       </ScrollView>
-    </ScreenBackground>
+    </Screen>
   );
 }

@@ -1,23 +1,20 @@
-import { ScreenBackground } from '@/components/ui';
-import { useC } from '@/lib/design';
-import { View, Text, Pressable, ScrollView, TextInput, Keyboard } from 'react-native';
+import { View, Pressable, ScrollView, Keyboard } from 'react-native';
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { useMutation } from '@tanstack/react-query';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import {
-  ArrowRight,
-  ArrowLeft,
-  DollarSign,
+  ChevronDown,
+  CreditCard,
+  PiggyBank,
   Target,
   Wallet,
-  PiggyBank,
-  CreditCard,
-  ChevronDown,
-  Check,
-} from 'lucide-react-native';
+} from '@/components/icons';
+import { S, useC } from '@/lib/design';
+import {
+  ChoiceRow, Field, FormError, IconTile, PrimaryButton, Screen, StepProgress, Type,
+} from '@/components/kit';
 import * as Haptics from 'expo-haptics';
 import { saveOnboardingData } from '@/lib/onboarding-storage';
 import { updateSettings } from '@/lib/db';
@@ -125,90 +122,81 @@ export default function OnboardingScreen() {
     }
   };
 
+  /**
+   * One question per step, in the same shape every time: a headline, a
+   * sentence, then the choice. The old version wrapped each step in a purple
+   * gradient header and hard-coded `rgba(168, 85, 247, …)` selection washes,
+   * which is why it stayed purple through the retheme — none of it read a
+   * token.
+   */
   const renderStep = () => {
     switch (STEPS[step]) {
       case 'currency':
         return (
-          <View className="flex-1">
-            <Text style={{ color: C.text }} className="text-2xl font-bold mb-2">{t('onboarding.chooseCurrency')}</Text>
-            <Text style={{ color: C.textDim }} className="mb-6">{t('onboarding.chooseCurrencyHint')}</Text>
+          <View>
+            <Type role="title" color={C.ink}>{t('onboarding.chooseCurrency')}</Type>
+            <Type role="body" color={C.inkDim} style={{ marginTop: 6, marginBottom: 24 }}>
+              {t('onboarding.chooseCurrencyHint')}
+            </Type>
 
-            {/* Selected Currency */}
+            <ChoiceRow
+              pal={C}
+              selected
+              title={`${currency.code} · ${currency.symbol}`}
+              body={currency.name}
+              onPress={() => setShowCurrencyPicker((open) => !open)}
+              icon={
+                <IconTile pal={C}>
+                  <Wallet size={20} color={C.accent} strokeWidth={S.stroke} />
+                </IconTile>
+              }
+            />
             <Pressable
-              onPress={() => setShowCurrencyPicker(!showCurrencyPicker)}
-              className="mb-4"
+              onPress={() => setShowCurrencyPicker((open) => !open)}
+              hitSlop={10}
+              accessibilityRole="button"
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 12 }}
             >
-              <View
-                className="rounded-2xl p-4 flex-row items-center justify-between"
-                style={{ backgroundColor: 'rgba(168, 85, 247, 0.2)', borderWidth: 1, borderColor: 'rgba(168, 85, 247, 0.5)' }}
-              >
-                <View className="flex-row items-center">
-                  <Text className="text-3xl me-3">{currency.symbol}</Text>
-                  <View>
-                    <Text style={{ color: C.text }} className="font-semibold">{currency.code}</Text>
-                    <Text style={{ color: C.textDim }} className="text-sm">{currency.name}</Text>
-                  </View>
-                </View>
-                <ChevronDown size={20} color={C.p500} />
-              </View>
+              <Type role="meta" color={C.accent}>{t('onboarding.changeCurrency')}</Type>
+              <ChevronDown size={15} color={C.accent} strokeWidth={S.stroke} />
             </Pressable>
 
-            {/* Currency List */}
-            {/* 75 currencies in a 256px box with the indicator turned off
-                showed four rows and no sign the rest existed. Taller, and the
-                indicator is the only cue that it scrolls at all. */}
+            {/* 75 currencies in a short box with the indicator off showed four
+                rows and no sign the rest existed. Taller, and the indicator is
+                the only cue that it scrolls at all. */}
             {showCurrencyPicker && (
-              <ScrollView className="max-h-96 mb-4" showsVerticalScrollIndicator>
-                <Text style={{ color: C.textFaint }} className="text-xs mb-2 ms-1">{t('onboarding.popular')}</Text>
+              <ScrollView
+                style={{ maxHeight: 360, marginTop: 16 }}
+                showsVerticalScrollIndicator
+              >
+                <Type role="meta" color={C.inkDim} style={{ marginBottom: 8 }}>
+                  {t('onboarding.popular')}
+                </Type>
                 {popularCurrencies.map((c) => (
-                  <Pressable
+                  <ChoiceRow
                     key={c.code}
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      setCurrency(c);
-                      setShowCurrencyPicker(false);
-                    }}
-                    className="mb-2"
-                  >
-                    <View
-                      className="rounded-xl p-3 flex-row items-center justify-between"
-                      style={{
-                        backgroundColor: currency.code === c.code ? 'rgba(168, 85, 247, 0.2)' : 'rgba(255,255,255,0.05)',
-                      }}
-                    >
-                      <View className="flex-row items-center">
-                        <Text numberOfLines={1} className="text-base me-3 w-12">{c.symbol}</Text>
-                        <Text style={{ color: C.text }} >{c.code} - {c.name}</Text>
-                      </View>
-                      {currency.code === c.code && <Check size={18} color={C.p500} />}
-                    </View>
-                  </Pressable>
+                    pal={C}
+                    title={`${c.code} · ${c.symbol}`}
+                    body={c.name}
+                    selected={currency.code === c.code}
+                    onPress={() => { setCurrency(c); setShowCurrencyPicker(false); }}
+                    style={{ marginBottom: 8 }}
+                  />
                 ))}
 
-                <Text style={{ color: C.textFaint }} className="text-xs mb-2 mt-4 ms-1">{t('onboarding.allCurrencies')}</Text>
-                {CURRENCIES.filter(c => !popularCurrencies.find(p => p.code === c.code)).map((c) => (
-                  <Pressable
+                <Type role="meta" color={C.inkDim} style={{ marginTop: 16, marginBottom: 8 }}>
+                  {t('onboarding.allCurrencies')}
+                </Type>
+                {CURRENCIES.filter((c) => !popularCurrencies.find((pc) => pc.code === c.code)).map((c) => (
+                  <ChoiceRow
                     key={c.code}
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      setCurrency(c);
-                      setShowCurrencyPicker(false);
-                    }}
-                    className="mb-2"
-                  >
-                    <View
-                      className="rounded-xl p-3 flex-row items-center justify-between"
-                      style={{
-                        backgroundColor: currency.code === c.code ? 'rgba(168, 85, 247, 0.2)' : 'rgba(255,255,255,0.05)',
-                      }}
-                    >
-                      <View className="flex-row items-center">
-                        <Text numberOfLines={1} className="text-base me-3 w-12">{c.symbol}</Text>
-                        <Text style={{ color: C.text }} className="text-sm">{c.code} - {c.name}</Text>
-                      </View>
-                      {currency.code === c.code && <Check size={18} color={C.p500} />}
-                    </View>
-                  </Pressable>
+                    pal={C}
+                    title={`${c.code} · ${c.symbol}`}
+                    body={c.name}
+                    selected={currency.code === c.code}
+                    onPress={() => { setCurrency(c); setShowCurrencyPicker(false); }}
+                    style={{ marginBottom: 8 }}
+                  />
                 ))}
               </ScrollView>
             )}
@@ -217,96 +205,58 @@ export default function OnboardingScreen() {
 
       case 'income':
         return (
-          <View className="flex-1">
-            <Text style={{ color: C.text }} className="text-2xl font-bold mb-2">{t('onboarding.yourIncome')}</Text>
-            <Text style={{ color: C.textDim }} className="mb-6">{t('onboarding.incomeHint')}</Text>
+          <View>
+            <Type role="title" color={C.ink}>{t('onboarding.yourIncome')}</Type>
+            <Type role="body" color={C.inkDim} style={{ marginTop: 6, marginBottom: 24 }}>
+              {t('onboarding.incomeHint')}
+            </Type>
 
-            <View className="mb-6">
-              <Text style={{ color: C.textDim }} className="text-sm mb-2 ms-1">{t('onboarding.monthlyIncome')}</Text>
-              <View
-                className="flex-row items-center rounded-2xl px-4 py-4"
-                style={{ backgroundColor: C.glass }}
-              >
-                <View className="w-10 h-10 rounded-xl bg-green-500/20 items-center justify-center me-3">
-                  <DollarSign size={20} color="#22c55e" />
-                </View>
-                <Text style={{ color: C.text }} className="text-xl me-1">{currency.symbol}</Text>
-                <TextInput
-                  value={monthlyIncome}
-                  onChangeText={setMonthlyIncome}
-                  placeholder="5000"
-                  placeholderTextColor="#555"
-                  keyboardType="decimal-pad"
-                  returnKeyType="done"
-                  onSubmitEditing={Keyboard.dismiss}
-                  blurOnSubmit
-                  className="flex-1 text-xl font-semibold"
-                  selectionColor={C.p500}
-                />
-              </View>
-            </View>
+            <Field
+              pal={C}
+              label={t('onboarding.monthlyIncome')}
+              icon={<Type role="cardTitle" color={C.inkDim}>{currency.symbol}</Type>}
+              value={monthlyIncome}
+              onChangeText={setMonthlyIncome}
+              placeholder="5000"
+              keyboardType="decimal-pad"
+              returnKeyType="done"
+              onSubmitEditing={Keyboard.dismiss}
+              blurOnSubmit
+            />
 
-            <View>
-              <Text style={{ color: C.textDim }} className="text-sm mb-2 ms-1">{t('onboarding.savingsGoal')}</Text>
-              <View
-                className="flex-row items-center rounded-2xl px-4 py-4"
-                style={{ backgroundColor: C.glass }}
-              >
-                <View className="w-10 h-10 rounded-xl bg-purple-500/20 items-center justify-center me-3">
-                  <Target size={20} color={C.p500} />
-                </View>
-                <Text style={{ color: C.text }} className="text-xl me-1">{currency.symbol}</Text>
-                <TextInput
-                  value={savingsGoal}
-                  onChangeText={setSavingsGoal}
-                  placeholder="500"
-                  placeholderTextColor="#555"
-                  keyboardType="decimal-pad"
-                  returnKeyType="done"
-                  onSubmitEditing={Keyboard.dismiss}
-                  blurOnSubmit
-                  className="flex-1 text-xl font-semibold"
-                  selectionColor={C.p500}
-                />
-              </View>
-            </View>
+            <Field
+              pal={C}
+              label={t('onboarding.savingsGoal')}
+              icon={<Target size={19} color={C.inkDim} strokeWidth={S.stroke} />}
+              value={savingsGoal}
+              onChangeText={setSavingsGoal}
+              placeholder="500"
+              keyboardType="decimal-pad"
+              returnKeyType="done"
+              onSubmitEditing={Keyboard.dismiss}
+              blurOnSubmit
+              style={{ marginTop: 16 }}
+            />
           </View>
         );
 
       case 'goal':
         return (
-          <View className="flex-1">
-            <Text style={{ color: C.text }} className="text-2xl font-bold mb-2">{t('onboarding.primaryGoal')}</Text>
-            <Text style={{ color: C.textDim }} className="mb-6">{t('onboarding.primaryGoalHint')}</Text>
-
-            <View className="gap-3">
+          <View>
+            <Type role="title" color={C.ink}>{t('onboarding.primaryGoal')}</Type>
+            <Type role="body" color={C.inkDim} style={{ marginTop: 6, marginBottom: 24 }}>
+              {t('onboarding.primaryGoalHint')}
+            </Type>
+            <View style={{ gap: 12 }}>
               {PRIMARY_GOALS().map((goal) => (
-                <Pressable
+                <ChoiceRow
                   key={goal.id}
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    setPrimaryGoal(goal.id as typeof primaryGoal);
-                  }}
-                >
-                  <View
-                    className="rounded-2xl p-4 flex-row items-center"
-                    style={{
-                      backgroundColor: primaryGoal === goal.id ? 'rgba(168, 85, 247, 0.2)' : 'rgba(255,255,255,0.05)',
-                      borderWidth: primaryGoal === goal.id ? 1 : 0,
-                      borderColor: 'rgba(168, 85, 247, 0.5)',
-                    }}
-                  >
-                    <View className="flex-1">
-                      <Text style={{ color: C.text }} className="font-semibold text-lg">{goal.label}</Text>
-                      <Text style={{ color: C.textFaint }} className="text-sm">{goal.desc}</Text>
-                    </View>
-                    {primaryGoal === goal.id && (
-                      <View className="w-6 h-6 rounded-full bg-purple-500 items-center justify-center">
-                        <Check size={14} color="white" />
-                      </View>
-                    )}
-                  </View>
-                </Pressable>
+                  pal={C}
+                  title={goal.label}
+                  body={goal.desc}
+                  selected={primaryGoal === goal.id}
+                  onPress={() => setPrimaryGoal(goal.id as typeof primaryGoal)}
+                />
               ))}
             </View>
           </View>
@@ -314,43 +264,28 @@ export default function OnboardingScreen() {
 
       case 'style':
         return (
-          <View className="flex-1">
-            <Text style={{ color: C.text }} className="text-2xl font-bold mb-2">{t('onboarding.spendingStyle')}</Text>
-            <Text style={{ color: C.textDim }} className="mb-6">{t('onboarding.spendingStyleHint')}</Text>
-
-            <View className="gap-3">
+          <View>
+            <Type role="title" color={C.ink}>{t('onboarding.spendingStyle')}</Type>
+            <Type role="body" color={C.inkDim} style={{ marginTop: 6, marginBottom: 24 }}>
+              {t('onboarding.spendingStyleHint')}
+            </Type>
+            <View style={{ gap: 12 }}>
               {SPENDING_STYLES().map((style) => {
                 const Icon = style.icon;
                 return (
-                  <Pressable
+                  <ChoiceRow
                     key={style.id}
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      setSpendingStyle(style.id as typeof spendingStyle);
-                    }}
-                  >
-                    <View
-                      className="rounded-2xl p-4 flex-row items-center"
-                      style={{
-                        backgroundColor: spendingStyle === style.id ? 'rgba(168, 85, 247, 0.2)' : 'rgba(255,255,255,0.05)',
-                        borderWidth: spendingStyle === style.id ? 1 : 0,
-                        borderColor: 'rgba(168, 85, 247, 0.5)',
-                      }}
-                    >
-                      <View className="w-12 h-12 rounded-xl bg-purple-500/20 items-center justify-center me-4">
-                        <Icon size={24} color={C.p500} />
-                      </View>
-                      <View className="flex-1">
-                        <Text style={{ color: C.text }} className="font-semibold text-lg">{style.label}</Text>
-                        <Text style={{ color: C.textFaint }} className="text-sm">{style.desc}</Text>
-                      </View>
-                      {spendingStyle === style.id && (
-                        <View className="w-6 h-6 rounded-full bg-purple-500 items-center justify-center">
-                          <Check size={14} color="white" />
-                        </View>
-                      )}
-                    </View>
-                  </Pressable>
+                    pal={C}
+                    title={style.label}
+                    body={style.desc}
+                    selected={spendingStyle === style.id}
+                    onPress={() => setSpendingStyle(style.id as typeof spendingStyle)}
+                    icon={
+                      <IconTile pal={C}>
+                        <Icon size={20} color={C.accent} strokeWidth={S.stroke} />
+                      </IconTile>
+                    }
+                  />
                 );
               })}
             </View>
@@ -360,93 +295,62 @@ export default function OnboardingScreen() {
   };
 
   return (
-    <ScreenBackground>
-      {/* Header */}
-      <LinearGradient
-        colors={[C.p600, C.p500, C.p400, C.scheme === 'light' ? C.p300 : '#1e1b2e']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={{
-          paddingTop: insets.top + 20,
-          paddingBottom: 24,
-          paddingHorizontal: 24,
-          borderBottomLeftRadius: 32,
-          borderBottomRightRadius: 32,
-        }}
-      >
-        <Text className="text-white/70 text-sm">{t('onboarding.stepCounter', { step: step + 1, total: STEPS.length })}</Text>
-        <View className="flex-row mt-2 gap-2">
-          {STEPS.map((_, idx) => (
-            <View
-              key={idx}
-              className="flex-1 h-1 rounded-full"
-              style={{ backgroundColor: idx <= step ? '#fff' : 'rgba(255,255,255,0.3)' }}
-            />
-          ))}
-        </View>
-      </LinearGradient>
+    <Screen pal={C}>
+      <View style={{ paddingHorizontal: S.screen, paddingTop: 16 }}>
+        <Type role="meta" color={C.inkDim} style={{ marginBottom: 12 }}>
+          {t('onboarding.stepCounter', { step: step + 1, total: STEPS.length })}
+        </Type>
+        <StepProgress pal={C} total={STEPS.length} current={step} />
+      </View>
 
       <KeyboardAwareScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ flexGrow: 1, justifyContent: 'space-between' }}
+        contentContainerStyle={{ flexGrow: 1 }}
         keyboardShouldPersistTaps="handled"
         bottomOffset={20}
         showsVerticalScrollIndicator={false}
       >
-        {/* Content */}
-        <View className="px-6 pt-8">
+        {/* The step absorbs the slack, rather than `space-between` sharing it
+            out. Under KeyboardAwareScrollView the container is taller than the
+            viewport by the space it reserves for a keyboard, so "distribute
+            the gap between the two children" left the button floating well
+            above the bottom of the screen with a band of empty bone under it.
+            Making the top child grow puts the button on the floor whatever the
+            container decides its own height is. */}
+        <View style={{ flexGrow: 1, paddingHorizontal: S.screen, paddingTop: S.section }}>
           {renderStep()}
         </View>
 
-        {/* Navigation */}
-        <View className="px-6 pb-8" style={{ paddingBottom: insets.bottom + 24, paddingTop: 24 }}>
-          {saveMutation.isError && (
-            <View className="mb-3 px-4 py-3 rounded-xl" style={{ backgroundColor: 'rgba(239,68,68,0.15)', borderWidth: 1, borderColor: 'rgba(239,68,68,0.4)' }}>
-              <Text className="text-red-400 text-sm text-center">{t('onboarding.failed')}</Text>
-            </View>
-          )}
-          <View className="flex-row gap-3">
-            {step > 0 && (
-              <Pressable
+        <View style={{ paddingHorizontal: S.screen, paddingTop: 24, paddingBottom: insets.bottom + 24 }}>
+          {saveMutation.isError ? (
+            <FormError pal={C} message={t('onboarding.failed')} />
+          ) : null}
+          <View style={{ flexDirection: 'row', gap: 12, marginTop: 12 }}>
+            {step > 0 ? (
+              <PrimaryButton
+                pal={C}
+                variant="secondary"
+                label={t('common.back')}
                 onPress={prevStep}
-                className="flex-row items-center justify-center px-6 py-4 rounded-2xl"
-                style={{ backgroundColor: C.glass }}
-              >
-                <ArrowLeft size={20} color="#9ca3af" />
-                <Text style={{ color: C.textDim }} className="font-semibold ms-2">{t('common.back')}</Text>
-              </Pressable>
-            )}
-
-            <Pressable
+                style={{ flex: 1 }}
+              />
+            ) : null}
+            <PrimaryButton
+              pal={C}
+              label={
+                step === STEPS.length - 1
+                  ? saveMutation.isPending
+                    ? t('onboarding.settingUp')
+                    : t('onboarding.getStarted')
+                  : t('common.continue')
+              }
               onPress={nextStep}
               disabled={saveMutation.isPending}
-              className="flex-1 active:scale-98"
-            >
-              <LinearGradient
-                colors={saveMutation.isPending ? ['#374151', '#374151'] : [C.p600, C.p500]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={{
-                  borderRadius: 16,
-                  paddingVertical: 18,
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <Text className="text-white font-bold text-lg me-2">
-                  {step === STEPS.length - 1
-                    ? saveMutation.isPending
-                      ? t('onboarding.settingUp')
-                      : t('onboarding.getStarted')
-                    : t('common.continue')}
-                </Text>
-                {!saveMutation.isPending && <ArrowRight size={20} color="white" />}
-              </LinearGradient>
-            </Pressable>
+              style={{ flex: step > 0 ? 1.4 : 1 }}
+            />
           </View>
         </View>
       </KeyboardAwareScrollView>
-    </ScreenBackground>
+    </Screen>
   );
 }

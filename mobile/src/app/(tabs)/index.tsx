@@ -1,42 +1,47 @@
-import { View, ScrollView, Pressable } from 'react-native';
-import { badgeLabel } from '@/lib/badge-meta';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { ScrollView, View, useWindowDimensions } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useFocusEffect } from '@react-navigation/native';
+import { useRouter } from 'expo-router';
 import { format } from 'date-fns';
-import { getTransactions, getSettings, getAccounts, getSubscriptions } from '@/lib/db';
+import { Camera, MessageCircle, PieChart, PlusSquare, TabIcons, Wallet } from '@/components/icons';
+import { getAccounts, getSettings, getTransactions } from '@/lib/db';
 import {
-  calculateTodaySpent,
-  calculateWeekSpent,
-  calculateMonthSpent,
   calculateBalance,
-  calculateAverageDailySpend,
-  calculateSurvivalDays,
-  hasEnoughHistory,
   calculateImpulsePercentage,
-  calculateDisciplineGrade,
-  getDailySpendingData,
+  calculateLastWeekSpent,
   calculateLoggingStreak,
-  getUnlockedBadges,
+  calculateMonthSpent,
+  calculateWeekSpent,
   formatCurrency,
+  getUnlockedBadges,
   hasScorableActivity,
 } from '@/lib/calculations';
-import { calculateHealthScore } from '@/lib/health-score';
-import { getUpcomingCharges, monthlySubscriptionTotal } from '@/lib/subscription-detection';
-import { useFocusEffect } from '@react-navigation/native';
-import { useCallback, useRef, useEffect } from 'react';
+import { categoryLabel, categoryMarkIndex } from '@/lib/category-meta';
+import { pickHomeInsight, type InsightAction } from '@/lib/home-insight';
+import { dayOfMonth, daysInMonth } from '@/lib/dates';
+import { useSession } from '@/lib/auth/use-session';
 import { syncAchievements } from '@/lib/achievementsApi';
 import { presentBadgeEarned } from '@/lib/notifications';
-import { Flame, Zap, TrendingDown, Calendar, Award, Target, AlertTriangle, Sparkles, Wallet, ChevronRight, BarChart3, Heart, Building2, CreditCard } from 'lucide-react-native';
-import { useRouter } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
-import { CountUp, BreathingLight } from '@/components/motion';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import * as Haptics from 'expo-haptics';
-import Animated, { FadeInUp } from 'react-native-reanimated';
-import { R, glow, useC } from '@/lib/design';
-import { Txt, GlassCard, IconBubble, Pill, BubbleButton, ScreenBackground, EmptyState } from '@/components/ui';
+import { BAR, S, useC } from '@/lib/design';
+import {
+  BalanceCard,
+  BudgetLine,
+  Card,
+  CircleAction,
+  Empty,
+  Header,
+  Insight,
+  QuickAction,
+  Row,
+  Screen,
+  SectionHeader,
+  Type,
+} from '@/components/kit';
 import { t, getDateFnsLocale } from '@/lib/i18n/core';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-function getGreeting(): string {
+function greetingWord(): string {
   const hour = new Date().getHours();
   if (hour < 12) return t('greeting.morning');
   if (hour < 17) return t('greeting.afternoon');
@@ -44,90 +49,64 @@ function getGreeting(): string {
   return t('greeting.night');
 }
 
-// Small staggered reveal wrapper to keep the screen feeling alive & bubbly.
-function Section({ children, delay = 0, style }: { children: React.ReactNode; delay?: number; style?: any }) {
-  return (
-    <Animated.View entering={FadeInUp.delay(delay).springify().damping(16)} style={style}>
-      {children}
-    </Animated.View>
-  );
-}
-
-export default function DashboardScreen() {
+/**
+ * Home — DESIGN-PROMPT.md §12, built to the four-item rule in §5.
+ *
+ * What used to be here: balance, a budget meter, a 14-day chart, a health
+ * score, a streak, badges, accounts and recent activity, stacked. What is here
+ * now: a greeting and the balance, one budget line, one insight, five rows of
+ * recent activity. Everything else moved to Insights and to the balance card's
+ * own detail screen — one tap deeper, nothing deleted (§5).
+ *
+ * The hardest part of this screen is what it refuses to say. When in doubt
+ * about whether something belongs, it doesn't.
+ */
+export default function HomeScreen() {
+  const insets = useSafeAreaInsets();
   const C = useC();
   const router = useRouter();
-  const insets = useSafeAreaInsets();
-  const hasMounted = useRef(false);
   const queryClient = useQueryClient();
+  const hasMounted = useRef(false);
+  const [page, setPage] = useState(0);
 
-  // Refetch on focus, but do not change the query keys to do it.
-  // Keying on a counter mints a brand-new query with no cache, so
-  // every return to this screen rendered once with empty data before
-  // the rows came back — a visible flash, and now a flash of the
-  // first-run empty state. Invalidating keeps the last data on screen
-  // while the refetch runs.
+  // Refetch on focus, but do not change the query keys to do it. Keying on a
+  // counter mints a brand-new query with no cache, so every return to this
+  // screen rendered once with empty data before the rows came back — a visible
+  // flash, and a flash of the first-run empty state. Invalidating keeps the
+  // last data on screen while the refetch runs.
   useFocusEffect(
     useCallback(() => {
       if (!hasMounted.current) {
         hasMounted.current = true;
         return;
       }
-      for (const key of ['accounts', 'settings', 'subscriptions', 'transactions']) {
+      for (const key of ['accounts', 'settings', 'transactions']) {
         queryClient.invalidateQueries({ queryKey: [key] });
       }
     }, [queryClient])
   );
 
-  const { data: transactions = [] } = useQuery({
-    queryKey: ['transactions'],
-    queryFn: getTransactions,
-  });
+  const { data: transactions = [] } = useQuery({ queryKey: ['transactions'], queryFn: getTransactions });
+  const { data: settings } = useQuery({ queryKey: ['settings'], queryFn: getSettings });
+  const { data: accounts = [] } = useQuery({ queryKey: ['accounts'], queryFn: getAccounts });
+  const { data: session } = useSession();
 
-  const { data: settings } = useQuery({
-    queryKey: ['settings'],
-    queryFn: getSettings,
-  });
+  const firstName = session?.user?.name?.split(' ')[0];
+  const title = firstName
+    ? t('home.greetingName', { greeting: greetingWord(), name: firstName })
+    : greetingWord();
 
-  const { data: accounts = [] } = useQuery({
-    queryKey: ['accounts'],
-    queryFn: getAccounts,
-  });
-
-  const { data: allSubscriptions = [] } = useQuery({
-    queryKey: ['subscriptions'],
-    queryFn: () => getSubscriptions(),
-  });
-
-  const upcomingCharges = getUpcomingCharges(allSubscriptions, 7);
-  const subMonthlyTotal = monthlySubscriptionTotal(allSubscriptions);
-
-  const totalAccountBalance = accounts.reduce((sum, acc) => {
-    const adjustedBalance = acc.type === 'credit' ? -acc.balance : acc.balance;
-    return sum + adjustedBalance;
-  }, 0);
-
-  const todaySpent = calculateTodaySpent(transactions);
-  const weekSpent = calculateWeekSpent(transactions);
-  const monthSpent = calculateMonthSpent(transactions);
   const balance = calculateBalance(settings?.startingBalance ?? 0, transactions);
-  const avgDailySpend = calculateAverageDailySpend(transactions);
-  // Below a week of history one purchase dominates the average, so the runway
-  // figure would be noise dressed up as a number.
-  const enoughHistory = hasEnoughHistory(transactions);
-  const survivalDays = enoughHistory
-    ? calculateSurvivalDays(balance, avgDailySpend)
-    : null;
-  const impulsePercent = calculateImpulsePercentage(transactions);
-  const disciplineGrade = calculateDisciplineGrade(settings?.monthlyBudget ?? 0, monthSpent);
-  const dailyData = getDailySpendingData(transactions);
+  const monthSpent = calculateMonthSpent(transactions);
+  const monthlyBudget = settings?.monthlyBudget ?? 0;
+  const scorable = hasScorableActivity(transactions);
   const streak = calculateLoggingStreak(transactions);
-  const badges = getUnlockedBadges(
-    transactions,
-    streak,
-    monthSpent,
-    settings?.monthlyBudget ?? 0
-  );
 
+  // Badges moved to Insights, but earning one is not a screen — it is a side
+  // effect of having recorded something, and this is the screen every session
+  // passes through. Dropping it with the badge *display* would have quietly
+  // stopped both the backend sync and the "you earned a badge" notification.
+  const badges = getUnlockedBadges(transactions, streak, monthSpent, monthlyBudget);
   const lastSyncedRef = useRef<string>('');
   useEffect(() => {
     const key = `${streak}|${badges.join(',')}`;
@@ -138,439 +117,265 @@ export default function DashboardScreen() {
       .catch(() => {});
   }, [badges, streak]);
 
-  // getDailySpendingData always returns the full 14-day window, zero-filled,
-  // so its length says nothing about whether anything was spent.
-  const hasChartData = dailyData.some((d) => d.amount > 0);
-  const maxDaily = Math.max(...dailyData.map(d => d.amount), 1);
-  const maxSpending = Math.max(100, maxDaily * 1.2);
+  const insight = pickHomeInsight({
+    scorable,
+    monthSpent,
+    monthlyBudget,
+    weekSpent: calculateWeekSpent(transactions),
+    lastWeekSpent: calculateLastWeekSpent(transactions),
+    impulsePercent: calculateImpulsePercentage(transactions),
+    streak,
+    savingsGoal: settings?.savingsGoal ?? 0,
+    projectedSavings: (settings?.monthlyIncome ?? 0) - monthSpent,
+    dayOfMonth: dayOfMonth(),
+    daysInMonth: daysInMonth(),
+    money: formatCurrency,
+  });
 
-  // Every scored metric below measures spending behaviour, so with nothing
-  // recorded they do not read low — they read *well*: a fresh account scores
-  // 70 (B+) because it has "saved" 100% of its income and used 0% of its
-  // budget. Gate them rather than congratulate someone who has done nothing.
-  const scorable = hasScorableActivity(transactions);
-  const healthScore = settings && scorable ? calculateHealthScore(transactions, settings) : null;
-
-  const budgetUsedPercent = settings?.monthlyBudget
-    ? Math.round((monthSpent / settings.monthlyBudget) * 100)
-    : 0;
-  const savingsGoal = settings?.savingsGoal || 0;
-  const monthlyIncome = settings?.monthlyIncome || 0;
-  const currentSavings = monthlyIncome - monthSpent;
-  const onTrackForSavings = currentSavings >= savingsGoal;
-  const daysInMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate();
-  const dayOfMonth = new Date().getDate();
-  const expectedBudgetUsed = (dayOfMonth / daysInMonth) * 100;
-  const isOverspending = budgetUsedPercent > expectedBudgetUsed + 10;
-  const isUnderspending = budgetUsedPercent < expectedBudgetUsed - 10;
-
-  const getFeedback = () => {
-    // isUnderspending is trivially true at 0% of budget, so without this the
-    // first thing a new account is told is that its spending control is great.
-    if (!scorable) return null;
-    if (budgetUsedPercent >= 100) {
-      return { icon: AlertTriangle, color: C.rose, title: t('feedback.exceededTitle'), message: t('feedback.exceededBody', { percent: budgetUsedPercent }) };
-    }
-    if (budgetUsedPercent >= 90) {
-      return { icon: AlertTriangle, color: C.p400, title: t('feedback.almostTitle'), message: t('feedback.almostBody', { percent: budgetUsedPercent, days: daysInMonth - dayOfMonth }) };
-    }
-    if (isOverspending) {
-      return { icon: AlertTriangle, color: C.p400, title: t('feedback.aheadTitle'), message: t('feedback.aheadBody') };
-    }
-    if (impulsePercent > 40) {
-      return { icon: Zap, color: C.rose, title: t('feedback.impulseTitle'), message: t('feedback.impulseBody', { percent: impulsePercent }) };
-    }
-    if (onTrackForSavings && savingsGoal > 0) {
-      return { icon: Sparkles, color: C.green, title: t('feedback.savingsTitle'), message: t('feedback.savingsBody', { amount: formatCurrency(currentSavings) }) };
-    }
-    if (isUnderspending) {
-      return { icon: Sparkles, color: C.green, title: t('feedback.controlTitle'), message: t('feedback.controlBody') };
-    }
-    if (streak >= 7) {
-return { icon: Flame, color: C.p400, title: t('feedback.streakTitle', { days: streak }), message: t('feedback.streakBody') };
-    }
-    if (disciplineGrade === 'A') {
-      return { icon: Award, color: C.p400, title: t('feedback.disciplineTitle'), message: t('feedback.disciplineBody', { percent: budgetUsedPercent }) };
-    }
-    return null;
+  const ROUTES: Record<InsightAction, string> = {
+    seeSpending: '/analytics',
+    setBudget: '/category-budgets',
+    setGoal: '/onboarding',
+    ask: '/(tabs)/advisor',
+    seeImpulse: '/analytics?tab=insights',
   };
 
-  const feedback = getFeedback();
-  const go = (path: string) => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push(path as any); };
+  const budgetSentence = () => {
+    if (monthlyBudget <= 0) return t('home.budgetNone');
+    const remaining = monthlyBudget - monthSpent;
+    return remaining >= 0
+      ? t('home.budgetLeft', { left: formatCurrency(remaining), budget: formatCurrency(monthlyBudget) })
+      : t('home.budgetOver', { amount: formatCurrency(-remaining), budget: formatCurrency(monthlyBudget) });
+  };
+
+  // The carousel: total balance first, then one card per account, each clipped
+  // by the screen edge so the next one peeks (§1.9, §6.1).
+  // useWindowDimensions rather than Dimensions.get, so the carousel re-measures
+  // on rotation and in iPad split view instead of keeping its first width.
+  const { width } = useWindowDimensions();
+  const cardWidth = width - S.screen * 2 - 34;
+  const cards = [
+    {
+      key: 'total',
+      label: t('home.balanceLabel'),
+      amount: balance,
+      caption: t('home.balanceCaption', { count: accounts.length }),
+    },
+    ...accounts.map((a) => ({
+      key: a.id,
+      label: a.name,
+      // A credit account's balance is what you owe, so it reads as negative
+      // against the others rather than adding to them.
+      amount: a.type === 'credit' ? -a.balance : a.balance,
+      // The stored type is `credit`; the string is keyed `creditCard`. Every
+      // other type keys straight through.
+      caption: a.type === 'credit'
+        ? t('accountTypes.creditCard')
+        : t(`accountTypes.${a.type}`),
+    })),
+  ];
+
+  const recent = transactions.slice(0, 5);
+  const firstRun = transactions.length === 0 && accounts.length === 0;
 
   return (
-    <ScreenBackground>
-      <ScrollView
-        className="flex-1"
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 120 }}
-      >
-        {/* ── Header + balance ── */}
-        <View style={{ paddingTop: insets.top + 14, paddingHorizontal: 20 }}>
-          <Txt weight="semibold" size={15} color={C.lilac}>{getGreeting()}</Txt>
-          <View className="flex-row items-center justify-between mt-1">
-            {/* The app name, deliberately untranslated. */}
-            <Txt weight="bold" size={32} color={C.text}>Budget</Txt>
-{/* Unconditional praise reads as noise on an account with nothing in
-                it — same reason the feedback banner is gated. */}
-            {scorable && <Pill label={t('dashboard.doingGreat')} color={C.p400} />}
-          </View>
-          <Txt weight="medium" size={13} color={C.textFaint} style={{ marginTop: 4 }}>
-            {format(new Date(), 'EEEE, MMMM d', { locale: getDateFnsLocale() })}
-          </Txt>
+    <Screen pal={C}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingTop: 8, paddingBottom: BAR.clearance(insets.bottom) }}>
+        {/* The greeting is a greeting, not the headline — see Header's `role`.
+            Every finance app worth the comparison leads with the number, so
+            this sits at `section` and the hero below it is what the eye lands
+            on, which is the order §1.1 asked for all along. */}
+        <Header
+          pal={C}
+          title={title}
+          role="section"
+          actions={
+            <CircleAction pal={C} label={t('home.ask')} onPress={() => router.push('/(tabs)/advisor')}>
+              <MessageCircle size={19} color={C.ink} strokeWidth={S.stroke} />
+            </CircleAction>
+          }
+        />
 
-          {/* Balance hero card */}
-          {/* The app's one authored moment. Everything else on this screen
-              stays still so that this reads as a peak rather than as more of
-              the same — seventy identical entrances was what made the old
-              version feel flat. */}
-          <Section delay={40}>
-            <LinearGradient
-              colors={[C.p700, C.p600, C.p800]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={[{ borderRadius: R.xl, padding: 22, marginTop: 18, overflow: 'hidden' }, glow(C.p600, 0.45, 26, C.glowScale)]}
+        {firstRun ? (
+          <Empty
+            pal={C}
+            icon={<Wallet size={26} color={C.accent} strokeWidth={S.stroke} />}
+            title={t('home.emptyTitle')}
+            body={t('home.emptyBody')}
+            actionLabel={t('home.emptyAction')}
+            onAction={() => router.push('/(tabs)/add')}
+            style={{ marginTop: 80 }}
+          />
+        ) : (
+          <>
+            {/* 1 — the balance */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              snapToInterval={cardWidth + 12}
+              decelerationRate="fast"
+              // Horizontal ScrollViews fill their parent without this.
+              style={{ flexGrow: 0, marginTop: 24 }}
+              contentContainerStyle={{ paddingHorizontal: S.screen, gap: 12 }}
+              onMomentumScrollEnd={(e) =>
+                setPage(Math.round(e.nativeEvent.contentOffset.x / (cardWidth + 12)))
+              }
             >
-              {/* The decorative blob, now breathing. It sits on the card's own
-                  gradient, which is where there is enough contrast for the
-                  motion to actually register. */}
-              <BreathingLight color={C.glassStrong} />
-              <View className="flex-row items-center justify-between">
-                <Txt weight="semibold" size={13} color="rgba(255,255,255,0.8)">{t('dashboard.currentBalance')}</Txt>
-                <IconBubble color="#ffffff" size={36} radius={14} style={{ backgroundColor: 'rgba(255,255,255,0.18)', borderColor: C.glassBorder }}>
-                  <Wallet size={18} color="#fff" />
-                </IconBubble>
-              </View>
-              <CountUp
-                value={balance}
-                format={formatCurrency}
-                size={42}
-                color="#fff"
-                style={{ marginTop: 6 }}
-              />
+              {cards.map((c, i) => (
+                <BalanceCard
+                  key={c.key}
+                  pal={C}
+                  label={c.label}
+                  amount={c.amount}
+                  caption={c.caption}
+                  format={formatCurrency}
+                  onPress={() => router.push('/accounts')}
+                  style={{ width: cardWidth }}
+                  // One gradient moment per screen (§1.10): only the first card
+                  // carries the arc, so scrolling the carousel does not turn it
+                  // into a pattern.
+                  plain={i > 0}
+                />
+              ))}
+            </ScrollView>
 
-              <View className="flex-row justify-between items-end" style={{ marginTop: 18 }}>
-                <View className="flex-row items-center" style={{ gap: 10 }}>
-                  <IconBubble color="#ffffff" size={40} style={{ backgroundColor: 'rgba(255,255,255,0.16)', borderColor: C.glassBorder }}>
-                    <Calendar size={19} color="#fff" />
-                  </IconBubble>
-                  <View>
-                    <Txt size={11} color="rgba(255,255,255,0.65)">
-                      {enoughHistory ? t('dashboard2.survival') : t('dashboard2.survivalNeedWeek')}
-                    </Txt>
-                    <Txt weight="bold" size={19} color="#fff">
-                      {survivalDays === null ? '—' : t('dashboard2.daysCount', { count: survivalDays })}
-                    </Txt>
-                  </View>
-                </View>
-                <View className="items-end">
-                  <Txt size={11} color="rgba(255,255,255,0.65)">{t('dashboard.avgDaily')}</Txt>
-                  <Txt weight="semibold" size={17} color="#fff">{formatCurrency(avgDailySpend)}</Txt>
-                </View>
-              </View>
-            </LinearGradient>
-          </Section>
-        </View>
-
-        {/* ── First run ── */}
-        {!scorable && (
-          <Section delay={80} style={{ paddingHorizontal: 20, marginTop: 16 }}>
-            <GlassCard radius={R.lg}>
-              <EmptyState
-                compact
-                icon={<Sparkles size={26} color={C.p400} />}
-                title={t('common.firstRunTitle')}
-                body={t('common.firstRunBody')}
-                actionLabel={t('common.firstRunAction')}
-                onAction={() => go('/(tabs)/add')}
-              />
-            </GlassCard>
-          </Section>
-        )}
-
-        {/* ── Feedback banner ── */}
-        {feedback && (
-          <Section delay={80} style={{ paddingHorizontal: 20, marginTop: 16 }}>
-            <GlassCard tint={`${feedback.color}1a`} border={`${feedback.color}3a`} radius={R.lg}>
-              <View className="flex-row items-start" style={{ gap: 12 }}>
-                <IconBubble color={feedback.color}>
-                  <feedback.icon size={20} color={feedback.color} />
-                </IconBubble>
-                <View className="flex-1">
-                  <Txt weight="bold" size={15} color={C.text}>{feedback.title}</Txt>
-                  <Txt size={13} color={C.textDim} style={{ marginTop: 3, lineHeight: 19 }}>{feedback.message}</Txt>
-                </View>
-              </View>
-            </GlassCard>
-          </Section>
-        )}
-
-        {/* ── Accounts summary ── */}
-        {accounts.length > 0 && (
-          <Section delay={110} style={{ paddingHorizontal: 20, marginTop: 14 }}>
-            <Pressable onPress={() => go('/accounts')}>
-              <GlassCard tint={`${C.p500}14`} border={`${C.p500}2e`}>
-                <View className="flex-row items-center justify-between mb-3">
-                  <View className="flex-row items-center flex-1" style={{ gap: 8 }}>
-                    <Wallet size={15} color={C.p400} />
-                    <Txt weight="semibold" size={12} color={C.p300}>{t('dashboard.myAccounts')}</Txt>
-                  </View>
-                  <View className="flex-row items-center" style={{ gap: 4 }}>
-                    <Txt size={11} color={C.textFaint}>{t('dashboard.viewAll')}</Txt>
-                    <ChevronRight size={14} color={C.p400} />
-                  </View>
-                </View>
-                <View className="flex-row items-center justify-between">
-                  <View>
-                    <Txt size={11} color={C.textFaint}>{t('dashboard.totalBalance')}</Txt>
-                    <Txt weight="bold" size={24} color={C.text}>{settings?.currencySymbol || '$'}{totalAccountBalance.toFixed(2)}</Txt>
-                  </View>
-                  <View className="flex-row">
-                    {accounts.slice(0, 3).map((account, idx) => (
-                      <View key={account.id} style={{ width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: account.color, marginStart: idx > 0 ? -10 : 0, borderWidth: 2, borderColor: C.bg }}>
-                        <Txt weight="bold" size={12} color="#fff">{account.name.charAt(0)}</Txt>
-                      </View>
-                    ))}
-                    {accounts.length > 3 && (
-                      <View style={{ width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: C.bgRaise, marginStart: -10, borderWidth: 2, borderColor: C.bg }}>
-                        <Txt weight="bold" size={12} color="#fff">+{accounts.length - 3}</Txt>
-                      </View>
-                    )}
-                  </View>
-                </View>
-              </GlassCard>
-            </Pressable>
-          </Section>
-        )}
-
-        {/* ── Quick stats ── */}
-        <Section delay={140} style={{ paddingHorizontal: 20, marginTop: 18 }}>
-          <View className="flex-row" style={{ gap: 12, marginBottom: 12 }}>
-            <GlassCard style={{ flex: 1 }} tint={`${C.rose}14`} border={`${C.rose}2a`} radius={R.lg}>
-              <View className="flex-row items-center mb-2" style={{ gap: 8 }}>
-                <IconBubble color={C.rose} size={32} radius={12}><TrendingDown size={15} color={C.rose} /></IconBubble>
-                <Txt size={11} color={C.textDim}>{t('dashboard.today')}</Txt>
-              </View>
-              <Txt weight="bold" size={21} color={C.text}>{formatCurrency(todaySpent)}</Txt>
-            </GlassCard>
-            <GlassCard style={{ flex: 1 }} tint={`${C.p500}14`} border={`${C.p500}2a`} radius={R.lg}>
-              <View className="flex-row items-center mb-2" style={{ gap: 8 }}>
-                <IconBubble color={C.p400} size={32} radius={12}><Zap size={15} color={C.p400} /></IconBubble>
-                <Txt size={11} color={C.textDim}>{t('dashboard.thisWeek')}</Txt>
-              </View>
-              <Txt weight="bold" size={21} color={C.text}>{formatCurrency(weekSpent)}</Txt>
-            </GlassCard>
-          </View>
-
-          <GlassCard tint={`${C.p600}14`} border={`${C.p600}2a`} radius={R.lg}>
-            <View className="flex-row justify-between items-center">
-              <View className="flex-row items-center" style={{ gap: 12 }}>
-                <IconBubble color={C.p500} size={42}><Flame size={20} color={C.p400} /></IconBubble>
-                <View>
-                  <Txt size={11} color={C.textDim}>{t('dashboard.thisMonth')}</Txt>
-                  <Txt weight="bold" size={24} color={C.text}>{formatCurrency(monthSpent)}</Txt>
-                </View>
-              </View>
-              <View className="items-end">
-                <Txt size={11} color={C.textFaint}>{t('dashboard.budget')}</Txt>
-                <Txt weight="semibold" size={14} color={C.textDim}>{formatCurrency(settings?.monthlyBudget ?? 0)}</Txt>
-              </View>
-            </View>
-          </GlassCard>
-        </Section>
-
-        {/* ── Discipline + impulse ──
-            Both are verdicts on spending. With none recorded, the grade is an
-            arbitrary C and impulse is a confident 0%. */}
-        {scorable && (
-        <Section delay={170} style={{ paddingHorizontal: 20, marginTop: 12 }}>
-          <View className="flex-row" style={{ gap: 12 }}>
-            <GlassCard style={{ flex: 1 }} tint={`${C.p500}14`} border={`${C.p500}2a`} radius={R.lg}>
-              <View className="flex-row items-center mb-3" style={{ gap: 8 }}>
-                <Target size={15} color={C.p400} />
-                <Txt size={11} color={C.textDim}>{t('dashboard.discipline')}</Txt>
-              </View>
-              <View className="flex-row items-center" style={{ gap: 12 }}>
-                <View style={{ width: 54, height: 54, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: `${C.p500}26` }}>
-                  <Txt weight="bold" size={28} color={C.text}>{disciplineGrade}</Txt>
-                </View>
-                <View className="flex-1">
-                  <View style={{ height: 8, borderRadius: 999, backgroundColor: C.glassStrong, overflow: 'hidden' }}>
-                    <View style={{ height: '100%', borderRadius: 999, width: `${Math.min(budgetUsedPercent, 100)}%`, backgroundColor: C.p500 }} />
-                  </View>
-                  <Txt size={11} color={C.textFaint} style={{ marginTop: 5 }}>{t('dashboard.percentUsed', { percent: budgetUsedPercent })}</Txt>
-                </View>
-              </View>
-            </GlassCard>
-            <GlassCard style={{ flex: 1 }} tint={`${C.rose}14`} border={`${C.rose}2a`} radius={R.lg}>
-              <View className="flex-row items-center mb-3" style={{ gap: 8 }}>
-                <Zap size={15} color={C.rose} />
-                <Txt size={11} color={C.textDim}>{t('dashboard.impulse')}</Txt>
-              </View>
-              <Txt weight="bold" size={36} color={C.text}>{impulsePercent}%</Txt>
-              <Txt size={11} color={C.textFaint} style={{ marginTop: 2 }}>{t('dashboard2.ofPurchases')}</Txt>
-            </GlassCard>
-          </View>
-        </Section>
-        )}
-
-        {/* ── Streak ── */}
-        <Section delay={200} style={{ paddingHorizontal: 20, marginTop: 12 }}>
-          <GlassCard tint={`${C.p700}1f`} border={`${C.p700}40`}>
-            <View className="flex-row items-center justify-between">
-              <View className="flex-row items-center" style={{ gap: 12 }}>
-                <LinearGradient colors={[C.p600, C.p400]} style={[{ width: 52, height: 52, borderRadius: 20, alignItems: 'center', justifyContent: 'center' }, glow(C.p500, 0.4, 12, C.glowScale)]}>
-                  <Flame size={22} color={C.p400} />
-                </LinearGradient>
-                <View>
-                  <Txt size={11} color={C.textDim}>{t('dashboard.loggingStreak')}</Txt>
-                  <Txt weight="bold" size={22} color={C.text}>{t('dashboard2.streakDays', { count: streak })}</Txt>
-                  {streak >= 3 && <Txt size={11} color={C.p300} style={{ marginTop: 1 }}>{t('dashboard.keepItUp')}</Txt>}
-                </View>
-              </View>
-{badges.length > 0 && <Pill label={t('dashboard2.badgeCount', { count: badges.length })} color={C.p400} />}
-            </View>
-          </GlassCard>
-        </Section>
-
-        {/* ── Badges ── */}
-        {badges.length > 0 && (
-          <Section delay={220} style={{ paddingHorizontal: 20, marginTop: 12 }}>
-            <GlassCard tint={`${C.p700}14`} border={`${C.p700}28`}>
-              <View className="flex-row items-center mb-3" style={{ gap: 8 }}>
-                <Award size={15} color={C.p400} />
-                <Txt weight="semibold" size={12} color={C.p300}>{t('dashboard.badges')}</Txt>
-              </View>
-              <View className="flex-row flex-wrap" style={{ gap: 8 }}>
-                {badges.map((badge, idx) => (
-<Pill key={idx} label={badgeLabel(badge)} color={C.p400} />
+            {cards.length > 1 ? (
+              <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 6, marginTop: 12 }}>
+                {cards.map((c, i) => (
+                  <View
+                    key={c.key}
+                    style={{
+                      width: 6,
+                      height: 6,
+                      borderRadius: 3,
+                      backgroundColor: i === page ? C.ink : C.groundSunk,
+                    }}
+                  />
                 ))}
               </View>
-            </GlassCard>
-          </Section>
-        )}
+            ) : null}
 
-        {/* ── 14-day chart ── */}
-        <Section delay={250} style={{ paddingHorizontal: 20, marginTop: 12 }}>
-          <GlassCard>
-            <Txt size={12} color={C.textDim} style={{ marginBottom: 14 }}>{t('dashboard.last14Days')}</Txt>
-            <View style={{ height: 112, flexDirection: 'row', alignItems: 'flex-end', gap: 5 }}>
-              {hasChartData ? (
-                dailyData.map((day, idx) => {
-                  const height = (day.amount / maxSpending) * 100;
-                  const isToday = idx === dailyData.length - 1;
-                  return (
-                    <View key={idx} style={{ flex: 1, height: `${Math.max(height, 8)}%`, borderRadius: 8, backgroundColor: isToday ? C.p400 : `${C.p500}40` }} />
-                  );
-                })
+            {/* The four places people go straight from here.
+                §6.8 has had this component since the redesign and nothing
+                rendered it, so every one of these was two taps away behind a
+                tab. It sits at `S.group` from the balance because it belongs
+                to it — this whole block is "your money and what to do with
+                it" — and the next block is a full `S.section` away. */}
+            <View
+              style={{
+                flexDirection: 'row',
+                paddingHorizontal: S.screen,
+                gap: 12,
+                marginTop: cards.length > 1 ? S.group : 24,
+              }}
+            >
+              <QuickAction
+                pal={C}
+                label={t('home.quickAdd')}
+                Icon={PlusSquare}
+                onPress={() => router.push('/(tabs)/add')}
+              />
+              <QuickAction
+                pal={C}
+                label={t('home.quickScan')}
+                Icon={Camera}
+                onPress={() => router.push('/receipt-scan')}
+              />
+              {/* The bar's own Insights glyph, not `Sparkles`.
+
+                  Both open the same screen, and they were wearing different
+                  icons for it — a shortcut whose picture disagrees with the
+                  destination's is worse than no shortcut. Sparkles lost for the
+                  reason the generator already records for the tab: it says
+                  "AI", and the page is charts.
+
+                  Add is *not* held to the same rule, and the difference is the
+                  register rather than the subject. Sparkles and a bar chart are
+                  two different pictures of one page. `PlusSquare` and the bar's
+                  plus are the same mark twice: a hairline cross reads correctly
+                  in a bar of hairline glyphs and reads like a mistake in a row
+                  of solid ones. Matching the neighbours it is actually beside
+                  is what both choices come down to. */}
+              <QuickAction
+                pal={C}
+                label={t('home.quickInsights')}
+                Icon={TabIcons.insights.fill}
+                onPress={() => router.push('/(tabs)/insights')}
+              />
+              <QuickAction
+                pal={C}
+                label={t('home.quickBudgets')}
+                Icon={PieChart}
+                onPress={() => router.push('/category-budgets')}
+              />
+            </View>
+
+            {/* 2 — one budget line */}
+            <BudgetLine
+              pal={C}
+              sentence={budgetSentence()}
+              spent={monthSpent}
+              budget={monthlyBudget}
+              style={{ marginTop: S.section }}
+            />
+
+            {/* 3 — one insight, in plain English */}
+            {insight ? (
+              <Insight
+                pal={C}
+                text={t(`home.insight.${insight.key}`, insight.params)}
+                actions={insight.actions.map((a) => ({
+                  label: t(`home.action.${a}`),
+                  onPress: () => router.push(ROUTES[a] as never),
+                }))}
+                // `group`, not `section`: the budget line and the sentence
+                // about it are one thought.
+                style={{ marginTop: S.group }}
+              />
+            ) : null}
+
+            {/* 4 — recent activity */}
+            <View style={{ marginTop: S.section }}>
+              <SectionHeader
+                pal={C}
+                title={t('home.recent')}
+                actionLabel={recent.length > 0 ? t('home.seeAll') : undefined}
+                onAction={recent.length > 0 ? () => router.push('/(tabs)/transactions') : undefined}
+              />
+              {recent.length > 0 ? (
+                <View style={{ paddingHorizontal: S.screen }}>
+                  <Card pal={C} padding={0} contentStyle={{ paddingHorizontal: S.card }}>
+                    {recent.map((tx, i) => (
+                      <View
+                        key={tx.id}
+                        style={i > 0 ? { borderTopWidth: 1, borderTopColor: C.hairline } : undefined}
+                      >
+                        <Row
+                          pal={C}
+                          title={tx.note?.trim() || categoryLabel(tx.category)}
+                          meta={`${categoryLabel(tx.category)} · ${format(new Date(`${tx.dateISO}T12:00:00`), 'd MMM', { locale: getDateFnsLocale() })}`}
+                          amount={tx.type === 'Income' ? tx.amount : -tx.amount}
+                          format={formatCurrency}
+                          markColor={C.cat[categoryMarkIndex(tx.category, C.cat.length)]}
+                          onPress={() => router.push('/(tabs)/transactions')}
+                        />
+                      </View>
+                    ))}
+                  </Card>
+                </View>
               ) : (
-                <View className="flex-1 items-center justify-center">
-                  <Txt size={13} color={C.textFaint} style={{ textAlign: 'center' }}>{t('common.noChartData')}</Txt>
+                <View style={{ paddingHorizontal: S.screen }}>
+                  <Card pal={C}>
+                    <Type role="body" color={C.inkDim}>
+                      {t('home.recentEmpty')}
+                    </Type>
+                  </Card>
                 </View>
               )}
             </View>
-{hasChartData && <Txt size={11} color={C.textFaint} style={{ textAlign: 'center', marginTop: 12 }}>{t('dashboard.peak', { amount: formatCurrency(maxDaily) })}</Txt>}
-          </GlassCard>
-        </Section>
-
-        {/* ── Smart Analytics ── */}
-        <Section delay={270} style={{ paddingHorizontal: 20, marginTop: 12 }}>
-          <Pressable onPress={() => go('/analytics')}>
-            <GlassCard tint={`${C.p700}16`} border={`${C.p700}2e`}>
-              <View className="flex-row items-center justify-between">
-                <View className="flex-row items-center flex-1" style={{ gap: 12 }}>
-                  <IconBubble color={C.p500} size={48} radius={18}><BarChart3 size={23} color={C.p400} /></IconBubble>
-                  <View className="flex-1">
-                    <Txt weight="bold" size={15} color={C.text}>{t('dashboard.smartAnalytics')}</Txt>
-                    <Txt size={12} color={C.textDim} style={{ marginTop: 1 }}>{t('dashboard.smartAnalyticsHint')}</Txt>
-                  </View>
-                </View>
-                <ChevronRight size={20} color={C.p400} />
-              </View>
-            </GlassCard>
-          </Pressable>
-        </Section>
-
-        {/* ── Health score ── */}
-        {healthScore && (
-          <Section delay={290} style={{ paddingHorizontal: 20, marginTop: 12 }}>
-            <Pressable onPress={() => go('/health-score')}>
-              <LinearGradient colors={[C.p800, C.p600, C.p400]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[{ borderRadius: R.lg, padding: 18 }, glow(C.p500, 0.4, 20, C.glowScale)]}>
-                <View className="flex-row items-center justify-between">
-                  <View className="flex-row items-center" style={{ gap: 12 }}>
-                    <View style={{ width: 54, height: 54, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.18)' }}>
-                      <Txt weight="bold" size={22} color="#fff">{healthScore.totalScore}</Txt>
-                    </View>
-                    <View>
-                      <Txt weight="bold" size={17} color="#fff">{t('dashboard.healthScore')}</Txt>
-                      <Txt size={12} color="rgba(255,255,255,0.85)" style={{ marginTop: 1 }}>
-                        Grade {healthScore.grade} • {healthScore.trend === 'up' ? '↑' : healthScore.trend === 'down' ? '↓' : '→'} {healthScore.trend === 'stable' ? t('dashboard2.stable') : `${healthScore.trendValue}%`}
-                      </Txt>
-                    </View>
-                  </View>
-                  <View className="flex-row items-center" style={{ gap: 4 }}>
-                    <Heart size={18} color="#fff" />
-                    <ChevronRight size={20} color="#fff" />
-                  </View>
-                </View>
-              </LinearGradient>
-            </Pressable>
-          </Section>
+          </>
         )}
-
-        {/* ── Subscriptions ── */}
-        {allSubscriptions.filter(s => s.status !== 'canceled').length > 0 && (
-          <Section delay={310} style={{ paddingHorizontal: 20, marginTop: 12 }}>
-            <Pressable onPress={() => go('/subscriptions')}>
-              <GlassCard tint={`${C.p700}16`} border={`${C.p700}2e`}>
-                <View className="flex-row items-center justify-between mb-3">
-                  <View className="flex-row items-center flex-1" style={{ gap: 12 }}>
-                    <IconBubble color={C.lilac} size={42}><CreditCard size={20} color={C.lilac} /></IconBubble>
-                    <View className="flex-1">
-                      <Txt weight="bold" size={15} color={C.text}>{t('dashboard.subscriptions')}</Txt>
-                      <Txt size={12} color={C.textDim} style={{ marginTop: 1 }}>{formatCurrency(subMonthlyTotal)}/mo recurring</Txt>
-                    </View>
-                  </View>
-                  <ChevronRight size={20} color={C.lilac} />
-                </View>
-                {upcomingCharges.length > 0 && (
-                  <View style={{ borderRadius: R.md, padding: 12, backgroundColor: `${C.p500}16` }}>
-                    <Txt weight="semibold" size={11} color={C.p400} style={{ marginBottom: 3 }}>
-{upcomingCharges.length} charge{upcomingCharges.length > 1? 's': ''} due in 7 days
-                    </Txt>
-                    {upcomingCharges.slice(0, 2).map(s => (
-                      <Txt key={s.id} size={11} color={C.textDim}>{s.merchantDisplay} · {formatCurrency(s.typicalAmount)}</Txt>
-                    ))}
-                  </View>
-                )}
-              </GlassCard>
-            </Pressable>
-          </Section>
-        )}
-
-        {/* ── Link bank ── */}
-        <Section delay={330} style={{ paddingHorizontal: 20, marginTop: 12 }}>
-          <Pressable onPress={() => go('/link-bank')}>
-            <GlassCard tint={`${C.p800}1c`} border={`${C.p800}38`}>
-              <View className="flex-row items-center justify-between">
-                <View className="flex-row items-center flex-1" style={{ gap: 12 }}>
-                  <IconBubble color={C.p600} size={48} radius={18}><Building2 size={23} color={C.p500} /></IconBubble>
-                  <View className="flex-1">
-                    <Txt weight="bold" size={15} color={C.text}>{t('dashboard.linkBank')}</Txt>
-                    <Txt size={12} color={C.textDim} style={{ marginTop: 1 }}>{t('dashboard.linkBankHint')}</Txt>
-                  </View>
-                </View>
-                <ChevronRight size={20} color={C.p500} />
-              </View>
-            </GlassCard>
-          </Pressable>
-        </Section>
-
-        {/* ── CTA ── */}
-        <Section delay={350} style={{ paddingHorizontal: 20, marginTop: 18 }}>
-<BubbleButton label={t('dashboard2.trackCta')} onPress={() => router.push('/add')} />
-        </Section>
       </ScrollView>
-    </ScreenBackground>
+    </Screen>
   );
 }

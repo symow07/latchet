@@ -1,22 +1,33 @@
 import { useRef, useState } from 'react';
 import {
-  View, ScrollView, Pressable, TextInput, ActivityIndicator, KeyboardAvoidingView, Platform,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  TextInput,
+  View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useQuery, useMutation } from '@tanstack/react-query';
-import { Send, Sparkles } from 'lucide-react-native';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { Send } from '@/components/icons';
 import * as Haptics from 'expo-haptics';
 import { getBusiness } from '@/lib/businessApi';
 import { getBudget } from '@/lib/budgetApi';
 import { getPayroll } from '@/lib/salaryApi';
 import { getExpenses } from '@/lib/expenseApi';
-import { buildBusinessContext, businessAdvisorPersona, type BusinessFacts } from '@/lib/business-advisor';
+import { getSettings } from '@/lib/db';
+import {
+  buildBusinessContext,
+  businessAdvisorPersona,
+  type BusinessFacts,
+} from '@/lib/business-advisor';
 import { localeInstruction } from '@/lib/prompt-budget';
 import { api } from '@/lib/api/api';
 import { useEntitlement } from '@/lib/useEntitlement';
 import { readMembers } from '@/lib/group-members';
-import { R, useB } from '@/lib/design';
-import { Txt, GlassCard, BizBackground } from '@/components/ui';
+import { BAR, F, R, S, SHADOW, useB } from '@/lib/design';
+import { Card, Chip, Screen, Type } from '@/components/kit';
 import { t, getLocale } from '@/lib/i18n/core';
 
 /**
@@ -30,12 +41,22 @@ import { t, getLocale } from '@/lib/i18n/core';
  * the system role, the exchange as real turns — so the server-side hard
  * constraints in lib/advisor-safety.ts apply here too without this screen
  * restating them.
+ *
+ * It now also *looks* like the personal one: the question is an ink bubble,
+ * the answer is prose on the ground, and the field, mic slot and send button
+ * share one pill. Two chat screens in one app that disagree about what a
+ * message looks like is the kind of thing §16.4 calls a familiarity failure.
+ *
+ * The send icon was `'#fff'` on `B.accent`. In dark mode that accent is bright
+ * mint and white on it measures 1.74:1 — the arrow was invisible in exactly
+ * the state where it means "you can send this".
  */
 
-interface Msg { id: string; role: 'user' | 'assistant'; content: string }
-
-/** Mirrors tabBarStyle.height in (business-tabs)/_layout.tsx. */
-const TAB_BAR_HEIGHT = 86;
+interface Msg {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+}
 
 export default function BusinessAdvisorScreen() {
   const B = useB();
@@ -47,32 +68,50 @@ export default function BusinessAdvisorScreen() {
 
   const { data: business } = useQuery({ queryKey: ['business'], queryFn: getBusiness });
   const { data: budget } = useQuery({ queryKey: ['budget'], queryFn: getBudget, enabled: !!business });
-  const { data: payroll } = useQuery({ queryKey: ['payroll'], queryFn: () => getPayroll(), enabled: !!business });
-  const { data: expenses } = useQuery({ queryKey: ['expenses'], queryFn: () => getExpenses(), enabled: !!business });
+  const { data: payroll } = useQuery({
+    queryKey: ['payroll'],
+    queryFn: () => getPayroll(),
+    enabled: !!business,
+  });
+  const { data: expenses } = useQuery({
+    queryKey: ['expenses'],
+    queryFn: () => getExpenses(),
+    enabled: !!business,
+  });
+  const { data: settings } = useQuery({ queryKey: ['settings'], queryFn: getSettings });
 
   const facts: BusinessFacts = {
     name: business?.name,
     memberCount: readMembers(business).length,
-    currency: '$',
+    // The user's own currency. It was a literal '$', so the model was told
+    // every figure was dollars regardless of what the business actually uses,
+    // and answered in dollars to match.
+    currency: settings?.currencySymbol || '$',
     monthLabel: budget?.month.label,
-    budget: budget ? {
-      totalMonthly: budget.budget.totalMonthly,
-      byCategory: Object.fromEntries(
-        Object.entries(budget.budget.categories).map(([k, v]) => [k, v ?? 0])
-      ),
-    } : null,
-    spending: budget ? {
-      total: budget.spending.total,
-      approved: budget.spending.approved,
-      byCategory: Object.fromEntries(
-        Object.entries(budget.spending.byCategory).map(([k, v]) => [k, v?.spent ?? 0])
-      ),
-    } : null,
-    payroll: payroll ? {
-      totalPayroll: payroll.summary.totalPayroll,
-      paidTotal: payroll.summary.paidTotal,
-      unpaidTotal: payroll.summary.unpaidTotal,
-    } : null,
+    budget: budget
+      ? {
+          totalMonthly: budget.budget.totalMonthly,
+          byCategory: Object.fromEntries(
+            Object.entries(budget.budget.categories).map(([k, v]) => [k, v ?? 0])
+          ),
+        }
+      : null,
+    spending: budget
+      ? {
+          total: budget.spending.total,
+          approved: budget.spending.approved,
+          byCategory: Object.fromEntries(
+            Object.entries(budget.spending.byCategory).map(([k, v]) => [k, v?.spent ?? 0])
+          ),
+        }
+      : null,
+    payroll: payroll
+      ? {
+          totalPayroll: payroll.summary.totalPayroll,
+          paidTotal: payroll.summary.paidTotal,
+          unpaidTotal: payroll.summary.unpaidTotal,
+        }
+      : null,
     pendingExpenseCount: (expenses ?? []).filter((e) => e.status === 'pending').length,
   };
 
@@ -82,7 +121,9 @@ export default function BusinessAdvisorScreen() {
       const system = [
         businessAdvisorPersona(localeInstruction(locale)),
         buildBusinessContext(facts),
-      ].filter(Boolean).join('\n\n');
+      ]
+        .filter(Boolean)
+        .join('\n\n');
 
       const { response } = await api.post<{ response: string }>('/api/ai/chat', {
         system,
@@ -100,12 +141,20 @@ export default function BusinessAdvisorScreen() {
     },
     onError: async (error: Error) => {
       if (await handleUpgradeRequired(error)) {
-        setMessages((prev) => [...prev, { id: `a_${Date.now()}`, role: 'assistant', content: t('advisor.upgraded') }]);
+        setMessages((prev) => [
+          ...prev,
+          { id: `a_${Date.now()}`, role: 'assistant', content: t('advisor.upgraded') },
+        ]);
         return;
       }
-      setMessages((prev) => [...prev, { id: `a_${Date.now()}`, role: 'assistant', content: t('advisor.error') }]);
+      setMessages((prev) => [
+        ...prev,
+        { id: `a_${Date.now()}`, role: 'assistant', content: t('advisor.error') },
+      ]);
     },
   });
+
+  const canSend = !!input.trim() && !ask.isPending;
 
   const send = () => {
     const question = input.trim();
@@ -124,114 +173,159 @@ export default function BusinessAdvisorScreen() {
   ];
 
   return (
-    <BizBackground style={{ paddingTop: insets.top }}>
+    <Screen pal={B}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}
         style={{ flex: 1 }}
       >
-        <View style={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 10 }}>
-          <Txt weight="bold" size={25} color={B.text} style={{ marginTop: 2 }}>
-            {t('tabs.advisor')}
-          </Txt>
-        </View>
-
         <ScrollView
           ref={scrollRef}
-          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 20 }}
+          contentContainerStyle={{ paddingHorizontal: S.screen, paddingTop: 16, paddingBottom: 16 }}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {messages.length === 0 && (
-            <View style={{ marginTop: 8 }}>
-              <GlassCard padding={16} radius={R.md}>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Sparkles size={16} color={B.accent} />
-                  <Txt weight="semibold" size={14} color={B.text} style={{ marginStart: 8 }}>
-                    {t('businessAdvisor.introTitle')}
-                  </Txt>
+          {messages.length === 0 ? (
+            <>
+              <Type role="headline" color={B.ink} style={{ marginTop: 12 }}>
+                {t('businessAdvisor.introTitle')}
+              </Type>
+              <Type role="body" color={B.inkDim} style={{ marginTop: 12 }}>
+                {business ? t('businessAdvisor.introBody') : t('businessAdvisor.noBusiness')}
+              </Type>
+
+              {business ? (
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 24 }}>
+                  {suggestions.map((q) => (
+                    <Chip key={q} pal={B} label={q} onPress={() => setInput(q)} />
+                  ))}
                 </View>
-                <Txt size={13} color={B.textFaint} style={{ marginTop: 8, lineHeight: 19 }}>
-                  {business
-                    ? t('businessAdvisor.introBody')
-                    : t('businessAdvisor.noBusiness')}
-                </Txt>
-              </GlassCard>
+              ) : null}
+            </>
+          ) : null}
 
-              {business && suggestions.map((q) => (
-                <Pressable
-                  key={q}
-                  onPress={() => { setInput(q); }}
-                  style={{ marginTop: 10 }}
-                >
-                  <GlassCard padding={13} radius={R.sm}>
-                    <Txt size={13} color={B.textFaint}>{q}</Txt>
-                  </GlassCard>
-                </Pressable>
-              ))}
-            </View>
-          )}
-
+          {/* A conversation, not two kinds of card. The question is an ink
+              bubble — the screen's one dark object — and the answer is prose
+              on the ground, because that is what it is. */}
           {messages.map((m) => (
             <View
               key={m.id}
               style={{
-                marginTop: 12,
-                alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start',
-                maxWidth: '88%',
+                marginBottom: 16,
+                alignItems: m.role === 'user' ? 'flex-end' : 'flex-start',
               }}
             >
-              <GlassCard
-                padding={13}
-                radius={R.md}
-                tint={m.role === 'user' ? `${B.accent}1f` : undefined}
-              >
-                <Txt size={14} color={B.text} style={{ lineHeight: 20 }}>{m.content}</Txt>
-              </GlassCard>
+              {m.role === 'user' ? (
+                <View
+                  style={[
+                    SHADOW.near,
+                    {
+                      maxWidth: '86%',
+                      backgroundColor: B.ink,
+                      borderRadius: R.md,
+                      borderBottomEndRadius: 8,
+                      paddingHorizontal: 16,
+                      paddingVertical: 12,
+                    },
+                  ]}
+                >
+                  <Type role="body" color={B.onInk}>
+                    {m.content}
+                  </Type>
+                </View>
+              ) : (
+                <Type role="body" color={B.ink} style={{ maxWidth: '96%' }}>
+                  {m.content}
+                </Type>
+              )}
             </View>
           ))}
 
-          {ask.isPending && (
-            <ActivityIndicator color={B.accent} style={{ marginTop: 16, alignSelf: 'flex-start' }} />
-          )}
+          {ask.isPending ? (
+            <Type role="body" color={B.inkDim}>
+              {t('advisor.analyzing')}
+            </Type>
+          ) : null}
         </ScrollView>
 
         {/* Same disclaimer as the personal advisor, and for the same reason:
             it belongs where someone is looking when they decide what to ask. */}
-        <View style={{ paddingHorizontal: 20 }}>
-          <Txt size={11} color={B.textFaint} style={{ textAlign: 'center', lineHeight: 15 }}>
-            {t('advisor.disclaimer')}
-          </Txt>
-        </View>
+        <Type
+          role="meta"
+          color={B.inkDim}
+          style={{ paddingHorizontal: S.screen, textAlign: 'center' }}
+        >
+          {t('advisor.disclaimer')}
+        </Type>
 
-        {/* The tab bar is position:absolute and 86pt tall (see _layout.tsx),
-            so it floats over this row. Without clearing it the input is simply
+        {/* The tab bar is position:absolute, so it floats over this row and
+            the row has to clear it by hand. Without that the input is simply
             not on screen — which is what shipped in the first build of this
-            screen. */}
-        <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 10, paddingHorizontal: 20, paddingTop: 10, paddingBottom: TAB_BAR_HEIGHT + 14 }}>
-          <View style={{ flex: 1, borderRadius: R.lg, paddingHorizontal: 16, paddingVertical: 12, minHeight: 50, backgroundColor: B.glassStrong, borderWidth: 1, borderColor: B.glassBorder }}>
-            <TextInput
-              value={input}
-              onChangeText={setInput}
-              placeholder={t('businessAdvisor.placeholder')}
-              placeholderTextColor={B.textFaint}
-              multiline
-              style={{ color: B.text, fontSize: 15, maxHeight: 100 }}
-            />
-          </View>
-          <Pressable
-            onPress={send}
-            disabled={!input.trim() || ask.isPending}
-            style={{
-              width: 50, height: 50, borderRadius: 25,
-              alignItems: 'center', justifyContent: 'center',
-              backgroundColor: input.trim() ? B.accent : B.glassStrong,
-            }}
+            screen. `BAR.clearance` is the shared number; this file used to
+            keep its own copy of the pill's height, which went stale the first
+            time the pill was resized. */}
+        <View
+          style={{
+            paddingHorizontal: S.screen,
+            paddingTop: 12,
+            paddingBottom: BAR.clearance(insets.bottom),
+          }}
+        >
+          <Card
+            pal={B}
+            padding={0}
+            radius={R.pill}
+            contentStyle={{ paddingStart: 20, paddingEnd: 6, paddingVertical: 6 }}
           >
-            <Send size={19} color={input.trim() ? '#fff' : B.textFaint} />
-          </Pressable>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 6 }}>
+              <TextInput
+                value={input}
+                onChangeText={setInput}
+                placeholder={t('businessAdvisor.placeholder')}
+                placeholderTextColor={B.inkFaint}
+                multiline
+                maxLength={500}
+                editable={!ask.isPending}
+                onSubmitEditing={send}
+                returnKeyType="send"
+                style={{
+                  flex: 1,
+                  color: B.ink,
+                  fontSize: 16,
+                  lineHeight: 22,
+                  ...F.regular,
+                  maxHeight: 100,
+                  paddingVertical: 12,
+                }}
+              />
+              <Pressable
+                onPress={send}
+                disabled={!canSend}
+                accessibilityRole="button"
+                accessibilityLabel={t('tabs.advisor')}
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 22,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: canSend ? B.ink : B.groundSunk,
+                }}
+              >
+                {ask.isPending ? (
+                  <ActivityIndicator size="small" color={B.inkDim} />
+                ) : (
+                  <Send
+                    size={18}
+                    color={canSend ? B.onInk : B.inkFaint}
+                    strokeWidth={S.stroke}
+                  />
+                )}
+              </Pressable>
+            </View>
+          </Card>
         </View>
       </KeyboardAvoidingView>
-    </BizBackground>
+    </Screen>
   );
 }

@@ -51,6 +51,22 @@ export function calculateWeekSpent(transactions: Transaction[]): number {
     .reduce((sum, tx) => sum + tx.amount, 0);
 }
 
+/**
+ * Spend in the seven days *before* the current seven-day window.
+ *
+ * Paired with calculateWeekSpent to answer "less than last week?" — which is
+ * the one comparison the home insight makes, and it has to line the windows
+ * up exactly or a Monday reading compares six days against eight.
+ */
+export function calculateLastWeekSpent(transactions: Transaction[]): number {
+  const today = startOfDay(new Date());
+  const start = format(subDays(today, 13), 'yyyy-MM-dd');
+  const end = format(subDays(today, 7), 'yyyy-MM-dd');
+  return transactions
+    .filter(tx => tx.type === 'Expense' && tx.dateISO >= start && tx.dateISO <= end)
+    .reduce((sum, tx) => sum + tx.amount, 0);
+}
+
 export function calculateMonthSpent(transactions: Transaction[]): number {
   const { start, end } = getMonthRange();
   return transactions

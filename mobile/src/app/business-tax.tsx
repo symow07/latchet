@@ -1,14 +1,23 @@
 import { useState } from 'react';
-import { View, ScrollView, Pressable, TextInput, ActivityIndicator } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ActivityIndicator, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, FileText, Check } from 'lucide-react-native';
+import { Check, FileText } from '@/components/icons';
 import * as Haptics from 'expo-haptics';
 import { getBusiness, updateBusiness } from '@/lib/businessApi';
 import { useSession } from '@/lib/auth/use-session';
-import { R, useB } from '@/lib/design';
-import { Txt, GlassCard, BubbleButton, BizBackground, IconBubble } from '@/components/ui';
+import { S, useB } from '@/lib/design';
+import { PressableScale } from '@/components/motion';
+import {
+  Card,
+  Field,
+  FormError,
+  IconTile,
+  PrimaryButton,
+  Screen,
+  SubHeader,
+  Type,
+} from '@/components/kit';
 import { t } from '@/lib/i18n/core';
 import { monthNames, normaliseFiscalMonth } from '@/lib/fiscal-year';
 
@@ -22,7 +31,6 @@ import { monthNames, normaliseFiscalMonth } from '@/lib/fiscal-year';
  */
 export default function BusinessTaxScreen() {
   const B = useB();
-  const insets = useSafeAreaInsets();
   const router = useRouter();
   const qc = useQueryClient();
   const { data: session } = useSession();
@@ -39,7 +47,7 @@ export default function BusinessTaxScreen() {
   const taxIdValue = taxId ?? business?.taxId ?? '';
   const monthValue = month ?? business?.fiscalYearStartMonth ?? null;
 
-  const mutation = useMutation({
+  const save = useMutation({
     mutationFn: () =>
       updateBusiness({
         vatNumber: vatValue,
@@ -59,111 +67,131 @@ export default function BusinessTaxScreen() {
     },
   });
 
-  const field = (label: string, value: string, onChange: (v: string) => void, placeholder: string) => (
-    <>
-      <Txt weight="semibold" size={11} color={B.textFaint} style={{ letterSpacing: 1.2, marginBottom: 8 }}>{label}</Txt>
-      <TextInput
-        value={value}
-        onChangeText={(v) => { onChange(v); setErr(''); }}
-        editable={isOwner}
-        autoCapitalize="characters"
-        autoCorrect={false}
-        placeholder={placeholder}
-        placeholderTextColor={B.textFaint}
-        selectionColor={B.accent}
-        style={{ color: isOwner ? B.text : B.textDim, fontSize: 16, fontFamily: 'PlusJakartaSans_600SemiBold', backgroundColor: B.glass, borderRadius: R.md, padding: 14, borderWidth: 1, borderColor: B.glassBorder, marginBottom: 18 }}
-      />
-    </>
-  );
-
   return (
-    <BizBackground style={{ paddingTop: insets.top }}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 60 }}>
-        <View style={{ paddingHorizontal: 20, paddingTop: 12, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-          <Pressable
-            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.back(); }}
-            hitSlop={12}
-            style={{ width: 40, height: 40, borderRadius: 14, backgroundColor: B.glass, alignItems: 'center', justifyContent: 'center' }}
-          >
-            <ArrowLeft size={20} color={B.text} />
-          </Pressable>
-          <View style={{ flex: 1 }}>
-            <Txt weight="bold" size={22} color={B.text}>{t('bizSettings.taxLabel')}</Txt>
-          </View>
-        </View>
+    <Screen pal={B}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingTop: 8, paddingBottom: 60 }}
+        keyboardShouldPersistTaps="handled"
+      >
+        <SubHeader pal={B} title={t('bizSettings.taxLabel')} onBack={() => router.back()} />
 
         {isLoading ? (
-          <View style={{ paddingTop: 60, alignItems: 'center' }}><ActivityIndicator color={B.accent} /></View>
+          <View style={{ paddingTop: 60, alignItems: 'center' }}>
+            <ActivityIndicator color={B.accent} />
+          </View>
         ) : !business ? (
-          <View style={{ paddingHorizontal: 20, paddingTop: 28 }}>
-            <GlassCard padding={18} radius={R.md}><Txt size={14} color={B.textDim}>{t('bizSettings.noBusiness')}</Txt></GlassCard>
+          <View style={{ paddingHorizontal: S.screen, marginTop: S.section }}>
+            <Card pal={B}>
+              <Type role="body" color={B.inkDim}>
+                {t('bizSettings.noBusiness')}
+              </Type>
+            </Card>
           </View>
         ) : (
-          <View style={{ paddingHorizontal: 20, paddingTop: 22 }}>
-            <View style={{ alignItems: 'center', marginBottom: 22 }}>
-              <IconBubble color={B.teal} size={64} radius={22}><FileText size={28} color={B.teal} /></IconBubble>
+          <View style={{ paddingHorizontal: S.screen, marginTop: 24 }}>
+            <View style={{ alignItems: 'center' }}>
+              <IconTile pal={B} size={64} style={{ borderRadius: 20 }}>
+                <FileText size={28} color={B.accent} strokeWidth={S.stroke} />
+              </IconTile>
             </View>
 
-            {field(t('bizSettings.vatLabel'), vatValue, (v) => setVat(v), t('bizSettings.vatPlaceholder'))}
-            {field(t('bizSettings.taxIdLabel'), taxIdValue, (v) => setTaxId(v), t('bizSettings.taxIdPlaceholder'))}
+            <Field
+              pal={B}
+              label={t('bizSettings.vatLabel')}
+              value={vatValue}
+              onChangeText={(v) => {
+                setVat(v);
+                setErr('');
+              }}
+              editable={isOwner}
+              autoCapitalize="characters"
+              autoCorrect={false}
+              placeholder={t('bizSettings.vatPlaceholder')}
+              style={{ marginTop: S.section }}
+            />
 
-            <Txt weight="semibold" size={11} color={B.textFaint} style={{ letterSpacing: 1.2, marginBottom: 8 }}>
+            <Field
+              pal={B}
+              label={t('bizSettings.taxIdLabel')}
+              value={taxIdValue}
+              onChangeText={(v) => {
+                setTaxId(v);
+                setErr('');
+              }}
+              editable={isOwner}
+              autoCapitalize="characters"
+              autoCorrect={false}
+              placeholder={t('bizSettings.taxIdPlaceholder')}
+              style={{ marginTop: 16 }}
+            />
+
+            <Type role="meta" color={B.inkDim} style={{ marginTop: 24, marginBottom: 8 }}>
               {t('bizSettings.fiscalYearLabel')}
-            </Txt>
-            <GlassCard padding={6} radius={R.md} style={{ marginBottom: 8 }}>
+            </Type>
+            <Card pal={B} padding={0} contentStyle={{ paddingHorizontal: S.card }}>
               {monthNames().map((label, index) => {
                 const value = index + 1;
                 const active = monthValue === value;
                 return (
-                  <Pressable
+                  <PressableScale
                     key={label}
-                    onPress={() => {
-                      if (!isOwner) return;
-                      Haptics.selectionAsync();
-                      // Tapping the selected month clears it: "not set" is a
-                      // real answer, and there is nowhere else to express it.
-                      setMonth(active ? 0 : value);
-                      setErr('');
-                    }}
+                    onPress={
+                      isOwner
+                        ? () => {
+                            // Tapping the selected month clears it: "not set"
+                            // is a real answer, and there is nowhere else to
+                            // express it.
+                            setMonth(active ? 0 : value);
+                            setErr('');
+                          }
+                        : undefined
+                    }
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: active }}
+                    accessibilityLabel={label}
                     style={{
                       flexDirection: 'row',
                       alignItems: 'center',
                       justifyContent: 'space-between',
-                      paddingVertical: 11,
-                      paddingHorizontal: 10,
-                      borderBottomWidth: index < 11 ? 1 : 0,
-                      borderBottomColor: B.glassBorder,
+                      minHeight: 52,
+                      ...(index > 0 ? { borderTopWidth: 1, borderTopColor: B.hairline } : null),
                     }}
                   >
-                    <Txt size={15} color={active ? B.text : B.textFaint}>{label}</Txt>
-                    {active && <Check size={18} color={B.teal} />}
-                  </Pressable>
+                    <Type role="body" color={active ? B.ink : B.inkDim}>
+                      {label}
+                    </Type>
+                    {active ? (
+                      <Check size={18} color={B.accent} strokeWidth={2.2} />
+                    ) : null}
+                  </PressableScale>
                 );
               })}
-            </GlassCard>
-            <Txt size={11} color={B.textFaint} style={{ marginBottom: 20 }}>{t('bizSettings.fiscalYearHint')}</Txt>
+            </Card>
+            <Type role="meta" color={B.inkDim} style={{ marginTop: 12 }}>
+              {t('bizSettings.fiscalYearHint')}
+            </Type>
 
-            {err ? (
-              <GlassCard padding={12} radius={R.md} tint={`${B.red}12`} border={`${B.red}2a`} style={{ marginBottom: 14 }}>
-                <Txt size={13} color={B.red}>{err}</Txt>
-              </GlassCard>
-            ) : null}
+            <FormError pal={B} message={err} />
 
             {isOwner ? (
-              <BubbleButton
-                label={mutation.isPending ? t('common.saving') : t('common.save')}
-                onPress={() => mutation.mutate()}
-                disabled={mutation.isPending}
-                radius={R.md}
-                colors={[B.accentDeep, B.accent]}
-                glowColor={B.accent}
+              <PrimaryButton
+                pal={B}
+                label={save.isPending ? t('common.saving') : t('common.save')}
+                onPress={() => save.mutate()}
+                disabled={save.isPending}
+                style={{ marginTop: 24 }}
               />
             ) : (
-              <GlassCard padding={14} radius={R.md}><Txt size={13} color={B.textDim}>{t('bizSettings.ownerOnly')}</Txt></GlassCard>
+              <Card pal={B} style={{ marginTop: 24 }}>
+                <Type role="body" color={B.inkDim}>
+                  {t('bizSettings.ownerOnly')}
+                </Type>
+              </Card>
             )}
           </View>
         )}
       </ScrollView>
-    </BizBackground>
+    </Screen>
   );
 }

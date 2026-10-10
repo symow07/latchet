@@ -1,46 +1,36 @@
-import {
-  View,
-  Text,
-  ScrollView,
-  Pressable,
-  TextInput,
-  Modal,
-  Switch,
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-} from 'react-native';
 import { useState } from 'react';
-import { useC } from '@/lib/design';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { ActivityIndicator, Alert, ScrollView, View } from 'react-native';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
-import {
-  ArrowLeft,
-  Plus,
-  Trash2,
-  Check,
-  Bell,
-  Calendar,
-  DollarSign,
-  X,
-  ChevronDown,
-} from 'lucide-react-native';
+import { format, parseISO } from 'date-fns';
+import { Bell, Check, Plus } from '@/components/icons';
 import * as Haptics from 'expo-haptics';
-import Animated, {
-  FadeInUp,
-  FadeInDown,
-  ZoomIn,
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-  withSequence,
-} from 'react-native-reanimated';
 
 import { api } from '@/lib/api/api';
-import { t } from '@/lib/i18n/core';
+import { getSettings } from '@/lib/db';
+import { formatCurrency } from '@/lib/calculations';
 import { categoryLabel } from '@/lib/category-meta';
+import { S, useC, type Palette } from '@/lib/design';
+import { PressableScale } from '@/components/motion';
+import {
+  BalanceCard,
+  Card,
+  CircleAction,
+  Empty,
+  Field,
+  FilterChip,
+  FormError,
+  InfoRow,
+  PrimaryButton,
+  Screen,
+  SectionHeader,
+  Sheet,
+  SubHeader,
+  SwipeRow,
+  SwitchRow,
+  Type,
+} from '@/components/kit';
+import { t, getDateFnsLocale } from '@/lib/i18n/core';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -67,52 +57,33 @@ interface CreateBillBody {
   nextDueDate: string;
 }
 
-// ─── Constants ───────────────────────────────────────────────────────────────
-
-const CATEGORIES: { label: Category; emoji: string }[] = [
-  { label: 'Food', emoji: '' },
-  { label: 'Gym', emoji: '' },
-  { label: 'Transport', emoji: '' },
-  { label: 'Shopping', emoji: '' },
-  { label: 'Subscriptions', emoji: '' },
-  { label: 'Other', emoji: '' },
+const CATEGORIES: readonly Category[] = [
+  'Food',
+  'Gym',
+  'Transport',
+  'Shopping',
+  'Subscriptions',
+  'Other',
 ];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function getCategoryEmoji(category: Category): string {
-  return CATEGORIES.find((c) => c.label === category)?.emoji ?? '';
-}
-
 function computeNextDueDate(dueDay: number): string {
   const today = new Date();
-  const year = today.getFullYear();
-  const month = today.getMonth();
-
-  // Try this month first
-  const thisMonth = new Date(year, month, dueDay);
-  if (thisMonth >= today) {
-    return thisMonth.toISOString().split('T')[0];
-  }
-
-  // Otherwise next month
-  const nextMonth = new Date(year, month + 1, dueDay);
-  return nextMonth.toISOString().split('T')[0];
+  const thisMonth = new Date(today.getFullYear(), today.getMonth(), dueDay);
+  const target = thisMonth >= today ? thisMonth : new Date(today.getFullYear(), today.getMonth() + 1, dueDay);
+  // Built from local Y/M/D parts, so it is not shifted a day by the timezone.
+  return `${target.getFullYear()}-${String(target.getMonth() + 1).padStart(2, '0')}-${String(
+    target.getDate()
+  ).padStart(2, '0')}`;
 }
 
 function daysUntilDue(nextDueDate: string): number {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const due = new Date(nextDueDate);
+  const due = parseISO(`${nextDueDate}T00:00:00`);
   due.setHours(0, 0, 0, 0);
   return Math.round((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-}
-
-function urgencyColor(days: number): string {
-  if (days <= 0) return '#ef4444'; // red — overdue
-  if (days <= 3) return '#f97316'; // orange — very soon
-  if (days <= 7) return '#eab308'; // yellow — soon
-  return '#22c55e'; // green — fine
 }
 
 function urgencyLabel(days: number): string {
@@ -122,263 +93,119 @@ function urgencyLabel(days: number): string {
   return t('billReminders.daysLeft', { count: days });
 }
 
-function formatAmount(amount: number): string {
-  return `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+/**
+ * The dot beside a bill.
+ *
+ * The old row said "how urgent" four times — a four-step colour scale on a
+ * full-height accent bar, a tinted icon well, a tinted pill and the label
+ * inside it. This is one 8px dot, and it is a redundant cue: `urgencyLabel`
+ * already says "3d left" or "2d overdue" in words, which is what a reader who
+ * cannot separate amber from red is left with otherwise.
+ */
+function urgencyDot(pal: Palette, days: number, isPaid: boolean): string {
+  if (isPaid) return pal.groundSunk;
+  if (days <= 0) return pal.negative;
+  if (days <= 3) return pal.warning;
+  return pal.accentMark;
+}
+
+function longDate(iso: string): string {
+  return format(parseISO(`${iso}T00:00:00`), 'd MMM', { locale: getDateFnsLocale() });
 }
 
 function sortBills(bills: BillReminder[]): BillReminder[] {
   return [...bills].sort((a, b) => {
-    // Unpaid before paid
     if (a.isPaid !== b.isPaid) return a.isPaid ? 1 : -1;
-    return new Date(a.nextDueDate).getTime() - new Date(b.nextDueDate).getTime();
+    return a.nextDueDate.localeCompare(b.nextDueDate);
   });
 }
 
-// ─── Animated Check Button ───────────────────────────────────────────────────
+function advanceByOneMonth(isoDate: string): string {
+  const d = parseISO(`${isoDate}T00:00:00`);
+  d.setMonth(d.getMonth() + 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(
+    d.getDate()
+  ).padStart(2, '0')}`;
+}
 
-function PaidButton({
+// ─── Paid toggle ─────────────────────────────────────────────────────────────
+
+/** Ink-filled with a check when paid, an empty ring when not. */
+function PaidToggle({
+  pal,
   isPaid,
   onPress,
+  label,
 }: {
+  pal: Palette;
   isPaid: boolean;
   onPress: () => void;
+  label: string;
 }) {
-  const scale = useSharedValue(1);
-
-  const animStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }));
-
-  const handlePress = () => {
-    scale.value = withSequence(
-      withSpring(1.35, { damping: 4 }),
-      withSpring(1, { damping: 10 }),
-    );
-    onPress();
-  };
-
   return (
-    <Pressable onPress={handlePress} hitSlop={8}>
-      <Animated.View
-        style={[
-          animStyle,
-          {
-            width: 32,
-            height: 32,
-            borderRadius: 16,
-            alignItems: 'center',
-            justifyContent: 'center',
-            backgroundColor: isPaid ? '#22c55e' : 'transparent',
-            borderWidth: isPaid ? 0 : 2,
-            borderColor: '#4b5563',
-          },
-        ]}
-      >
-        {isPaid && <Check size={16} color="white" strokeWidth={3} />}
-      </Animated.View>
-    </Pressable>
+    <PressableScale
+      onPress={onPress}
+      haptic="light"
+      accessibilityRole="checkbox"
+      accessibilityState={{ checked: isPaid }}
+      accessibilityLabel={label}
+      hitSlop={10}
+      style={{
+        width: 28,
+        height: 28,
+        borderRadius: 14,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: isPaid ? pal.ink : 'transparent',
+        borderWidth: isPaid ? 0 : 1.5,
+        borderColor: pal.inkFaint,
+      }}
+    >
+      {isPaid ? <Check size={15} color={pal.onInk} strokeWidth={2.6} /> : null}
+    </PressableScale>
   );
 }
 
-// ─── Bill Card ───────────────────────────────────────────────────────────────
+// ─── Add sheet ───────────────────────────────────────────────────────────────
 
-function BillCard({
-  bill,
-  index,
-  onMarkPaid,
-  onDelete,
-}: {
-  bill: BillReminder;
-  index: number;
-  onMarkPaid: (bill: BillReminder) => void;
-  onDelete: (id: string) => void;
-}) {
-  const C = useC();
-  const days = daysUntilDue(bill.nextDueDate);
-  const color = bill.isPaid ? '#4b5563' : urgencyColor(days);
-  const label = urgencyLabel(days);
-  const emoji = getCategoryEmoji(bill.category);
-
-  return (
-    <Animated.View entering={FadeInUp.delay(index * 60).duration(350)}>
-      <View
-        style={{
-          backgroundColor: C.bgRaise,
-          borderRadius: 16,
-          marginBottom: 10,
-          overflow: 'hidden',
-          flexDirection: 'row',
-          opacity: bill.isPaid ? 0.6 : 1,
-        }}
-      >
-        {/* Left accent bar */}
-        <View style={{ width: 4, backgroundColor: color }} />
-
-        <View style={{ flex: 1, padding: 14 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            {/* Left: emoji + name + category */}
-            <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-              <View
-                style={{
-                  width: 42,
-                  height: 42,
-                  borderRadius: 12,
-                  backgroundColor: `${color}18`,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  marginEnd: 12,
-                }}
-              >
-                <Text style={{ fontSize: 20 }}>{emoji}</Text>
-              </View>
-
-              <View style={{ flex: 1 }}>
-                <Text
-                  style={{
-                    color: bill.isPaid ? '#6b7280' : '#f3f4f6',
-                    fontSize: 15,
-                    fontWeight: '600',
-                    textDecorationLine: bill.isPaid ? 'line-through' : 'none',
-                  }}
-                  numberOfLines={1}
-                >
-                  {bill.name}
-                </Text>
-                <Text style={{ color: C.textFaint, fontSize: 12, marginTop: 1 }}>
-                  {categoryLabel(bill.category)} ·{' '}
-                  {t('billReminders.dueOn', { day: `${bill.dueDay}${getDaySuffix(bill.dueDay)}` })}
-                </Text>
-              </View>
-            </View>
-
-            {/* Right: amount + badge */}
-            <View style={{ alignItems: 'flex-end', marginStart: 8 }}>
-              <Text style={{ color: C.text, fontSize: 16, fontWeight: '700' }}>
-                {formatAmount(bill.amount)}
-              </Text>
-              {!bill.isPaid && (
-                <View
-                  style={{
-                    marginTop: 4,
-                    paddingHorizontal: 8,
-                    paddingVertical: 2,
-                    borderRadius: 99,
-                    backgroundColor: `${color}22`,
-                  }}
-                >
-                  <Text style={{ color, fontSize: 11, fontWeight: '600' }}>{label}</Text>
-                </View>
-              )}
-              {bill.isPaid && (
-                <Text style={{ color: '#22c55e', fontSize: 11, fontWeight: '600', marginTop: 4 }}>
-                  {t('billReminders.paid')}
-                </Text>
-              )}
-            </View>
-          </View>
-
-          {/* Bottom row: actions */}
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Calendar size={12} color="#6b7280" />
-              <Text style={{ color: C.textFaint, fontSize: 12, marginStart: 4 }}>
-                {formatDate(bill.nextDueDate)}
-              </Text>
-              {bill.isRecurring && (
-                <View
-                  style={{
-                    marginStart: 8,
-                    paddingHorizontal: 6,
-                    paddingVertical: 1,
-                    borderRadius: 4,
-                    backgroundColor: `${C.p500}20`,
-                  }}
-                >
-                  <Text style={{ color: C.p500, fontSize: 10, fontWeight: '600' }}>{t('billReminders.recurring')}</Text>
-                </View>
-              )}
-            </View>
-
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-              <Pressable
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  onDelete(bill.id);
-                }}
-                hitSlop={8}
-              >
-                <Trash2 size={16} color="#6b7280" />
-              </Pressable>
-              <PaidButton
-                isPaid={bill.isPaid}
-                onPress={() => onMarkPaid(bill)}
-              />
-            </View>
-          </View>
-        </View>
-      </View>
-    </Animated.View>
-  );
-}
-
-function getDaySuffix(day: number): string {
-  if (day >= 11 && day <= 13) return 'th';
-  switch (day % 10) {
-    case 1: return 'st';
-    case 2: return 'nd';
-    case 3: return 'rd';
-    default: return 'th';
-  }
-}
-
-function formatDate(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-}
-
-// ─── Add Bill Modal ───────────────────────────────────────────────────────────
-
-function AddBillModal({
+function AddBillSheet({
+  pal,
   visible,
   onClose,
   onSubmit,
   isLoading,
+  symbol,
 }: {
+  pal: Palette;
   visible: boolean;
   onClose: () => void;
   onSubmit: (data: CreateBillBody) => void;
   isLoading: boolean;
+  symbol: string;
 }) {
-  const C = useC();
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('');
   const [dueDay, setDueDay] = useState('1');
   const [category, setCategory] = useState<Category>('Other');
   const [isRecurring, setIsRecurring] = useState(true);
-  const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [error, setError] = useState('');
 
-  const reset = () => {
+  const close = () => {
     setName('');
     setAmount('');
     setDueDay('1');
     setCategory('Other');
     setIsRecurring(true);
-    setShowCategoryPicker(false);
     setError('');
-  };
-
-  const handleClose = () => {
-    reset();
     onClose();
   };
 
-  const handleSubmit = () => {
-    if (!name.trim()) { setError('Name is required'); return; }
+  const submit = () => {
+    if (!name.trim()) return setError(t('billReminders.errName'));
     const amt = parseFloat(amount);
-    if (isNaN(amt) || amt <= 0) { setError('Enter a valid amount'); return; }
+    if (Number.isNaN(amt) || amt <= 0) return setError(t('billReminders.errAmount'));
     const day = parseInt(dueDay, 10);
-    if (isNaN(day) || day < 1 || day > 31) { setError('Due day must be between 1 and 31'); return; }
+    if (Number.isNaN(day) || day < 1 || day > 31) return setError(t('billReminders.errDueDay'));
 
     setError('');
     onSubmit({
@@ -392,329 +219,122 @@ function AddBillModal({
   };
 
   return (
-    <Modal visible={visible} animationType="slide" transparent presentationStyle="overFullScreen">
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
-        <Pressable
-          style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.7)' }}
-          onPress={handleClose}
-        >
-          <Pressable onPress={() => {}} style={{ width: '100%' }}>
-            <Animated.View
-              entering={FadeInDown.duration(300)}
-              style={{
-                backgroundColor: C.bgRaise,
-                borderTopLeftRadius: 24,
-                borderTopRightRadius: 24,
-                padding: 24,
-                paddingBottom: 40,
-              }}
-            >
-              {/* Handle */}
-              <View
-                style={{
-                  width: 36,
-                  height: 4,
-                  borderRadius: 2,
-                  backgroundColor: C.glassStrong,
-                  alignSelf: 'center',
-                  marginBottom: 20,
-                }}
-              />
+    <Sheet pal={pal} visible={visible} onClose={close} title={t('billReminders.newTitle')}>
+      <View style={{ paddingHorizontal: S.card }}>
+        <Field
+          pal={pal}
+          label={t('billReminders.nameLabel')}
+          value={name}
+          onChangeText={setName}
+          placeholder={t('fields.billPlaceholder')}
+        />
 
-              {/* Header */}
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
-                <Text style={{ color: C.text, fontSize: 20, fontWeight: '700' }}>
-                  {t('billReminders.newTitle')}
-                </Text>
-                <Pressable onPress={handleClose} hitSlop={8}>
-                  <View
-                    style={{
-                      width: 32,
-                      height: 32,
-                      borderRadius: 16,
-                      backgroundColor: C.glassStrong,
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    <X size={16} color="#9ca3af" />
-                  </View>
-                </Pressable>
-              </View>
+        <View style={{ flexDirection: 'row', gap: 12, marginTop: 16 }}>
+          <Field
+            pal={pal}
+            label={t('billReminders.amountLabel')}
+            value={amount}
+            onChangeText={setAmount}
+            placeholder="0"
+            keyboardType="decimal-pad"
+            icon={
+              <Type role="cardTitle" color={pal.inkDim}>
+                {symbol}
+              </Type>
+            }
+            style={{ flex: 1 }}
+          />
+          <Field
+            pal={pal}
+            label={t('billReminders.dueDayLabel')}
+            value={dueDay}
+            onChangeText={setDueDay}
+            placeholder="1–31"
+            keyboardType="number-pad"
+            style={{ flex: 1 }}
+          />
+        </View>
 
-              {error ? (
-                <View
-                  style={{
-                    backgroundColor: '#7f1d1d30',
-                    borderWidth: 1,
-                    borderColor: '#ef444440',
-                    borderRadius: 10,
-                    padding: 10,
-                    marginBottom: 16,
-                  }}
-                >
-                  <Text style={{ color: '#fca5a5', fontSize: 13 }}>{error}</Text>
-                </View>
-              ) : null}
+        <Type role="meta" color={pal.inkDim} style={{ marginTop: 16, marginBottom: 8 }}>
+          {t('billReminders.categoryLabel')}
+        </Type>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+          {CATEGORIES.map((c) => (
+            <FilterChip
+              key={c}
+              pal={pal}
+              // The picker used to print the raw stored name — "Subscriptions"
+              // in every language, because the stored value is canonical
+              // English and is not meant to be read.
+              label={categoryLabel(c)}
+              active={category === c}
+              onPress={() => setCategory(c)}
+            />
+          ))}
+        </View>
 
-              {/* Name */}
-              <Text style={{ color: C.textDim, fontSize: 12, fontWeight: '600', marginBottom: 6 }}>
-                {t('billReminders.nameLabel')}
-              </Text>
-              <View
-                style={{
-                  backgroundColor: C.glassStrong,
-                  borderRadius: 12,
-                  paddingHorizontal: 14,
-                  paddingVertical: 12,
-                  marginBottom: 16,
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                }}
-              >
-                <Bell size={16} color="#6b7280" />
-                <TextInput
-                  value={name}
-                  onChangeText={setName}
-                  placeholder={t('fields.billPlaceholder')}
-                  placeholderTextColor="#4b5563"
-                  style={{ flex: 1, color: C.text, fontSize: 15, marginStart: 10 }}
-                />
-              </View>
+        <SwitchRow
+          pal={pal}
+          title={t('billReminders.recurringMonthly')}
+          body={t('billReminders.autoReset')}
+          value={isRecurring}
+          onValueChange={setIsRecurring}
+          style={{ marginTop: 12 }}
+        />
 
-              {/* Amount + Due Day row */}
-              <View style={{ flexDirection: 'row', gap: 12, marginBottom: 16 }}>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ color: C.textDim, fontSize: 12, fontWeight: '600', marginBottom: 6 }}>
-                    AMOUNT
-                  </Text>
-                  <View
-                    style={{
-                      backgroundColor: C.glassStrong,
-                      borderRadius: 12,
-                      paddingHorizontal: 14,
-                      paddingVertical: 12,
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                    }}
-                  >
-                    <DollarSign size={16} color="#6b7280" />
-                    <TextInput
-                      value={amount}
-                      onChangeText={setAmount}
-                      placeholder="0.00"
-                      placeholderTextColor="#4b5563"
-                      keyboardType="decimal-pad"
-                      style={{ flex: 1, color: C.text, fontSize: 15, marginStart: 6 }}
-                    />
-                  </View>
-                </View>
+        <FormError pal={pal} message={error} />
 
-                <View style={{ flex: 1 }}>
-                  <Text style={{ color: C.textDim, fontSize: 12, fontWeight: '600', marginBottom: 6 }}>
-                    {t('billReminders.dueDayLabel')}
-                  </Text>
-                  <View
-                    style={{
-                      backgroundColor: C.glassStrong,
-                      borderRadius: 12,
-                      paddingHorizontal: 14,
-                      paddingVertical: 12,
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                    }}
-                  >
-                    <Calendar size={16} color="#6b7280" />
-                    <TextInput
-                      value={dueDay}
-                      onChangeText={setDueDay}
-                      placeholder="1–31"
-                      placeholderTextColor="#4b5563"
-                      keyboardType="number-pad"
-                      style={{ flex: 1, color: C.text, fontSize: 15, marginStart: 6 }}
-                    />
-                  </View>
-                </View>
-              </View>
-
-              {/* Category */}
-              <Text style={{ color: C.textDim, fontSize: 12, fontWeight: '600', marginBottom: 6 }}>
-                CATEGORY
-              </Text>
-              <Pressable
-                onPress={() => setShowCategoryPicker((p) => !p)}
-                style={{
-                  backgroundColor: C.glassStrong,
-                  borderRadius: 12,
-                  paddingHorizontal: 14,
-                  paddingVertical: 12,
-                  marginBottom: showCategoryPicker ? 0 : 16,
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                }}
-              >
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Text style={{ fontSize: 18, marginEnd: 10 }}>
-                    {getCategoryEmoji(category)}
-                  </Text>
-                  <Text style={{ color: C.text, fontSize: 15 }}>{category}</Text>
-                </View>
-                <ChevronDown
-                  size={18}
-                  color="#6b7280"
-                  style={{ transform: [{ rotate: showCategoryPicker ? '180deg' : '0deg' }] }}
-                />
-              </Pressable>
-
-              {showCategoryPicker && (
-                <View
-                  style={{
-                    backgroundColor: C.bgRaise,
-                    borderRadius: 12,
-                    marginBottom: 16,
-                    overflow: 'hidden',
-                    borderWidth: 1,
-                    borderColor: C.glassBorder,
-                  }}
-                >
-                  {CATEGORIES.map((cat, idx) => (
-                    <Pressable
-                      key={cat.label}
-                      onPress={() => {
-                        setCategory(cat.label);
-                        setShowCategoryPicker(false);
-                        Haptics.selectionAsync();
-                      }}
-                      style={{
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        padding: 12,
-                        paddingHorizontal: 14,
-                        backgroundColor: category === cat.label ? `${C.p500}18` : 'transparent',
-                        borderTopWidth: idx === 0 ? 0 : 1,
-                        borderColor: C.glassBorder,
-                      }}
-                    >
-                      <Text style={{ fontSize: 18, marginEnd: 12 }}>{cat.emoji}</Text>
-                      <Text
-                        style={{
-                          color: category === cat.label ? C.p500 : '#d1d5db',
-                          fontSize: 15,
-                          fontWeight: category === cat.label ? '600' : '400',
-                        }}
-                      >
-                        {cat.label}
-                      </Text>
-                      {category === cat.label && (
-                        <Check size={16} color={C.p500} style={{ marginStart: 'auto' }} />
-                      )}
-                    </Pressable>
-                  ))}
-                </View>
-              )}
-
-              {/* Recurring toggle */}
-              <View
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  backgroundColor: C.glassStrong,
-                  borderRadius: 12,
-                  paddingHorizontal: 14,
-                  paddingVertical: 14,
-                  marginBottom: 24,
-                }}
-              >
-                <View>
-                  <Text style={{ color: C.text, fontSize: 15, fontWeight: '500' }}>
-                    {t('billReminders.recurringMonthly')}
-                  </Text>
-                  <Text style={{ color: C.textFaint, fontSize: 12, marginTop: 1 }}>
-                    {t('billReminders.autoReset')}
-                  </Text>
-                </View>
-                <Switch
-                  value={isRecurring}
-                  onValueChange={setIsRecurring}
-                  trackColor={{ false: '#374151', true: C.p600 }}
-                  thumbColor={isRecurring ? C.p500 : '#9ca3af'}
-                />
-              </View>
-
-              {/* Submit */}
-              <Pressable
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                  handleSubmit();
-                }}
-                disabled={isLoading}
-                style={{ borderRadius: 14, overflow: 'hidden' }}
-              >
-                <LinearGradient
-                  colors={isLoading ? ['#4b5563', '#374151'] : [C.p600, C.p500]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={{
-                    paddingVertical: 16,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexDirection: 'row',
-                    gap: 8,
-                  }}
-                >
-                  {isLoading ? (
-                    <ActivityIndicator color="white" size="small" />
-                  ) : (
-                    <>
-                      <Plus size={20} color="white" />
-                      <Text style={{ color: 'white', fontSize: 16, fontWeight: '700' }}>
-                        {t('billReminders.addButton')}
-                      </Text>
-                    </>
-                  )}
-                </LinearGradient>
-              </Pressable>
-            </Animated.View>
-          </Pressable>
-        </Pressable>
-      </KeyboardAvoidingView>
-    </Modal>
+        <PrimaryButton
+          pal={pal}
+          label={t('billReminders.addButton')}
+          onPress={submit}
+          disabled={isLoading}
+          style={{ marginTop: 16 }}
+        />
+        {isLoading ? <ActivityIndicator color={pal.accent} style={{ marginTop: 12 }} /> : null}
+      </View>
+    </Sheet>
   );
 }
 
-// ─── Main Screen ─────────────────────────────────────────────────────────────
+// ─── Screen ──────────────────────────────────────────────────────────────────
 
+/**
+ * Bill reminders — DESIGN-PROMPT.md §27: monthly total, due grouping, paid
+ * checkmarks.
+ *
+ * The old screen opened on a violet gradient carrying three translucent stat
+ * tiles, and closed with a violet gradient FAB throwing a violet glow. Between
+ * them, each bill was a card with a four-step urgency colour said four ways.
+ *
+ * Under that were four separate English strings a translated app cannot use:
+ * `"UPCOMING"`, `"N upcoming · N total"`, `"overdue"`, `"paid"` — plus
+ * `getDaySuffix`, which appended `st`/`nd`/`rd`/`th` to a day number in every
+ * language, and `toLocaleDateString('en-US')`, and a `$` hardcoded into every
+ * amount. The three validation errors were hardcoded English too.
+ *
+ * Deleting a bill was a trash icon sitting on every row, one tap, no
+ * confirmation. It is now the same sideways swipe Activity uses, with the same
+ * dialog behind it — a destructive control parked beside the amount you are
+ * reading is both noise and a hazard.
+ */
 export default function BillRemindersScreen() {
   const C = useC();
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
-  const [showAddModal, setShowAddModal] = useState(false);
+  const [adding, setAdding] = useState(false);
 
-  // ── Queries ─────────────────────────────────────────────────────────────
-
-  const {
-    data: bills = [],
-    isLoading,
-    isError,
-  } = useQuery<BillReminder[]>({
+  const { data: bills = [], isLoading, isError } = useQuery<BillReminder[]>({
     queryKey: ['bill-reminders'],
     queryFn: () => api.get<BillReminder[]>('/api/bill-reminders'),
   });
-
-  // ── Mutations ────────────────────────────────────────────────────────────
+  const { data: settings } = useQuery({ queryKey: ['settings'], queryFn: getSettings });
 
   const createMutation = useMutation({
-    mutationFn: (body: CreateBillBody) =>
-      api.post<BillReminder>('/api/bill-reminders', body),
+    mutationFn: (body: CreateBillBody) => api.post<BillReminder>('/api/bill-reminders', body),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['bill-reminders'] });
-      setShowAddModal(false);
+      setAdding(false);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     },
   });
@@ -724,7 +344,7 @@ export default function BillRemindersScreen() {
       api.put<BillReminder>(`/api/bill-reminders/${bill.id}`, {
         ...bill,
         isPaid: !bill.isPaid,
-        // If marking paid on a recurring bill, advance the next due date by 1 month
+        // Marking a recurring bill paid rolls it forward to the next cycle.
         nextDueDate:
           !bill.isPaid && bill.isRecurring
             ? advanceByOneMonth(bill.nextDueDate)
@@ -740,270 +360,164 @@ export default function BillRemindersScreen() {
     mutationFn: (id: string) => api.delete<void>(`/api/bill-reminders/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['bill-reminders'] });
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     },
   });
 
-  // ── Derived data ─────────────────────────────────────────────────────────
+  const confirmDelete = (bill: BillReminder) => {
+    Alert.alert(bill.name, t('dialogs.areYouSure'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      {
+        text: t('dialogs.delete'),
+        style: 'destructive',
+        onPress: () => deleteMutation.mutate(bill.id),
+      },
+    ]);
+  };
 
   const sorted = sortBills(bills);
+  const upcoming = sorted.filter((b) => !b.isPaid);
+  const paid = sorted.filter((b) => b.isPaid);
   const totalMonthly = bills.reduce((sum, b) => sum + (b.isRecurring ? b.amount : 0), 0);
-  const unpaidCount = bills.filter((b) => !b.isPaid).length;
-  const overdueCount = bills.filter((b) => !b.isPaid && daysUntilDue(b.nextDueDate) <= 0).length;
+  const overdueCount = upcoming.filter((b) => daysUntilDue(b.nextDueDate) <= 0).length;
 
-  // ── Render ───────────────────────────────────────────────────────────────
+  const renderGroup = (group: BillReminder[]) => (
+    <View style={{ paddingHorizontal: S.screen }}>
+      <Card pal={C} padding={0} contentStyle={{ paddingHorizontal: 0 }}>
+        {group.map((bill, i) => {
+          const days = daysUntilDue(bill.nextDueDate);
+          const meta = [
+            categoryLabel(bill.category),
+            longDate(bill.nextDueDate),
+            bill.isPaid ? t('billReminders.paid') : urgencyLabel(days),
+            bill.isRecurring ? t('billReminders.recurring') : null,
+          ]
+            .filter(Boolean)
+            .join(' · ');
 
-  return (
-    <View style={{ flex: 1, backgroundColor: C.bg }}>
-      {/* ── Header gradient ── */}
-      <LinearGradient
-        colors={[C.p800, C.p600, C.p500]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={{
-          paddingTop: insets.top + 8,
-          paddingBottom: 36,
-          paddingHorizontal: 16,
-        }}
-      >
-        {/* Nav row */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-          <Pressable
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              router.back();
-            }}
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: 20,
-              backgroundColor: 'rgba(255,255,255,0.2)',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <ArrowLeft size={20} color="white" />
-          </Pressable>
-
-          <View style={{ alignItems: 'center' }}>
-            <Text style={{ color: 'white', fontSize: 18, fontWeight: '700' }}>{t('billReminders.title')}</Text>
-            <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, marginTop: 2 }}>
-              {unpaidCount} upcoming · {bills.length} total
-            </Text>
-          </View>
-
-          <View style={{ width: 40 }} />
-        </View>
-
-        {/* Stats row */}
-        <View style={{ flexDirection: 'row', gap: 10 }}>
-          <View
-            style={{
-              flex: 1,
-              backgroundColor: 'rgba(255,255,255,0.15)',
-              borderRadius: 14,
-              padding: 14,
-            }}
-          >
-            <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 11, fontWeight: '600' }}>
-              {t('billReminders.monthlyTotal')}
-            </Text>
-            <Text style={{ color: 'white', fontSize: 22, fontWeight: '800', marginTop: 4 }}>
-              {formatAmount(totalMonthly)}
-            </Text>
-            <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 11, marginTop: 2 }}>
-              {t('billReminders.recurringBills')}
-            </Text>
-          </View>
-
-          <View style={{ gap: 10, flex: 0.8 }}>
+          return (
             <View
-              style={{
-                flex: 1,
-                backgroundColor: overdueCount > 0 ? 'rgba(239,68,68,0.3)' : 'rgba(255,255,255,0.15)',
-                borderRadius: 14,
-                padding: 10,
-                justifyContent: 'center',
-              }}
+              key={bill.id}
+              style={i > 0 ? { borderTopWidth: 1, borderTopColor: C.hairline } : undefined}
             >
-              <Text style={{ color: 'white', fontSize: 18, fontWeight: '800' }}>{overdueCount}</Text>
-              <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 11 }}>overdue</Text>
+              <SwipeRow
+                pal={C}
+                onDelete={() => confirmDelete(bill)}
+                actionLabel={t('dialogs.delete')}
+              >
+                <View style={{ paddingHorizontal: S.card, opacity: bill.isPaid ? 0.55 : 1 }}>
+                  <InfoRow
+                    pal={C}
+                    title={bill.name}
+                    meta={meta}
+                    amount={bill.amount}
+                    format={formatCurrency}
+                    lead={
+                      <View
+                        style={{
+                          width: 8,
+                          height: 8,
+                          borderRadius: 4,
+                          backgroundColor: urgencyDot(C, days, bill.isPaid),
+                        }}
+                      />
+                    }
+                    trailing={
+                      <PaidToggle
+                        pal={C}
+                        isPaid={bill.isPaid}
+                        label={t('billReminders.paid')}
+                        onPress={() => markPaidMutation.mutate(bill)}
+                      />
+                    }
+                  />
+                </View>
+              </SwipeRow>
             </View>
-            <View
-              style={{
-                flex: 1,
-                backgroundColor: 'rgba(255,255,255,0.15)',
-                borderRadius: 14,
-                padding: 10,
-                justifyContent: 'center',
-              }}
-            >
-              <Text style={{ color: 'white', fontSize: 18, fontWeight: '800' }}>
-                {bills.length - unpaidCount}
-              </Text>
-              <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 11 }}>paid</Text>
-            </View>
-          </View>
-        </View>
-      </LinearGradient>
-
-      {/* ── Body ── */}
-      <View style={{ flex: 1, marginTop: -20 }}>
-        {isLoading ? (
-          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-            <ActivityIndicator color={C.p500} size="large" />
-          </View>
-        ) : isError ? (
-          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 }}>
-            <Text style={{ color: C.textDim, textAlign: 'center', fontSize: 15 }}>
-              {t('billReminders.loadFailed')}
-            </Text>
-          </View>
-        ) : sorted.length === 0 ? (
-          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 }}>
-            <View
-              style={{
-                width: 72,
-                height: 72,
-                borderRadius: 36,
-                backgroundColor: `${C.p500}15`,
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginBottom: 16,
-              }}
-            >
-              <Bell size={32} color={C.p500} />
-            </View>
-            <Text style={{ color: C.text, fontSize: 18, fontWeight: '700', marginBottom: 6 }}>
-              {t('billReminders.emptyTitle')}
-            </Text>
-            <Text style={{ color: C.textFaint, fontSize: 14, textAlign: 'center' }}>
-              {t('billReminders.emptyBody')}
-            </Text>
-          </View>
-        ) : (
-          <ScrollView
-            contentContainerStyle={{
-              paddingHorizontal: 16,
-              paddingTop: 24,
-              paddingBottom: 120,
-            }}
-            showsVerticalScrollIndicator={false}
-          >
-            {/* Section: Upcoming */}
-            {sorted.filter((b) => !b.isPaid).length > 0 && (
-              <>
-                <Text
-                  style={{
-                    color: C.textFaint,
-                    fontSize: 11,
-                    fontWeight: '700',
-                    letterSpacing: 1,
-                    marginBottom: 10,
-                    marginStart: 2,
-                  }}
-                >
-                  UPCOMING
-                </Text>
-                {sorted
-                  .filter((b) => !b.isPaid)
-                  .map((bill, idx) => (
-                    <BillCard
-                      key={bill.id}
-                      bill={bill}
-                      index={idx}
-                      onMarkPaid={(b) => markPaidMutation.mutate(b)}
-                      onDelete={(id) => deleteMutation.mutate(id)}
-                    />
-                  ))}
-              </>
-            )}
-
-            {/* Section: Paid */}
-            {sorted.filter((b) => b.isPaid).length > 0 && (
-              <>
-                <Text
-                  style={{
-                    color: C.textFaint,
-                    fontSize: 11,
-                    fontWeight: '700',
-                    letterSpacing: 1,
-                    marginBottom: 10,
-                    marginStart: 2,
-                    marginTop: sorted.filter((b) => !b.isPaid).length > 0 ? 16 : 0,
-                  }}
-                >
-                  {t('billReminders.paidThisCycle')}
-                </Text>
-                {sorted
-                  .filter((b) => b.isPaid)
-                  .map((bill, idx) => (
-                    <BillCard
-                      key={bill.id}
-                      bill={bill}
-                      index={idx}
-                      onMarkPaid={(b) => markPaidMutation.mutate(b)}
-                      onDelete={(id) => deleteMutation.mutate(id)}
-                    />
-                  ))}
-              </>
-            )}
-          </ScrollView>
-        )}
-      </View>
-
-      {/* ── FAB ── */}
-      <Animated.View
-        entering={ZoomIn.delay(200).duration(300)}
-        style={{
-          position: 'absolute',
-          bottom: insets.bottom + 24,
-          right: 20,
-        }}
-      >
-        <Pressable
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            setShowAddModal(true);
-          }}
-          style={{ borderRadius: 30, overflow: 'hidden', elevation: 8 }}
-        >
-          <LinearGradient
-            colors={[C.p600, C.p500]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={{
-              width: 60,
-              height: 60,
-              borderRadius: 30,
-              alignItems: 'center',
-              justifyContent: 'center',
-              shadowColor: C.p500,
-              shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.5,
-              shadowRadius: 12,
-            }}
-          >
-            <Plus size={28} color="white" strokeWidth={2.5} />
-          </LinearGradient>
-        </Pressable>
-      </Animated.View>
-
-      {/* ── Add Modal ── */}
-      <AddBillModal
-        visible={showAddModal}
-        onClose={() => setShowAddModal(false)}
-        onSubmit={(data) => createMutation.mutate(data)}
-        isLoading={createMutation.isPending}
-      />
+          );
+        })}
+      </Card>
     </View>
   );
-}
 
-// ─── Utility ─────────────────────────────────────────────────────────────────
+  return (
+    <Screen pal={C}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingTop: 8, paddingBottom: 60 }}
+      >
+        <SubHeader
+          pal={C}
+          title={t('billReminders.title')}
+          onBack={() => router.back()}
+          action={
+            <CircleAction pal={C} label={t('billReminders.addButton')} onPress={() => setAdding(true)}>
+              <Plus size={20} color={C.ink} strokeWidth={S.stroke} />
+            </CircleAction>
+          }
+        />
 
-function advanceByOneMonth(isoDate: string): string {
-  const d = new Date(isoDate);
-  d.setMonth(d.getMonth() + 1);
-  return d.toISOString().split('T')[0];
+        <BalanceCard
+          pal={C}
+          label={t('billReminders.monthlyTotal')}
+          amount={totalMonthly}
+          format={formatCurrency}
+          caption={`${t('billReminders.caption', { count: upcoming.length })} · ${t(
+            'billReminders.overdueNote',
+            { count: overdueCount }
+          )}`}
+          style={{ paddingHorizontal: S.screen, marginTop: 24 }}
+        />
+
+        {isLoading ? (
+          <View style={{ paddingTop: 56, alignItems: 'center' }}>
+            <ActivityIndicator color={C.accent} />
+          </View>
+        ) : isError ? (
+          <Type
+            role="body"
+            color={C.negative}
+            style={{ paddingHorizontal: S.screen, marginTop: S.section }}
+          >
+            {t('billReminders.loadFailed')}
+          </Type>
+        ) : sorted.length === 0 ? (
+          <Empty
+            pal={C}
+            icon={<Bell size={26} color={C.accent} strokeWidth={S.stroke} />}
+            title={t('billReminders.emptyTitle')}
+            body={t('billReminders.emptyBody')}
+            actionLabel={t('billReminders.addButton')}
+            onAction={() => setAdding(true)}
+            style={{ marginTop: 56 }}
+          />
+        ) : (
+          <>
+            {upcoming.length > 0 ? (
+              <View style={{ marginTop: S.section }}>
+                <SectionHeader pal={C} title={t('billReminders.upcoming')} />
+                {renderGroup(upcoming)}
+              </View>
+            ) : null}
+
+            {paid.length > 0 ? (
+              <View style={{ marginTop: S.section }}>
+                <SectionHeader pal={C} title={t('billReminders.paidThisCycle')} />
+                {renderGroup(paid)}
+              </View>
+            ) : null}
+          </>
+        )}
+      </ScrollView>
+
+      <AddBillSheet
+        pal={C}
+        visible={adding}
+        onClose={() => setAdding(false)}
+        onSubmit={(data) => createMutation.mutate(data)}
+        isLoading={createMutation.isPending}
+        symbol={settings?.currencySymbol || '$'}
+      />
+    </Screen>
+  );
 }

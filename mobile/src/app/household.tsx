@@ -1,26 +1,47 @@
 import { useState } from 'react';
-import { View, ScrollView, Pressable, ActivityIndicator, TextInput, Switch } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ActivityIndicator, Alert, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Home, Eye, LogOut, RefreshCw, Users, Check, Trash2, Wallet } from 'lucide-react-native';
-import * as Haptics from 'expo-haptics';
+import { Home, RefreshCw } from '@/components/icons';
+
 import {
-  getHousehold, getDashboard, getVisibility, getInviteCode, refreshInviteCode,
-  setMyShareLevel, leaveHousehold, createHousehold, deleteHousehold, setAccountSharing,
-  SHARE_LEVELS, type ShareLevel,
+  createHousehold,
+  deleteHousehold,
+  getDashboard,
+  getHousehold,
+  getInviteCode,
+  getVisibility,
+  leaveHousehold,
+  refreshInviteCode,
+  setAccountSharing,
+  setMyShareLevel,
+  SHARE_LEVELS,
+  type ShareLevel,
 } from '@/lib/householdApi';
 import { getAccounts, type Account } from '@/lib/db';
 import { useSession } from '@/lib/auth/use-session';
-import { R, useC } from '@/lib/design';
-import { Txt, GlassCard, BubbleButton, ScreenBackground, EmptyState } from '@/components/ui';
-import { t } from '@/lib/i18n/core';
+import { formatCurrency } from '@/lib/calculations';
 // Categories are stored canonically in English and translated for display only —
 // the stored value and the wire format never change. See category-meta.ts.
 import { categoryLabel } from '@/lib/category-meta';
-
-/** Matches the business tabs, which format inline rather than via a helper. */
-const money = (n: number) => `$${n.toFixed(2)}`;
+import { S, useC } from '@/lib/design';
+import { PressableScale } from '@/components/motion';
+import {
+  Card,
+  ChoiceRow,
+  CircleAction,
+  Empty,
+  Field,
+  InfoRow,
+  PrimaryButton,
+  Screen,
+  SectionHeader,
+  Stat,
+  SubHeader,
+  SwitchRow,
+  Type,
+} from '@/components/kit';
+import { t } from '@/lib/i18n/core';
 
 /**
  * The household.
@@ -33,6 +54,11 @@ const money = (n: number) => `$${n.toFixed(2)}`;
  * Everything below `full` renders as withheld rather than as zero. A member on
  * summary shows a total and an explicit "categories not shared" line, because
  * a blank space reads as "spent nothing" and would misrepresent them.
+ *
+ * Every amount here used to be `$${n.toFixed(2)}` from a local helper, on a
+ * screen whose whole point is comparing what two people spent — so a household
+ * budgeting in euros compared two figures labelled in dollars. It goes through
+ * the shared formatter now.
  */
 
 const LEVEL_META: Record<ShareLevel, { labelKey: string; descKey: string }> = {
@@ -41,9 +67,34 @@ const LEVEL_META: Record<ShareLevel, { labelKey: string; descKey: string }> = {
   full: { labelKey: 'household.levelFull', descKey: 'household.levelFullDesc' },
 };
 
+/** Rows on one white card, hairline-separated. */
+function Rows({
+  pal,
+  children,
+}: {
+  pal: ReturnType<typeof useC>;
+  children: React.ReactNode;
+}) {
+  const items = (Array.isArray(children) ? children : [children]).filter(Boolean);
+  if (items.length === 0) return null;
+  return (
+    <View style={{ paddingHorizontal: S.screen }}>
+      <Card pal={pal} padding={0} contentStyle={{ paddingHorizontal: S.card }}>
+        {items.map((child, i) => (
+          <View
+            key={i}
+            style={i > 0 ? { borderTopWidth: 1, borderTopColor: pal.hairline } : undefined}
+          >
+            {child}
+          </View>
+        ))}
+      </Card>
+    </View>
+  );
+}
+
 export default function HouseholdScreen() {
   const C = useC();
-  const insets = useSafeAreaInsets();
   const router = useRouter();
   const qc = useQueryClient();
   const { data: session } = useSession();
@@ -97,11 +148,17 @@ export default function HouseholdScreen() {
   });
   const leave = useMutation({
     mutationFn: leaveHousehold,
-    onSuccess: () => { invalidate(); router.back(); },
+    onSuccess: () => {
+      invalidate();
+      router.back();
+    },
   });
   const destroy = useMutation({
     mutationFn: () => deleteHousehold(confirmName.trim()),
-    onSuccess: () => { setConfirmName(''); invalidate(); },
+    onSuccess: () => {
+      setConfirmName('');
+      invalidate();
+    },
   });
 
   const myLevel =
@@ -109,189 +166,190 @@ export default function HouseholdScreen() {
     (household?.members ?? []).find((m) => m.userId === session?.user?.id)?.shareLevel ??
     'summary';
 
+  // Leaving cannot be undone from this screen — rejoining needs a fresh invite
+  // code from the owner — so it asks first. It used to happen on one tap.
+  const confirmLeave = () => {
+    Alert.alert(t('household.leave'), t('household.leaveNotice'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      { text: t('household.leave'), style: 'destructive', onPress: () => leave.mutate() },
+    ]);
+  };
+
   if (isLoading) {
     return (
-      <ScreenBackground>
+      <Screen pal={C}>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <ActivityIndicator color={C.p400} />
+          <ActivityIndicator color={C.accent} />
         </View>
-      </ScreenBackground>
+      </Screen>
     );
   }
 
+  const canDestroy =
+    !!household?.household && confirmName.trim() === household.household.name.trim();
+
   return (
-    <ScreenBackground>
+    <Screen pal={C}>
       <ScrollView
-        contentContainerStyle={{ padding: 20, paddingTop: insets.top + 8, paddingBottom: insets.bottom + 40 }}
+        contentContainerStyle={{ paddingTop: 8, paddingBottom: 60 }}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 18 }}>
-          <Pressable onPress={() => router.back()} hitSlop={12}>
-            <ArrowLeft size={24} color={C.text} />
-          </Pressable>
-          <Txt weight="bold" size={22} style={{ marginStart: 12 }}>
-            {t('household.title')}
-          </Txt>
-        </View>
+        <SubHeader pal={C} title={t('household.title')} onBack={() => router.back()} />
 
         {!hasHousehold ? (
-          <View>
-            <EmptyState
-              icon={<Home size={38} color={C.textFaint} />}
+          <>
+            <Empty
+              pal={C}
+              icon={<Home size={26} color={C.accent} strokeWidth={S.stroke} />}
               title={t('household.emptyTitle')}
               body={t('household.emptySubtitle')}
+              style={{ marginTop: 56 }}
             />
-            <GlassCard padding={16} radius={R.md} style={{ marginTop: 16 }}>
-              <Txt weight="semibold" size={14}>{t('household.createTitle')}</Txt>
-              <TextInput
-                value={newName}
-                onChangeText={setNewName}
-                placeholder={t('household.namePlaceholder')}
-                placeholderTextColor={C.textDim}
-                style={{
-                  marginTop: 10, borderRadius: R.sm, paddingHorizontal: 14, paddingVertical: 12,
-                  backgroundColor: C.glass, color: C.text, fontSize: 15,
-                }}
-              />
-              <BubbleButton
-                label={t('household.createCta')}
-                onPress={() => { Haptics.selectionAsync(); create.mutate(); }}
-                disabled={newName.trim().length === 0 || create.isPending}
-                style={{ marginTop: 12 }}
-              />
-            </GlassCard>
-            <Pressable
-              onPress={() => router.push('/household-join')}
-              style={{ marginTop: 14, alignItems: 'center' }}
-            >
-              <Txt size={14} color={C.p400} weight="semibold">{t('household.joinInstead')}</Txt>
-            </Pressable>
-          </View>
+
+            <View style={{ paddingHorizontal: S.screen, marginTop: S.section }}>
+              <Card pal={C}>
+                <Type role="cardTitle" color={C.ink}>
+                  {t('household.createTitle')}
+                </Type>
+                <Field
+                  pal={C}
+                  value={newName}
+                  onChangeText={setNewName}
+                  placeholder={t('household.namePlaceholder')}
+                  style={{ marginTop: 12 }}
+                />
+                <PrimaryButton
+                  pal={C}
+                  label={t('household.createCta')}
+                  onPress={() => create.mutate()}
+                  disabled={newName.trim().length === 0 || create.isPending}
+                  style={{ marginTop: 16 }}
+                />
+              </Card>
+
+              <PressableScale
+                onPress={() => router.push('/household-join')}
+                accessibilityRole="button"
+                accessibilityLabel={t('household.joinInstead')}
+                style={{ minHeight: 48, alignItems: 'center', justifyContent: 'center', marginTop: 12 }}
+              >
+                <Type role="cardTitle" color={C.accent}>
+                  {t('household.joinInstead')}
+                </Type>
+              </PressableScale>
+            </View>
+          </>
         ) : (
           <>
             {/* ── Combined totals ─────────────────────────────────────────── */}
-            <GlassCard padding={18} radius={R.md}>
-              <Txt size={13} color={C.textDim}>{household!.household!.name}</Txt>
-              <View style={{ flexDirection: 'row', marginTop: 12 }}>
-                <View style={{ flex: 1 }}>
-                  <Txt size={12} color={C.textDim}>{t('household.totalIn')}</Txt>
-                  <Txt weight="bold" size={20} style={{ marginTop: 2 }}>
-                    {money(dashboard?.combined.totalIn ?? 0)}
-                  </Txt>
+            <View style={{ paddingHorizontal: S.screen, marginTop: 24 }}>
+              <Card pal={C}>
+                <Type role="meta" color={C.inkDim}>
+                  {household!.household!.name}
+                </Type>
+                <View style={{ flexDirection: 'row', gap: 32, marginTop: 12 }}>
+                  <Stat
+                    pal={C}
+                    label={t('household.totalIn')}
+                    value={dashboard?.combined.totalIn ?? 0}
+                    format={formatCurrency}
+                    size={22}
+                  />
+                  <Stat
+                    pal={C}
+                    label={t('household.totalOut')}
+                    value={dashboard?.combined.totalOut ?? 0}
+                    format={formatCurrency}
+                    size={22}
+                  />
                 </View>
-                <View style={{ flex: 1 }}>
-                  <Txt size={12} color={C.textDim}>{t('household.totalOut')}</Txt>
-                  <Txt weight="bold" size={20} style={{ marginTop: 2 }}>
-                    {money(dashboard?.combined.totalOut ?? 0)}
-                  </Txt>
-                </View>
-              </View>
-            </GlassCard>
+              </Card>
+            </View>
 
             {/* ── Who can see what: deliberately here, not in settings ────── */}
-            <View style={{ marginTop: 18 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
-                <Eye size={16} color={C.p400} />
-                <Txt weight="semibold" size={15} style={{ marginStart: 8 }}>
-                  {t('household.visibilityTitle')}
-                </Txt>
-              </View>
-              <Txt size={12} color={C.textDim} style={{ marginBottom: 10, lineHeight: 18 }}>
+            <View style={{ marginTop: S.section }}>
+              <SectionHeader pal={C} title={t('household.visibilityTitle')} />
+              <Type role="body" color={C.inkDim} style={{ paddingHorizontal: S.screen, marginBottom: 12 }}>
                 {t('household.visibilityBlurb')}
-              </Txt>
-
-              {(visibility?.members ?? []).map((m) => (
-                <GlassCard key={m.userId} padding={14} radius={R.sm} style={{ marginBottom: 8 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <View style={{ flex: 1 }}>
-                      <Txt weight="semibold" size={14}>
-                        {m.isYou ? t('household.you', { name: m.name }) : m.name}
-                      </Txt>
-                      <Txt size={12} color={C.textDim} style={{ marginTop: 2 }}>
-                        {t(LEVEL_META[m.shareLevel].labelKey)}
-                      </Txt>
-                    </View>
-                    {m.sharedAccounts.length > 0 && (
-                      <Txt size={11} color={C.p400}>
-                        {t('household.sharedAccountCount', { count: m.sharedAccounts.length })}
-                      </Txt>
-                    )}
-                  </View>
-                </GlassCard>
-              ))}
+              </Type>
+              <Rows pal={C}>
+                {(visibility?.members ?? []).map((m) => (
+                  <InfoRow
+                    key={m.userId}
+                    pal={C}
+                    title={m.isYou ? t('household.you', { name: m.name }) : m.name}
+                    meta={t(LEVEL_META[m.shareLevel].labelKey)}
+                    trailing={
+                      m.sharedAccounts.length > 0 ? (
+                        <Type role="meta" color={C.inkDim}>
+                          {t('household.sharedAccountCount', { count: m.sharedAccounts.length })}
+                        </Type>
+                      ) : null
+                    }
+                  />
+                ))}
+              </Rows>
             </View>
 
             {/* ── My own dial ─────────────────────────────────────────────── */}
-            <View style={{ marginTop: 18 }}>
-              <Txt weight="semibold" size={15} style={{ marginBottom: 4 }}>
-                {t('household.myVisibilityTitle')}
-              </Txt>
-              <Txt size={12} color={C.textDim} style={{ marginBottom: 10, lineHeight: 18 }}>
-                {t('household.myVisibilityBlurb')}
-              </Txt>
-              {SHARE_LEVELS.map((level) => {
-                const active = myLevel === level;
-                return (
-                  <Pressable
+            <View style={{ marginTop: S.section }}>
+              <SectionHeader pal={C} title={t('household.myVisibilityTitle')} />
+              <View style={{ paddingHorizontal: S.screen, gap: 8 }}>
+                <Type role="body" color={C.inkDim} style={{ marginBottom: 6 }}>
+                  {t('household.myVisibilityBlurb')}
+                </Type>
+                {SHARE_LEVELS.map((level) => (
+                  <ChoiceRow
                     key={level}
-                    onPress={() => { Haptics.selectionAsync(); changeLevel.mutate(level); }}
-                    disabled={changeLevel.isPending}
-                  >
-                    <GlassCard
-                      padding={14}
-                      radius={R.sm}
-                      style={{ marginBottom: 8 }}
-                      border={active ? C.p500 : undefined}
-                    >
-                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                        <View style={{ flex: 1 }}>
-                          <Txt weight="semibold" size={14}>{t(LEVEL_META[level].labelKey)}</Txt>
-                          <Txt size={12} color={C.textDim} style={{ marginTop: 3, lineHeight: 17 }}>
-                            {t(LEVEL_META[level].descKey)}
-                          </Txt>
-                        </View>
-                        {active && <Check size={18} color={C.p400} />}
-                      </View>
-                    </GlassCard>
-                  </Pressable>
-                );
-              })}
-              <Txt size={11} color={C.textDim} style={{ marginTop: 2, lineHeight: 16 }}>
-                {t('household.raiseNotice')}
-              </Txt>
+                    pal={C}
+                    title={t(LEVEL_META[level].labelKey)}
+                    body={t(LEVEL_META[level].descKey)}
+                    selected={myLevel === level}
+                    onPress={() => changeLevel.mutate(level)}
+                  />
+                ))}
+                <Type role="meta" color={C.inkDim} style={{ marginTop: 6 }}>
+                  {t('household.raiseNotice')}
+                </Type>
+              </View>
             </View>
 
             {/* ── Per-member contribution, at each member's own level ─────── */}
-            <View style={{ marginTop: 20 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
-                <Users size={16} color={C.p400} />
-                <Txt weight="semibold" size={15} style={{ marginStart: 8 }}>
-                  {t('household.contributionsTitle')}
-                </Txt>
-              </View>
-              {(dashboard?.members ?? []).map((m) => (
-                <GlassCard key={m.userId} padding={14} radius={R.sm} style={{ marginBottom: 8 }}>
-                  <View style={{ flexDirection: 'row' }}>
-                    <Txt weight="semibold" size={14} style={{ flex: 1 }}>{m.name}</Txt>
-                    <Txt weight="semibold" size={14}>{money(m.totalOut)}</Txt>
-                  </View>
-                  {m.byCategory ? (
-                    <View style={{ marginTop: 8 }}>
-                      {Object.entries(m.byCategory).map(([cat, amount]) => (
-                        <View key={cat} style={{ flexDirection: 'row', marginTop: 3 }}>
-                          <Txt size={12} color={C.textDim} style={{ flex: 1 }}>{categoryLabel(cat)}</Txt>
-                          <Txt size={12} color={C.textDim}>{money(amount)}</Txt>
+            <View style={{ marginTop: S.section }}>
+              <SectionHeader pal={C} title={t('household.contributionsTitle')} />
+              <Rows pal={C}>
+                {(dashboard?.members ?? []).map((m) => (
+                  <InfoRow
+                    key={m.userId}
+                    pal={C}
+                    title={m.name}
+                    amount={m.totalOut}
+                    format={formatCurrency}
+                    footer={
+                      m.byCategory ? (
+                        <View style={{ marginTop: 8, gap: 4 }}>
+                          {Object.entries(m.byCategory).map(([cat, amount]) => (
+                            <View key={cat} style={{ flexDirection: 'row', gap: 12 }}>
+                              <Type role="meta" color={C.inkDim} style={{ flex: 1 }}>
+                                {categoryLabel(cat)}
+                              </Type>
+                              <Type role="meta" color={C.inkDim}>
+                                {formatCurrency(amount)}
+                              </Type>
+                            </View>
+                          ))}
                         </View>
-                      ))}
-                    </View>
-                  ) : (
-                    /* Withheld, not zero. Saying so is the honest rendering. */
-                    <Txt size={12} color={C.textDim} style={{ marginTop: 6, fontStyle: 'italic' }}>
-                      {t('household.notShared')}
-                    </Txt>
-                  )}
-                </GlassCard>
-              ))}
+                      ) : (
+                        /* Withheld, not zero. Saying so is the honest rendering. */
+                        <Type role="meta" color={C.inkDim} style={{ marginTop: 8 }}>
+                          {t('household.notShared')}
+                        </Type>
+                      )
+                    }
+                  />
+                ))}
+              </Rows>
             </View>
 
             {/* ── Shared accounts, in full ────────────────────────────────
@@ -299,155 +357,148 @@ export default function HouseholdScreen() {
                 visible to the whole household regardless of its owner's
                 shareLevel, which is the one place the dial does not apply —
                 so the switch says exactly that before it is flipped. */}
-            <View style={{ marginTop: 20 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
-                <Wallet size={16} color={C.p400} />
-                <Txt weight="semibold" size={15} style={{ marginStart: 8 }}>
-                  {t('household.sharedAccountsTitle')}
-                </Txt>
-              </View>
-              <Txt size={12} color={C.textDim} style={{ marginBottom: 10, lineHeight: 18 }}>
+            <View style={{ marginTop: S.section }}>
+              <SectionHeader pal={C} title={t('household.sharedAccountsTitle')} />
+              <Type role="body" color={C.inkDim} style={{ paddingHorizontal: S.screen, marginBottom: 12 }}>
                 {t('household.sharedAccountsBlurb')}
-              </Txt>
-
-              {myAccounts.map((account) => {
-                const isShared = (dashboard?.sharedAccounts ?? []).some((a) => a.id === account.id);
-                return (
-                  <GlassCard key={account.id} padding={14} radius={R.sm} style={{ marginBottom: 8 }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                      <View style={{ flex: 1 }}>
-                        <Txt weight="semibold" size={14}>{account.name}</Txt>
-                        <Txt size={12} color={C.textDim} style={{ marginTop: 2 }}>
-                          {isShared ? t('household.accountShared') : t('household.accountPrivate')}
-                        </Txt>
-                      </View>
-                      <Switch
-                        value={isShared}
-                        onValueChange={(on) => {
-                          Haptics.selectionAsync();
-                          shareAccount.mutate({ id: account.id, on });
-                        }}
-                        disabled={shareAccount.isPending}
-                        trackColor={{ true: C.p600, false: C.glassBorder }}
-                      />
-                    </View>
-                  </GlassCard>
-                );
-              })}
+              </Type>
+              <Rows pal={C}>
+                {myAccounts.map((account) => {
+                  const isShared = (dashboard?.sharedAccounts ?? []).some((a) => a.id === account.id);
+                  return (
+                    <SwitchRow
+                      key={account.id}
+                      pal={C}
+                      title={account.name}
+                      body={isShared ? t('household.accountShared') : t('household.accountPrivate')}
+                      value={isShared}
+                      onValueChange={(on) => shareAccount.mutate({ id: account.id, on })}
+                    />
+                  );
+                })}
+              </Rows>
 
               {/* What the household actually sees from those accounts. */}
-              {(dashboard?.sharedTransactions?.length ?? 0) > 0 && (
-                <View style={{ marginTop: 10 }}>
-                  <Txt size={12} color={C.textDim} style={{ marginBottom: 8 }}>
-                    {t('household.sharedActivity')}
-                  </Txt>
-                  {(dashboard?.sharedTransactions ?? []).slice(0, 10).map((tx) => (
-                    <View
-                      key={tx.id}
-                      style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 7 }}
-                    >
-                      <View style={{ flex: 1 }}>
-                        <Txt size={13}>{tx.note ?? categoryLabel(tx.category)}</Txt>
-                        <Txt size={11} color={C.textDim} style={{ marginTop: 1 }}>
-                          {tx.dateISO} · {categoryLabel(tx.category)}
-                        </Txt>
-                      </View>
-                      <Txt size={13} weight="semibold">{money(tx.amount)}</Txt>
-                    </View>
-                  ))}
+              {(dashboard?.sharedTransactions?.length ?? 0) > 0 ? (
+                <View style={{ marginTop: 16 }}>
+                  <SectionHeader pal={C} title={t('household.sharedActivity')} />
+                  <Rows pal={C}>
+                    {(dashboard?.sharedTransactions ?? []).slice(0, 10).map((tx) => (
+                      <InfoRow
+                        key={tx.id}
+                        pal={C}
+                        title={tx.note ?? categoryLabel(tx.category)}
+                        meta={`${tx.dateISO} · ${categoryLabel(tx.category)}`}
+                        amount={tx.amount}
+                        format={formatCurrency}
+                      />
+                    ))}
+                  </Rows>
                 </View>
-              )}
+              ) : null}
             </View>
 
             {/* ── Invite ──────────────────────────────────────────────────── */}
-            {household?.isOwner && invite && (
-              <GlassCard padding={16} radius={R.md} style={{ marginTop: 18 }}>
-                <Txt weight="semibold" size={14}>{t('household.inviteTitle')}</Txt>
-                <Txt size={12} color={C.textDim} style={{ marginTop: 4, lineHeight: 18 }}>
-                  {t('household.inviteBlurb')}
-                </Txt>
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12 }}>
-                  <Txt weight="bold" size={24} style={{ flex: 1, letterSpacing: 4 }}>
-                    {invite.code}
-                  </Txt>
-                  <Pressable
-                    onPress={() => { Haptics.selectionAsync(); refresh.mutate(); }}
-                    hitSlop={12}
+            {household?.isOwner && invite ? (
+              <View style={{ paddingHorizontal: S.screen, marginTop: S.section }}>
+                <Card pal={C}>
+                  <Type role="cardTitle" color={C.ink}>
+                    {t('household.inviteTitle')}
+                  </Type>
+                  <Type role="body" color={C.inkDim} style={{ marginTop: 4 }}>
+                    {t('household.inviteBlurb')}
+                  </Type>
+                  <View
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 16 }}
                   >
-                    <RefreshCw size={18} color={C.textDim} />
-                  </Pressable>
-                </View>
-              </GlassCard>
-            )}
+                    <Type
+                      role="section"
+                      color={C.ink}
+                      style={{ flex: 1, letterSpacing: 4, fontVariant: ['tabular-nums'] }}
+                    >
+                      {invite.code}
+                    </Type>
+                    <CircleAction
+                      pal={C}
+                      label={t('household.inviteTitle')}
+                      size={36}
+                      onPress={() => refresh.mutate()}
+                    >
+                      <RefreshCw size={17} color={C.ink} strokeWidth={S.stroke} />
+                    </CircleAction>
+                  </View>
+                </Card>
+              </View>
+            ) : null}
 
             {/* ── Deleting, for the owner ─────────────────────────────────
                 The owner cannot leave — there would be nobody to own the
-                group — so the way out is deleting it. The endpoint existed
-                before this UI did, which meant an owner had no way to undo
-                creating one. Typed confirmation, because this takes the
-                shared view away from everyone at once. */}
-            {household?.isOwner && (
-              <GlassCard padding={16} radius={R.md} style={{ marginTop: 22 }} border="rgba(239,68,68,0.28)">
-                <Txt weight="semibold" size={14} color="#f87171">
-                  {t('household.deleteTitle')}
-                </Txt>
-                <Txt size={12} color={C.textDim} style={{ marginTop: 6, lineHeight: 18 }}>
-                  {t('household.deleteBody', { name: household!.household!.name })}
-                </Txt>
-                <TextInput
-                  value={confirmName}
-                  onChangeText={setConfirmName}
-                  placeholder={household!.household!.name}
-                  placeholderTextColor={C.textFaint}
-                  autoCorrect={false}
-                  style={{
-                    marginTop: 12, borderRadius: R.sm, paddingHorizontal: 14, paddingVertical: 11,
-                    backgroundColor: C.glass, color: C.text, fontSize: 15,
-                  }}
-                />
-                <Pressable
-                  onPress={() => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning); destroy.mutate(); }}
-                  disabled={confirmName.trim() !== household!.household!.name.trim() || destroy.isPending}
-                  style={{ marginTop: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}
-                >
-                  <Trash2 size={15} color={confirmName.trim() === household!.household!.name.trim() ? '#f87171' : C.textFaint} />
-                  <Txt
-                    size={14}
-                    weight="semibold"
-                    color={confirmName.trim() === household!.household!.name.trim() ? '#f87171' : C.textFaint}
-                    style={{ marginStart: 8 }}
+                group — so the way out is deleting it. Typed confirmation,
+                because this takes the shared view away from everyone at once. */}
+            {household?.isOwner ? (
+              <View style={{ paddingHorizontal: S.screen, marginTop: S.section }}>
+                <Card pal={C}>
+                  <Type role="cardTitle" color={C.negative}>
+                    {t('household.deleteTitle')}
+                  </Type>
+                  <Type role="body" color={C.inkDim} style={{ marginTop: 6 }}>
+                    {t('household.deleteBody', { name: household!.household!.name })}
+                  </Type>
+                  <Field
+                    pal={C}
+                    value={confirmName}
+                    onChangeText={setConfirmName}
+                    placeholder={household!.household!.name}
+                    autoCorrect={false}
+                    style={{ marginTop: 12 }}
+                  />
+                  <PressableScale
+                    onPress={canDestroy && !destroy.isPending ? () => destroy.mutate() : undefined}
+                    haptic="light"
+                    accessibilityRole="button"
+                    accessibilityLabel={t('household.deleteCta')}
+                    accessibilityState={{ disabled: !canDestroy }}
+                    style={{
+                      minHeight: 48,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginTop: 12,
+                      opacity: canDestroy ? 1 : 0.4,
+                    }}
                   >
-                    {t('household.deleteCta')}
-                  </Txt>
-                </Pressable>
-              </GlassCard>
-            )}
+                    <Type role="cardTitle" color={C.negative}>
+                      {t('household.deleteCta')}
+                    </Type>
+                  </PressableScale>
+                </Card>
+              </View>
+            ) : null}
 
             {/* ── Leave ──
                 Members only. An owner has no "leave" — there would be nobody
                 left to own the group — so the note about leaving belongs
-                inside this branch rather than under both. It was outside, and
-                owners were being told what happens when they leave. */}
-            {!household?.isOwner && (
-              <>
-                <Pressable
-                  onPress={() => { Haptics.selectionAsync(); leave.mutate(); }}
-                  disabled={leave.isPending}
-                  style={{ marginTop: 22, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}
+                inside this branch rather than under both. */}
+            {!household?.isOwner ? (
+              <View style={{ paddingHorizontal: S.screen, marginTop: S.section }}>
+                <PressableScale
+                  onPress={leave.isPending ? undefined : confirmLeave}
+                  haptic="light"
+                  accessibilityRole="button"
+                  accessibilityLabel={t('household.leave')}
+                  style={{ minHeight: 48, alignItems: 'center', justifyContent: 'center' }}
                 >
-                  <LogOut size={16} color="#f87171" />
-                  <Txt size={14} color="#f87171" weight="semibold" style={{ marginStart: 8 }}>
+                  <Type role="cardTitle" color={C.negative}>
                     {t('household.leave')}
-                  </Txt>
-                </Pressable>
-                <Txt size={11} color={C.textDim} style={{ marginTop: 8, textAlign: 'center', lineHeight: 16 }}>
+                  </Type>
+                </PressableScale>
+                <Type role="meta" color={C.inkDim} style={{ marginTop: 6, textAlign: 'center' }}>
                   {t('household.leaveNotice')}
-                </Txt>
-              </>
-            )}
+                </Type>
+              </View>
+            ) : null}
           </>
         )}
       </ScrollView>
-    </ScreenBackground>
+    </Screen>
   );
 }

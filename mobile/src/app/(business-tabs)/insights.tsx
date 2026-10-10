@@ -1,18 +1,9 @@
-import type { StyleProp, ViewStyle } from 'react-native';
-import {
-  View, ScrollView, Pressable, Modal, TextInput,
-  ActivityIndicator, Alert, KeyboardAvoidingView, Platform,
-} from 'react-native';
+import { View, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import { useState, useCallback } from 'react';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
-  useSharedValue, useAnimatedStyle, withTiming, withDelay, Easing,
+  useSharedValue, useAnimatedStyle, withTiming, Easing, useReducedMotion,
 } from 'react-native-reanimated';
-import {
-  Plane, Laptop, Coffee, Car, Building, Tag,
-  SlidersHorizontal, X, AlertTriangle, TrendingUp,
-} from 'lucide-react-native';
+import { SlidersHorizontal, TrendingUp } from '@/components/icons';
 import * as Haptics from 'expo-haptics';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getBudget, setBudget, type BudgetCategory, type BudgetData } from '@/lib/budgetApi';
@@ -20,167 +11,201 @@ import { getBusiness } from '@/lib/businessApi';
 import { roleOf } from '@/lib/group-members';
 import { useSession } from '@/lib/auth/use-session';
 import { useFocusEffect } from 'expo-router';
-import { R, glow, useB } from '@/lib/design';
-import { Txt, GlassCard, IconBubble, BizBackground, BubbleButton } from '@/components/ui';
+import { formatCurrency } from '@/lib/calculations';
+import { BAR, S, useB, type BizPalette } from '@/lib/design';
+import {
+  Amount, Card, CircleAction, Empty, Field, Header, PrimaryButton, Screen,
+  SectionHeader, Sheet, Stat, Type,
+} from '@/components/kit';
 import { t } from '@/lib/i18n/core';
+import { expenseCategoryLabel } from '@/lib/expense-meta';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const ALL_CATEGORIES: { key: BudgetCategory; label: string; icon: React.ComponentType<{ size: number; color: string }>; color: string }[] = [
-  { key: 'Travel', label: 'Travel', icon: Plane, color: '#818cf8' },
-  { key: 'Software', label: 'Software', icon: Laptop, color: '#14b8a6' },
-  { key: 'Meals', label: 'Meals', icon: Coffee, color: '#f59e0b' },
-  { key: 'Transport', label: 'Transport', icon: Car, color: '#3b82f6' },
-  { key: 'Office', label: 'Office', icon: Building, color: '#f472b6' },
-  { key: 'Other', label: 'Other', icon: Tag, color: '#a78bfa' },
-];
+const ALL_CATEGORIES: BudgetCategory[] = ['Travel', 'Software', 'Meals', 'Transport', 'Office', 'Other'];
 
-function pct(spent: number, budget: number) { if (budget <= 0) return 0; return Math.min((spent / budget) * 100, 100); }
-function barColor(p: number) { if (p >= 100) return '#ef4444'; if (p >= 80) return '#f59e0b'; return '#14b8a6'; }
+function ratio(spent: number, budget: number) {
+  if (budget <= 0) return 0;
+  return Math.min(spent / budget, 1);
+}
 
-function ProgressBar({ pct: targetPct, color, delay = 0 }: { pct: number; color: string; delay?: number }) {
-  const B = useB();
-  const width = useSharedValue(0);
-  useFocusEffect(useCallback(() => {
-    width.value = withDelay(delay, withTiming(targetPct, { duration: 700, easing: Easing.out(Easing.cubic) }));
-  }, [targetPct, delay, width]));
-  const barStyle = useAnimatedStyle(() => ({ width: `${width.value}%` }));
+/**
+ * Three states, and the sentence beside the bar always says which one.
+ *
+ * The colours used to be `#ef4444` / `#f59e0b` / `#14b8a6` — three literals
+ * that appear nowhere in the palette. They are now the semantic tokens, which
+ * are the ones verified against both grounds.
+ */
+function trackTone(pal: BizPalette, spent: number, budget: number): string {
+  if (budget <= 0) return pal.groundSunk;
+  const r = spent / budget;
+  return r >= 1 ? pal.negative : r >= 0.8 ? pal.warning : pal.accentMark;
+}
+
+/**
+ * The total's bar fills once when the screen comes into focus.
+ *
+ * Only this one. The previous version animated every category row too, on a
+ * staggered delay — and when eight bars all arrive the same way, none of them
+ * arrives. The screen has one number worth watching land; the rows beneath it
+ * are a list you read.
+ */
+function Meter({
+  pal, value, tone, animate = false, onDark = false,
+}: {
+  pal: BizPalette;
+  value: number;
+  tone: string;
+  animate?: boolean;
+  onDark?: boolean;
+}) {
+  const reduced = useReducedMotion();
+  const width = useSharedValue(animate && !reduced ? 0 : value);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!animate || reduced) {
+        width.value = value;
+        return;
+      }
+      width.value = 0;
+      width.value = withTiming(value, { duration: 700, easing: Easing.out(Easing.cubic) });
+    }, [value, animate, reduced, width])
+  );
+
+  const fill = useAnimatedStyle(() => ({ width: `${width.value * 100}%` }));
+
   return (
-    <View style={{ height: 7, backgroundColor: B.glassStrong, borderRadius: 4, overflow: 'hidden' }}>
-      <Animated.View style={[{ height: '100%', borderRadius: 4, backgroundColor: color }, barStyle]} />
+    <View
+      accessibilityRole="progressbar"
+      accessibilityValue={{ min: 0, max: 100, now: Math.round(value * 100) }}
+      style={{
+        height: 6,
+        borderRadius: 3,
+        backgroundColor: onDark ? 'rgba(255,255,255,0.16)' : pal.groundSunk,
+        overflow: 'hidden',
+        // Fills from the reading direction, so it mirrors in Arabic rather
+        // than draining backwards (§7).
+        flexDirection: 'row',
+      }}
+    >
+      <Animated.View style={[{ borderRadius: 3, backgroundColor: tone }, fill]} />
     </View>
   );
 }
 
-function FieldLabel({ children }: { children: string }) {
-  const B = useB();
-  return <Txt weight="bold" size={11} color={B.textFaint} style={{ letterSpacing: 1.2, marginBottom: 8 }}>{children}</Txt>;
-}
+// ── Editing ──────────────────────────────────────────────────────────────────
 
-function EditBudgetModal({ visible, onClose, currentData }: { visible: boolean; onClose: () => void; currentData: BudgetData | null | undefined }) {
+function EditBudgetSheet({
+  visible, onClose, currentData,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  currentData: BudgetData | null | undefined;
+}) {
   const B = useB();
   const qc = useQueryClient();
   const [total, setTotal] = useState('');
-  const [catVals, setCatVals] = useState<Partial<Record<BudgetCategory, string>>>({});
+  const [byCategory, setByCategory] = useState<Partial<Record<BudgetCategory, string>>>({});
+  const [primed, setPrimed] = useState(false);
 
-  const handleOpen = useCallback(() => {
+  // Prime from the server's values the first time the sheet opens, and again
+  // whenever it reopens, so an abandoned edit is not still sitting there.
+  if (visible && !primed) {
+    setPrimed(true);
     setTotal(currentData?.budget.totalMonthly ? String(currentData.budget.totalMonthly) : '');
-    const init: Partial<Record<BudgetCategory, string>> = {};
-    ALL_CATEGORIES.forEach(c => { const v = currentData?.budget.categories[c.key]; init[c.key] = v ? String(v) : ''; });
-    setCatVals(init);
-  }, [currentData]);
+    const initial: Partial<Record<BudgetCategory, string>> = {};
+    for (const key of ALL_CATEGORIES) {
+      const v = currentData?.budget.categories[key];
+      initial[key] = v ? String(v) : '';
+    }
+    setByCategory(initial);
+  }
+  if (!visible && primed) setPrimed(false);
 
-  const saveMut = useMutation({
+  const save = useMutation({
     mutationFn: () => {
-      const totalNum = parseFloat(total);
-      if (isNaN(totalNum) || totalNum < 0) throw new Error('Enter a valid total budget');
-      const cats: Partial<Record<BudgetCategory, number>> = {};
-      ALL_CATEGORIES.forEach(c => { const v = parseFloat(catVals[c.key] ?? ''); if (!isNaN(v) && v > 0) cats[c.key] = v; });
-      return setBudget({ totalMonthly: totalNum, categories: cats });
+      const totalValue = parseFloat(total);
+      if (isNaN(totalValue) || totalValue < 0) throw new Error(t('businessInsights.totalBudget'));
+      const categories: Partial<Record<BudgetCategory, number>> = {};
+      for (const key of ALL_CATEGORIES) {
+        const v = parseFloat(byCategory[key] ?? '');
+        if (!isNaN(v) && v > 0) categories[key] = v;
+      }
+      return setBudget({ totalMonthly: totalValue, categories });
     },
-    onSuccess: () => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); qc.invalidateQueries({ queryKey: ['biz-budget'] }); onClose(); },
-    onError: (e: Error) => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error); Alert.alert(t('common.error'), e.message); },
+    onSuccess: () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      qc.invalidateQueries({ queryKey: ['biz-budget'] });
+      onClose();
+    },
+    onError: (e: Error) => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert(t('common.error'), e.message);
+    },
   });
 
   return (
-    <Modal visible={visible} animationType="slide" transparent presentationStyle="overFullScreen" onShow={handleOpen}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1, justifyContent: 'flex-end' }}>
-        <Pressable style={{ flex: 1 }} onPress={onClose} />
-        <View style={{ backgroundColor: B.slate900, borderTopLeftRadius: 30, borderTopRightRadius: 30, borderWidth: 1, borderColor: `${B.accent}26`, paddingBottom: 44, maxHeight: '90%' }}>
-          <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 22 }}>
-            <View style={{ width: 40, height: 4, backgroundColor: B.slate700, borderRadius: 2, alignSelf: 'center', marginBottom: 20 }} />
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 22 }}>
-              <Txt weight="bold" size={20} color={B.text}>{t('businessInsights.setBudget')}</Txt>
-              <Pressable onPress={onClose} hitSlop={10}><X size={22} color={B.textFaint} /></Pressable>
-            </View>
+    <Sheet pal={B} visible={visible} onClose={onClose} title={t('businessInsights.setBudget')}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{ paddingHorizontal: S.card, paddingBottom: 8 }}
+      >
+        <Field
+          pal={B}
+          label={t('businessInsights.totalBudget')}
+          value={total}
+          onChangeText={setTotal}
+          placeholder="0"
+          keyboardType="decimal-pad"
+        />
 
-            <FieldLabel>{t('businessInsights.totalBudget')}</FieldLabel>
-            <GlassCard padding={0} radius={R.md} border={`${B.accent}33`} style={{ marginBottom: 22 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14 }}>
-                <Txt weight="bold" size={20} color={B.accent} style={{ marginEnd: 8 }}>$</Txt>
-                <TextInput value={total} onChangeText={setTotal} placeholder="0" placeholderTextColor={B.textFaint} keyboardType="decimal-pad" style={{ flex: 1, color: B.text, fontSize: 24, fontFamily: 'PlusJakartaSans_700Bold', padding: 0 }} selectionColor={B.accent} />
-              </View>
-            </GlassCard>
+        <Type role="meta" color={B.inkDim} style={{ marginTop: 16, marginBottom: 4 }}>
+          {t('businessInsights.categoryBudgets')}
+        </Type>
+        {ALL_CATEGORIES.map((key) => (
+          <Field
+            key={key}
+            pal={B}
+            label={expenseCategoryLabel(key)}
+            value={byCategory[key] ?? ''}
+            onChangeText={(v) => setByCategory((prev) => ({ ...prev, [key]: v }))}
+            placeholder="—"
+            keyboardType="decimal-pad"
+            style={{ marginTop: 12 }}
+          />
+        ))}
 
-            <FieldLabel>{t('businessInsights.categoryBudgets')}</FieldLabel>
-            <View style={{ gap: 8 }}>
-              {ALL_CATEGORIES.map(cat => {
-                const Icon = cat.icon;
-                return (
-                  <GlassCard key={cat.key} padding={0} radius={R.sm}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 10 }}>
-                      <IconBubble color={cat.color} size={34} radius={10} style={{ marginEnd: 12 }}><Icon size={16} color={cat.color} /></IconBubble>
-                      <Txt size={14} color={B.textDim} style={{ flex: 1 }}>{cat.label}</Txt>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: B.glass, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 7, borderWidth: 1, borderColor: B.glassBorder, minWidth: 90 }}>
-                        <Txt size={14} color={B.textFaint} style={{ marginEnd: 4 }}>$</Txt>
-                        <TextInput value={catVals[cat.key] ?? ''} onChangeText={v => setCatVals(prev => ({ ...prev, [cat.key]: v }))} placeholder="—" placeholderTextColor={B.textFaint} keyboardType="decimal-pad" style={{ color: B.text, fontSize: 15, fontFamily: 'PlusJakartaSans_600SemiBold', minWidth: 55, padding: 0 }} selectionColor={cat.color} />
-                      </View>
-                    </View>
-                  </GlassCard>
-                );
-              })}
-            </View>
-
-            <View style={{ marginTop: 16 }}>
-              <BubbleButton label={saveMut.isPending ? t('businessInsights.savingBudget') : t('businessInsights.saveBudgetButton')} onPress={() => saveMut.mutate()} disabled={saveMut.isPending} radius={R.md} colors={[B.accentDeep, B.accent]} glowColor={B.accent} />
-            </View>
-          </ScrollView>
-        </View>
-      </KeyboardAvoidingView>
-    </Modal>
+        <PrimaryButton
+          pal={B}
+          label={save.isPending
+            ? t('businessInsights.savingBudget')
+            : t('businessInsights.saveBudgetButton')}
+          onPress={() => save.mutate()}
+          disabled={save.isPending}
+          style={{ marginTop: 24 }}
+        />
+      </ScrollView>
+    </Sheet>
   );
 }
 
-function CategoryRow({ cat, spent, budget, index }: { cat: typeof ALL_CATEGORIES[number]; spent: number; budget: number; index: number }) {
-  const B = useB();
-  const Icon = cat.icon;
-  const p = pct(spent, budget);
-  const color = barColor(p);
-  const overBudget = budget > 0 && spent > budget;
-  const warning = budget > 0 && p >= 80 && !overBudget;
-
-  return (
-    <GlassCard
-      padding={16}
-      radius={R.md}
-      tint={overBudget ? `${B.red}0e` : warning ? `${B.amber}0c` : B.glass}
-      border={overBudget ? `${B.red}33` : warning ? `${B.amber}2a` : B.glassBorder}
-    >
-      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
-        <IconBubble color={cat.color} size={40} radius={13} style={{ marginEnd: 12 }}><Icon size={18} color={cat.color} /></IconBubble>
-        <View style={{ flex: 1 }}>
-          <Txt weight="semibold" size={14} color={B.text}>{cat.label}</Txt>
-          {budget > 0 ? (
-            <Txt size={11} color={B.textFaint} style={{ marginTop: 1 }}>${spent.toFixed(0)} of ${budget.toFixed(0)} · {p.toFixed(0)}%</Txt>
-          ) : (
-            <Txt size={11} color={B.textFaint} style={{ marginTop: 1 }}>{t('businessInsights.spentNoLimit', { amount: `$${spent.toFixed(0)}` })}</Txt>
-          )}
-        </View>
-        <View style={{ alignItems: 'flex-end', gap: 4 }}>
-          <Txt weight="bold" size={15} color={overBudget ? B.red : B.text}>${spent.toFixed(0)}</Txt>
-          {(overBudget || warning) && <AlertTriangle size={13} color={overBudget ? B.red : B.amber} />}
-        </View>
-      </View>
-      {budget > 0 && <ProgressBar pct={p} color={color} delay={index * 80} />}
-    </GlassCard>
-  );
-}
+// ── Screen ───────────────────────────────────────────────────────────────────
 
 /**
- * Also rendered inside the Money tab, which supplies the background, the
- * heading and the segmented control. `embedded` drops this screen's own
- * chrome so the two do not stack — the action button stays, because it acts
- * on this view specifically.
+ * Budget — DESIGN-PROMPT.md §36.
+ *
+ * The hero card used to change colour wholesale when you went over: a
+ * near-black red gradient (`#220a0a`) on a light-mode screen, plus a tinted
+ * warning strip, plus a percentage in a fourth colour, plus a row of three
+ * differently-coloured figures underneath. Five signals for one fact.
+ *
+ * §6.2 says it in one sentence and one track, with the state named in words so
+ * it never rests on telling two tints apart.
  */
-/** BizBackground normally; a bare View when the Money tab already drew one. */
-function Wrapper({ style, children }: { style?: StyleProp<ViewStyle>; children: React.ReactNode }) {
-  const embedded = !!(style && typeof style === 'object' && 'flex' in (style as object));
-  return embedded
-    ? <View style={style}>{children}</View>
-    : <BizBackground style={style}>{children}</BizBackground>;
-}
-
 export default function BudgetScreen({ embedded }: { embedded?: boolean } = {}) {
-  const B = useB();
   const insets = useSafeAreaInsets();
+  const B = useB();
   const qc = useQueryClient();
   const { data: session } = useSession();
   const [showEdit, setShowEdit] = useState(false);
@@ -195,123 +220,179 @@ export default function BudgetScreen({ embedded }: { embedded?: boolean } = {}) 
 
   const totalBudget = data?.budget.totalMonthly ?? 0;
   const totalSpent = data?.spending.total ?? 0;
-  const totalPct = pct(totalSpent, totalBudget);
-  const totalColor = barColor(totalPct);
-  const overallWarn = totalBudget > 0 && totalPct >= 80;
+  const totalRatio = ratio(totalSpent, totalBudget);
   const overBudget = totalBudget > 0 && totalSpent > totalBudget;
   const remaining = Math.max(totalBudget - totalSpent, 0);
 
-  const catRows = ALL_CATEGORIES.map(cat => ({
-    cat,
-    spent: data?.spending.byCategory[cat.key]?.spent ?? 0,
-    budget: data?.budget.categories[cat.key] ?? 0,
-  })).filter(r => r.spent > 0 || r.budget > 0);
+  const rows = ALL_CATEGORIES
+    .map((key) => ({
+      key,
+      spent: data?.spending.byCategory[key]?.spent ?? 0,
+      budget: data?.budget.categories[key] ?? 0,
+    }))
+    .filter((r) => r.spent > 0 || r.budget > 0);
 
-  return (
-    <Wrapper style={embedded ? { flex: 1 } : { paddingTop: insets.top }}>
-      <EditBudgetModal visible={showEdit} onClose={() => setShowEdit(false)} currentData={data} />
+  const editAction = canEdit ? (
+    <CircleAction pal={B} label={t('businessInsights.edit')} onPress={() => setShowEdit(true)}>
+      <SlidersHorizontal size={18} color={B.ink} strokeWidth={S.stroke} />
+    </CircleAction>
+  ) : null;
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 110 }}>
-        {/* Header */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: embedded ? 0 : 16, paddingBottom: embedded ? 4 : 14 }}>
-          {embedded ? <View /> : (
-            <View>
-              <Txt weight="bold" size={25} color={B.text}>{t('businessInsights.budget')}</Txt>
+  const body = (
+    <>
+      <EditBudgetSheet visible={showEdit} onClose={() => setShowEdit(false)} currentData={data} />
+
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: BAR.clearance(insets.bottom) }}>
+        {embedded ? (
+          canEdit ? (
+            <View style={{ alignItems: 'flex-end', paddingHorizontal: S.screen, marginTop: 16 }}>
+              {editAction}
             </View>
-          )}
-          {canEdit && (
-            <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setShowEdit(true); }} style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 9, borderRadius: 13, backgroundColor: `${B.accent}22`, borderWidth: 1.5, borderColor: `${B.accent}44` })}>
-              <SlidersHorizontal size={15} color={B.accent} />
-              <Txt weight="bold" size={13} color={B.accent}>{t('businessInsights.edit')}</Txt>
-            </Pressable>
-          )}
-        </View>
+          ) : null
+        ) : (
+          <Header pal={B} title={t('businessInsights.budget')} actions={editAction} style={{ marginTop: 8 }} />
+        )}
 
         {isLoading ? (
-          <View style={{ alignItems: 'center', paddingVertical: 80 }}><ActivityIndicator color={B.accent} size="large" /></View>
+          <View style={{ alignItems: 'center', paddingVertical: 80 }}>
+            <ActivityIndicator color={B.accent} />
+          </View>
         ) : (
           <>
-            <Txt size={12} color={B.textFaint} style={{ textAlign: 'center', marginBottom: 16 }}>{data?.month.label ?? ''}</Txt>
+            <View style={{ paddingHorizontal: S.screen, marginTop: embedded ? 12 : 24 }}>
+              <Card pal={B} radius={24} padding={S.card + 2} contentStyle={{ backgroundColor: B.inkSoft }}>
+                <Type role="meta" color={B.onInk} style={{ opacity: 0.7 }}>
+                  {data?.month.label ?? t('businessInsights.monthlySpend')}
+                </Type>
+                <Amount
+                  value={totalSpent}
+                  format={formatCurrency}
+                  size={40}
+                  color={B.onInk}
+                  style={{ marginTop: 6 }}
+                />
 
-            {/* Total budget card */}
-            <View style={{ marginHorizontal: 20, marginBottom: 20 }}>
-              <LinearGradient
-                colors={overBudget ? ['#220a0a', '#170808'] : overallWarn ? ['#221606', '#171005'] : [B.heroFrom, '#102a4a']}
-                start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-                style={[{ borderRadius: R.lg, padding: 22, borderWidth: 1, borderColor: overBudget ? `${B.red}44` : overallWarn ? `${B.amber}44` : `${B.accent}2a` }, glow(overBudget ? B.red : B.accentDeep, 0.25, 20, B.glowScale)]}
-              >
-                {(overBudget || overallWarn) && (
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: overBudget ? `${B.red}1a` : `${B.amber}1a`, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, marginBottom: 14, borderWidth: 1, borderColor: overBudget ? `${B.red}33` : `${B.amber}33` }}>
-                    <AlertTriangle size={14} color={overBudget ? B.red : B.amber} />
-                    <Txt weight="bold" size={12} color={overBudget ? B.red : B.amber}>
-                      {overBudget ? t('businessInsights.overBudgetBy', { amount: `$${(totalSpent - totalBudget).toFixed(2)}` }) : t('businessInsights.pctUsed', { pct: totalPct.toFixed(0) })}
-                    </Txt>
-                  </View>
-                )}
-
-                <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 16 }}>
-                  <View>
-                    <Txt weight="semibold" size={12} color="rgba(255,255,255,0.45)" style={{ letterSpacing: 1, marginBottom: 4 }}>{t('businessInsights.monthlySpend')}</Txt>
-                    <Txt weight="bold" size={38} color={overBudget ? B.red : '#fff'} style={{ lineHeight: 42 }}>${totalSpent.toFixed(0)}</Txt>
-                    {totalBudget > 0 && <Txt size={13} color={B.textFaint} style={{ marginTop: 2 }}>of ${totalBudget.toFixed(0)} budget</Txt>}
-                  </View>
-                  {totalBudget > 0 && (
-                    <View style={{ alignItems: 'flex-end' }}>
-                      <Txt weight="bold" size={28} color={totalColor}>{totalPct.toFixed(0)}%</Txt>
-                      {!overBudget && <Txt weight="semibold" size={12} color={B.teal}>${remaining.toFixed(0)} left</Txt>}
+                {totalBudget > 0 ? (
+                  <>
+                    {/* One sentence, in plain English, that already contains
+                        the state — no badge, no percentage in a fourth hue. */}
+                    <Type role="meta" color={B.onInk} style={{ opacity: 0.7, marginTop: 6 }}>
+                      {overBudget
+                        ? t('businessInsights.overBudgetBy', {
+                            amount: formatCurrency(totalSpent - totalBudget),
+                          })
+                        : t('businessInsights.pctUsed', { pct: Math.round(totalRatio * 100) })}
+                    </Type>
+                    <Meter
+                      pal={B}
+                      value={totalRatio}
+                      tone={overBudget ? B.negative : B.accentGlow}
+                      animate
+                      onDark
+                    />
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 16 }}>
+                      <Stat
+                        pal={B}
+                        label={t('businessInsights.budgetLabel')}
+                        value={totalBudget}
+                        format={formatCurrency}
+                        size={17}
+                        tone={B.onInk}
+                        labelTone={B.onInk}
+                      />
+                      <Stat
+                        pal={B}
+                        label={t('bizStats.remaining')}
+                        value={remaining}
+                        format={formatCurrency}
+                        size={17}
+                        tone={B.onInk}
+                        labelTone={B.onInk}
+                        align="flex-end"
+                      />
                     </View>
-                  )}
-                </View>
+                  </>
+                ) : null}
+              </Card>
 
-                {totalBudget > 0 && <ProgressBar pct={totalPct} color={totalColor} delay={0} />}
-
-                {totalBudget === 0 && canEdit && (
-                  <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setShowEdit(true); }} style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1, marginTop: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, backgroundColor: `${B.accent}16`, borderRadius: 12, paddingVertical: 11, borderWidth: 1, borderColor: `${B.accent}2a` })}>
-                    <TrendingUp size={14} color={B.accent} />
-                    <Txt weight="bold" size={13} color={B.accent}>{t('businessInsights.setBudgetShort')}</Txt>
-                  </Pressable>
-                )}
-              </LinearGradient>
+              {totalBudget === 0 && canEdit ? (
+                <PrimaryButton
+                  pal={B}
+                  label={t('businessInsights.setBudgetShort')}
+                  onPress={() => setShowEdit(true)}
+                  style={{ marginTop: 16 }}
+                />
+              ) : null}
             </View>
 
-            {/* Stats row */}
-            {totalBudget > 0 && (
-              <View style={{ flexDirection: 'row', paddingHorizontal: 20, gap: 10, marginBottom: 20 }}>
-                {[
-                  { label: t('businessInsights.budgetLabel'), value: `$${totalBudget.toFixed(0)}`, accent: B.accent },
-                  { label: t('bizStats.spent'), value: `$${totalSpent.toFixed(0)}`, accent: overBudget ? B.red : '#f87171' },
-                  { label: t('bizStats.remaining'), value: `$${remaining.toFixed(0)}`, accent: B.teal },
-                ].map(s => (
-                  <GlassCard key={s.label} style={{ flex: 1, alignItems: 'center' }} padding={14} radius={R.md}>
-                    <Txt weight="bold" size={17} color={s.accent} style={{ marginBottom: 2 }}>{s.value}</Txt>
-                    <Txt weight="semibold" size={11} color={B.textFaint}>{s.label}</Txt>
-                  </GlassCard>
-                ))}
-              </View>
-            )}
-
-            {/* By category */}
-            {catRows.length > 0 && (
-              <View style={{ paddingHorizontal: 20 }}>
-                <Txt weight="bold" size={11} color={B.textFaint} style={{ letterSpacing: 1.4, marginBottom: 12 }}>{t('businessInsights.byCategory')}</Txt>
-                <View style={{ gap: 10 }}>
-                  {catRows.map((r, i) => <CategoryRow key={r.cat.key} cat={r.cat} spent={r.spent} budget={r.budget} index={i} />)}
+            {rows.length > 0 ? (
+              <View style={{ marginTop: S.section }}>
+                <SectionHeader pal={B} title={t('businessInsights.byCategory')} />
+                <View style={{ paddingHorizontal: S.screen }}>
+                  <Card pal={B} padding={0} contentStyle={{ paddingHorizontal: S.card }}>
+                    {rows.map((row, i) => (
+                      <View
+                        key={row.key}
+                        style={[
+                          { paddingVertical: 16 },
+                          i > 0 ? { borderTopWidth: 1, borderTopColor: B.hairline } : null,
+                        ]}
+                      >
+                        <View
+                          style={{
+                            flexDirection: 'row',
+                            alignItems: 'baseline',
+                            justifyContent: 'space-between',
+                            marginBottom: 8,
+                          }}
+                        >
+                          <Type role="cardTitle" color={B.ink}>
+                            {expenseCategoryLabel(row.key)}
+                          </Type>
+                          <Amount
+                            value={row.spent}
+                            format={formatCurrency}
+                            size={17}
+                            weight="semibold"
+                            color={row.budget > 0 && row.spent > row.budget ? B.negative : B.ink}
+                          />
+                        </View>
+                        <Type role="meta" color={B.inkDim} style={{ marginBottom: 12 }}>
+                          {row.budget > 0
+                            ? t('businessInsights.pctUsed', {
+                                pct: Math.round((row.spent / row.budget) * 100),
+                              })
+                            : t('businessInsights.spentNoLimit', {
+                                amount: formatCurrency(row.spent),
+                              })}
+                        </Type>
+                        {row.budget > 0 ? (
+                          <Meter
+                            pal={B}
+                            value={ratio(row.spent, row.budget)}
+                            tone={trackTone(B, row.spent, row.budget)}
+                          />
+                        ) : null}
+                      </View>
+                    ))}
+                  </Card>
                 </View>
               </View>
-            )}
-
-            {catRows.length === 0 && (
-              <View style={{ marginHorizontal: 20 }}>
-                <GlassCard padding={40} radius={R.lg} style={{ alignItems: 'center' }}>
-                  <TrendingUp size={32} color={B.slate700} />
-                  <Txt weight="semibold" size={14} color={B.textDim} style={{ marginTop: 12, marginBottom: 4 }}>{t('businessInsights.noSpending')}</Txt>
-                  <Txt size={12} color={B.textFaint} style={{ textAlign: 'center' }}>{t('businessInsights.noSpendingHint')}</Txt>
-                </GlassCard>
-              </View>
+            ) : (
+              <Empty
+                pal={B}
+                icon={<TrendingUp size={26} color={B.accent} strokeWidth={S.stroke} />}
+                title={t('businessInsights.noSpending')}
+                body={t('businessInsights.noSpendingHint')}
+                style={{ marginTop: 64 }}
+              />
             )}
           </>
         )}
       </ScrollView>
-    </Wrapper>
+    </>
   );
+
+  if (embedded) return <View style={{ flex: 1 }}>{body}</View>;
+  return <Screen pal={B}>{body}</Screen>;
 }

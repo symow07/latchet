@@ -55,6 +55,20 @@ export const BREATH_MS = 5800;
 export const BREATH_MIN = 0.45;
 export const BREATH_MAX = 1;
 
+/**
+ * One turn of the glint round a quick-action tile's rim.
+ *
+ * 11s, and slow on purpose: there are four of them side by side sharing nothing
+ * but a start time, and anything quicker reads as four spinners.
+ *
+ * The first version of this animated the tile's *field* rather than its rim —
+ * the highlight drifting and dimming across the face. Two frames half a cycle
+ * apart measured 0.4/255 between them, because `tileSheen` is contrast-measured
+ * at full strength and so the field has nowhere brighter to go; on a pale tint
+ * the whole budget is about five values of red. See `tileGlint`.
+ */
+export const TILE_GLINT_MS = 11000;
+
 // ── Locale-safe formatting inside a worklet ──────────────────────────────────
 
 /**
@@ -141,4 +155,139 @@ export function formatWithParts(value: number, parts: CurrencyParts): string {
 
   const body = fraction ? `${grouped}${parts.decimal}${fraction}` : grouped;
   return `${negative ? '-' : ''}${parts.prefix}${body}${parts.suffix}`;
+}
+
+/**
+ * The pieces an amount is drawn from, per DESIGN-PROMPT.md §3.
+ *
+ * The number rules are specific: decimals stay the same size but drop to 55%
+ * opacity, the currency symbol is 65% size and raised, and every transaction
+ * amount carries an explicit sign rather than relying on colour. Rendering
+ * that means splitting a formatted string into parts and styling each one, so
+ * the split lives here — pure, and tested — rather than inside the component.
+ *
+ * Grouping and the decimal separator come from `parts`, which was derived from
+ * the user's own locale, so this never hard-codes "," and ".".
+ */
+export interface AmountPieces {
+  /** "−", "+", or "" — §3 requires a sign on signed amounts, never colour alone. */
+  sign: string;
+  /** Leading currency symbol, "" when the locale puts it after the number. */
+  prefix: string;
+  /** Grouped integer part. */
+  whole: string;
+  /** Separator plus fraction digits, "" for a zero-decimal currency like JPY. */
+  fraction: string;
+  /** Trailing currency symbol, "" when the locale puts it before the number. */
+  suffix: string;
+}
+
+/**
+ * How far to shrink an amount so it stays on one line.
+ *
+ * §7 requires the balance card to "survive a three-character code and seven
+ * significant digits". It did not: `Amount` lays its pieces out in a row at a
+ * fixed size, and a large figure in a three-character currency simply ran off
+ * the edge — `−CN¥77,777,884.00` rendered with the decimals clipped by the
+ * card's own `overflow: hidden`, so the number silently lied about itself.
+ *
+ * Character count rather than measured width, because the pieces are separate
+ * Text nodes and measuring them means a layout pass and a re-render per frame
+ * of the count-up. Plus Jakarta's figures are tabular here, so every digit is
+ * one width and counting them is exact for the part that varies.
+ *
+ * Floored at 0.55: past that the figure is too small to be the thing the eye
+ * lands on, and a card that needs more than that is a card whose budget was
+ * wrong to begin with.
+ */
+export function amountScale(glyphs: number, budget: number): number {
+  if (budget <= 0 || glyphs <= budget) return 1;
+  return Math.max(0.55, budget / glyphs);
+}
+
+export function splitAmount(
+  value: number,
+  parts: CurrencyParts,
+  signed: boolean
+): AmountPieces {
+  const fixed = Math.abs(value).toFixed(parts.decimals);
+  const [wholeRaw, fractionDigits] = fixed.split('.');
+  const whole = parts.group
+    ? (wholeRaw ?? '0').replace(/\B(?=(\d{3})+(?!\d))/g, parts.group)
+    : (wholeRaw ?? '0');
+
+  // A minus sign, not a hyphen: U+2212 aligns with the digits in a tabular
+  // face, where a hyphen sits short and high.
+  const sign = value < 0 ? '\u2212' : signed ? '+' : '';
+
+  return {
+    sign,
+    prefix: parts.prefix.trim(),
+    whole,
+    fraction: fractionDigits ? `${parts.decimal}${fractionDigits}` : '',
+    suffix: parts.suffix.trim(),
+  };
+}
+
+// ── Physical motion (apple-design §4, §6, §9) ───────────────────────────────
+
+/**
+ * Apple's two spring parameters, expressed directly.
+ *
+ * *Designing Fluid Interfaces* replaced the physics triplet (mass, stiffness,
+ * damping) with two a designer can reason about: **damping ratio**, which
+ * controls overshoot, and **response**, how quickly the value reaches its
+ * target. Reanimated 3 takes exactly that pair as `dampingRatio` + `duration`,
+ * so these are the shipped values from the talk rather than a translation of
+ * them.
+ *
+ * The rule that governs which one to reach for: bounce is earned. A spring
+ * overshoots only when the gesture that started it carried momentum — a flick,
+ * a throw, a drag release. A menu that merely appeared has no momentum to
+ * express, and overshoot there reads as a tic.
+ */
+
+/** Move / reposition. Critically damped: arrives and stops. */
+export const SPRING_MOVE = { dampingRatio: 1, duration: 400 } as const;
+
+/** Drawer / sheet. The gesture threw it, so it may overshoot slightly. */
+export const SPRING_SHEET = { dampingRatio: 0.8, duration: 300 } as const;
+
+/** Settle after a flick, carrying the finger's velocity in. */
+export const SPRING_FLICK = { dampingRatio: 0.82, duration: 400 } as const;
+
+/**
+ * Where a flick would come to rest.
+ *
+ * Snapping to whatever is nearest the *release point* throws the velocity
+ * away, and a hard flick then travels no further than a slow drag — the one
+ * thing that makes a gesture feel like it threw something. So project the
+ * resting position first, then choose the snap target nearest the projection.
+ *
+ * This is the exponential-decay form from the talk's sample code, not the
+ * textbook `v²/2a`: the two disagree, and this is the one iOS ships.
+ *
+ * @param velocity px/s at release.
+ * @param decelerationRate 0.998 for normal scroll feel, 0.99 for snappier.
+ * @returns the distance still to travel, in px, signed like the velocity.
+ */
+export function project(velocity: number, decelerationRate = 0.998): number {
+  'worklet';
+  return (velocity / 1000) * decelerationRate / (1 - decelerationRate);
+}
+
+/**
+ * Progressive resistance past a boundary.
+ *
+ * A hard stop at the end of a drag reads as frozen — the user cannot tell a
+ * limit from a bug. Resistance that grows the further they pull reads as
+ * "responsive, but there is nothing more here", which is the same thing a
+ * real object would say.
+ *
+ * @param overshoot how far past the boundary the finger has travelled.
+ * @param dimension the size of the axis, which sets how fast resistance grows.
+ */
+export function rubberband(overshoot: number, dimension: number, constant = 0.55): number {
+  'worklet';
+  return (overshoot * dimension * constant) / (dimension + constant * Math.abs(overshoot));
 }

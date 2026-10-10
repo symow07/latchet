@@ -1,45 +1,37 @@
-import {
-  View,
-  Text,
-  ScrollView,
-  Pressable,
-  TextInput,
-  Modal,
-  Switch,
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-} from 'react-native';
 import { useState } from 'react';
-import { useC } from '@/lib/design';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { ActivityIndicator, Alert, ScrollView, View } from 'react-native';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
-import {
-  ArrowLeft,
-  Plus,
-  Trash2,
-  RefreshCw,
-  ChevronDown,
-  X,
-  DollarSign,
-  Tag,
-  Calendar,
-  Repeat,
-  Check,
-  Play,
-} from 'lucide-react-native';
+import { format, parseISO } from 'date-fns';
+import { Play, Plus, RefreshCw } from '@/components/icons';
 import * as Haptics from 'expo-haptics';
-import Animated, {
-  FadeInUp,
-  FadeInDown,
-  ZoomIn,
-} from 'react-native-reanimated';
+
 import { api } from '@/lib/api/api';
-import { t } from '@/lib/i18n/core';
-import { categoryLabel } from '@/lib/categories';
+import { getSettings } from '@/lib/db';
+import { formatCurrency } from '@/lib/calculations';
+import { categoryLabel } from '@/lib/category-meta';
 import { txTypeLabel } from '@/lib/tx-display';
+import { S, useC, type Palette } from '@/lib/design';
+import { PressableScale } from '@/components/motion';
+import {
+  Card,
+  CircleAction,
+  Empty,
+  Field,
+  FilterChip,
+  FormError,
+  InfoRow,
+  PrimaryButton,
+  Screen,
+  SectionHeader,
+  Segmented,
+  Sheet,
+  Stat,
+  SubHeader,
+  SwipeRow,
+  Type,
+} from '@/components/kit';
+import { t, getDateFnsLocale } from '@/lib/i18n/core';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -85,365 +77,113 @@ interface CreateTransactionBody {
   currency: string;
 }
 
-// ─── Constants ────────────────────────────────────────────────────────────────
-
-const CATEGORIES: { label: Category; emoji: string }[] = [
-  { label: 'Food', emoji: '' },
-  { label: 'Gym', emoji: '' },
-  { label: 'Transport', emoji: '' },
-  { label: 'Shopping', emoji: '' },
-  { label: 'Subscriptions', emoji: '' },
-  { label: 'Other', emoji: '' },
+const CATEGORIES: readonly Category[] = [
+  'Food',
+  'Gym',
+  'Transport',
+  'Shopping',
+  'Subscriptions',
+  'Other',
 ];
 
-// Built per call, not at module scope: t() at module scope resolves
-// once at import and freezes the startup language.
-function FREQUENCIES(): { value: Frequency; label: string; shortLabel: string }[] {
-  return [
-  { value: 'daily', label: t('frequency.daily'), shortLabel: t('frequency.daily') },
-  { value: 'weekly', label: t('frequency.weekly'), shortLabel: t('frequency.weekly') },
-  { value: 'biweekly', label: t('frequency.biweekly'), shortLabel: 'Bi-wk' },
-  { value: 'monthly', label: t('frequency.monthly'), shortLabel: t('frequency.monthly') },
-  { value: 'yearly', label: t('frequency.yearly'), shortLabel: t('frequency.yearly') },
-];
-}
+const FREQUENCIES: readonly Frequency[] = ['daily', 'weekly', 'biweekly', 'monthly', 'yearly'];
+
+/** How many times a frequency runs in an average month. */
+const PER_MONTH: Record<Frequency, number> = {
+  daily: 30,
+  weekly: 4.33,
+  biweekly: 2.17,
+  monthly: 1,
+  yearly: 1 / 12,
+};
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function getCategoryEmoji(category: Category): string {
-  return CATEGORIES.find((c) => c.label === category)?.emoji ?? '';
-}
-
-function getFrequencyLabel(frequency: Frequency): string {
-  return FREQUENCIES().find((f) => f.value === frequency)?.label ?? frequency;
-}
-
-function getFrequencyShort(frequency: Frequency): string {
-  return FREQUENCIES().find((f) => f.value === frequency)?.shortLabel ?? frequency;
-}
-
-function formatAmount(amount: number): string {
-  return `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
-
-function formatDateShort(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-}
-
 function todayISO(): string {
-  return new Date().toISOString().split('T')[0];
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(
+    d.getDate()
+  ).padStart(2, '0')}`;
 }
 
 function daysUntilNext(nextDate: string): number {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const next = new Date(nextDate);
+  const next = parseISO(`${nextDate}T00:00:00`);
   next.setHours(0, 0, 0, 0);
   return Math.round((next.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 }
 
-function nextDateLabel(nextDate: string): string {
-  const days = daysUntilNext(nextDate);
-  if (days < 0) return 'Overdue';
-  if (days === 0) return 'Due today';
-  if (days === 1) return 'Tomorrow';
-  return `In ${days}d`;
-}
-
-function nextDateColor(nextDate: string, isActive: boolean): string {
-  if (!isActive) return '#4b5563';
-  const days = daysUntilNext(nextDate);
-  if (days < 0) return '#ef4444';
-  if (days <= 3) return '#f97316';
-  if (days <= 7) return '#eab308';
-  return '#22c55e';
-}
-
 /**
- * Compute the total monthly equivalent cost for active expense items.
- * Inactive and income items are excluded.
+ * When the next run lands, in the words the app already has.
+ *
+ * These used to be four hardcoded English strings — `'Overdue'`, `'Due
+ * today'`, `'Tomorrow'`, `` `In ${days}d` `` — inside a translated app. They
+ * are the same keys subscriptions and bills use, so the same fact is worded
+ * the same way wherever it appears.
  */
-function monthlyEquivalent(items: RecurringTransaction[]): number {
+function nextRunLabel(nextDate: string): string {
+  const days = daysUntilNext(nextDate);
+  if (days < 0) return t('subStatus.overdue');
+  if (days === 0) return t('subStatus.today');
+  if (days === 1) return t('subStatus.tomorrow');
+  return t('subStatus.inDays', { count: days });
+}
+
+/** The dot beside a run. One redundant cue, not a four-step colour scale
+ *  repeated on a spine, an icon well and a pill. */
+function urgencyDot(pal: Palette, nextDate: string, isActive: boolean): string {
+  if (!isActive) return pal.groundSunk;
+  const days = daysUntilNext(nextDate);
+  if (days < 0) return pal.negative;
+  if (days <= 3) return pal.warning;
+  return pal.accentMark;
+}
+
+function monthlyTotal(items: RecurringTransaction[], type: TxType): number {
   return items
-    .filter((item) => item.isActive && item.type === 'Expense')
-    .reduce((sum, item) => {
-      let monthly = 0;
-      switch (item.frequency) {
-        case 'daily': monthly = item.amount * 30; break;
-        case 'weekly': monthly = item.amount * 4.33; break;
-        case 'biweekly': monthly = item.amount * 2.17; break;
-        case 'monthly': monthly = item.amount; break;
-        case 'yearly': monthly = item.amount / 12; break;
-      }
-      return sum + monthly;
-    }, 0);
+    .filter((item) => item.isActive && item.type === type)
+    .reduce((sum, item) => sum + item.amount * PER_MONTH[item.frequency], 0);
 }
 
-function monthlyIncomeEquivalent(items: RecurringTransaction[]): number {
-  return items
-    .filter((item) => item.isActive && item.type === 'Income')
-    .reduce((sum, item) => {
-      let monthly = 0;
-      switch (item.frequency) {
-        case 'daily': monthly = item.amount * 30; break;
-        case 'weekly': monthly = item.amount * 4.33; break;
-        case 'biweekly': monthly = item.amount * 2.17; break;
-        case 'monthly': monthly = item.amount; break;
-        case 'yearly': monthly = item.amount / 12; break;
-      }
-      return sum + monthly;
-    }, 0);
-}
+// ─── Add sheet ───────────────────────────────────────────────────────────────
 
-// ─── Recurring Card ───────────────────────────────────────────────────────────
-
-function RecurringCard({
-  item,
-  index,
-  onToggleActive,
-  onDelete,
-  onRunNow,
-  isRunning,
-}: {
-  item: RecurringTransaction;
-  index: number;
-  onToggleActive: (item: RecurringTransaction) => void;
-  onDelete: (id: string) => void;
-  onRunNow: (item: RecurringTransaction) => void;
-  isRunning: boolean;
-}) {
-  const C = useC();
-  const isExpense = item.type === 'Expense';
-  const accentColor = !item.isActive
-    ? '#4b5563'
-    : isExpense
-    ? '#ef4444'
-    : '#22c55e';
-
-  const nextLabel = nextDateLabel(item.nextDate);
-  const nextColor = nextDateColor(item.nextDate, item.isActive);
-  const emoji = getCategoryEmoji(item.category);
-  const freqLabel = getFrequencyShort(item.frequency);
-
-  return (
-    <Animated.View entering={FadeInUp.delay(index * 55).duration(340)}>
-      <View
-        style={{
-          backgroundColor: C.bgRaise,
-          borderRadius: 18,
-          marginBottom: 10,
-          overflow: 'hidden',
-          flexDirection: 'row',
-          opacity: item.isActive ? 1 : 0.55,
-        }}
-      >
-        {/* Left accent bar */}
-        <View style={{ width: 4, backgroundColor: accentColor }} />
-
-        <View style={{ flex: 1, padding: 14 }}>
-          {/* Top row */}
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            {/* Emoji icon */}
-            <View
-              style={{
-                width: 44,
-                height: 44,
-                borderRadius: 13,
-                backgroundColor: `${accentColor}18`,
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginEnd: 12,
-              }}
-            >
-              <Text style={{ fontSize: 22 }}>{emoji}</Text>
-            </View>
-
-            {/* Name + meta */}
-            <View style={{ flex: 1 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Text
-                  style={{
-                    color: item.isActive ? '#f3f4f6' : '#6b7280',
-                    fontSize: 15,
-                    fontWeight: '700',
-                    flexShrink: 1,
-                  }}
-                  numberOfLines={1}
-                >
-                  {item.name}
-                </Text>
-                {/* Frequency badge */}
-                <View
-                  style={{
-                    paddingHorizontal: 7,
-                    paddingVertical: 2,
-                    borderRadius: 6,
-                    backgroundColor: `${accentColor}20`,
-                  }}
-                >
-                  <Text style={{ color: accentColor, fontSize: 10, fontWeight: '700' }}>
-                    {freqLabel}
-                  </Text>
-                </View>
-              </View>
-              <Text style={{ color: C.textFaint, fontSize: 12, marginTop: 2 }}>
-                {categoryLabel(item.category)} · {txTypeLabel(item.type)}
-              </Text>
-            </View>
-
-            {/* Amount */}
-            <View style={{ alignItems: 'flex-end', marginStart: 8 }}>
-              <Text
-                style={{
-                  color: isExpense ? '#ef4444' : '#22c55e',
-                  fontSize: 16,
-                  fontWeight: '800',
-                }}
-              >
-                {isExpense ? '-' : '+'}{formatAmount(item.amount)}
-              </Text>
-              {/* Next date badge */}
-              <View
-                style={{
-                  marginTop: 4,
-                  paddingHorizontal: 8,
-                  paddingVertical: 2,
-                  borderRadius: 99,
-                  backgroundColor: `${nextColor}18`,
-                }}
-              >
-                <Text style={{ color: nextColor, fontSize: 11, fontWeight: '600' }}>
-                  {nextLabel}
-                </Text>
-              </View>
-            </View>
-          </View>
-
-          {/* Bottom row: date + actions */}
-          <View
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              marginTop: 12,
-            }}
-          >
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Calendar size={12} color="#6b7280" />
-              <Text style={{ color: C.textFaint, fontSize: 12, marginStart: 5 }}>
-                Next: {formatDateShort(item.nextDate)}
-              </Text>
-            </View>
-
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-              {/* Run now */}
-              <Pressable
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  onRunNow(item);
-                }}
-                disabled={isRunning || !item.isActive}
-                hitSlop={8}
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 4,
-                  paddingHorizontal: 10,
-                  paddingVertical: 5,
-                  borderRadius: 8,
-                  backgroundColor: item.isActive ? '#22c55e18' : '#27272a',
-                }}
-              >
-                {isRunning ? (
-                  <ActivityIndicator size={12} color="#22c55e" />
-                ) : (
-                  <Play size={12} color={item.isActive ? '#22c55e' : '#4b5563'} />
-                )}
-                <Text
-                  style={{
-                    color: item.isActive ? '#22c55e' : '#4b5563',
-                    fontSize: 11,
-                    fontWeight: '600',
-                  }}
-                >
-                  {t('recurring.runNow')}
-                </Text>
-              </Pressable>
-
-              {/* Delete */}
-              <Pressable
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                  onDelete(item.id);
-                }}
-                hitSlop={8}
-              >
-                <Trash2 size={16} color="#6b7280" />
-              </Pressable>
-
-              {/* Active toggle */}
-              <Switch
-                value={item.isActive}
-                onValueChange={() => {
-                  Haptics.selectionAsync();
-                  onToggleActive(item);
-                }}
-                trackColor={{ false: '#374151', true: '#16653a' }}
-                thumbColor={item.isActive ? '#22c55e' : '#9ca3af'}
-                style={{ transform: [{ scaleX: 0.85 }, { scaleY: 0.85 }] }}
-              />
-            </View>
-          </View>
-        </View>
-      </View>
-    </Animated.View>
-  );
-}
-
-// ─── Add Recurring Modal ──────────────────────────────────────────────────────
-
-function AddRecurringModal({
+function AddRecurringSheet({
+  pal,
   visible,
   onClose,
   onSubmit,
   isLoading,
+  symbol,
 }: {
+  pal: Palette;
   visible: boolean;
   onClose: () => void;
-  onSubmit: (data: CreateRecurringBody) => void;
+  onSubmit: (data: Omit<CreateRecurringBody, 'currency'>) => void;
   isLoading: boolean;
+  symbol: string;
 }) {
-  const C = useC();
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState<Category>('Subscriptions');
   const [txType, setTxType] = useState<TxType>('Expense');
   const [frequency, setFrequency] = useState<Frequency>('monthly');
-  const [showCategoryPicker, setShowCategoryPicker] = useState(false);
-  const [showFrequencyPicker, setShowFrequencyPicker] = useState(false);
   const [error, setError] = useState('');
 
-  const reset = () => {
+  const close = () => {
     setName('');
     setAmount('');
     setCategory('Subscriptions');
     setTxType('Expense');
     setFrequency('monthly');
-    setShowCategoryPicker(false);
-    setShowFrequencyPicker(false);
     setError('');
-  };
-
-  const handleClose = () => {
-    reset();
     onClose();
   };
 
-  const handleSubmit = () => {
-    if (!name.trim()) { setError('Name is required'); return; }
+  const submit = () => {
+    if (!name.trim()) return setError(t('recurring.errName'));
     const amt = parseFloat(amount);
-    if (isNaN(amt) || amt <= 0) { setError('Enter a valid amount greater than 0'); return; }
+    if (Number.isNaN(amt) || amt <= 0) return setError(t('recurring.errAmount'));
 
     setError('');
     const today = todayISO();
@@ -456,402 +196,142 @@ function AddRecurringModal({
       frequency,
       startDate: today,
       nextDate: today,
-      currency: 'USD',
     });
   };
 
-  const inputStyle = {
-    backgroundColor: C.glassStrong,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 13,
-    marginBottom: 14,
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-  };
-
-  const labelStyle = {
-    color: C.textDim,
-    fontSize: 11,
-    fontWeight: '600' as const,
-    letterSpacing: 0.8,
-    marginBottom: 6,
-  };
-
   return (
-    <Modal visible={visible} animationType="slide" transparent presentationStyle="overFullScreen">
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
-        <Pressable
-          style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.75)' }}
-          onPress={handleClose}
-        >
-          <Pressable onPress={() => {}} style={{ width: '100%' }}>
-            <Animated.View
-              entering={FadeInDown.duration(280)}
-              style={{
-                backgroundColor: C.bgRaise,
-                borderTopLeftRadius: 28,
-                borderTopRightRadius: 28,
-                padding: 24,
-                paddingBottom: 40,
-              }}
-            >
-              {/* Handle bar */}
-              <View
-                style={{
-                  width: 36,
-                  height: 4,
-                  borderRadius: 2,
-                  backgroundColor: C.glassStrong,
-                  alignSelf: 'center',
-                  marginBottom: 20,
-                }}
-              />
+    <Sheet pal={pal} visible={visible} onClose={close} title={t('recurring.newTitle')}>
+      <View style={{ paddingHorizontal: S.card }}>
+        <Segmented
+          pal={pal}
+          options={[
+            { key: 'Expense' as const, label: txTypeLabel('Expense') },
+            { key: 'Income' as const, label: txTypeLabel('Income') },
+          ]}
+          value={txType}
+          onChange={setTxType}
+        />
 
-              {/* Modal header */}
-              <View
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  marginBottom: 22,
-                }}
-              >
-                <View>
-                  <Text style={{ color: C.text, fontSize: 20, fontWeight: '700' }}>
-                    {t('recurring.newTitle')}
-                  </Text>
-                  <Text style={{ color: C.textFaint, fontSize: 13, marginTop: 2 }}>
-                    {t('recurring.autoRuns')}
-                  </Text>
-                </View>
-                <Pressable onPress={handleClose} hitSlop={8}>
-                  <View
-                    style={{
-                      width: 32,
-                      height: 32,
-                      borderRadius: 16,
-                      backgroundColor: C.glassStrong,
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    <X size={16} color="#9ca3af" />
-                  </View>
-                </Pressable>
-              </View>
+        <Field
+          pal={pal}
+          label={t('recurring.name')}
+          value={name}
+          onChangeText={setName}
+          placeholder={t('fields.recurringPlaceholder')}
+          style={{ marginTop: 16 }}
+        />
 
-              {/* Error */}
-              {error ? (
-                <View
-                  style={{
-                    backgroundColor: '#7f1d1d30',
-                    borderWidth: 1,
-                    borderColor: '#ef444440',
-                    borderRadius: 10,
-                    padding: 10,
-                    marginBottom: 14,
-                  }}
-                >
-                  <Text style={{ color: '#fca5a5', fontSize: 13 }}>{error}</Text>
-                </View>
-              ) : null}
+        <Field
+          pal={pal}
+          label={t('recurring.amount')}
+          value={amount}
+          onChangeText={setAmount}
+          placeholder="0"
+          keyboardType="decimal-pad"
+          icon={
+            <Type role="cardTitle" color={pal.inkDim}>
+              {symbol}
+            </Type>
+          }
+          style={{ marginTop: 16 }}
+        />
 
-              {/* Type toggle: Expense / Income */}
-              <Text style={labelStyle}>{t('recurring.type')}</Text>
-              <View
-                style={{
-                  flexDirection: 'row',
-                  backgroundColor: C.glassStrong,
-                  borderRadius: 12,
-                  padding: 4,
-                  marginBottom: 14,
-                }}
-              >
-                {(['Expense', 'Income'] as TxType[]).map((t) => (
-                  <Pressable
-                    key={t}
-                    onPress={() => {
-                      Haptics.selectionAsync();
-                      setTxType(t);
-                    }}
-                    style={{
-                      flex: 1,
-                      paddingVertical: 10,
-                      borderRadius: 10,
-                      alignItems: 'center',
-                      backgroundColor:
-                        txType === t
-                          ? t === 'Expense'
-                            ? '#ef4444'
-                            : '#22c55e'
-                          : 'transparent',
-                    }}
-                  >
-                    <Text
-                      style={{
-                        color: txType === t ? 'white' : '#9ca3af',
-                        fontWeight: '700',
-                        fontSize: 14,
-                      }}
-                    >
-                      {t}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
+        <Type role="meta" color={pal.inkDim} style={{ marginTop: 16, marginBottom: 8 }}>
+          {t('recurring.category')}
+        </Type>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+          {CATEGORIES.map((c) => (
+            <FilterChip
+              key={c}
+              pal={pal}
+              label={categoryLabel(c)}
+              active={category === c}
+              onPress={() => setCategory(c)}
+            />
+          ))}
+        </View>
 
-              {/* Name */}
-              <Text style={labelStyle}>{t('recurring.name')}</Text>
-              <View style={inputStyle}>
-                <Tag size={16} color="#6b7280" />
-                <TextInput
-                  value={name}
-                  onChangeText={setName}
-                  placeholder={t('fields.recurringPlaceholder')}
-                  placeholderTextColor="#4b5563"
-                  style={{ flex: 1, color: C.text, fontSize: 15, marginStart: 10 }}
-                />
-              </View>
+        <Type role="meta" color={pal.inkDim} style={{ marginTop: 16, marginBottom: 8 }}>
+          {t('recurring.frequency')}
+        </Type>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+          {FREQUENCIES.map((f) => (
+            <FilterChip
+              key={f}
+              pal={pal}
+              label={t(`frequency.${f}`)}
+              active={frequency === f}
+              onPress={() => setFrequency(f)}
+            />
+          ))}
+        </View>
 
-              {/* Amount */}
-              <Text style={labelStyle}>{t('recurring.amount')}</Text>
-              <View style={inputStyle}>
-                <DollarSign size={16} color="#6b7280" />
-                <TextInput
-                  value={amount}
-                  onChangeText={setAmount}
-                  placeholder="0.00"
-                  placeholderTextColor="#4b5563"
-                  keyboardType="decimal-pad"
-                  style={{ flex: 1, color: C.text, fontSize: 15, marginStart: 6 }}
-                />
-              </View>
+        <FormError pal={pal} message={error} />
 
-              {/* Category */}
-              <Text style={labelStyle}>{t('recurring.category')}</Text>
-              <Pressable
-                onPress={() => {
-                  setShowFrequencyPicker(false);
-                  setShowCategoryPicker((p) => !p);
-                }}
-                style={{
-                  ...inputStyle,
-                  marginBottom: showCategoryPicker ? 0 : 14,
-                  justifyContent: 'space-between',
-                }}
-              >
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Text style={{ fontSize: 18, marginEnd: 10 }}>
-                    {getCategoryEmoji(category)}
-                  </Text>
-                  <Text style={{ color: C.text, fontSize: 15 }}>{category}</Text>
-                </View>
-                <ChevronDown
-                  size={18}
-                  color="#6b7280"
-                  style={{ transform: [{ rotate: showCategoryPicker ? '180deg' : '0deg' }] }}
-                />
-              </Pressable>
+        <Type role="meta" color={pal.inkDim} style={{ marginTop: 16 }}>
+          {t('recurring.autoRuns')}
+        </Type>
 
-              {showCategoryPicker && (
-                <View
-                  style={{
-                    backgroundColor: C.bgRaise,
-                    borderRadius: 12,
-                    marginBottom: 14,
-                    overflow: 'hidden',
-                    borderWidth: 1,
-                    borderColor: C.glassBorder,
-                  }}
-                >
-                  {CATEGORIES.map((cat, idx) => (
-                    <Pressable
-                      key={cat.label}
-                      onPress={() => {
-                        setCategory(cat.label);
-                        setShowCategoryPicker(false);
-                        Haptics.selectionAsync();
-                      }}
-                      style={{
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        padding: 12,
-                        paddingHorizontal: 14,
-                        backgroundColor: category === cat.label ? '#22c55e15' : 'transparent',
-                        borderTopWidth: idx === 0 ? 0 : 1,
-                        borderColor: C.glassBorder,
-                      }}
-                    >
-                      <Text style={{ fontSize: 18, marginEnd: 12 }}>{cat.emoji}</Text>
-                      <Text
-                        style={{
-                          color: category === cat.label ? '#22c55e' : '#d1d5db',
-                          fontSize: 15,
-                          fontWeight: category === cat.label ? '600' : '400',
-                        }}
-                      >
-                        {cat.label}
-                      </Text>
-                      {category === cat.label && (
-                        <Check size={16} color="#22c55e" style={{ marginStart: 'auto' }} />
-                      )}
-                    </Pressable>
-                  ))}
-                </View>
-              )}
-
-              {/* Frequency */}
-              <Text style={labelStyle}>{t('recurring.frequency')}</Text>
-              <Pressable
-                onPress={() => {
-                  setShowCategoryPicker(false);
-                  setShowFrequencyPicker((p) => !p);
-                }}
-                style={{
-                  ...inputStyle,
-                  marginBottom: showFrequencyPicker ? 0 : 22,
-                  justifyContent: 'space-between',
-                }}
-              >
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Repeat size={16} color="#6b7280" style={{ marginEnd: 10 }} />
-                  <Text style={{ color: C.text, fontSize: 15 }}>
-                    {getFrequencyLabel(frequency)}
-                  </Text>
-                </View>
-                <ChevronDown
-                  size={18}
-                  color="#6b7280"
-                  style={{ transform: [{ rotate: showFrequencyPicker ? '180deg' : '0deg' }] }}
-                />
-              </Pressable>
-
-              {showFrequencyPicker && (
-                <View
-                  style={{
-                    backgroundColor: C.bgRaise,
-                    borderRadius: 12,
-                    marginBottom: 22,
-                    overflow: 'hidden',
-                    borderWidth: 1,
-                    borderColor: C.glassBorder,
-                  }}
-                >
-                  {FREQUENCIES().map((freq, idx) => (
-                    <Pressable
-                      key={freq.value}
-                      onPress={() => {
-                        setFrequency(freq.value);
-                        setShowFrequencyPicker(false);
-                        Haptics.selectionAsync();
-                      }}
-                      style={{
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        padding: 12,
-                        paddingHorizontal: 14,
-                        backgroundColor: frequency === freq.value ? '#22c55e15' : 'transparent',
-                        borderTopWidth: idx === 0 ? 0 : 1,
-                        borderColor: C.glassBorder,
-                      }}
-                    >
-                      <Text
-                        style={{
-                          color: frequency === freq.value ? '#22c55e' : '#d1d5db',
-                          fontSize: 15,
-                          fontWeight: frequency === freq.value ? '600' : '400',
-                          flex: 1,
-                        }}
-                      >
-                        {freq.label}
-                      </Text>
-                      {frequency === freq.value && (
-                        <Check size={16} color="#22c55e" />
-                      )}
-                    </Pressable>
-                  ))}
-                </View>
-              )}
-
-              {/* Submit */}
-              <Pressable
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                  handleSubmit();
-                }}
-                disabled={isLoading}
-                style={{ borderRadius: 14, overflow: 'hidden' }}
-              >
-                <LinearGradient
-                  colors={isLoading ? ['#4b5563', '#374151'] : ['#16a34a', '#22c55e']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={{
-                    paddingVertical: 16,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexDirection: 'row',
-                    gap: 8,
-                  }}
-                >
-                  {isLoading ? (
-                    <ActivityIndicator color="white" size="small" />
-                  ) : (
-                    <>
-                      <Plus size={20} color="white" />
-                      <Text style={{ color: 'white', fontSize: 16, fontWeight: '700' }}>
-                        {t('recurring.createButton')}
-                      </Text>
-                    </>
-                  )}
-                </LinearGradient>
-              </Pressable>
-            </Animated.View>
-          </Pressable>
-        </Pressable>
-      </KeyboardAvoidingView>
-    </Modal>
+        <PrimaryButton
+          pal={pal}
+          label={t('recurring.createButton')}
+          onPress={submit}
+          disabled={isLoading}
+          style={{ marginTop: 12 }}
+        />
+        {isLoading ? <ActivityIndicator color={pal.accent} style={{ marginTop: 12 }} /> : null}
+      </View>
+    </Sheet>
   );
 }
 
-// ─── Main Screen ──────────────────────────────────────────────────────────────
+// ─── Screen ──────────────────────────────────────────────────────────────────
 
+/**
+ * Recurring income and expenses — DESIGN-PROMPT.md §28.
+ *
+ * The old screen opened on a deep-green gradient — a hue belonging to the
+ * *business* profile, on a personal screen — with two black-glass stat tiles
+ * on top of it and a green gradient FAB with a green glow underneath. Each row
+ * then coded its type three ways: a coloured spine, a tinted icon well and a
+ * tinted frequency badge, all in `#ef4444` or `#22c55e`.
+ *
+ * Two real bugs came with it. Every amount was `$` and `en-US`, and every new
+ * recurring item was written with `currency: 'USD'` regardless of what the
+ * user had chosen — so a euro subscription was stored as dollars. The four
+ * "next run" strings and both section headings were hardcoded English in a
+ * four-language app.
+ *
+ * Now the sign of the amount says the type, `Run now` and `Delete` come off
+ * every row (delete moves behind the same swipe Activity uses), and the two
+ * monthly totals are plain stats rather than tiles floating on a gradient.
+ */
 export default function RecurringScreen() {
   const C = useC();
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
-  const [showAddModal, setShowAddModal] = useState(false);
+  const [adding, setAdding] = useState(false);
   const [runningId, setRunningId] = useState<string | null>(null);
 
-  // ── Queries ──────────────────────────────────────────────────────────────
-
-  const {
-    data: items = [],
-    isLoading,
-    isError,
-  } = useQuery<RecurringTransaction[]>({
+  const { data: items = [], isLoading, isError } = useQuery<RecurringTransaction[]>({
     queryKey: ['recurring'],
     queryFn: () => api.get<RecurringTransaction[]>('/api/recurring'),
   });
-
-  // ── Mutations ────────────────────────────────────────────────────────────
+  const { data: settings } = useQuery({ queryKey: ['settings'], queryFn: getSettings });
+  const currency = settings?.currency || 'USD';
 
   const createMutation = useMutation({
-    mutationFn: (body: CreateRecurringBody) =>
-      api.post<RecurringTransaction>('/api/recurring', body),
+    mutationFn: (body: Omit<CreateRecurringBody, 'currency'>) =>
+      // The user's currency, not a literal 'USD'. Stored on the item because
+      // the server replays it into a transaction later, long after this screen
+      // is gone.
+      api.post<RecurringTransaction>('/api/recurring', { ...body, currency }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['recurring'] });
-      setShowAddModal(false);
+      setAdding(false);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     },
-    onError: () => {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-    },
+    onError: () => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error),
   });
 
   const toggleActiveMutation = useMutation({
@@ -860,22 +340,19 @@ export default function RecurringScreen() {
         ...item,
         isActive: !item.isActive,
       }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['recurring'] });
-    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['recurring'] }),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.delete<void>(`/api/recurring/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['recurring'] });
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     },
   });
 
   const runNowMutation = useMutation({
     mutationFn: async (item: RecurringTransaction) => {
-      // 1. Post as a real transaction
       const today = todayISO();
       const txBody: CreateTransactionBody = {
         name: item.name,
@@ -883,17 +360,12 @@ export default function RecurringScreen() {
         category: item.category,
         type: item.type,
         isImpulse: false,
-        note: `Recurring: ${getFrequencyLabel(item.frequency)}`,
+        note: t('recurring.noteRuns', { frequency: t(`frequency.${item.frequency}`) }),
         dateISO: today,
-        currency: item.currency ?? 'USD',
+        currency: item.currency ?? currency,
       };
       await api.post('/api/transactions', txBody);
-
-      // 2. Update nextDate on the recurring item
-      await api.put(`/api/recurring/${item.id}`, {
-        ...item,
-        nextDate: today,
-      });
+      await api.put(`/api/recurring/${item.id}`, { ...item, nextDate: today });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['recurring'] });
@@ -912,303 +384,194 @@ export default function RecurringScreen() {
     runNowMutation.mutate(item);
   };
 
-  // ── Derived data ─────────────────────────────────────────────────────────
+  const confirmDelete = (item: RecurringTransaction) => {
+    Alert.alert(item.name, t('dialogs.areYouSure'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      {
+        text: t('dialogs.delete'),
+        style: 'destructive',
+        onPress: () => deleteMutation.mutate(item.id),
+      },
+    ]);
+  };
 
-  const activeItems = items.filter((i) => i.isActive);
-  const inactiveItems = items.filter((i) => !i.isActive);
-  const totalMonthlyExpense = monthlyEquivalent(items);
-  const totalMonthlyIncome = monthlyIncomeEquivalent(items);
+  const active = items.filter((i) => i.isActive);
+  const paused = items.filter((i) => !i.isActive);
 
-  // ── Render ───────────────────────────────────────────────────────────────
+  const renderGroup = (group: RecurringTransaction[]) => (
+    <View style={{ paddingHorizontal: S.screen }}>
+      <Card pal={C} padding={0} contentStyle={{ paddingHorizontal: 0 }}>
+        {group.map((item, i) => {
+          const isExpense = item.type === 'Expense';
+          const running = runningId === item.id;
+          const meta = [
+            categoryLabel(item.category),
+            t(`frequency.${item.frequency}`),
+            item.isActive ? nextRunLabel(item.nextDate) : t('recurring.paused'),
+            format(parseISO(`${item.nextDate}T00:00:00`), 'd MMM', { locale: getDateFnsLocale() }),
+          ].join(' · ');
+
+          return (
+            <View
+              key={item.id}
+              style={i > 0 ? { borderTopWidth: 1, borderTopColor: C.hairline } : undefined}
+            >
+              <SwipeRow
+                pal={C}
+                onDelete={() => confirmDelete(item)}
+                actionLabel={t('dialogs.delete')}
+              >
+                <View style={{ paddingHorizontal: S.card, opacity: item.isActive ? 1 : 0.55 }}>
+                  <InfoRow
+                    pal={C}
+                    title={item.name}
+                    meta={meta}
+                    // Signed, which is the whole distinction the row used to
+                    // encode in a coloured spine and two tinted chips.
+                    amount={isExpense ? -item.amount : item.amount}
+                    format={formatCurrency}
+                    tone={isExpense ? C.negative : C.positive}
+                    onPress={() => toggleActiveMutation.mutate(item)}
+                    lead={
+                      <View
+                        style={{
+                          width: 8,
+                          height: 8,
+                          borderRadius: 4,
+                          backgroundColor: urgencyDot(C, item.nextDate, item.isActive),
+                        }}
+                      />
+                    }
+                    footer={
+                      item.isActive ? (
+                        <PressableScale
+                          onPress={running ? undefined : () => handleRunNow(item)}
+                          haptic="light"
+                          accessibilityRole="button"
+                          accessibilityLabel={t('recurring.runNow')}
+                          style={{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            alignSelf: 'flex-start',
+                            gap: 6,
+                            minHeight: 36,
+                            paddingHorizontal: 14,
+                            borderRadius: 999,
+                            marginTop: 8,
+                            backgroundColor: C.groundSunk,
+                          }}
+                        >
+                          {running ? (
+                            <ActivityIndicator size="small" color={C.inkDim} />
+                          ) : (
+                            <Play size={13} color={C.inkDim} strokeWidth={S.stroke} />
+                          )}
+                          <Type role="meta" color={C.inkDim}>
+                            {t('recurring.runNow')}
+                          </Type>
+                        </PressableScale>
+                      ) : null
+                    }
+                  />
+                </View>
+              </SwipeRow>
+            </View>
+          );
+        })}
+      </Card>
+    </View>
+  );
 
   return (
-    <View style={{ flex: 1, backgroundColor: C.bg }}>
-      {/* ── Gradient Header ── */}
-      <LinearGradient
-        colors={['#052e16', '#14532d', '#16a34a']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={{
-          paddingTop: insets.top + 8,
-          paddingBottom: 36,
-          paddingHorizontal: 16,
-        }}
+    <Screen pal={C}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingTop: 8, paddingBottom: 60 }}
       >
-        {/* Nav row */}
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            marginBottom: 22,
-          }}
-        >
-          <Pressable
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              router.back();
-            }}
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: 20,
-              backgroundColor: 'rgba(255,255,255,0.2)',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <ArrowLeft size={20} color="white" />
-          </Pressable>
+        <SubHeader
+          pal={C}
+          title={t('recurring.headerTitle')}
+          onBack={() => router.back()}
+          action={
+            <CircleAction pal={C} label={t('recurring.createButton')} onPress={() => setAdding(true)}>
+              <Plus size={20} color={C.ink} strokeWidth={S.stroke} />
+            </CircleAction>
+          }
+        />
 
-          <View style={{ alignItems: 'center' }}>
-            <Text style={{ color: 'white', fontSize: 18, fontWeight: '700' }}>
-              {t('recurring.headerTitle')}
-            </Text>
-            <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, marginTop: 2 }}>
-              {activeItems.length} active · {items.length} total
-            </Text>
-          </View>
-
-          <View style={{ width: 40 }} />
+        <View style={{ paddingHorizontal: S.screen, marginTop: 24 }}>
+          <Card pal={C}>
+            <Type role="meta" color={C.inkDim}>
+              {t('recurring.caption', { count: active.length })}
+            </Type>
+            <View style={{ flexDirection: 'row', gap: 32, marginTop: 12 }}>
+              <Stat
+                pal={C}
+                label={t('recurring.monthlySpend')}
+                value={monthlyTotal(items, 'Expense')}
+                format={formatCurrency}
+                size={22}
+              />
+              <Stat
+                pal={C}
+                label={t('recurring.monthlyIncome')}
+                value={monthlyTotal(items, 'Income')}
+                format={formatCurrency}
+                size={22}
+              />
+            </View>
+          </Card>
         </View>
 
-        {/* Stats cards */}
-        <View style={{ flexDirection: 'row', gap: 10 }}>
-          {/* Monthly expense */}
-          <View
-            style={{
-              flex: 1,
-              backgroundColor: 'rgba(0,0,0,0.25)',
-              borderRadius: 16,
-              padding: 14,
-            }}
-          >
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
-              <RefreshCw size={12} color="rgba(255,255,255,0.6)" />
-              <Text
-                style={{
-                  color: 'rgba(255,255,255,0.6)',
-                  fontSize: 10,
-                  fontWeight: '700',
-                  marginStart: 5,
-                  letterSpacing: 0.6,
-                }}
-              >
-                {t('recurring.monthlySpend')}
-              </Text>
-            </View>
-            <Text style={{ color: '#fca5a5', fontSize: 22, fontWeight: '800' }}>
-              {formatAmount(totalMonthlyExpense)}
-            </Text>
-            <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, marginTop: 2 }}>
-              {t('recurring.activeExpenses')}
-            </Text>
-          </View>
-
-          {/* Monthly income */}
-          <View
-            style={{
-              flex: 1,
-              backgroundColor: 'rgba(0,0,0,0.25)',
-              borderRadius: 16,
-              padding: 14,
-            }}
-          >
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
-              <RefreshCw size={12} color="rgba(255,255,255,0.6)" />
-              <Text
-                style={{
-                  color: 'rgba(255,255,255,0.6)',
-                  fontSize: 10,
-                  fontWeight: '700',
-                  marginStart: 5,
-                  letterSpacing: 0.6,
-                }}
-              >
-                {t('recurring.monthlyIncome')}
-              </Text>
-            </View>
-            <Text style={{ color: '#86efac', fontSize: 22, fontWeight: '800' }}>
-              {formatAmount(totalMonthlyIncome)}
-            </Text>
-            <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, marginTop: 2 }}>
-              {t('recurring.activeIncome')}
-            </Text>
-          </View>
-        </View>
-      </LinearGradient>
-
-      {/* ── Body ── */}
-      <View style={{ flex: 1, marginTop: -20 }}>
         {isLoading ? (
-          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-            <ActivityIndicator color="#22c55e" size="large" />
+          <View style={{ paddingTop: 56, alignItems: 'center' }}>
+            <ActivityIndicator color={C.accent} />
           </View>
         ) : isError ? (
-          <View
-            style={{
-              flex: 1,
-              alignItems: 'center',
-              justifyContent: 'center',
-              paddingHorizontal: 32,
-            }}
+          <Type
+            role="body"
+            color={C.negative}
+            style={{ paddingHorizontal: S.screen, marginTop: S.section }}
           >
-            <Text style={{ color: C.textDim, textAlign: 'center', fontSize: 15 }}>
-              {t('recurring.loadFailed')}
-            </Text>
-          </View>
+            {t('recurring.loadFailed')}
+          </Type>
         ) : items.length === 0 ? (
-          <View
-            style={{
-              flex: 1,
-              alignItems: 'center',
-              justifyContent: 'center',
-              paddingHorizontal: 32,
-            }}
-          >
-            <View
-              style={{
-                width: 72,
-                height: 72,
-                borderRadius: 36,
-                backgroundColor: '#22c55e18',
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginBottom: 16,
-              }}
-            >
-              <RefreshCw size={32} color="#22c55e" />
-            </View>
-            <Text
-              style={{
-                color: C.text,
-                fontSize: 18,
-                fontWeight: '700',
-                marginBottom: 6,
-                textAlign: 'center',
-              }}
-            >
-              {t('recurring.emptyTitle')}
-            </Text>
-            <Text style={{ color: C.textFaint, fontSize: 14, textAlign: 'center' }}>
-              {t('recurring.emptyBody')}
-            </Text>
-          </View>
+          <Empty
+            pal={C}
+            icon={<RefreshCw size={26} color={C.accent} strokeWidth={S.stroke} />}
+            title={t('recurring.emptyTitle')}
+            body={t('recurring.emptyBody')}
+            actionLabel={t('recurring.createButton')}
+            onAction={() => setAdding(true)}
+            style={{ marginTop: 56 }}
+          />
         ) : (
-          <ScrollView
-            contentContainerStyle={{
-              paddingHorizontal: 16,
-              paddingTop: 24,
-              paddingBottom: 120,
-            }}
-            showsVerticalScrollIndicator={false}
-          >
-            {/* Active section */}
-            {activeItems.length > 0 && (
-              <>
-                <Text
-                  style={{
-                    color: C.textFaint,
-                    fontSize: 11,
-                    fontWeight: '700',
-                    letterSpacing: 1,
-                    marginBottom: 10,
-                    marginStart: 2,
-                  }}
-                >
-                  ACTIVE
-                </Text>
-                {activeItems.map((item, idx) => (
-                  <RecurringCard
-                    key={item.id}
-                    item={item}
-                    index={idx}
-                    onToggleActive={(i) => toggleActiveMutation.mutate(i)}
-                    onDelete={(id) => deleteMutation.mutate(id)}
-                    onRunNow={handleRunNow}
-                    isRunning={runningId === item.id}
-                  />
-                ))}
-              </>
-            )}
+          <>
+            {active.length > 0 ? (
+              <View style={{ marginTop: S.section }}>
+                <SectionHeader pal={C} title={t('recurring.active')} />
+                {renderGroup(active)}
+              </View>
+            ) : null}
 
-            {/* Inactive section */}
-            {inactiveItems.length > 0 && (
-              <>
-                <Text
-                  style={{
-                    color: C.textFaint,
-                    fontSize: 11,
-                    fontWeight: '700',
-                    letterSpacing: 1,
-                    marginBottom: 10,
-                    marginStart: 2,
-                    marginTop: activeItems.length > 0 ? 18 : 0,
-                  }}
-                >
-                  PAUSED
-                </Text>
-                {inactiveItems.map((item, idx) => (
-                  <RecurringCard
-                    key={item.id}
-                    item={item}
-                    index={idx}
-                    onToggleActive={(i) => toggleActiveMutation.mutate(i)}
-                    onDelete={(id) => deleteMutation.mutate(id)}
-                    onRunNow={handleRunNow}
-                    isRunning={runningId === item.id}
-                  />
-                ))}
-              </>
-            )}
-          </ScrollView>
+            {paused.length > 0 ? (
+              <View style={{ marginTop: S.section }}>
+                <SectionHeader pal={C} title={t('recurring.paused')} />
+                {renderGroup(paused)}
+              </View>
+            ) : null}
+          </>
         )}
-      </View>
+      </ScrollView>
 
-      {/* ── FAB ── */}
-      <Animated.View
-        entering={ZoomIn.delay(200).duration(300)}
-        style={{
-          position: 'absolute',
-          bottom: insets.bottom + 24,
-          right: 20,
-        }}
-      >
-        <Pressable
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            setShowAddModal(true);
-          }}
-          style={{ borderRadius: 30, overflow: 'hidden', elevation: 8 }}
-        >
-          <LinearGradient
-            colors={['#16a34a', '#22c55e']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={{
-              width: 60,
-              height: 60,
-              borderRadius: 30,
-              alignItems: 'center',
-              justifyContent: 'center',
-              shadowColor: '#22c55e',
-              shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.5,
-              shadowRadius: 12,
-            }}
-          >
-            <Plus size={28} color="white" strokeWidth={2.5} />
-          </LinearGradient>
-        </Pressable>
-      </Animated.View>
-
-      {/* ── Add Modal ── */}
-      <AddRecurringModal
-        visible={showAddModal}
-        onClose={() => setShowAddModal(false)}
+      <AddRecurringSheet
+        pal={C}
+        visible={adding}
+        onClose={() => setAdding(false)}
         onSubmit={(data) => createMutation.mutate(data)}
         isLoading={createMutation.isPending}
+        symbol={settings?.currencySymbol || '$'}
       />
-    </View>
+    </Screen>
   );
 }

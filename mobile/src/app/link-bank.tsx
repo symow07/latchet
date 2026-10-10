@@ -1,60 +1,91 @@
-import {
-  View,
-  Text,
-  ScrollView,
-  Pressable,
-  Modal,
-  ActivityIndicator,
-  Alert,
-} from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, ScrollView, View } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
-import { useC } from '@/lib/design';
-import { useState, useEffect } from 'react';
 import { useRouter } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 import {
-  ArrowLeft,
-  Building2,
-  Link2,
-  Unlink,
-  Shield,
-  RefreshCw,
-  ChevronRight,
-  Check,
   AlertTriangle,
-  Clock,
+  Building2,
+  Check,
   Eye,
   EyeOff,
-  Info,
   Lock,
-} from 'lucide-react-native';
+} from '@/components/icons';
 import * as Haptics from 'expo-haptics';
-import Animated, { FadeInUp, FadeInDown } from 'react-native-reanimated';
+import { format, parseISO } from 'date-fns';
 
 import {
-  getLinkedBanks,
-  getLinkedAccounts,
+  checkConnectionHealth,
   createLinkToken,
   disconnectBank,
-  toggleAccountSync,
-  syncAllTransactions,
   getConsentInfo,
-  checkConnectionHealth,
-  type LinkedBank,
+  getLinkedAccounts,
+  getLinkedBanks,
+  syncAllTransactions,
+  toggleAccountSync,
   type LinkedAccount,
+  type LinkedBank,
 } from '@/lib/bank-linking';
+import { formatCurrencyAmount } from '@/lib/currencies';
+import { accountTypeLabel } from '@/lib/tx-display';
 import { useEntitlement } from '@/lib/useEntitlement';
 import { isUpgradeRequired } from '@/lib/entitlementApi';
-import { t, getIntlTag } from '@/lib/i18n/core';
+import { S, useC, type Palette } from '@/lib/design';
+import { PressableScale } from '@/components/motion';
+import {
+  Card,
+  IconTile,
+  InfoRow,
+  PrimaryButton,
+  Screen,
+  SectionHeader,
+  Sheet,
+  SubHeader,
+  Type,
+} from '@/components/kit';
+import { t, getDateFnsLocale } from '@/lib/i18n/core';
 
-type ViewMode = 'main' | 'add-bank' | 'bank-detail' | 'consent';
+type ViewMode = 'main' | 'add-bank' | 'bank-detail';
 
+/** A row of the consent sheet: a squircle, a line, and nothing else (§6.9). */
+function ConsentRow({
+  pal,
+  icon,
+  label,
+}: {
+  pal: Palette;
+  icon: React.ReactNode;
+  label: string;
+}) {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10 }}>
+      <IconTile pal={pal}>{icon}</IconTile>
+      <Type role="body" color={pal.ink} style={{ flex: 1 }}>
+        {label}
+      </Type>
+    </View>
+  );
+}
+
+/**
+ * Connect a bank — DESIGN-PROMPT.md board §30, the trust screen.
+ *
+ * This screen was the only place in the app painted **blue**. The header was a
+ * `#3b82f6 → #2563eb → #1d4ed8` gradient, the add-bank affordance was a dashed
+ * blue box, "Sync now" was a solid `bg-blue-600`, and the consent modal's
+ * confirm button was another blue gradient — a third brand colour on the one
+ * screen where the user is being asked to trust the app with their bank.
+ *
+ * §6.10 is specific about how this moment should look: icon rows, one headline
+ * naming both parties, one black full-width pill, legal text beneath. The
+ * consent sheet is now that, and the rest of the screen is white cards on bone.
+ *
+ * Two of the blue buttons also had `style={{ color: C.text }}` labels, which
+ * after the retheme is near-black ink on a saturated blue fill.
+ */
 export default function LinkBankScreen() {
   const C = useC();
   const { handleUpgradeRequired } = useEntitlement();
   const router = useRouter();
-  const insets = useSafeAreaInsets();
 
   const [viewMode, setViewMode] = useState<ViewMode>('main');
   const [linkedBanks, setLinkedBanks] = useState<LinkedBank[]>([]);
@@ -62,8 +93,8 @@ export default function LinkBankScreen() {
   const [selectedBank, setSelectedBank] = useState<LinkedBank | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
-  const [showConsentModal, setShowConsentModal] = useState(false);
-  const [connectionHealth, setConnectionHealth] = useState<{
+  const [showConsent, setShowConsent] = useState(false);
+  const [health, setHealth] = useState<{
     healthy: LinkedBank[];
     expiringSoon: LinkedBank[];
     expired: LinkedBank[];
@@ -76,24 +107,16 @@ export default function LinkBankScreen() {
   const loadData = async () => {
     setIsLoading(true);
     try {
-      const banks = await getLinkedBanks();
-      const accounts = await getLinkedAccounts();
-      const health = await checkConnectionHealth();
-      setLinkedBanks(banks);
-      setLinkedAccounts(accounts);
-      setConnectionHealth(health);
+      setLinkedBanks(await getLinkedBanks());
+      setLinkedAccounts(await getLinkedAccounts());
+      setHealth(await checkConnectionHealth());
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleAddBank = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setShowConsentModal(true);
-  };
-
   const confirmBankConnection = async () => {
-    setShowConsentModal(false);
+    setShowConsent(false);
     setIsLoading(true);
 
     try {
@@ -103,17 +126,15 @@ export default function LinkBankScreen() {
       // accounts — so we just refresh from the backend afterwards.
       const { hostedLinkUrl } = await createLinkToken();
       if (!hostedLinkUrl) {
-        Alert.alert(
-          t('bank.unavailableTitle'),
-          t('bank.unavailableBody')
-        );
+        Alert.alert(t('bank.unavailableTitle'), t('bank.unavailableBody'));
         return;
       }
 
       await WebBrowser.openAuthSessionAsync(hostedLinkUrl, 'realbudget://callback');
 
-      // The webhook may take a moment to land; refresh now and the user can also
-      // pull-to-refresh / tap Sync if their bank appears a few seconds later.
+      // The webhook may take a moment to land; refresh now and the user can
+      // also pull-to-refresh / tap Sync if their bank appears a few seconds
+      // later.
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       await loadData();
       setViewMode('main');
@@ -125,10 +146,7 @@ export default function LinkBankScreen() {
         return;
       }
       if (isUpgradeRequired(e)) {
-        Alert.alert(
-          t('subscription.bankProTitle'),
-          t('subscription.bankProBody')
-        );
+        Alert.alert(t('subscription.bankProTitle'), t('subscription.bankProBody'));
         return;
       }
       Alert.alert(t('bank.connectionFailed'), e instanceof Error ? e.message : t('common.retry'));
@@ -137,31 +155,32 @@ export default function LinkBankScreen() {
     }
   };
 
-  const handleDisconnectBank = async (bankId: string) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-    setIsLoading(true);
-
-    try {
-      await disconnectBank(bankId);
-      await loadData();
-      setSelectedBank(null);
-      setViewMode('main');
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleToggleAccount = async (accountId: string, enabled: boolean) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    await toggleAccountSync(accountId, enabled);
-    await loadData();
+  // Disconnecting drops the connection and its history; there is no undo, so
+  // it asks first. It used to fire on a single tap.
+  const confirmDisconnect = (bank: LinkedBank) => {
+    Alert.alert(bank.institutionName, t('dialogs.areYouSure'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      {
+        text: t('bankExtra.disconnect'),
+        style: 'destructive',
+        onPress: async () => {
+          setIsLoading(true);
+          try {
+            await disconnectBank(bank.id);
+            await loadData();
+            setSelectedBank(null);
+            setViewMode('main');
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          } finally {
+            setIsLoading(false);
+          }
+        },
+      },
+    ]);
   };
 
   const handleSync = async () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setIsSyncing(true);
-
     try {
       await syncAllTransactions();
       await loadData();
@@ -171,556 +190,366 @@ export default function LinkBankScreen() {
     }
   };
 
-  const renderSecurityBanner = () => (
-    <Animated.View entering={FadeInDown.duration(400)} className="mx-4 mb-4">
-      <View
-        className="rounded-2xl p-4"
-        style={{
-          backgroundColor: 'rgba(34, 197, 94, 0.1)',
-          borderWidth: 1,
-          borderColor: 'rgba(34, 197, 94, 0.2)',
-        }}
-      >
-        <View className="flex-row items-center mb-2">
-          <Shield size={18} color="#22c55e" />
-          <Text className="text-green-400 font-semibold ms-2">{t('bankExtra.security')}</Text>
+  const shortDate = (iso: string) =>
+    format(parseISO(iso), 'd MMM yyyy', { locale: getDateFnsLocale() });
+
+  const title =
+    viewMode === 'main'
+      ? t('bank.headerMain')
+      : viewMode === 'add-bank'
+        ? t('bank.headerAdd')
+        : (selectedBank?.institutionName ?? t('bank.headerMain'));
+
+  const goBack = () => {
+    if (viewMode === 'main') router.back();
+    else {
+      setViewMode('main');
+      setSelectedBank(null);
+    }
+  };
+
+  const renderMain = () => (
+    <>
+      <Type role="body" color={C.inkDim} style={{ paddingHorizontal: S.screen, marginTop: 16 }}>
+        {t('bank.oauthNote')}
+      </Type>
+
+      {linkedBanks.length > 0 ? (
+        <View style={{ marginTop: S.section }}>
+          <SectionHeader
+            pal={C}
+            title={t('bankExtra.linkedAccounts')}
+            actionLabel={isSyncing ? t('bank.syncing') : t('bank.syncAll')}
+            onAction={isSyncing ? undefined : handleSync}
+          />
+          <View style={{ paddingHorizontal: S.screen }}>
+            <Card pal={C} padding={0} contentStyle={{ paddingHorizontal: S.card }}>
+              {linkedBanks.map((bank, i) => {
+                const count = linkedAccounts.filter((a) => a.bankId === bank.id).length;
+                const expired = bank.connectionStatus === 'expired';
+                const expiring = health.expiringSoon.some((b) => b.id === bank.id);
+                const meta = [
+                  t('bank.accountCount', { count }),
+                  t('bank.lastSynced', { date: shortDate(bank.lastSynced) }),
+                  expired
+                    ? t('bankExtra.expired')
+                    : expiring
+                      ? t('bankExtra.expiring')
+                      : null,
+                ]
+                  .filter(Boolean)
+                  .join(' · ');
+
+                return (
+                  <View
+                    key={bank.id}
+                    style={i > 0 ? { borderTopWidth: 1, borderTopColor: C.hairline } : undefined}
+                  >
+                    <InfoRow
+                      pal={C}
+                      title={bank.institutionName}
+                      meta={meta}
+                      onPress={() => {
+                        setSelectedBank(bank);
+                        setViewMode('bank-detail');
+                      }}
+                      lead={
+                        <View
+                          style={{
+                            width: 8,
+                            height: 8,
+                            borderRadius: 4,
+                            // Said in words too, in the meta line above.
+                            backgroundColor: expired
+                              ? C.negative
+                              : expiring
+                                ? C.warning
+                                : C.accentMark,
+                          }}
+                        />
+                      }
+                    />
+                  </View>
+                );
+              })}
+            </Card>
+          </View>
         </View>
-        <Text style={{ color: C.textDim }} className="text-sm leading-5">
-          {t('bank.oauthNote')}
-        </Text>
+      ) : null}
+
+      <View style={{ paddingHorizontal: S.screen, marginTop: S.section }}>
+        <PrimaryButton
+          pal={C}
+          label={linkedBanks.length > 0 ? t('bank.linkAnother') : t('bank.linkFirst')}
+          onPress={() => setViewMode('add-bank')}
+        />
+        <Type role="cardTitle" color={C.ink} style={{ marginTop: 24 }}>
+          {t('bankExtra.preferManual')}
+        </Type>
+        <Type role="body" color={C.inkDim} style={{ marginTop: 4 }}>
+          {t('bank.optionalNote')}
+        </Type>
       </View>
-    </Animated.View>
+    </>
   );
 
-  const renderMainView = () => (
+  const renderAddBank = () => (
     <>
-      {renderSecurityBanner()}
+      <View style={{ paddingHorizontal: S.screen, marginTop: 16 }}>
+        {/* One entry point, not a bank list. Choosing the institution happens
+            in the provider's own secure flow, against the real,
+            country-appropriate list — a local list could only ever be a
+            shorter, staler copy. */}
+        <Card pal={C} padding={0} contentStyle={{ paddingHorizontal: S.card }}>
+          <InfoRow
+            pal={C}
+            title={t('bank.findYourBank')}
+            meta={t('bank.findYourBankHint')}
+            onPress={isLoading ? undefined : () => setShowConsent(true)}
+            lead={
+              <IconTile pal={C}>
+                <Building2 size={20} color={C.accent} strokeWidth={S.stroke} />
+              </IconTile>
+            }
+            trailing={isLoading ? <ActivityIndicator color={C.accent} /> : undefined}
+          />
+        </Card>
 
-      {/* Linked Banks */}
-      {linkedBanks.length > 0 && (
-        <View className="px-4 mb-6">
-          <View className="flex-row items-center justify-between mb-3">
-            <Text style={{ color: C.textDim }} className="text-xs font-semibold">{t('bankExtra.linkedAccounts')}</Text>
-            <Pressable
-              onPress={handleSync}
-              disabled={isSyncing}
-              className="flex-row items-center"
-            >
-              <RefreshCw
-                size={14}
-                color={isSyncing ? '#6b7280' : '#3b82f6'}
-                style={isSyncing ? { transform: [{ rotate: '45deg' }] } : undefined}
-              />
-              <Text style={{ color: C.textFaint }} className={`text-xs ms-1 ${isSyncing ? '' : 'text-blue-400'}`}>
-                {isSyncing ? t('bank.syncing') : t('bank.syncAll')}
-              </Text>
-            </Pressable>
-          </View>
+        {linkedBanks.length > 0 ? (
+          <Type role="meta" color={C.inkDim} style={{ marginTop: 12 }}>
+            {t('bank.alreadyConnected', { count: linkedBanks.length })}
+          </Type>
+        ) : null}
+      </View>
 
-          {linkedBanks.map((bank, idx) => {
-            const bankAccounts = linkedAccounts.filter(a => a.bankId === bank.id);
-            const isExpired = bank.connectionStatus === 'expired';
-            const isExpiring = connectionHealth.expiringSoon.some(b => b.id === bank.id);
-
-            return (
-              <Animated.View
-                key={bank.id}
-                entering={FadeInUp.delay(100 * idx).duration(300)}
-              >
-                <Pressable
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    setSelectedBank(bank);
-                    setViewMode('bank-detail');
-                  }}
-                >
+      <View style={{ marginTop: S.section }}>
+        <SectionHeader pal={C} title={t('bankExtra.howItWorks')} />
+        <View style={{ paddingHorizontal: S.screen }}>
+          <Card pal={C}>
+            <View style={{ gap: 16 }}>
+              {['bank.step1', 'bank.step2', 'bank.step3'].map((key, i) => (
+                <View key={key} style={{ flexDirection: 'row', gap: 12 }}>
                   <View
-                    className="rounded-xl p-4 mb-3"
                     style={{
-                      backgroundColor: isExpired
-                        ? 'rgba(239, 68, 68, 0.1)'
-                        : 'rgba(255,255,255,0.05)',
-                      borderWidth: isExpired || isExpiring ? 1 : 0,
-                      borderColor: isExpired
-                        ? 'rgba(239, 68, 68, 0.3)'
-                        : 'rgba(245, 158, 11, 0.3)',
+                      width: 26,
+                      height: 26,
+                      borderRadius: 13,
+                      backgroundColor: C.groundSunk,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginTop: 1,
                     }}
                   >
-                    <View className="flex-row items-center justify-between">
-                      <View className="flex-row items-center flex-1">
-                        <View
-                          className="w-12 h-12 rounded-xl items-center justify-center me-3"
-                          style={{ backgroundColor: 'rgba(59, 130, 246, 0.2)' }}
-                        >
-                          <Text className="text-2xl">{bank.institutionLogo}</Text>
-                        </View>
-                        <View className="flex-1">
-                          <Text style={{ color: C.text }} className="font-semibold">{bank.institutionName}</Text>
-                          <Text style={{ color: C.textDim }} className="text-xs mt-0.5">
-                            {bankAccounts.length} account{bankAccounts.length !== 1 ? 's' : ''} •
-                            Last synced {new Date(bank.lastSynced).toLocaleDateString()}
-                          </Text>
-                        </View>
-                      </View>
-
-                      <View className="flex-row items-center">
-                        {isExpired && (
-                          <View className="bg-red-500/20 rounded-full px-2 py-1 me-2">
-                            <Text className="text-red-400 text-xs">{t('bankExtra.expired')}</Text>
-                          </View>
-                        )}
-                        {isExpiring && !isExpired && (
-                          <View className="bg-amber-500/20 rounded-full px-2 py-1 me-2">
-                            <Text className="text-amber-400 text-xs">{t('bankExtra.expiring')}</Text>
-                          </View>
-                        )}
-                        <ChevronRight size={20} color="#6b7280" />
-                      </View>
-                    </View>
-
-                    {/* Account balances preview */}
-                    <View className="flex-row mt-3 gap-2">
-                      {bankAccounts.slice(0, 2).map(acc => (
-                        <View
-                          key={acc.id}
-                          className="flex-1 bg-black/30 rounded-lg p-2"
-                        >
-                          <Text style={{ color: C.textFaint }} className="text-xs" numberOfLines={1}>
-                            {acc.name}
-                          </Text>
-                          <Text style={{ color: C.text }} className="font-semibold">
-                            ${acc.balance.toLocaleString()}
-                          </Text>
-                        </View>
-                      ))}
-                    </View>
+                    <Type role="meta" color={C.inkDim}>
+                      {i + 1}
+                    </Type>
                   </View>
-                </Pressable>
-              </Animated.View>
-            );
-          })}
-        </View>
-      )}
-
-      {/* Add Bank Button */}
-      <View className="px-4">
-        <Pressable
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            setViewMode('add-bank');
-          }}
-        >
-          <View
-            className="rounded-xl p-4 flex-row items-center justify-center"
-            style={{
-              backgroundColor: 'rgba(59, 130, 246, 0.1)',
-              borderWidth: 1,
-              borderColor: 'rgba(59, 130, 246, 0.3)',
-              borderStyle: 'dashed',
-            }}
-          >
-            <Link2 size={20} color="#3b82f6" />
-            <Text className="text-blue-400 font-semibold ms-2">
-              {linkedBanks.length > 0 ? t('bank.linkAnother') : t('bank.linkFirst')}
-            </Text>
-          </View>
-        </Pressable>
-      </View>
-
-      {/* Manual Entry Option */}
-      <View className="px-4 mt-4">
-        <View
-          className="rounded-xl p-4"
-          style={{ backgroundColor: C.glass }}
-        >
-          <View className="flex-row items-center mb-2">
-            <Info size={16} color="#6b7280" />
-            <Text style={{ color: C.textFaint }} className="text-sm ms-2">{t('bankExtra.preferManual')}</Text>
-          </View>
-          <Text style={{ color: C.textFaint }} className="text-xs">
-            {t('bank.optionalNote')}
-          </Text>
+                  <Type role="body" color={C.ink} style={{ flex: 1 }}>
+                    {t(key)}
+                  </Type>
+                </View>
+              ))}
+            </View>
+          </Card>
         </View>
       </View>
     </>
   );
 
-  const renderAddBankView = () => (
-    <>
-      <View className="px-4 mb-4">
-        <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-3">{t('bank.connectSection')}</Text>
-
-        {/* One entry point, not a bank list. Choosing the institution happens in
-            the provider's own secure flow, against the real, country-appropriate
-            list — a local list could only ever be a shorter, staler copy. */}
-        <Animated.View entering={FadeInUp.duration(300)}>
-          <Pressable onPress={handleAddBank} disabled={isLoading}>
-            <View
-              className="rounded-xl p-4 flex-row items-center justify-between"
-              style={{ backgroundColor: C.glass }}
-            >
-              <View className="flex-row items-center flex-1">
-                <View
-                  className="w-12 h-12 rounded-xl items-center justify-center me-3"
-                  style={{ backgroundColor: 'rgba(168,85,247,0.15)' }}
-                >
-                  <Building2 size={22} color={C.p500} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ color: C.text }} className="font-medium">{t('bank.findYourBank')}</Text>
-                  <Text style={{ color: C.textFaint }} className="text-xs mt-0.5">
-{t('bank.findYourBankHint')}
-                  </Text>
-                </View>
-              </View>
-              {isLoading ? (
-                <ActivityIndicator color={C.p500} />
-              ) : (
-                <ChevronRight size={20} color="#6b7280" />
-              )}
-            </View>
-          </Pressable>
-        </Animated.View>
-
-        {linkedBanks.length > 0 && (
-          <Text style={{ color: C.textFaint }} className="text-xs mt-3">
-            {t('bank.alreadyConnected', { count: linkedBanks.length })}
-          </Text>
-        )}
-      </View>
-
-      {/* Security Info */}
-      <View className="px-4">
-        <View
-          className="rounded-xl p-4"
-          style={{ backgroundColor: 'rgba(168, 85, 247, 0.1)' }}
-        >
-          <View className="flex-row items-center mb-2">
-            <Lock size={16} color={C.p500} />
-            <Text className="text-purple-400 font-semibold ms-2">{t('bankExtra.howItWorks')}</Text>
-          </View>
-          <View className="gap-2">
-            <View className="flex-row items-start">
-              <Text style={{ color: C.textDim }} className="text-xs me-2">1.</Text>
-              <Text style={{ color: C.textDim }} className="text-xs flex-1">
-                {t('bank.step1')}
-              </Text>
-            </View>
-            <View className="flex-row items-start">
-              <Text style={{ color: C.textDim }} className="text-xs me-2">2.</Text>
-              <Text style={{ color: C.textDim }} className="text-xs flex-1">
-                {t('bank.step2')}
-              </Text>
-            </View>
-            <View className="flex-row items-start">
-              <Text style={{ color: C.textDim }} className="text-xs me-2">3.</Text>
-              <Text style={{ color: C.textDim }} className="text-xs flex-1">
-                {t('bank.step3')}
-              </Text>
-            </View>
-          </View>
-        </View>
-      </View>
-    </>
-  );
-
-  const renderBankDetailView = () => {
+  const renderBankDetail = () => {
     if (!selectedBank) return null;
-
-    const bankAccounts = linkedAccounts.filter(a => a.bankId === selectedBank.id);
+    const bankAccounts = linkedAccounts.filter((a) => a.bankId === selectedBank.id);
     const consent = getConsentInfo(selectedBank);
 
     return (
       <>
-        {/* Bank Header */}
-        <View className="px-4 mb-4">
-          <View
-            className="rounded-xl p-4"
-            style={{ backgroundColor: C.glass }}
-          >
-            <View className="flex-row items-center mb-4">
-              <View
-                className="w-14 h-14 rounded-xl items-center justify-center me-4"
-                style={{ backgroundColor: 'rgba(59, 130, 246, 0.2)' }}
-              >
-                <Text className="text-3xl">{selectedBank.institutionLogo}</Text>
-              </View>
-              <View className="flex-1">
-                <Text style={{ color: C.text }} className="text-lg font-bold">{selectedBank.institutionName}</Text>
-                <Text style={{ color: C.textDim }} className="text-sm">
-                  {t('bank.connectedSince', { date: new Date(selectedBank.lastSynced).toLocaleDateString(getIntlTag()) })}
-                </Text>
-              </View>
-            </View>
+        <View style={{ paddingHorizontal: S.screen, marginTop: 16 }}>
+          <Card pal={C}>
+            <Type role="cardTitle" color={C.ink}>
+              {selectedBank.institutionName}
+            </Type>
+            <Type role="meta" color={C.inkDim} style={{ marginTop: 2 }}>
+              {t('bank.connectedSince', { date: shortDate(selectedBank.lastSynced) })}
+            </Type>
+            <PrimaryButton
+              pal={C}
+              label={isSyncing ? t('bank.syncing') : t('bank.syncNow')}
+              onPress={handleSync}
+              disabled={isSyncing}
+              variant="secondary"
+              style={{ marginTop: 16 }}
+            />
+            <PressableScale
+              onPress={() => confirmDisconnect(selectedBank)}
+              haptic="light"
+              accessibilityRole="button"
+              accessibilityLabel={t('bankExtra.disconnect')}
+              style={{
+                minHeight: 48,
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginTop: 6,
+              }}
+            >
+              <Type role="cardTitle" color={C.negative}>
+                {t('bankExtra.disconnect')}
+              </Type>
+            </PressableScale>
+          </Card>
+        </View>
 
-            <View className="flex-row gap-2">
-              <Pressable
-                onPress={handleSync}
-                disabled={isSyncing}
-                className="flex-1"
-              >
-                <View className="bg-blue-600 rounded-lg py-3 flex-row items-center justify-center">
-                  <RefreshCw size={16} color="white" />
-                  <Text style={{ color: C.text }} className="font-semibold ms-2">
-                    {isSyncing ? t('bank.syncing') : t('bank.syncNow')}
-                  </Text>
-                </View>
-              </Pressable>
-
-              <Pressable
-                onPress={() => handleDisconnectBank(selectedBank.id)}
-                className="flex-1"
-              >
+        <View style={{ marginTop: S.section }}>
+          <SectionHeader pal={C} title={t('bankExtra.linkedAccounts')} />
+          <View style={{ paddingHorizontal: S.screen }}>
+            <Card pal={C} padding={0} contentStyle={{ paddingHorizontal: S.card }}>
+              {bankAccounts.map((account, i) => (
                 <View
-                  className="rounded-lg py-3 flex-row items-center justify-center"
-                  style={{ backgroundColor: 'rgba(239, 68, 68, 0.2)' }}
+                  key={account.id}
+                  style={i > 0 ? { borderTopWidth: 1, borderTopColor: C.hairline } : undefined}
                 >
-                  <Unlink size={16} color="#ef4444" />
-                  <Text className="text-red-400 font-semibold ms-2">{t('bankExtra.disconnect')}</Text>
+                  <InfoRow
+                    pal={C}
+                    title={account.name}
+                    meta={`${accountTypeLabel(account.type)} · ${account.maskedNumber}`}
+                    // The account's own currency, not the app's: a linked USD
+                    // account does not become euros because the app is set to
+                    // euros. It used to print a literal `$`.
+                    amount={account.balance}
+                    format={(n) => formatCurrencyAmount(n, account.currency)}
+                    trailing={
+                      <PressableScale
+                        onPress={async () => {
+                          await toggleAccountSync(account.id, !account.isEnabled);
+                          await loadData();
+                        }}
+                        accessibilityRole="switch"
+                        accessibilityState={{ checked: account.isEnabled }}
+                        accessibilityLabel={account.name}
+                        hitSlop={8}
+                        style={{
+                          width: 36,
+                          height: 36,
+                          borderRadius: 18,
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          backgroundColor: account.isEnabled ? C.accentSoft : C.groundSunk,
+                          marginStart: 10,
+                        }}
+                      >
+                        {account.isEnabled ? (
+                          <Eye size={17} color={C.accent} strokeWidth={S.stroke} />
+                        ) : (
+                          <EyeOff size={17} color={C.inkDim} strokeWidth={S.stroke} />
+                        )}
+                      </PressableScale>
+                    }
+                  />
                 </View>
-              </Pressable>
-            </View>
+              ))}
+            </Card>
           </View>
         </View>
 
-        {/* Accounts */}
-        <View className="px-4 mb-4">
-          <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-3">{t('bankExtra.linkedAccounts')}</Text>
-
-          {bankAccounts.map((account, idx) => (
-            <Animated.View
-              key={account.id}
-              entering={FadeInUp.delay(100 * idx).duration(300)}
-            >
-              <View
-                className="rounded-xl p-4 mb-2"
-                style={{ backgroundColor: C.glass }}
-              >
-                <View className="flex-row items-center justify-between mb-2">
-                  <View>
-                    <Text style={{ color: C.text }} className="font-medium">{account.name}</Text>
-                    <Text style={{ color: C.textFaint }} className="text-xs">{account.maskedNumber}</Text>
+        <View style={{ marginTop: S.section }}>
+          <SectionHeader pal={C} title={t('bankExtra.dataAccess')} />
+          <View style={{ paddingHorizontal: S.screen }}>
+            <Card pal={C}>
+              <Type role="cardTitle" color={C.ink}>
+                {t('misc.weAccess')}
+              </Type>
+              <View style={{ gap: 8, marginTop: 12 }}>
+                {consent.dataAccessed.map((item) => (
+                  <View key={item} style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                    <Check size={15} color={C.positive} strokeWidth={2.2} />
+                    <Type role="body" color={C.inkDim} style={{ flex: 1 }}>
+                      {item}
+                    </Type>
                   </View>
-                  <Pressable
-                    onPress={() => handleToggleAccount(account.id, !account.isEnabled)}
-                  >
-                    <View
-                      className={`w-10 h-10 rounded-full items-center justify-center ${
-                        account.isEnabled ? 'bg-green-500/20' : 'bg-gray-700'
-                      }`}
-                    >
-                      {account.isEnabled ? (
-                        <Eye size={18} color="#22c55e" />
-                      ) : (
-                        <EyeOff size={18} color="#6b7280" />
-                      )}
-                    </View>
-                  </Pressable>
-                </View>
-
-                <View className="flex-row justify-between items-center">
-                  <Text style={{ color: C.textDim }} className="text-xs">
-                    {account.type.charAt(0).toUpperCase() + account.type.slice(1)}
-                  </Text>
-                  <Text style={{ color: C.text }} className="text-lg font-bold">
-                    ${account.balance.toLocaleString()}
-                  </Text>
-                </View>
+                ))}
               </View>
-            </Animated.View>
-          ))}
-        </View>
-
-        {/* Consent Info */}
-        <View className="px-4">
-          <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-3">{t('bankExtra.dataAccess')}</Text>
-
-          <View
-            className="rounded-xl p-4"
-            style={{ backgroundColor: C.glass }}
-          >
-            <View className="mb-3">
-              <Text style={{ color: C.textDim }} className="text-sm font-medium mb-2">{t('misc.weAccess')}</Text>
-              {consent.dataAccessed.map((item, idx) => (
-                <View key={idx} className="flex-row items-center mb-1">
-                  <Check size={14} color="#22c55e" />
-                  <Text style={{ color: C.textDim }} className="text-sm ms-2">{item}</Text>
-                </View>
-              ))}
-            </View>
-
-            <View className="border-t border-gray-800 pt-3">
-              <View className="flex-row items-center">
-                <Clock size={14} color="#f59e0b" />
-                <Text className="text-amber-400 text-xs ms-2">
-                  {t('bank.consentExpires', { date: new Date(consent.expiresAt).toLocaleDateString(getIntlTag()) })}
-                </Text>
-              </View>
-            </View>
+              <Type role="meta" color={C.inkDim} style={{ marginTop: 16 }}>
+                {t('bank.consentExpires', { date: shortDate(consent.expiresAt) })}
+              </Type>
+            </Card>
           </View>
         </View>
       </>
     );
   };
 
-  // Consent Modal — shown before handing off to the provider's secure flow,
-  // where the user picks their actual institution.
-  const renderConsentModal = () => {
-    return (
-      <Modal
-        visible={showConsentModal}
-        transparent
-        animationType="slide"
-      >
-        <View className="flex-1 justify-end bg-black/60">
-          <View className="rounded-t-3xl p-6" style={{ backgroundColor: C.bgRaise, paddingBottom: insets.bottom + 20 }}>
-            <View className="items-center mb-6">
-              <View
-                className="w-16 h-16 rounded-2xl items-center justify-center mb-4"
-                style={{ backgroundColor: 'rgba(168,85,247,0.15)' }}
-              >
-                <Building2 size={30} color={C.p500} />
-              </View>
-              <Text style={{ color: C.text }} className="text-xl font-bold">{t('bank.consentTitle')}</Text>
-              <Text style={{ color: C.textDim }} className="text-sm mt-1 text-center">
-{t('bank.consentSubtitle')}
-              </Text>
-            </View>
-
-            <View className="mb-6">
-              <Text style={{ color: C.textDim }} className="text-sm text-center mb-4">
-                {t('bank.authorizeIntro')}
-              </Text>
-
-              <View className="gap-3">
-                <View className="flex-row items-center">
-                  <View className="w-8 h-8 rounded-full bg-green-500/20 items-center justify-center me-3">
-                    <Check size={16} color="#22c55e" />
-                  </View>
-                  <Text style={{ color: C.textDim }} className="flex-1">{t('bankExtra.viewBalances')}</Text>
-                </View>
-
-                <View className="flex-row items-center">
-                  <View className="w-8 h-8 rounded-full bg-green-500/20 items-center justify-center me-3">
-                    <Check size={16} color="#22c55e" />
-                  </View>
-                  <Text style={{ color: C.textDim }} className="flex-1">{t('bankExtra.readHistory')}</Text>
-                </View>
-
-                <View className="flex-row items-center">
-                  <View className="w-8 h-8 rounded-full bg-red-500/20 items-center justify-center me-3">
-                    <AlertTriangle size={16} color="#ef4444" />
-                  </View>
-                  <Text style={{ color: C.textFaint }} className="flex-1">{t('bankExtra.noPayments')}</Text>
-                </View>
-              </View>
-            </View>
-
-            <View
-              className="rounded-xl p-3 mb-6"
-              style={{ backgroundColor: 'rgba(34, 197, 94, 0.1)' }}
-            >
-              <View className="flex-row items-center">
-                <Lock size={16} color="#22c55e" />
-                <Text className="text-green-400 text-sm ms-2 flex-1">
-                  {t('bank.neverStore')}
-                </Text>
-              </View>
-            </View>
-
-            <View className="flex-row gap-3">
-              <Pressable
-                onPress={() => setShowConsentModal(false)}
-                className="flex-1"
-              >
-                <View className="bg-gray-800 rounded-xl py-4 items-center">
-                  <Text style={{ color: C.textDim }} className="font-semibold">{t('common.cancel')}</Text>
-                </View>
-              </Pressable>
-
-              <Pressable
-                onPress={confirmBankConnection}
-                className="flex-1"
-              >
-                <LinearGradient
-                  colors={['#3b82f6', '#2563eb']}
-                  style={{ borderRadius: 12, paddingVertical: 16, alignItems: 'center' }}
-                >
-                  <Text className="text-white font-semibold">{t('bankExtra.connectBank')}</Text>
-                </LinearGradient>
-              </Pressable>
-            </View>
-          </View>
-        </View>
-      </Modal>
-    );
-  };
-
   return (
-    <View className="flex-1" style={{ backgroundColor: C.bg }}>
-      {/* Header */}
-      <LinearGradient
-        colors={['#3b82f6', '#2563eb', '#1d4ed8']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={{
-          paddingTop: insets.top + 8,
-          paddingBottom: 20,
-          paddingHorizontal: 16,
-        }}
-      >
-        <View className="flex-row items-center justify-between">
-          <Pressable
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              if (viewMode === 'main') {
-                router.back();
-              } else {
-                setViewMode('main');
-                setSelectedBank(null);
-              }
-            }}
-            className="w-10 h-10 rounded-full bg-white/20 items-center justify-center"
-          >
-            <ArrowLeft size={20} color="white" />
-          </Pressable>
-
-          <View className="flex-1 items-center">
-            <Text className="text-white text-lg font-bold">
-              {viewMode === 'main' && t('bank.headerMain')}
-              {viewMode === 'add-bank' && t('bank.headerAdd')}
-              {viewMode === 'bank-detail' && selectedBank?.institutionName}
-            </Text>
-            <Text className="text-white/70 text-xs mt-1">
-              {viewMode === 'main' && t('bank.subMain')}
-              {viewMode === 'add-bank' && t('bank.subAdd')}
-              {viewMode === 'bank-detail' && t('bank.subDetail')}
-            </Text>
-          </View>
-
-          <View className="w-10 h-10 items-center justify-center">
-            <Building2 size={20} color="white" />
-          </View>
-        </View>
-      </LinearGradient>
-
-      {isLoading && (
-        <View className="absolute inset-0 bg-black/50 items-center justify-center z-50">
-          <ActivityIndicator size="large" color="#3b82f6" />
-        </View>
-      )}
-
+    <Screen pal={C}>
       <ScrollView
-        className="flex-1"
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingTop: 16, paddingBottom: 100 }}
+        contentContainerStyle={{ paddingTop: 8, paddingBottom: 60 }}
       >
-        {viewMode === 'main' && renderMainView()}
-        {viewMode === 'add-bank' && renderAddBankView()}
-        {viewMode === 'bank-detail' && renderBankDetailView()}
+        <SubHeader pal={C} title={title} onBack={goBack} />
+
+        {viewMode === 'main' ? renderMain() : null}
+        {viewMode === 'add-bank' ? renderAddBank() : null}
+        {viewMode === 'bank-detail' ? renderBankDetail() : null}
       </ScrollView>
 
-      {renderConsentModal()}
-    </View>
+      {/* The trust moment — §6.10. One headline naming both parties, three
+          icon rows saying exactly what is and is not granted, one ink pill,
+          and the legal line beneath it. */}
+      <Sheet pal={C} visible={showConsent} onClose={() => setShowConsent(false)}>
+        <View style={{ paddingHorizontal: S.card, paddingTop: 6 }}>
+          <IconTile pal={C} size={56} style={{ alignSelf: 'center' }}>
+            <Building2 size={26} color={C.accent} strokeWidth={S.stroke} />
+          </IconTile>
+
+          <Type role="section" color={C.ink} style={{ textAlign: 'center', marginTop: 16 }}>
+            {t('bank.consentTitle')}
+          </Type>
+          <Type role="body" color={C.inkDim} style={{ textAlign: 'center', marginTop: 6 }}>
+            {t('bank.consentSubtitle')}
+          </Type>
+          <Type role="body" color={C.inkDim} style={{ textAlign: 'center', marginTop: 12 }}>
+            {t('bank.authorizeIntro')}
+          </Type>
+
+          <View style={{ marginTop: 16 }}>
+            <ConsentRow
+              pal={C}
+              icon={<Check size={19} color={C.accent} strokeWidth={2.2} />}
+              label={t('bankExtra.viewBalances')}
+            />
+            <ConsentRow
+              pal={C}
+              icon={<Check size={19} color={C.accent} strokeWidth={2.2} />}
+              label={t('bankExtra.readHistory')}
+            />
+            <ConsentRow
+              pal={C}
+              icon={<AlertTriangle size={19} color={C.accent} strokeWidth={S.stroke} />}
+              label={t('bankExtra.noPayments')}
+            />
+          </View>
+
+          <PrimaryButton
+            pal={C}
+            label={t('bankExtra.connectBank')}
+            onPress={confirmBankConnection}
+            style={{ marginTop: 16 }}
+          />
+
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 8,
+              marginTop: 16,
+              paddingHorizontal: 4,
+            }}
+          >
+            <Lock size={14} color={C.inkDim} strokeWidth={S.stroke} />
+            <Type role="meta" color={C.inkDim} style={{ flex: 1 }}>
+              {t('bank.neverStore')}
+            </Type>
+          </View>
+        </View>
+      </Sheet>
+    </Screen>
   );
 }

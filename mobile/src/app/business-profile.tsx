@@ -1,20 +1,34 @@
 import { useState } from 'react';
-import { View, ScrollView, Pressable, TextInput, ActivityIndicator } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ActivityIndicator, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Building2, Trash2, ImageIcon, X } from 'lucide-react-native';
+import { Building2, ImageIcon, X } from '@/components/icons';
 import * as Haptics from 'expo-haptics';
-import {
-  createBusiness, deleteBusiness, getBusiness, updateBusiness, uploadLogo, removeLogo,
-} from '@/lib/businessApi';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
 import { Image } from 'expo-image';
+import {
+  createBusiness,
+  deleteBusiness,
+  getBusiness,
+  removeLogo,
+  updateBusiness,
+  uploadLogo,
+} from '@/lib/businessApi';
 import { receiptSource } from '@/lib/receipt-image';
 import { useSession } from '@/lib/auth/use-session';
-import { R, useB } from '@/lib/design';
-import { Txt, GlassCard, BubbleButton, BizBackground, IconBubble } from '@/components/ui';
+import { S, useB } from '@/lib/design';
+import { PressableScale } from '@/components/motion';
+import {
+  Card,
+  Field,
+  FormError,
+  IconTile,
+  PrimaryButton,
+  Screen,
+  SubHeader,
+  Type,
+} from '@/components/kit';
 import { t } from '@/lib/i18n/core';
 
 /**
@@ -23,13 +37,16 @@ import { t } from '@/lib/i18n/core';
  * Owner-only, and the backend enforces that independently — the read-only mode
  * here is so a manager is told why rather than shown a form that 403s on save.
  *
- * No logo, despite what this row used to promise. Adding one the way expense
- * receipts work would store a device-local file:// path, which nobody else on
- * the team could load; a real logo needs file hosting the app does not have.
+ * The two field labels were 11px semibold tracked out to 1.2pt, which §3 has
+ * no style for; the danger zone was a red-tinted card inside a red-tinted card
+ * with a red-bordered input and a solid red button, which is four separate
+ * things all saying "careful" and none of them saying what will happen. The
+ * warning sentence says it once now, and the confirm is a plain destructive
+ * label under a typed name — the same pattern the household and account
+ * deletions use.
  */
 export default function BusinessProfileScreen() {
   const B = useB();
-  const insets = useSafeAreaInsets();
   const router = useRouter();
   const qc = useQueryClient();
   const { data: session } = useSession();
@@ -118,7 +135,7 @@ export default function BusinessProfileScreen() {
     },
   });
 
-  const mutation = useMutation({
+  const save = useMutation({
     mutationFn: () => updateBusiness({ name: nameValue.trim(), address: addressValue }),
     onSuccess: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -131,56 +148,50 @@ export default function BusinessProfileScreen() {
     },
   });
 
+  const canDelete = !!business && confirmName.trim() === business.name.trim();
+
   return (
-    <BizBackground style={{ paddingTop: insets.top }}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 60 }}>
-        <View style={{ paddingHorizontal: 20, paddingTop: 12, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-          <Pressable
-            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.back(); }}
-            hitSlop={12}
-            style={{ width: 40, height: 40, borderRadius: 14, backgroundColor: B.glass, alignItems: 'center', justifyContent: 'center' }}
-          >
-            <ArrowLeft size={20} color={B.text} />
-          </Pressable>
-          <View style={{ flex: 1 }}>
-            <Txt weight="bold" size={22} color={B.text}>{t('bizSettings.companyLabel')}</Txt>
-          </View>
-        </View>
+    <Screen pal={B}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingTop: 8, paddingBottom: 60 }}
+        keyboardShouldPersistTaps="handled"
+      >
+        <SubHeader pal={B} title={t('bizSettings.companyLabel')} onBack={() => router.back()} />
 
         {isLoading ? (
-          <View style={{ paddingTop: 60, alignItems: 'center' }}><ActivityIndicator color={B.accent} /></View>
+          <View style={{ paddingTop: 60, alignItems: 'center' }}>
+            <ActivityIndicator color={B.accent} />
+          </View>
         ) : !business ? (
-          <View style={{ paddingHorizontal: 20, paddingTop: 28 }}>
-            <View style={{ alignItems: 'center', marginBottom: 20 }}>
-              <IconBubble color={B.accent} size={64} radius={22}><Building2 size={28} color={B.accent} /></IconBubble>
-            </View>
-            <Txt weight="bold" size={18} color={B.text} style={{ textAlign: 'center', marginBottom: 8 }}>
+          <View style={{ paddingHorizontal: S.screen, marginTop: S.section, alignItems: 'center' }}>
+            <IconTile pal={B} size={64} style={{ borderRadius: 20 }}>
+              <Building2 size={28} color={B.accent} strokeWidth={S.stroke} />
+            </IconTile>
+            <Type role="section" color={B.ink} style={{ textAlign: 'center', marginTop: 16 }}>
               {t('bizSettings.createTitle')}
-            </Txt>
-            <Txt size={13} color={B.textFaint} style={{ textAlign: 'center', lineHeight: 19, marginBottom: 22 }}>
+            </Type>
+            <Type role="body" color={B.inkDim} style={{ textAlign: 'center', marginTop: 6 }}>
               {t('bizSettings.createBody')}
-            </Txt>
-            {err ? (
-              <GlassCard padding={12} radius={R.md} tint={`${B.red}12`} border={`${B.red}2a`} style={{ marginBottom: 14 }}>
-                <Txt size={13} color={B.red}>{err}</Txt>
-              </GlassCard>
-            ) : null}
-            <BubbleButton
-              label={create.isPending ? t('bizSettings.creating') : t('bizSettings.createButton')}
-              onPress={() => create.mutate()}
-              disabled={create.isPending}
-              radius={R.md}
-              colors={[B.accentDeep, B.accent]}
-              glowColor={B.accent}
-            />
+            </Type>
+            <View style={{ alignSelf: 'stretch' }}>
+              <FormError pal={B} message={err} />
+              <PrimaryButton
+                pal={B}
+                label={create.isPending ? t('bizSettings.creating') : t('bizSettings.createButton')}
+                onPress={() => create.mutate()}
+                disabled={create.isPending}
+                style={{ marginTop: 16 }}
+              />
+            </View>
           </View>
         ) : (
-          <View style={{ paddingHorizontal: 20, paddingTop: 22 }}>
-            <View style={{ alignItems: 'center', marginBottom: 10 }}>
+          <View style={{ paddingHorizontal: S.screen, marginTop: 24 }}>
+            <View style={{ alignItems: 'center' }}>
               {business.logoUrl ? (
                 <Image
                   source={receiptSource(business.logoUrl)!}
-                  style={{ width: 84, height: 84, borderRadius: 24, borderWidth: 1, borderColor: B.glassBorder }}
+                  style={{ width: 84, height: 84, borderRadius: 24 }}
                   contentFit="cover"
                   // The path never changes when the logo does, so a cached
                   // copy would survive a replacement. The updatedAt stamp is
@@ -188,143 +199,189 @@ export default function BusinessProfileScreen() {
                   cachePolicy="none"
                 />
               ) : (
-                <IconBubble color={B.accent} size={84} radius={24}><Building2 size={34} color={B.accent} /></IconBubble>
+                <IconTile pal={B} size={84} style={{ borderRadius: 24 }}>
+                  <Building2 size={34} color={B.accent} strokeWidth={S.stroke} />
+                </IconTile>
               )}
+
+              {isOwner ? (
+                <>
+                  <View style={{ flexDirection: 'row', gap: 12, marginTop: 16 }}>
+                    <PressableScale
+                      onPress={logo.isPending ? undefined : () => logo.mutate()}
+                      haptic="light"
+                      accessibilityRole="button"
+                      accessibilityLabel={
+                        business.logoUrl ? t('bizSettings.replaceLogo') : t('bizSettings.addLogo')
+                      }
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 7,
+                        minHeight: 40,
+                        paddingHorizontal: 16,
+                        borderRadius: 999,
+                        backgroundColor: B.groundSunk,
+                        opacity: logo.isPending ? 0.6 : 1,
+                      }}
+                    >
+                      <ImageIcon size={15} color={B.inkDim} strokeWidth={S.stroke} />
+                      <Type role="meta" color={B.ink}>
+                        {business.logoUrl ? t('bizSettings.replaceLogo') : t('bizSettings.addLogo')}
+                      </Type>
+                    </PressableScale>
+
+                    {business.logoUrl ? (
+                      <PressableScale
+                        onPress={clearLogo.isPending ? undefined : () => clearLogo.mutate()}
+                        haptic="light"
+                        accessibilityRole="button"
+                        accessibilityLabel={t('bizSettings.removeLogo')}
+                        style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          gap: 7,
+                          minHeight: 40,
+                          paddingHorizontal: 16,
+                          borderRadius: 999,
+                          backgroundColor: B.groundSunk,
+                          opacity: clearLogo.isPending ? 0.6 : 1,
+                        }}
+                      >
+                        <X size={15} color={B.negative} strokeWidth={S.stroke} />
+                        <Type role="meta" color={B.negative}>
+                          {t('bizSettings.removeLogo')}
+                        </Type>
+                      </PressableScale>
+                    ) : null}
+                  </View>
+                  <Type role="meta" color={B.inkDim} style={{ marginTop: 12 }}>
+                    {t('bizSettings.logoHint')}
+                  </Type>
+                </>
+              ) : null}
             </View>
 
-            {isOwner && (
-              <View style={{ alignItems: 'center', marginBottom: 22 }}>
-                <View style={{ flexDirection: 'row', gap: 10 }}>
-                  <Pressable
-                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); logo.mutate(); }}
-                    disabled={logo.isPending}
-                    style={({ pressed }) => ({ opacity: pressed || logo.isPending ? 0.6 : 1, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: `${B.accent}12`, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, borderColor: `${B.accent}2a` })}
-                  >
-                    <ImageIcon size={13} color={B.accent} />
-                    <Txt weight="semibold" size={12} color={B.accent}>
-                      {business.logoUrl ? t('bizSettings.replaceLogo') : t('bizSettings.addLogo')}
-                    </Txt>
-                  </Pressable>
-                  {business.logoUrl && (
-                    <Pressable
-                      onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); clearLogo.mutate(); }}
-                      disabled={clearLogo.isPending}
-                      style={({ pressed }) => ({ opacity: pressed || clearLogo.isPending ? 0.6 : 1, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: `${B.red}12`, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, borderColor: `${B.red}2a` })}
-                    >
-                      <X size={13} color={B.red} />
-                      <Txt weight="semibold" size={12} color={B.red}>{t('bizSettings.removeLogo')}</Txt>
-                    </Pressable>
-                  )}
-                </View>
-                <Txt size={11} color={B.textFaint} style={{ marginTop: 8 }}>{t('bizSettings.logoHint')}</Txt>
-              </View>
-            )}
-
-            <Txt weight="semibold" size={11} color={B.textFaint} style={{ letterSpacing: 1.2, marginBottom: 8 }}>
-              {t('bizSettings.companyNameLabel')}
-            </Txt>
-            <TextInput
+            <Field
+              pal={B}
+              label={t('bizSettings.companyNameLabel')}
               value={nameValue}
-              onChangeText={(v) => { setName(v); setErr(''); }}
+              onChangeText={(v) => {
+                setName(v);
+                setErr('');
+              }}
               editable={isOwner}
               placeholder={t('bizSettings.companyNamePlaceholder')}
-              placeholderTextColor={B.textFaint}
-              selectionColor={B.accent}
-              style={{ color: isOwner ? B.text : B.textDim, fontSize: 16, fontFamily: 'PlusJakartaSans_600SemiBold', backgroundColor: B.glass, borderRadius: R.md, padding: 14, borderWidth: 1, borderColor: B.glassBorder, marginBottom: 18 }}
+              style={{ marginTop: S.section }}
             />
 
-            <Txt weight="semibold" size={11} color={B.textFaint} style={{ letterSpacing: 1.2, marginBottom: 8 }}>
-              {t('bizSettings.addressLabel')}
-            </Txt>
-            <TextInput
+            <Field
+              pal={B}
+              label={t('bizSettings.addressLabel')}
               value={addressValue}
-              onChangeText={(v) => { setAddress(v); setErr(''); }}
+              onChangeText={(v) => {
+                setAddress(v);
+                setErr('');
+              }}
               editable={isOwner}
               multiline
               placeholder={t('bizSettings.addressPlaceholder')}
-              placeholderTextColor={B.textFaint}
-              selectionColor={B.accent}
-              style={{ color: isOwner ? B.text : B.textDim, fontSize: 15, fontFamily: 'PlusJakartaSans_500Medium', backgroundColor: B.glass, borderRadius: R.md, padding: 14, borderWidth: 1, borderColor: B.glassBorder, textAlignVertical: 'top', minHeight: 88, marginBottom: 8 }}
+              style={{ marginTop: 16 }}
             />
-            <Txt size={11} color={B.textFaint} style={{ marginBottom: 20 }}>{t('bizSettings.addressHint')}</Txt>
+            <Type role="meta" color={B.inkDim} style={{ marginTop: 8 }}>
+              {t('bizSettings.addressHint')}
+            </Type>
 
-            {err ? (
-              <GlassCard padding={12} radius={R.md} tint={`${B.red}12`} border={`${B.red}2a`} style={{ marginBottom: 14 }}>
-                <Txt size={13} color={B.red}>{err}</Txt>
-              </GlassCard>
-            ) : null}
+            <FormError pal={B} message={err} />
 
             {isOwner ? (
-              <BubbleButton
-                label={mutation.isPending ? t('common.saving') : t('common.save')}
-                onPress={() => { if (nameValue.trim()) mutation.mutate(); }}
-                disabled={mutation.isPending || !nameValue.trim()}
-                radius={R.md}
-                colors={[B.accentDeep, B.accent]}
-                glowColor={B.accent}
+              <PrimaryButton
+                pal={B}
+                label={save.isPending ? t('common.saving') : t('common.save')}
+                onPress={() => {
+                  if (nameValue.trim()) save.mutate();
+                }}
+                disabled={save.isPending || !nameValue.trim()}
+                style={{ marginTop: 24 }}
               />
             ) : (
-              <GlassCard padding={14} radius={R.md}>
-                <Txt size={13} color={B.textDim}>{t('bizSettings.ownerOnly')}</Txt>
-              </GlassCard>
+              <Card pal={B} style={{ marginTop: 24 }}>
+                <Type role="body" color={B.inkDim}>
+                  {t('bizSettings.ownerOnly')}
+                </Type>
+              </Card>
             )}
 
             {/* Danger zone — owner only, and folded away until asked for, so
                 the destructive action is never one mis-tap from the save
                 button it sits under. */}
-            {isOwner && (
-              <View style={{ marginTop: 40 }}>
-                <Txt weight="bold" size={11} color={B.red} style={{ letterSpacing: 1.4, marginBottom: 10 }}>
+            {isOwner ? (
+              <View style={{ marginTop: 44 }}>
+                <Type role="cardTitle" color={B.ink} style={{ marginBottom: 12 }}>
                   {t('bizSettings.dangerZone')}
-                </Txt>
+                </Type>
 
                 {!dangerOpen ? (
-                  <Pressable
-                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setDangerOpen(true); }}
-                    style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
+                  <PressableScale
+                    onPress={() => setDangerOpen(true)}
+                    haptic="light"
+                    accessibilityRole="button"
+                    accessibilityLabel={t('bizSettings.deleteBusiness')}
+                    style={{ minHeight: 48, alignItems: 'center', justifyContent: 'center' }}
                   >
-                    <GlassCard padding={14} radius={R.md} tint={`${B.red}0e`} border={`${B.red}2a`}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                        <Trash2 size={16} color={B.red} />
-                        <Txt weight="semibold" size={14} color={B.red}>{t('bizSettings.deleteBusiness')}</Txt>
-                      </View>
-                    </GlassCard>
-                  </Pressable>
+                    <Type role="cardTitle" color={B.negative}>
+                      {t('bizSettings.deleteBusiness')}
+                    </Type>
+                  </PressableScale>
                 ) : (
-                  <GlassCard padding={16} radius={R.md} tint={`${B.red}0e`} border={`${B.red}2a`}>
-                    <Txt size={13} color={B.textDim} style={{ lineHeight: 19, marginBottom: 14 }}>
+                  <Card pal={B}>
+                    <Type role="body" color={B.inkDim}>
                       {t('bizSettings.deleteWarning')}
-                    </Txt>
-                    <Txt size={12} color={B.textFaint} style={{ marginBottom: 8 }}>
-                      {t('bizSettings.typeNameToConfirm', { name: business.name })}
-                    </Txt>
-                    <TextInput
+                    </Type>
+                    <Field
+                      pal={B}
+                      label={t('bizSettings.typeNameToConfirm', { name: business.name })}
                       value={confirmName}
-                      onChangeText={(v) => { setConfirmName(v); setErr(''); }}
+                      onChangeText={(v) => {
+                        setConfirmName(v);
+                        setErr('');
+                      }}
                       autoCapitalize="none"
                       autoCorrect={false}
                       placeholder={business.name}
-                      placeholderTextColor={B.textFaint}
-                      selectionColor={B.red}
-                      style={{ color: B.text, fontSize: 15, fontFamily: 'PlusJakartaSans_600SemiBold', backgroundColor: B.glass, borderRadius: R.md, padding: 13, borderWidth: 1, borderColor: `${B.red}44`, marginBottom: 14 }}
+                      style={{ marginTop: 16 }}
                     />
-                    <BubbleButton
-                      label={remove.isPending ? t('bizSettings.deleting') : t('bizSettings.deleteConfirm')}
-                      onPress={() => remove.mutate()}
+                    <PressableScale
                       // The server checks the name too; this only stops the
                       // request being sent while it obviously cannot succeed.
-                      disabled={remove.isPending || confirmName.trim() !== business.name.trim()}
-                      radius={R.md}
-                      colors={[B.red, B.red]}
-                      glowColor={B.red}
-                    />
-                  </GlassCard>
+                      onPress={
+                        canDelete && !remove.isPending ? () => remove.mutate() : undefined
+                      }
+                      haptic="light"
+                      accessibilityRole="button"
+                      accessibilityLabel={t('bizSettings.deleteConfirm')}
+                      accessibilityState={{ disabled: !canDelete }}
+                      style={{
+                        minHeight: 48,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        marginTop: 12,
+                        opacity: canDelete ? 1 : 0.4,
+                      }}
+                    >
+                      <Type role="cardTitle" color={B.negative}>
+                        {remove.isPending
+                          ? t('bizSettings.deleting')
+                          : t('bizSettings.deleteConfirm')}
+                      </Type>
+                    </PressableScale>
+                  </Card>
                 )}
               </View>
-            )}
+            ) : null}
           </View>
         )}
       </ScrollView>
-    </BizBackground>
+    </Screen>
   );
 }

@@ -1,14 +1,14 @@
-import { ScreenBackground } from '@/components/ui';
-import { useC } from '@/lib/design';
 import {
-  View, Text, TextInput, Pressable,
+  View, Pressable,
   KeyboardAvoidingView, Platform, ActivityIndicator, ScrollView,
 } from 'react-native';
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Mail, Lock, Eye, EyeOff, ArrowRight, Wallet } from 'lucide-react-native';
+import { Eye, EyeOff, Lock, Mail, Wallet } from '@/components/icons';
+import { S, useC } from '@/lib/design';
+import {
+  Field, FormError, IconTile, PrimaryButton, Screen, Type,
+} from '@/components/kit';
 import * as Haptics from 'expo-haptics';
 import * as SecureStore from 'expo-secure-store';
 import { authClient } from '@/lib/auth/auth-client';
@@ -23,11 +23,19 @@ const SECURE_STORE_PROBE_KEYS = [
   'realbudget_cookie',
 ];
 
+/**
+ * Turn an auth failure into a sentence.
+ *
+ * The network cases were the only ones translated before, and only into
+ * English — a French user hit a connection problem and was told about it in a
+ * language they had not chosen. The server's own message is still preferred
+ * when there is one, because it is more specific than any fallback here.
+ */
 function friendlyAuthError(raw: string | null | undefined, fallback: string): string {
   if (!raw) return fallback;
   const lower = raw.toLowerCase();
   if (lower.includes('network') || lower.includes('failed to fetch') || lower.includes('timed out') || lower.includes('aborted')) {
-    return "Couldn't reach the server. Check your connection and try again.";
+    return t('auth.errorNetwork');
   }
   return raw;
 }
@@ -51,7 +59,6 @@ async function probeSecureStore(label: string) {
 export default function LoginScreen() {
   const C = useC();
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const invalidateSession = useInvalidateSession();
   const loadAccountType = useAccountTypeStore(s => s.load);
 
@@ -63,7 +70,7 @@ export default function LoginScreen() {
 
   const handleLogin = async () => {
     if (!email.trim() || !password) {
-      setError('Please enter your email and password');
+      setError(t('auth.errorMissing'));
       return;
     }
     setError('');
@@ -86,7 +93,7 @@ export default function LoginScreen() {
         `[mobile:signin:throw] ms=${Date.now() - t0} err=${err instanceof Error ? err.message : String(err)} stack=${err instanceof Error ? err.stack : ''}`,
       );
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      setError(friendlyAuthError(err instanceof Error ? err.message : null, 'Sign-in failed'));
+      setError(friendlyAuthError(err instanceof Error ? err.message : null, t('auth.errorFailed')));
       return;
     }
 
@@ -105,7 +112,7 @@ export default function LoginScreen() {
 
     if (result.error) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      setError(friendlyAuthError(result.error.message, 'Invalid email or password'));
+      setError(friendlyAuthError(result.error.message, t('auth.errorInvalid')));
       return;
     }
 
@@ -146,141 +153,93 @@ export default function LoginScreen() {
   };
 
   return (
-    <ScreenBackground>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        className="flex-1"
-      >
-        <ScrollView className="flex-1" showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-          {/* Header */}
-          <LinearGradient
-            colors={['#0f0c29', '#302b63', '#24243e']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={{
-              paddingTop: insets.top + 52,
-              paddingBottom: 60,
-              paddingHorizontal: 28,
-              borderBottomLeftRadius: 48,
-              borderBottomRightRadius: 48,
-            }}
-          >
-            <View
-              style={{
-                width: 64, height: 64, borderRadius: 22,
-                backgroundColor: 'rgba(168,85,247,0.18)',
-                borderWidth: 1.5, borderColor: 'rgba(168,85,247,0.35)',
-                alignItems: 'center', justifyContent: 'center',
-                marginBottom: 24,
-              }}
-            >
-              <Wallet size={30} color={C.p500} />
-            </View>
-            <Text className="text-4xl font-bold text-white mb-2">{t('auth.welcomeBack')}</Text>
-            <Text className="text-white/55 text-base leading-6">
-              {t('auth.signInSubtitle')}
-            </Text>
-          </LinearGradient>
+    <Screen pal={C}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{ paddingHorizontal: S.screen, paddingTop: 32, paddingBottom: 40 }}
+        >
+          {/* Content sits at the top and the bottom stays open (§1.4). The
+              old header was a hard-coded #0f0c29 → #302b63 gradient, which is
+              why this screen stayed purple through the retheme: it never read
+              a token. */}
+          <IconTile pal={C} size={56} style={{ marginBottom: 24 }}>
+            <Wallet size={26} color={C.accent} strokeWidth={S.stroke} />
+          </IconTile>
 
-          {/* Form */}
-          <View className="px-6 pt-9 pb-10">
-            {error ? (
-              <View className="bg-red-500/15 border border-red-500/25 rounded-2xl p-4 mb-5">
-                <Text className="text-red-400 text-sm text-center">{error}</Text>
-              </View>
-            ) : null}
+          <Type role="title" color={C.ink}>{t('auth.welcomeBack')}</Type>
+          <Type role="body" color={C.inkDim} style={{ marginTop: 6, marginBottom: 36 }}>
+            {t('auth.signInSubtitle')}
+          </Type>
 
-            {/* Email */}
-            <View className="mb-4">
-              <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-2.5 ms-1 tracking-wider uppercase">
-                {t('auth.email')}
-              </Text>
-              <View
-                className="flex-row items-center rounded-2xl px-4 py-4"
-                style={{ backgroundColor: C.glass, borderWidth: 1, borderColor: C.glassBorder }}
+          <Field
+            pal={C}
+            label={t('auth.email')}
+            icon={<Mail size={19} color={C.inkDim} strokeWidth={S.stroke} />}
+            value={email}
+            onChangeText={(v) => { setEmail(v); setError(''); }}
+            placeholder={t('fields.emailPlaceholder2')}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoCorrect={false}
+            autoComplete="email"
+            returnKeyType="next"
+          />
+
+          <Field
+            pal={C}
+            label={t('auth.password')}
+            icon={<Lock size={19} color={C.inkDim} strokeWidth={S.stroke} />}
+            value={password}
+            onChangeText={(v) => { setPassword(v); setError(''); }}
+            placeholder={t('fields.yourPassword')}
+            secureTextEntry={!showPassword}
+            returnKeyType="done"
+            onSubmitEditing={handleLogin}
+            style={{ marginTop: 16 }}
+            trailing={
+              <Pressable
+                onPress={() => setShowPassword((prev) => !prev)}
+                hitSlop={12}
+                accessibilityRole="button"
+                accessibilityLabel={t('auth.password')}
               >
-                <Mail size={20} color="#6b7280" />
-                <TextInput
-                  value={email}
-                  onChangeText={(t) => { setEmail(t); setError(''); }}
-                  placeholder={t('fields.emailPlaceholder2')}
-                  placeholderTextColor="#4b5563"
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  autoComplete="email"
-                  className="flex-1 ms-3 text-base"
-                  selectionColor={C.p500}
-                  returnKeyType="next"
-                />
-              </View>
-            </View>
-
-            {/* Password */}
-            <View className="mb-7">
-              <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-2.5 ms-1 tracking-wider uppercase">
-                {t('auth.password')}
-              </Text>
-              <View
-                className="flex-row items-center rounded-2xl px-4 py-4"
-                style={{ backgroundColor: C.glass, borderWidth: 1, borderColor: C.glassBorder }}
-              >
-                <Lock size={20} color="#6b7280" />
-                <TextInput
-                  value={password}
-                  onChangeText={(t) => { setPassword(t); setError(''); }}
-                  placeholder={t('fields.yourPassword')}
-                  placeholderTextColor="#4b5563"
-                  secureTextEntry={!showPassword}
-                  className="flex-1 ms-3 text-base"
-                  selectionColor={C.p500}
-                  returnKeyType="done"
-                  onSubmitEditing={handleLogin}
-                />
-                <Pressable onPress={() => setShowPassword(p => !p)} hitSlop={8}>
-                  {showPassword
-                    ? <EyeOff size={20} color="#6b7280" />
-                    : <Eye size={20} color="#6b7280" />
-                  }
-                </Pressable>
-              </View>
-            </View>
-
-            {/* CTA */}
-            <Pressable onPress={handleLogin} disabled={isLoading} className="active:opacity-80">
-              <LinearGradient
-                colors={isLoading ? ['#374151', '#374151'] : [C.p600, C.p500, C.p400]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={{
-                  borderRadius: 18,
-                  paddingVertical: 18,
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                {isLoading ? (
-                  <ActivityIndicator color="white" size="small" />
-                ) : (
-                  <>
-                    <Text className="text-white font-bold text-base me-2">{t('auth.signIn')}</Text>
-                    <ArrowRight size={18} color="white" />
-                  </>
-                )}
-              </LinearGradient>
-            </Pressable>
-
-            {/* Sign up link */}
-            <View className="flex-row justify-center mt-7">
-              <Text style={{ color: C.textFaint }} className="text-sm">{t('auth.noAccount')}</Text>
-              <Pressable onPress={() => router.push('/signup')}>
-                <Text className="text-purple-400 font-semibold text-sm">{t('auth.createOne')}</Text>
+                {showPassword
+                  ? <EyeOff size={19} color={C.inkDim} strokeWidth={S.stroke} />
+                  : <Eye size={19} color={C.inkDim} strokeWidth={S.stroke} />}
               </Pressable>
+            }
+          />
+
+          <FormError pal={C} message={error} />
+
+          {isLoading ? (
+            <View style={{ height: 56, marginTop: 24, alignItems: 'center', justifyContent: 'center' }}>
+              <ActivityIndicator color={C.accent} />
             </View>
-          </View>
+          ) : (
+            <PrimaryButton
+              pal={C}
+              label={t('auth.signInAction')}
+              onPress={handleLogin}
+              style={{ marginTop: 24 }}
+            />
+          )}
+
+          <Pressable
+            onPress={() => router.push('/signup')}
+            hitSlop={10}
+            accessibilityRole="link"
+            style={{ marginTop: 24, alignItems: 'center' }}
+          >
+            <Type role="meta" color={C.inkDim}>
+              {t('auth.noAccount')}
+              <Type role="meta" color={C.accent}>{t('auth.createOne')}</Type>
+            </Type>
+          </Pressable>
         </ScrollView>
       </KeyboardAvoidingView>
-    </ScreenBackground>
+    </Screen>
   );
 }

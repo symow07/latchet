@@ -1,24 +1,43 @@
-import { ScreenBackground } from '@/components/ui';
-import { useC } from '@/lib/design';
-import { View, Text, TextInput, Pressable, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
-import { useState, useRef } from 'react';
+import { useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  Text as RNText,
+  TextInput,
+  View,
+} from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ArrowLeft, ShieldCheck } from 'lucide-react-native';
+import { ChevronLeft, ShieldCheck } from '@/components/icons';
 import * as Haptics from 'expo-haptics';
 import { authClient } from '@/lib/auth/auth-client';
 import { useInvalidateSession } from '@/lib/auth/use-session';
 import { pullCloudDataToLocal } from '@/lib/cloud-sync';
+import { F, R, S, useC } from '@/lib/design';
+import { CircleAction, FormError, IconTile, Screen, Type, mirror } from '@/components/kit';
 import { t } from '@/lib/i18n/core';
 
 const OTP_LENGTH = 6;
 
+/**
+ * The code from the email.
+ *
+ * Same shape as login and signup: content at the top, the bottom left open,
+ * one icon tile, a headline in sentence case. The old version opened on a
+ * `#0f0c29 → #302b63 → #24243e` gradient with 40px scalloped corners — the
+ * last surviving piece of the dark direction in the sign-in flow, and it never
+ * read a token, so the retheme went straight past it.
+ *
+ * The six boxes were `rgba(255,255,255,0.06)` fills holding white digits.
+ * After the ground turned bone, that was a white digit on a white box: the
+ * code you had just typed was invisible.
+ */
 export default function VerifyOTPScreen() {
   const C = useC();
   const { email } = useLocalSearchParams<{ email: string }>();
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const invalidateSession = useInvalidateSession();
   const [otp, setOtp] = useState('');
   const [error, setError] = useState('');
@@ -30,17 +49,15 @@ export default function VerifyOTPScreen() {
     if (code.length !== OTP_LENGTH) return;
     setError('');
     setIsLoading(true);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-    const result = await authClient.signIn.emailOtp({
-      email: email.trim(),
-      otp: code,
-    });
+    const result = await authClient.signIn.emailOtp({ email: email.trim(), otp: code });
 
     if (result.error) {
       setIsLoading(false);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      setError(result.error.message || 'Invalid code. Please try again.');
+      // The server's message is more specific when there is one; the fallback
+      // used to be an English sentence in a four-language app.
+      setError(result.error.message || t('auth.errorInvalidCode'));
       setOtp('');
     } else {
       // Pull cloud data into local DB for returning users
@@ -55,135 +72,146 @@ export default function VerifyOTPScreen() {
     const digits = val.replace(/\D/g, '').slice(0, OTP_LENGTH);
     setOtp(digits);
     setError('');
-    if (digits.length === OTP_LENGTH) {
-      handleVerify(digits);
-    }
+    if (digits.length === OTP_LENGTH) handleVerify(digits);
   };
 
   const handleResend = async () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const result = await authClient.emailOtp.sendVerificationOtp({
       email: email.trim(),
       type: 'sign-in',
     });
     if (!result.error) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setResent(true);
       setOtp('');
       setTimeout(() => setResent(false), 4000);
     }
   };
 
-  // Render OTP boxes
-  const renderBoxes = () => {
-    return Array.from({ length: OTP_LENGTH }).map((_, i) => {
-      const char = otp[i] || '';
-      const isActive = otp.length === i;
-      return (
-        <Pressable
-          key={i}
-          onPress={() => inputRef.current?.focus()}
-          style={{
-            width: 48,
-            height: 58,
-            borderRadius: 14,
-            backgroundColor: char ? 'rgba(168, 85, 247, 0.2)' : 'rgba(255,255,255,0.06)',
-            borderWidth: isActive ? 2 : 1,
-            borderColor: isActive ? C.p500 : char ? 'rgba(168, 85, 247, 0.4)' : 'rgba(255,255,255,0.1)',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <Text style={{ color: 'white', fontSize: 22, fontWeight: '700' }}>{char}</Text>
-        </Pressable>
-      );
-    });
-  };
-
   return (
-    <ScreenBackground>
+    <Screen pal={C}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        className="flex-1"
+        style={{ flex: 1 }}
       >
-        {/* Header */}
-        <LinearGradient
-          colors={['#0f0c29', '#302b63', '#24243e']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={{
-            paddingTop: insets.top + 20,
-            paddingBottom: 48,
-            paddingHorizontal: 24,
-            borderBottomLeftRadius: 40,
-            borderBottomRightRadius: 40,
-          }}
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{ paddingHorizontal: S.screen, paddingTop: 12, paddingBottom: 40 }}
         >
+          <CircleAction pal={C} label={t('auth.checkEmail')} onPress={() => router.back()}>
+            <ChevronLeft size={20} color={C.ink} strokeWidth={S.stroke} style={mirror} />
+          </CircleAction>
+
+          <IconTile pal={C} size={56} style={{ marginTop: 24, marginBottom: 24 }}>
+            <ShieldCheck size={26} color={C.accent} strokeWidth={S.stroke} />
+          </IconTile>
+
+          <Type role="title" color={C.ink}>
+            {t('auth.checkEmail')}
+          </Type>
+          <Type role="body" color={C.inkDim} style={{ marginTop: 6 }}>
+            {t('auth.codeSentTo')}
+          </Type>
+          <Type role="cardTitle" color={C.ink} style={{ marginTop: 2, marginBottom: 32 }}>
+            {email}
+          </Type>
+
+          {/* The six boxes. A filled digit sits on a sunk well; the box
+              waiting for the next digit carries an ink hairline, which is the
+              only place on this screen a border earns its keep. */}
           <Pressable
-            onPress={() => router.back()}
-            className="mb-6 self-start"
+            onPress={() => inputRef.current?.focus()}
+            accessibilityRole="button"
+            accessibilityLabel={t('auth.checkEmail')}
+            style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 8 }}
           >
-            <View className="w-10 h-10 rounded-xl bg-white/10 items-center justify-center">
-              <ArrowLeft size={18} color="white" />
-            </View>
+            {Array.from({ length: OTP_LENGTH }).map((_, i) => {
+              const char = otp[i] ?? '';
+              const isNext = otp.length === i;
+              return (
+                <View
+                  key={i}
+                  style={{
+                    flex: 1,
+                    height: 58,
+                    borderRadius: R.sm,
+                    backgroundColor: C.groundSunk,
+                    borderWidth: isNext ? 1.5 : 0,
+                    borderColor: C.ink,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <RNText
+                    style={{
+                      ...F.bold,
+                      fontSize: 22,
+                      color: C.ink,
+                      fontVariant: ['tabular-nums'],
+                    }}
+                  >
+                    {char}
+                  </RNText>
+                </View>
+              );
+            })}
           </Pressable>
 
-          <View className="w-14 h-14 rounded-2xl bg-purple-500/20 items-center justify-center mb-4">
-            <ShieldCheck size={28} color={C.p500} />
-          </View>
-          <Text className="text-3xl font-bold text-white mb-2">{t('auth.checkEmail')}</Text>
-          <Text className="text-white/60 text-sm leading-5">
-            {t('auth.codeSentTo')}{'\n'}
-            <Text className="text-purple-300 font-semibold">{email}</Text>
-          </Text>
-        </LinearGradient>
-
-        <View className="flex-1 px-6 pt-10">
-          {/* OTP Boxes */}
-          <View className="flex-row justify-between mb-2">
-            {renderBoxes()}
-          </View>
-
-          {/* Hidden real input */}
+          {/* The field the keyboard actually talks to. */}
           <TextInput
             ref={inputRef}
             value={otp}
             onChangeText={handleOtpChange}
             keyboardType="number-pad"
+            textContentType="oneTimeCode"
+            autoComplete="one-time-code"
             maxLength={OTP_LENGTH}
             style={{ position: 'absolute', opacity: 0, width: 1, height: 1 }}
             autoFocus
           />
 
-          {/* Error */}
-          {error ? (
-            <View className="bg-red-500/15 border border-red-500/25 rounded-xl p-3 mt-4">
-              <Text className="text-red-400 text-sm text-center">{error}</Text>
-            </View>
-          ) : null}
+          <FormError pal={C} message={error} />
 
           {resent ? (
-            <View className="bg-green-500/15 border border-green-500/25 rounded-xl p-3 mt-4">
-              <Text className="text-green-400 text-sm text-center">{t('auth.codeSent')}</Text>
+            <Type role="meta" color={C.positive} style={{ marginTop: 12 }}>
+              {t('auth.codeSent')}
+            </Type>
+          ) : null}
+
+          {isLoading ? (
+            <View style={{ alignItems: 'center', marginTop: 32, gap: 12 }}>
+              <ActivityIndicator color={C.accent} />
+              <Type role="meta" color={C.inkDim}>
+                {t('auth.verifying')}
+              </Type>
             </View>
           ) : null}
 
-          {/* Loading */}
-          {isLoading && (
-            <View className="items-center mt-8">
-              <ActivityIndicator color={C.p500} size="large" />
-              <Text style={{ color: C.textFaint }} className="text-sm mt-3">{t('auth.verifying')}</Text>
-            </View>
-          )}
-
-          {/* Resend */}
-          <View className="flex-row justify-center mt-8">
-            <Text style={{ color: C.textFaint }} className="text-sm">{t('auth.didntGet')}</Text>
-            <Pressable onPress={handleResend}>
-              <Text className="text-purple-400 text-sm font-semibold">{t('auth.resend')}</Text>
+          <View
+            style={{
+              flexDirection: 'row',
+              justifyContent: 'center',
+              alignItems: 'center',
+              marginTop: 32,
+            }}
+          >
+            <Type role="meta" color={C.inkDim}>
+              {t('auth.didntGet')}
+            </Type>
+            <Pressable
+              onPress={handleResend}
+              hitSlop={12}
+              accessibilityRole="button"
+              accessibilityLabel={t('auth.resend')}
+            >
+              <Type role="meta" color={C.accent}>
+                {t('auth.resend')}
+              </Type>
             </Pressable>
           </View>
-        </View>
+        </ScrollView>
       </KeyboardAvoidingView>
-    </ScreenBackground>
+    </Screen>
   );
 }

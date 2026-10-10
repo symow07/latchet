@@ -1,18 +1,10 @@
-import {
-  View, ScrollView, Pressable, Modal,
-  ActivityIndicator, RefreshControl, Linking,
-} from 'react-native';
-import { useState, useCallback } from 'react';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
-import {
-  ArrowLeft, Wrench, AlertCircle, ChevronDown, ChevronUp,
-  ExternalLink, CalendarClock, TrendingDown, X, Info,
-  RefreshCw, Zap,
-} from 'lucide-react-native';
-import * as Haptics from 'expo-haptics';
+import { useCallback, useState } from 'react';
+import { ActivityIndicator, Linking, RefreshControl, ScrollView, View } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
-import { useFocusEffect, router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
+import { format, parseISO } from 'date-fns';
+import { ChevronDown, ChevronUp, Wrench } from '@/components/icons';
+
 import { getExpenses } from '@/lib/expenseApi';
 import {
   detectSubscriptions,
@@ -21,285 +13,382 @@ import {
 } from '@/lib/business-subscription-detection';
 import { getEmailDetectedForBusiness } from '@/lib/emailSubscriptionApi';
 import { EmailScanCard } from '@/components/EmailScanCard';
-import { R, glow, useB } from '@/lib/design';
-import { Txt, GlassCard, IconBubble, BizBackground, BubbleButton } from '@/components/ui';
-import { t, getIntlTag } from '@/lib/i18n/core';
-import { categoryLabel } from '@/lib/categories';
+import { formatCurrency } from '@/lib/calculations';
+import { categoryLabel } from '@/lib/category-meta';
+import { S, useB, type BizPalette } from '@/lib/design';
+import {
+  BalanceCard,
+  Card,
+  Empty,
+  InfoRow,
+  PrimaryButton,
+  Screen,
+  SectionHeader,
+  Sheet,
+  Stat,
+  SubHeader,
+  Type,
+} from '@/components/kit';
+import { t, getDateFnsLocale } from '@/lib/i18n/core';
 
-// ─── Cancel Guide Modal ─────────────────────────────────────────────────────────
-function CancelGuideModal({ sub, visible, onClose }: { sub: DetectedSubscription | null; visible: boolean; onClose: () => void }) {
-  const B = useB();
+const readDate = (iso: string) => parseISO(iso.length > 10 ? iso : `${iso}T00:00:00`);
+const longDate = (iso: string) => format(readDate(iso), 'd MMM yyyy', { locale: getDateFnsLocale() });
+
+// ─── Cancel guide ────────────────────────────────────────────────────────────
+
+function CancelGuideSheet({
+  pal,
+  sub,
+  onClose,
+}: {
+  pal: BizPalette;
+  sub: DetectedSubscription | null;
+  onClose: () => void;
+}) {
   if (!sub) return null;
   const steps = [
-    { t: t('businessTools.step1Title'), d: sub.cancelInstructions },
-    { t: t('businessTools.step2Title'), d: t('businessTools.step2Body') },
-    { t: t('businessTools.step3Title'), d: t('businessTools.step3Body') },
+    { title: t('businessTools.step1Title'), body: sub.cancelInstructions },
+    { title: t('businessTools.step2Title'), body: t('businessTools.step2Body') },
+    { title: t('businessTools.step3Title'), body: t('businessTools.step3Body') },
   ];
 
   return (
-    <Modal visible={visible} animationType="slide" transparent presentationStyle="overFullScreen">
-      <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' }} onPress={onClose} />
-      <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: B.slate900, borderTopLeftRadius: 30, borderTopRightRadius: 30, borderWidth: 1, borderColor: `${B.accent}26`, paddingBottom: 44 }}>
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 22 }}>
-          <View style={{ width: 40, height: 4, backgroundColor: B.slate700, borderRadius: 2, alignSelf: 'center', marginBottom: 20 }} />
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-            <View style={{ flex: 1 }}>
-              <Txt weight="bold" size={11} color={B.accent} style={{ letterSpacing: 1.2, marginBottom: 4 }}>{t('businessTools.howToCancel')}</Txt>
-              <Txt weight="bold" size={20} color={B.text} numberOfLines={2}>{sub.name}</Txt>
-            </View>
-            <Pressable onPress={onClose} hitSlop={10}><X size={22} color={B.textFaint} /></Pressable>
-          </View>
+    <Sheet pal={pal} visible onClose={onClose} title={sub.name}>
+      <ScrollView
+        style={{ maxHeight: 480 }}
+        contentContainerStyle={{ paddingHorizontal: S.card, paddingBottom: 8 }}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={{ flexDirection: 'row', gap: 24 }}>
+          <Stat
+            pal={pal}
+            label={t('businessTools.monthlyCost')}
+            value={sub.amount}
+            format={formatCurrency}
+            size={22}
+          />
+          <Stat
+            pal={pal}
+            label={t('businessTools.nextCharge')}
+            value={formatNextCharge(sub.nextChargeDate)}
+            size={22}
+          />
+        </View>
+        <Type role="meta" color={pal.inkDim} style={{ marginTop: 8 }}>
+          {t('businessTools.perYear', { amount: formatCurrency(sub.amount * 12) })}
+        </Type>
 
-          <GlassCard padding={16} radius={R.md} tint={`${B.red}0e`} border={`${B.red}26`} style={{ marginBottom: 16, flexDirection: 'row', alignItems: 'center' }}>
-            <View style={{ flex: 1 }}>
-              <Txt weight="semibold" size={11} color={B.textDim} style={{ letterSpacing: 0.8 }}>{t('businessTools.monthlyCost')}</Txt>
-              <Txt weight="bold" size={26} color={B.red} style={{ marginTop: 2 }}>${sub.amount.toFixed(2)}</Txt>
-              <Txt size={12} color={B.textFaint} style={{ marginTop: 2 }}>${(sub.amount * 12).toFixed(0)}/year</Txt>
-            </View>
-            <View style={{ alignItems: 'flex-end' }}>
-              <Txt size={11} color={B.textFaint}>{t('businessTools.nextCharge')}</Txt>
-              <Txt weight="bold" size={14} color={B.amber} style={{ marginTop: 2 }}>{formatNextCharge(sub.nextChargeDate)}</Txt>
-            </View>
-          </GlassCard>
-
-          <Txt weight="bold" size={11} color={B.textFaint} style={{ letterSpacing: 1.2, marginBottom: 12 }}>{t('businessTools.cancelSteps')}</Txt>
-          <GlassCard padding={18} radius={R.md} style={{ marginBottom: 16 }}>
-            {steps.map((s, i) => (
-              <View key={i} style={{ flexDirection: 'row', gap: 12, marginBottom: i < steps.length - 1 ? 16 : 0 }}>
-                <View style={{ width: 26, height: 26, borderRadius: 8, backgroundColor: `${B.accent}1f`, alignItems: 'center', justifyContent: 'center' }}>
-                  <Txt weight="bold" size={12} color={B.accent}>{i + 1}</Txt>
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Txt weight="semibold" size={14} color={B.text} style={{ marginBottom: 2 }}>{s.t}</Txt>
-                  <Txt size={12} color={B.textDim} style={{ lineHeight: 18 }}>{s.d}</Txt>
-                </View>
+        <Type role="cardTitle" color={pal.ink} style={{ marginTop: 24, marginBottom: 12 }}>
+          {t('businessTools.cancelSteps')}
+        </Type>
+        <View style={{ gap: 16 }}>
+          {steps.map((step, i) => (
+            <View key={step.title} style={{ flexDirection: 'row', gap: 12 }}>
+              <View
+                style={{
+                  width: 26,
+                  height: 26,
+                  borderRadius: 13,
+                  backgroundColor: pal.groundSunk,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginTop: 1,
+                }}
+              >
+                <Type role="meta" color={pal.inkDim}>
+                  {i + 1}
+                </Type>
               </View>
-            ))}
-          </GlassCard>
+              <View style={{ flex: 1 }}>
+                <Type role="cardTitle" color={pal.ink}>
+                  {step.title}
+                </Type>
+                <Type role="body" color={pal.inkDim} style={{ marginTop: 2 }}>
+                  {step.body}
+                </Type>
+              </View>
+            </View>
+          ))}
+        </View>
 
-          <GlassCard padding={14} radius={R.sm} tint={`${B.amber}0e`} border={`${B.amber}2a`} style={{ marginBottom: 20, flexDirection: 'row', gap: 10 }}>
-            <Info size={16} color={B.amber} style={{ marginTop: 1 }} />
-            <Txt size={12} color={B.amber} style={{ lineHeight: 18, flex: 1 }}>
-              {t('businessTools.cancelBefore', {
-                date: new Date(sub.nextChargeDate).toLocaleDateString(getIntlTag(), { month: 'long', day: 'numeric' }),
-                amount: `$${sub.amount.toFixed(2)}`,
-              })}
-            </Txt>
-          </GlassCard>
+        <Type role="meta" color={pal.inkDim} style={{ marginTop: 16 }}>
+          {t('businessTools.cancelBefore', {
+            date: longDate(sub.nextChargeDate),
+            amount: formatCurrency(sub.amount),
+          })}
+        </Type>
 
-          {sub.cancelUrl ? (
-            <BubbleButton label={t('businessTools.openBilling')} icon={<ExternalLink size={16} color="#fff" />} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); if (sub.cancelUrl) Linking.openURL(sub.cancelUrl); }} radius={R.md} colors={[B.accentDeep, B.accent]} glowColor={B.accent} />
-          ) : (
-            <GlassCard padding={16} radius={R.md} style={{ alignItems: 'center' }}>
-              <Txt size={14} color={B.textFaint}>{t('businessTools.searchFor', { name: sub.name })}</Txt>
-            </GlassCard>
-          )}
-        </ScrollView>
-      </View>
-    </Modal>
+        {sub.cancelUrl ? (
+          <PrimaryButton
+            pal={pal}
+            label={t('businessTools.openBilling')}
+            onPress={() => sub.cancelUrl && Linking.openURL(sub.cancelUrl)}
+            style={{ marginTop: 16 }}
+          />
+        ) : (
+          <Type role="body" color={pal.inkDim} style={{ marginTop: 16 }}>
+            {t('businessTools.searchFor', { name: sub.name })}
+          </Type>
+        )}
+      </ScrollView>
+    </Sheet>
   );
 }
 
-// ─── Subscription Card ──────────────────────────────────────────────────────────
-function SubscriptionCard({ sub, onCancelGuide }: { sub: DetectedSubscription; onCancelGuide: (sub: DetectedSubscription) => void }) {
-  const B = useB();
+// ─── One tool ────────────────────────────────────────────────────────────────
+
+function ToolRow({
+  pal,
+  sub,
+  onCancelGuide,
+}: {
+  pal: BizPalette;
+  sub: DetectedSubscription;
+  onCancelGuide: (sub: DetectedSubscription) => void;
+}) {
   const [expanded, setExpanded] = useState(false);
-  const daysUntil = Math.round((new Date(sub.nextChargeDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-  const isUrgent = daysUntil <= 7 && daysUntil >= 0;
-  const isOverdue = daysUntil < 0;
+  const days = Math.round((readDate(sub.nextChargeDate).getTime() - Date.now()) / 86_400_000);
+  const dot = days < 0 ? pal.negative : days <= 7 ? pal.warning : pal.accentMark;
+
+  const meta = [
+    categoryLabel(sub.category),
+    sub.isRecurring ? t('businessTools.recurring') : null,
+    formatNextCharge(sub.nextChargeDate),
+  ]
+    .filter(Boolean)
+    .join(' · ');
 
   return (
-    <GlassCard padding={0} radius={R.lg} tint={isUrgent ? `${B.amber}0a` : B.glass} border={isUrgent ? `${B.amber}2a` : B.glassBorder} style={{ overflow: 'hidden' }}>
-      <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setExpanded(v => !v); }} style={({ pressed }) => ({ opacity: pressed ? 0.8 : 1, padding: 16 })}>
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <IconBubble color={B.accent} size={44} radius={14} style={{ marginEnd: 13 }}><Wrench size={20} color={B.accent} /></IconBubble>
-          <View style={{ flex: 1 }}>
-            <Txt weight="bold" size={15} color={B.text} numberOfLines={1}>{sub.name}</Txt>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 3 }}>
-              {sub.isRecurring && (
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
-                  <RefreshCw size={9} color={B.teal} />
-                  <Txt weight="bold" size={10} color={B.teal}>{t('businessTools.recurring')}</Txt>
-                </View>
-              )}
-              <Txt size={10} color={B.textFaint}>{categoryLabel(sub.category)}</Txt>
-            </View>
-          </View>
-          <View style={{ alignItems: 'flex-end', gap: 4 }}>
-            <Txt weight="bold" size={16} color={B.text}>${sub.amount.toFixed(2)}<Txt size={11} color={B.textFaint}>/mo</Txt></Txt>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              {isUrgent && <AlertCircle size={10} color={B.amber} />}
-              <Txt weight="semibold" size={10} color={isUrgent ? B.amber : isOverdue ? B.red : B.textFaint}>{formatNextCharge(sub.nextChargeDate)}</Txt>
-            </View>
-          </View>
-          <View style={{ marginStart: 10 }}>
-            {expanded ? <ChevronUp size={16} color={B.textFaint} /> : <ChevronDown size={16} color={B.textFaint} />}
-          </View>
-        </View>
-      </Pressable>
+    <View>
+      <InfoRow
+        pal={pal}
+        title={sub.name}
+        meta={meta}
+        amount={sub.amount}
+        format={formatCurrency}
+        onPress={() => setExpanded((v) => !v)}
+        lead={<View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: dot }} />}
+        trailing={
+          expanded ? (
+            <ChevronUp size={17} color={pal.inkFaint} strokeWidth={S.stroke} />
+          ) : (
+            <ChevronDown size={17} color={pal.inkFaint} strokeWidth={S.stroke} />
+          )
+        }
+      />
 
-      {expanded && (
-        <View style={{ borderTopWidth: 1, borderTopColor: B.glassBorder, paddingHorizontal: 16, paddingVertical: 14, backgroundColor: 'rgba(0,0,0,0.15)' }}>
-          <View style={{ flexDirection: 'row', marginBottom: 14 }}>
-            <View style={{ flex: 1 }}>
-              <Txt weight="bold" size={10} color={B.textFaint} style={{ letterSpacing: 0.8, marginBottom: 4 }}>{t('businessTools.annualCost')}</Txt>
-              <Txt weight="bold" size={15} color={B.text}>${(sub.amount * 12).toFixed(0)}/yr</Txt>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Txt weight="bold" size={10} color={B.textFaint} style={{ letterSpacing: 0.8, marginBottom: 4 }}>{t('businessTools.lastCharged')}</Txt>
-              <Txt weight="bold" size={15} color={B.text}>{new Date(sub.lastChargeDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</Txt>
-            </View>
-            {sub.isRecurring && (
-              <View style={{ flex: 1 }}>
-                <Txt weight="bold" size={10} color={B.textFaint} style={{ letterSpacing: 0.8, marginBottom: 4 }}>{t('businessTools.monthsSeen')}</Txt>
-                <Txt weight="bold" size={15} color={B.text}>{sub.monthlyCount}×</Txt>
-              </View>
-            )}
+      {expanded ? (
+        <View style={{ paddingBottom: 16 }}>
+          <View style={{ flexDirection: 'row', gap: 16 }}>
+            <Stat
+              pal={pal}
+              label={t('businessTools.annualCost')}
+              value={sub.amount * 12}
+              format={formatCurrency}
+              size={17}
+              style={{ flex: 1 }}
+            />
+            <Stat
+              pal={pal}
+              label={t('businessTools.lastCharged')}
+              value={longDate(sub.lastChargeDate)}
+              size={17}
+              style={{ flex: 1 }}
+            />
+            {sub.isRecurring ? (
+              <Stat
+                pal={pal}
+                label={t('businessTools.monthsSeen')}
+                value={`${sub.monthlyCount}×`}
+                size={17}
+                style={{ flex: 1 }}
+              />
+            ) : null}
           </View>
-          <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); onCancelGuide(sub); }} style={({ pressed }) => ({ opacity: pressed ? 0.75 : 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 11, borderRadius: 12, backgroundColor: `${B.red}14`, borderWidth: 1, borderColor: `${B.red}2a` })}>
-            <X size={13} color={B.red} />
-            <Txt weight="bold" size={13} color={B.red}>{t('businessTools.howToCancel')}</Txt>
-          </Pressable>
+          <PrimaryButton
+            pal={pal}
+            label={t('businessTools.howToCancel')}
+            onPress={() => onCancelGuide(sub)}
+            variant="secondary"
+            style={{ marginTop: 16 }}
+          />
         </View>
-      )}
-    </GlassCard>
+      ) : null}
+    </View>
   );
 }
 
-// ─── Main Screen ────────────────────────────────────────────────────────────────
+// ─── Screen ──────────────────────────────────────────────────────────────────
+
+/**
+ * Detected SaaS spend — DESIGN-PROMPT.md board §38.
+ *
+ * The old screen was three tinted panels deep: a mint gradient hero with a
+ * glow and three glass stat tiles inside it, an amber-tinted "upcoming" card
+ * with amber dividers, and a mint-tinted tip card, plus per-tool cards that
+ * turned amber when a charge was near. Six section labels were 9–11px
+ * uppercase tracked out to 1.2pt.
+ *
+ * Under that, every figure was `$${n.toFixed(2)}`, "/mo", "/year" and "/yr"
+ * were hardcoded English suffixes, `'TOOLS'` and `'RECURRING'` were untranslated
+ * stat labels, `tool${n !== 1 ? 's' : ''}` pluralised in English, and
+ * `toLocaleDateString('en-US')` printed American dates — on the screen a
+ * French or Arabic business owner uses to decide what to cancel.
+ */
 export default function BusinessToolsScreen() {
   const B = useB();
-  const insets = useSafeAreaInsets();
   const [cancelSub, setCancelSub] = useState<DetectedSubscription | null>(null);
 
-  const { data: allExpenses = [], isLoading, refetch, isRefetching } = useQuery({ queryKey: ['biz-expenses', undefined], queryFn: () => getExpenses() });
-  const { data: emailDetected = [], refetch: refetchEmail } = useQuery({ queryKey: ['email-detected-biz'], queryFn: getEmailDetectedForBusiness });
+  const { data: allExpenses = [], isLoading, refetch, isRefetching } = useQuery({
+    queryKey: ['biz-expenses', undefined],
+    queryFn: () => getExpenses(),
+  });
+  const { data: emailDetected = [], refetch: refetchEmail } = useQuery({
+    queryKey: ['email-detected-biz'],
+    queryFn: getEmailDetectedForBusiness,
+  });
 
-  useFocusEffect(useCallback(() => { refetch(); refetchEmail(); }, [refetch, refetchEmail]));
+  useFocusEffect(
+    useCallback(() => {
+      refetch();
+      refetchEmail();
+    }, [refetch, refetchEmail])
+  );
 
   const summary = detectSubscriptions(allExpenses);
-  const expenseNames = new Set(summary.subscriptions.map(s => s.name.toLowerCase()));
-  const emailOnly = emailDetected.filter(s => !expenseNames.has(s.name.toLowerCase()));
+  const expenseNames = new Set(summary.subscriptions.map((s) => s.name.toLowerCase()));
+  const emailOnly = emailDetected.filter((s) => !expenseNames.has(s.name.toLowerCase()));
   const subscriptions = [...summary.subscriptions, ...emailOnly].sort((a, b) => b.amount - a.amount);
   const monthlyTotal = subscriptions.reduce((sum, s) => sum + s.amount, 0);
-  const annualTotal = monthlyTotal * 12;
+
   const now = new Date();
-  const in30Days = new Date(now.getTime() + 30 * 86400000);
-  const upcoming = subscriptions.filter(s => { const next = new Date(s.nextChargeDate); return next >= now && next <= in30Days; });
+  const in30Days = new Date(now.getTime() + 30 * 86_400_000);
+  const upcoming = subscriptions.filter((s) => {
+    const next = readDate(s.nextChargeDate);
+    return next >= now && next <= in30Days;
+  });
 
   return (
-    <BizBackground>
-      <CancelGuideModal sub={cancelSub} visible={!!cancelSub} onClose={() => setCancelSub(null)} />
+    <Screen pal={B}>
+      <CancelGuideSheet pal={B} sub={cancelSub} onClose={() => setCancelSub(null)} />
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 48 }} refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={B.accent} />}>
-        {/* Header */}
-        <View style={{ paddingHorizontal: 20, paddingTop: insets.top + 16, paddingBottom: 14 }}>
-          <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.back(); }} style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1, flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 16, alignSelf: 'flex-start' })}>
-            <ArrowLeft size={18} color={B.accent} />
-            <Txt weight="semibold" size={14} color={B.accent}>{t('business.dashboard')}</Txt>
-          </Pressable>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <View style={{ flex: 1 }}>
-              <Txt weight="bold" size={25} color={B.text}>{t('businessTools.title')}</Txt>
-            </View>
-            <IconBubble color={B.accent} size={44} radius={14}><Wrench size={20} color={B.accent} /></IconBubble>
-          </View>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingTop: 8, paddingBottom: 60 }}
+        refreshControl={
+          <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={B.accent} />
+        }
+      >
+        <SubHeader pal={B} title={t('businessTools.title')} onBack={() => router.back()} />
+
+        <BalanceCard
+          pal={B}
+          label={t('businessTools.monthlySpend')}
+          amount={monthlyTotal}
+          format={formatCurrency}
+          caption={t('businessTools.perYear', { amount: formatCurrency(monthlyTotal * 12) })}
+          style={{ paddingHorizontal: S.screen, marginTop: 24 }}
+        />
+
+        <View
+          style={{ flexDirection: 'row', gap: 24, paddingHorizontal: S.screen, marginTop: 16 }}
+        >
+          <Stat
+            pal={B}
+            label={t('businessTools.toolsStat')}
+            value={String(subscriptions.length)}
+            size={20}
+          />
+          <Stat
+            pal={B}
+            label={t('businessTools.recurring')}
+            value={String(subscriptions.filter((s) => s.isRecurring).length)}
+            size={20}
+          />
+          <Stat
+            pal={B}
+            label={t('businessTools.dueSoon')}
+            value={String(upcoming.length)}
+            tone={upcoming.length > 0 ? B.warning : B.ink}
+            size={20}
+          />
         </View>
 
-        {/* Email scanner */}
-        <EmailScanCard accent={B.accent} />
+        <View style={{ marginTop: S.section }}>
+          <EmailScanCard accent={B.accent} />
+        </View>
 
         {isLoading ? (
-          <View style={{ alignItems: 'center', paddingVertical: 80 }}><ActivityIndicator color={B.accent} size="large" /></View>
-        ) : subscriptions.length === 0 ? (
-          <View style={{ marginHorizontal: 20, marginTop: 30 }}>
-            <GlassCard padding={40} radius={R.xl} style={{ alignItems: 'center' }}>
-              <IconBubble color={B.accent} size={72} radius={24} style={{ marginBottom: 16 }}><Wrench size={32} color={B.slate700} /></IconBubble>
-              <Txt weight="bold" size={16} color={B.textDim} style={{ marginBottom: 6 }}>{t('businessTools.none')}</Txt>
-              <Txt size={13} color={B.textFaint} style={{ textAlign: 'center', lineHeight: 19 }}>{t('businessTools.emptyHint')}</Txt>
-            </GlassCard>
+          <View style={{ paddingVertical: 64, alignItems: 'center' }}>
+            <ActivityIndicator color={B.accent} />
           </View>
+        ) : subscriptions.length === 0 ? (
+          <Empty
+            pal={B}
+            icon={<Wrench size={26} color={B.accent} strokeWidth={S.stroke} />}
+            title={t('businessTools.none')}
+            body={t('businessTools.emptyHint')}
+            style={{ marginTop: S.section }}
+          />
         ) : (
           <>
-            {/* Summary banner */}
-            <View style={{ marginHorizontal: 20, marginBottom: 20 }}>
-              <LinearGradient colors={[B.heroFrom, '#102a4a']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[{ borderRadius: R.lg, padding: 24, borderWidth: 1, borderColor: `${B.accent}2a` }, glow(B.accentDeep, 0.25, 22, B.glowScale)]}>
-                <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 }}>
-                  <View>
-                    <Txt weight="semibold" size={12} color="rgba(255,255,255,0.4)" style={{ letterSpacing: 1, marginBottom: 6 }}>{t('businessTools.monthlySpend')}</Txt>
-                    <Txt weight="bold" size={40} color="#fff" style={{ lineHeight: 44 }}>${monthlyTotal.toFixed(2)}</Txt>
-                    <Txt size={12} color={B.textFaint} style={{ marginTop: 4 }}>{subscriptions.length} tool{subscriptions.length !== 1 ? 's' : ''} · ${annualTotal.toFixed(0)}/year</Txt>
-                  </View>
-                  <View style={{ alignItems: 'center' }}>
-                    <View style={{ width: 52, height: 52, borderRadius: 18, backgroundColor: `${B.accent}1f`, borderWidth: 1.5, borderColor: `${B.accent}33`, alignItems: 'center', justifyContent: 'center', marginBottom: 4 }}>
-                      <TrendingDown size={22} color={B.red} />
-                    </View>
-                    <Txt weight="bold" size={11} color={B.red}>{t('businessTools.perMonth')}</Txt>
-                  </View>
-                </View>
-                <View style={{ flexDirection: 'row', gap: 10 }}>
-                  {[
-                    { label: 'TOOLS', value: `${subscriptions.length}`, color: B.accent },
-                    { label: 'RECURRING', value: `${subscriptions.filter(s => s.isRecurring).length}`, color: B.teal },
-                    { label: t('businessTools.dueSoon'), value: `${upcoming.length}`, color: upcoming.length > 0 ? B.amber : B.textFaint },
-                  ].map(stat => (
-                    <View key={stat.label} style={{ flex: 1, backgroundColor: B.glass, borderRadius: 14, padding: 12, alignItems: 'center' }}>
-                      <Txt weight="bold" size={18} color={stat.color}>{stat.value}</Txt>
-                      <Txt weight="bold" size={9} color={B.textFaint} style={{ letterSpacing: 0.8, marginTop: 2 }}>{stat.label}</Txt>
-                    </View>
-                  ))}
-                </View>
-              </LinearGradient>
-            </View>
-
-            {/* Upcoming */}
-            {upcoming.length > 0 && (
-              <View style={{ marginHorizontal: 20, marginBottom: 20 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 12 }}>
-                  <CalendarClock size={14} color={B.amber} />
-                  <Txt weight="bold" size={11} color={B.amber} style={{ letterSpacing: 1.2 }}>{t('businessTools.upcomingCharges', { count: upcoming.length })}</Txt>
-                </View>
-                <GlassCard padding={0} radius={R.lg} tint={`${B.amber}0a`} border={`${B.amber}26`} style={{ overflow: 'hidden' }}>
-                  {upcoming.map((sub, i) => (
-                    <View key={sub.key} style={{ flexDirection: 'row', alignItems: 'center', padding: 14, borderBottomWidth: i < upcoming.length - 1 ? 1 : 0, borderBottomColor: `${B.amber}14` }}>
-                      <Zap size={14} color={B.amber} style={{ marginEnd: 10 }} />
-                      <Txt weight="semibold" size={14} color={B.text} style={{ flex: 1 }} numberOfLines={1}>{sub.name}</Txt>
-                      <View style={{ alignItems: 'flex-end' }}>
-                        <Txt weight="bold" size={14} color={B.amber}>${sub.amount.toFixed(2)}</Txt>
-                        <Txt size={10} color={B.textFaint} style={{ marginTop: 2 }}>{formatNextCharge(sub.nextChargeDate)}</Txt>
+            {upcoming.length > 0 ? (
+              <View style={{ marginTop: S.section }}>
+                <SectionHeader
+                  pal={B}
+                  title={t('businessTools.upcomingCharges', { count: upcoming.length })}
+                />
+                <View style={{ paddingHorizontal: S.screen }}>
+                  <Card pal={B} padding={0} contentStyle={{ paddingHorizontal: S.card }}>
+                    {upcoming.map((sub, i) => (
+                      <View
+                        key={sub.key}
+                        style={i > 0 ? { borderTopWidth: 1, borderTopColor: B.hairline } : undefined}
+                      >
+                        <InfoRow
+                          pal={B}
+                          title={sub.name}
+                          meta={formatNextCharge(sub.nextChargeDate)}
+                          amount={sub.amount}
+                          format={formatCurrency}
+                        />
                       </View>
+                    ))}
+                  </Card>
+                </View>
+              </View>
+            ) : null}
+
+            <View style={{ marginTop: S.section }}>
+              <SectionHeader
+                pal={B}
+                title={t('businessTools.allTools', { count: subscriptions.length })}
+              />
+              <View style={{ paddingHorizontal: S.screen }}>
+                <Card pal={B} padding={0} contentStyle={{ paddingHorizontal: S.card }}>
+                  {subscriptions.map((sub, i) => (
+                    <View
+                      key={sub.key}
+                      style={i > 0 ? { borderTopWidth: 1, borderTopColor: B.hairline } : undefined}
+                    >
+                      <ToolRow pal={B} sub={sub} onCancelGuide={setCancelSub} />
                     </View>
                   ))}
-                </GlassCard>
-              </View>
-            )}
-
-            {/* All tools */}
-            <View style={{ paddingHorizontal: 20 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 12 }}>
-                <Wrench size={13} color={B.textFaint} />
-                <Txt weight="bold" size={11} color={B.textFaint} style={{ letterSpacing: 1.2 }}>{t('businessTools.allTools', { count: subscriptions.length })}</Txt>
-              </View>
-              <View style={{ gap: 10 }}>
-                {subscriptions.map(sub => <SubscriptionCard key={sub.key} sub={sub} onCancelGuide={setCancelSub} />)}
+                </Card>
               </View>
             </View>
 
-            {/* Tip */}
-            <View style={{ marginHorizontal: 20, marginTop: 12 }}>
-              <GlassCard padding={18} radius={R.lg} tint={`${B.accent}0c`} border={`${B.accent}22`}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                  <Info size={15} color={B.accent} />
-                  <Txt weight="bold" size={12} color={B.accent} style={{ letterSpacing: 0.8 }}>{t('businessTools.cancelTip')}</Txt>
-                </View>
-                <Txt size={13} color={B.textDim} style={{ lineHeight: 20 }}>
-                  {t('businessTools.cancelTipBody')}
-                </Txt>
-              </GlassCard>
+            <View style={{ paddingHorizontal: S.screen, marginTop: S.section }}>
+              <Type role="cardTitle" color={B.ink}>
+                {t('businessTools.cancelTip')}
+              </Type>
+              <Type role="body" color={B.inkDim} style={{ marginTop: 6 }}>
+                {t('businessTools.cancelTipBody')}
+              </Type>
             </View>
           </>
         )}
       </ScrollView>
-    </BizBackground>
+    </Screen>
   );
 }

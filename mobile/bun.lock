@@ -14,7 +14,6 @@
         "@expo/html-elements": "^0.13.7",
         "@expo/metro-runtime": "~5.0.5",
         "@expo/react-native-action-sheet": "^4.1.1",
-        "@expo/vector-icons": "^14.1.0",
         "@gorhom/bottom-sheet": "^5",
         "@kolking/react-native-avatar": "^2.1.6",
         "@nandorojo/galeria": "2.0.0-rc.4",
@@ -100,7 +99,6 @@
         "expo-web-browser": "~14.1.6",
         "i18n-js": "^4.5.3",
         "lottie-react-native": "7.2.2",
-        "lucide-react-native": "^0.468.0",
         "nativewind": "~4.1.23",
         "patch-package": "^8.0.0",
         "pretty-format": "^29.7.0",
@@ -2014,8 +2012,6 @@
     "lru-cache": ["lru-cache@5.1.1", "", { "dependencies": { "yallist": "^3.0.2" } }, "sha512-KpNARQA3Iwv+jTA0utUVVbrh+Jlrr1Fv0e56GGzAFOXN7dk/FviaDW8LHmK52DlcH4WP2n6gI8vN1aesBFgo9w=="],
 
     "lru.min": ["lru.min@1.1.4", "", {}, "sha512-DqC6n3QQ77zdFpCMASA1a3Jlb64Hv2N2DciFGkO/4L9+q/IpIAuRlKOvCXabtRW6cQf8usbmM6BE/TOPysCdIA=="],
-
-    "lucide-react-native": ["lucide-react-native@0.468.0", "", { "peerDependencies": { "react": "^16.5.1 || ^17.0.0 || ^18.0.0", "react-native": "*", "react-native-svg": "^12.0.0 || ^13.0.0 || ^14.0.0 || ^15.0.0" } }, "sha512-prIIqt6HDqPZh8Tk1eelKE9iJtA6uJJIFG3BqGZcjp9ZidnAKtyvySRMmkG8h9tJTZs+BsyUSAM/AtgdRdRO7Q=="],
 
     "make-dir": ["make-dir@4.0.0", "", { "dependencies": { "semver": "^7.5.3" } }, "sha512-hXdUTZYIVOt1Ex//jAQi+wTZZpUpwBj/0QsOzqegb3rGMMeJiSEu5xLHnYfBrRV4RH2+OCSOO95Is/7x1WJ4bw=="],
 

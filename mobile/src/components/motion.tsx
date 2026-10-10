@@ -49,12 +49,21 @@ export function CountUp({
 
   useEffect(() => {
     if (reduced) { progress.value = 1; return; }
-    progress.value = 0;
-    progress.value = withTiming(1, {
-      duration: countDuration(value),
-      // Exponential ease-out: arrives fast, settles long.
-      easing: Easing.out(Easing.exp),
-    });
+    // The rewind is an animation, not a plain write.
+    //
+    // This was `progress.value = 0` followed by `progress.value =
+    // withTiming(...)` in the same synchronous block. A raw assignment and an
+    // animation assignment to one shared value in a single tick race, the raw
+    // one wins, and the count sits at zero forever — which is what it did.
+    // Nothing rendered this component until now, so nobody saw it.
+    progress.value = withSequence(
+      withTiming(0, { duration: 0 }),
+      withTiming(1, {
+        duration: countDuration(value),
+        // Exponential ease-out: arrives fast, settles long.
+        easing: Easing.out(Easing.exp),
+      })
+    );
     return () => cancelAnimation(progress);
   }, [value, reduced, progress]);
 
@@ -66,14 +75,31 @@ export function CountUp({
     <AnimatedTextInput
       editable={false}
       pointerEvents="none"
-      // The initial value matters: without it the label is empty for one frame,
-      // which reads as a flash of missing data rather than as an animation.
-      // Rendered before the first frame: without it the label is briefly empty,
-      // which reads as missing data rather than as an animation starting.
-      defaultValue={format(reduced ? value : 0)}
+      /**
+       * `key` and `value` — both deliberate, and both about the failure mode.
+       *
+       * Writing `text` through `animatedProps` is the standard way to move a
+       * number without re-rendering, but it is a native-side write that this
+       * component cannot verify landed. It did not land here: the shared value
+       * animated correctly (the ring on the same screen proves it) while the
+       * label stayed on whatever it was first given. With `defaultValue={0}`
+       * that meant a permanent, confident zero next to a grade of B.
+       *
+       * So the declared text is now the *answer*, not the starting point. If
+       * the animated write works, it takes over from frame one and counts up
+       * to the same figure. If it does not, the reader gets the right number
+       * instead of a wrong one — which is the only acceptable way round for a
+       * decoration to fail.
+       *
+       * `key` remounts the input when the value changes, because a TextInput
+       * ignores a changed `value` once the native side has been written to by
+       * animatedProps.
+       */
+      key={String(value)}
+      value={format(value)}
       animatedProps={animatedProps}
       style={[
-        { fontFamily: F[weight], fontSize: size, color, padding: 0, letterSpacing: 0.1 },
+        { ...F[weight], fontSize: size, color, padding: 0, letterSpacing: 0.1 },
         style,
       ]}
     />
@@ -90,6 +116,13 @@ export function CountUp({
 export function PressableScale({
   children,
   onPress,
+  // Taken by name rather than left in `...rest`. They were in `rest`, which is
+  // spread *above* this component's own handlers, so a caller that passed
+  // either one had it silently overwritten — the prop typechecked, went in,
+  // and never fired. Now the scale runs first and the caller's handler after,
+  // which is what a component that adds behaviour to Pressable owes.
+  onPressIn,
+  onPressOut,
   haptic = 'selection',
   style,
   ...rest
@@ -106,8 +139,8 @@ export function PressableScale({
       <Pressable
         {...rest}
         style={style}
-        onPressIn={() => { if (!reduced) scale.value = withSpring(PRESS_SCALE, SPRING); }}
-        onPressOut={() => { if (!reduced) scale.value = withSpring(1, SPRING); }}
+        onPressIn={(e) => { if (!reduced) scale.value = withSpring(PRESS_SCALE, SPRING); onPressIn?.(e); }}
+        onPressOut={(e) => { if (!reduced) scale.value = withSpring(1, SPRING); onPressOut?.(e); }}
         onPress={(e) => {
           if (haptic === 'selection') Haptics.selectionAsync();
           else if (haptic === 'light') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);

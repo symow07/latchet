@@ -8,26 +8,34 @@ import {
   type ViewStyle,
   type TextStyle,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withSpring,
 } from 'react-native-reanimated';
-import { F, R, glow, mix, useB, useC } from '@/lib/design';
+import { F, R, S, SHADOW, useB, useC } from '@/lib/design';
 
 /**
- * Reusable "bubbly modern" UI primitives. Purple-forward, rounded, frosted.
+ * The previous component set — deprecated in favour of components/kit.tsx.
+ *
+ * These were authored for the dark, purple-forward, frosted direction. That
+ * direction is gone (DESIGN-PROMPT.md §1, "what to leave behind"), but ~24
+ * screens still import from here, and converting all of them at once is not
+ * the same task as making them presentable.
+ *
+ * So each primitive below has been re-pointed at the calm language: flat bone
+ * ground, white cards separated by soft shadow rather than by a tinted 1.5px
+ * border, ink instead of gradient-and-glow. A screen that has not been
+ * individually redesigned still lands somewhere coherent, and the ones that
+ * have been converted are strictly better than the ones that haven't rather
+ * than merely different from them.
+ *
+ * Do not add new uses. New screens import from kit.tsx.
  */
 
 type Weight = 'regular' | 'medium' | 'semibold' | 'bold';
-const FAMILY: Record<Weight, string> = {
-  regular: F.regular,
-  medium: F.medium,
-  semibold: F.semibold,
-  bold: F.bold,
-};
+const FAMILY = F;
 
 export function Txt({
   weight = 'medium',
@@ -45,28 +53,45 @@ export function Txt({
   return (
     <RNText
       {...rest}
-      style={[{ fontFamily: FAMILY[weight], fontSize: size, color: color ?? C.text, letterSpacing: 0.1 }, style]}
+      style={[{ ...FAMILY[weight], fontSize: size, color: color ?? C.text, letterSpacing: 0.1 }, style]}
     >
       {children}
     </RNText>
   );
 }
 
-/** Frosted translucent card with a soft purple border and big radius. */
+/**
+ * A card. White and floating by default; a flat wash when tinted.
+ *
+ * `border` and `glowColor` are accepted and ignored. Roughly forty call sites
+ * pass a tinted fill with a matching 1.5px coloured border, and that pairing
+ * is most of why the unconverted screens read as cheap — a screen of six
+ * outlined pastel boxes has six things competing to be looked at and no
+ * hierarchy at all. §1.5 is explicit: separate surfaces with soft shadow, and
+ * keep a hairline for where two white surfaces actually touch.
+ *
+ * `tint` is still honoured, because it is mostly carrying *state* — over
+ * budget, urgent, paid, selected — and dropping it would delete meaning
+ * rather than decoration. A tinted card renders flat, exactly as the kit's
+ * selected `ChoiceRow` does: a raised shadow under a coloured wash reads as
+ * two different claims about the same surface.
+ */
 export function GlassCard({
   children,
   style,
-  radius = R.lg,
-  padding = 18,
+  radius = R.md,
+  padding = S.card,
   tint,
-  border,
-  glowColor,
+  border: _border,
+  glowColor: _glowColor,
   ...rest
 }: ViewProps & {
   radius?: number;
   padding?: number;
   tint?: string;
+  /** @deprecated Ignored — §1.5 separates surfaces with shadow, not borders. */
   border?: string;
+  /** @deprecated Ignored — the calm direction has no glows. */
   glowColor?: string;
 }) {
   const C = useC();
@@ -74,14 +99,12 @@ export function GlassCard({
     <View
       {...rest}
       style={[
+        tint ? null : SHADOW.near,
         {
-          backgroundColor: tint ?? C.glass,
+          backgroundColor: tint ?? C.groundAlt,
           borderRadius: radius,
           padding,
-          borderWidth: 1,
-          borderColor: border ?? C.glassBorder,
         },
-        glowColor ? glow(glowColor, 0.25, 24, C.glowScale) : null,
         style,
       ]}
     >
@@ -114,9 +137,9 @@ export function IconBubble({
           borderRadius: radius,
           alignItems: 'center',
           justifyContent: 'center',
-          backgroundColor: `${color ?? C.p500}22`,
-          borderWidth: 1,
-          borderColor: `${color ?? C.p500}33`,
+          // No border. A pale fill already separates the chip from a white
+          // card; outlining it as well makes a 44px square shout (§1.6).
+          backgroundColor: `${color ?? C.accent}1f`,
         },
         style,
       ]}
@@ -148,14 +171,14 @@ export function Pill({
           paddingHorizontal: 10,
           paddingVertical: 4,
           borderRadius: R.pill,
-          backgroundColor: filled ? (color ?? C.p400) : `${color ?? C.p400}1f`,
-          borderWidth: filled ? 0 : 1,
-          borderColor: `${color ?? C.p400}33`,
+          backgroundColor: filled ? (color ?? C.accent) : `${color ?? C.accent}1a`,
         },
         style,
       ]}
     >
-      <Txt weight="bold" size={11} color={filled ? C.bgDeep : (color ?? C.p400)} style={textStyle}>
+      {/* 13/18 medium — §3 defines eight sizes and none of them is a tracked
+          11px caption. The tags that used one all read as a dashboard. */}
+      <Txt weight="semibold" size={13} color={filled ? C.onAccent : (color ?? C.accent)} style={textStyle}>
         {label}
       </Txt>
     </View>
@@ -177,9 +200,9 @@ export function BubbleButton({
   variant = 'solid',
   disabled = false,
   full = true,
-  radius = R.md,
+  radius: _radius = R.md,
   colors,
-  glowColor,
+  glowColor: _glowColor,
   accentColor,
   style,
 }: {
@@ -189,19 +212,25 @@ export function BubbleButton({
   variant?: 'solid' | 'soft' | 'ghost';
   disabled?: boolean;
   full?: boolean;
+  /** @deprecated Ignored — every button in the calm direction is a pill. */
   radius?: number;
-  /** gradient colors for the solid variant (theme override) */
+  /**
+   * Only the first stop is used, as a flat fill. §1.10 spends the screen's one
+   * gradient on the dark balance card, so a button never gets one.
+   */
   colors?: readonly [string, string, ...string[]];
-  /** glow + soft/ghost border color */
+  /** @deprecated Ignored — the calm direction has no glows. */
   glowColor?: string;
   /** text color for soft/ghost variants */
   accentColor?: string;
   style?: StyleProp<ViewStyle>;
 }) {
   const C = useC();
-  const fill = colors ?? ([C.p600, C.p500, C.p400] as const);
-  const halo = glowColor ?? C.p500;
-  const ink = accentColor ?? C.p300;
+  // `colors` used to be a three-stop gradient. §1.10 allows one gradient
+  // moment per screen and puts it on the dark balance card, so a button is
+  // never it: the first stop becomes a flat fill and the rest are dropped.
+  const solidFill = colors ? colors[0] : C.ink;
+  const ink = accentColor ?? C.accent;
   const scale = useSharedValue(1);
   const aStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
 
@@ -223,7 +252,7 @@ export function BubbleButton({
       }}
     >
       {icon}
-      <Txt weight="bold" size={16} color={variant === 'solid' ? '#fff' : ink}>
+      <Txt weight="semibold" size={17} color={variant === 'solid' ? C.onInk : ink}>
         {label}
       </Txt>
     </View>
@@ -237,22 +266,26 @@ export function BubbleButton({
         onPressOut={() => (scale.value = withSpring(1, { damping: 12, stiffness: 260 }))}
       >
         {variant === 'solid' ? (
-          <LinearGradient
-            colors={fill}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={[{ borderRadius: radius }, glow(halo, 0.5, 20, C.glowScale)]}
-          >
+          // §6.11: a full-width ink pill. The old solid was a purple gradient
+          // wearing a coloured glow, which is the single loudest object the
+          // previous direction had.
+          <View style={[SHADOW.near, { borderRadius: R.pill, backgroundColor: solidFill }]}>
             {inner}
-          </LinearGradient>
+          </View>
         ) : (
+          // Secondary: a white pill with a hairline. The tinted fill and the
+          // 1.5px accent border both go — a button next to an ink one does not
+          // need to argue for itself.
           <View
-            style={{
-              borderRadius: radius,
-              backgroundColor: variant === 'soft' ? `${halo}24` : 'transparent',
-              borderWidth: 1.5,
-              borderColor: `${halo}55`,
-            }}
+            style={[
+              variant === 'soft' ? SHADOW.near : null,
+              {
+                borderRadius: R.pill,
+                backgroundColor: variant === 'soft' ? C.groundAlt : 'transparent',
+                borderWidth: 1,
+                borderColor: C.hairline,
+              },
+            ]}
           >
             {inner}
           </View>
@@ -362,78 +395,38 @@ export function EmptyState({
   );
 }
 
+/**
+ * The screen. A flat bone ground and nothing else.
+ *
+ * This used to paint four gradient layers: a plum vertical ramp fitted stop by
+ * stop against a sampled build, plus a 380pt purple wash across the top. All
+ * of it was atmosphere for a dark theme that no longer exists, and on the bone
+ * ground it read as a stain over the top third of every screen it touched.
+ *
+ * §1 lists what to leave behind: no glows, no grain, no saturated washes. The
+ * ground is the ground. Deleting the layers also removes two full-screen
+ * gradients from the composite of twenty-four screens.
+ *
+ * Kept as a component rather than inlined because those screens still call it,
+ * and because it is the one place their background is decided. Prefer
+ * `Screen` from kit.tsx, which also applies the safe-area inset; this one does
+ * not, since its callers apply `insets.top` themselves.
+ */
 export function ScreenBackground({ children, style }: { children?: React.ReactNode; style?: StyleProp<ViewStyle> }) {
   const C = useC();
-  return (
-    // No backgroundColor: the gradient below covers the same box, so painting a
-    // fill first is a whole extra screen of overdraw nothing ever sees.
-    <View style={[{ flex: 1 }, style]}>
-      {/* Purple atmosphere via static gradient washes — no per-frame shadow
-          rasterization (large shadowRadius blobs caused scroll jank on device).
-          The lower wash used to be a second full-width layer stacked on this
-          one; it is now folded into the last stop, which is the same pixels
-          with one less layer to composite while the page scrolls under it. */}
-      <LinearGradient
-        colors={[C.bgDeep, C.bg, mix(C.bg, C.bgFoot, 0.67), mix(C.bgFoot, C.p800, 0.086)]}
-        // The wash this replaces lived in a 420pt box pinned to the bottom with
-        // its own start/end as fractions of that box, so it held at zero for
-        // most of the screen and only tinted the very bottom.
-        //
-        // These two numbers are fitted to what that stack actually rendered,
-        // not derived from its geometry: the box is laid out against a
-        // container taller than the visible screen, so the ramp starts lower
-        // (0.835, not the 0.76 the arithmetic predicts) and never reaches its
-        // end colour (0.086 of the way to p800, not the nominal 0.149).
-        // Sampling the built app was the only way to see that. Verified
-        // against the pre-fold build at ten heights; worst channel 1/255.
-        locations={[0, 0.5, 0.835, 1]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
-        style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
-      />
-      {/* Kept as its own layer because it covers only the top of the page.
-          The axis must stay vertical: with a diagonal one the bottom-left of
-          this box sits only 44% along the fade, so the layer ended while still
-          tinted and drew a hard line across every screen at exactly 380pt. No
-          diagonal axis can avoid that — the corner nearest the start always
-          lags — so the sweep is top-down. */}
-      <LinearGradient
-        colors={[`${C.p600}3a`, `${C.p600}00`]}
-        start={{ x: 0.5, y: 0 }}
-        end={{ x: 0.5, y: 1 }}
-        style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 380 }}
-      />
-      {children}
-    </View>
-  );
+  return <View style={[{ flex: 1, backgroundColor: C.ground }, style]}>{children}</View>;
 }
 
 /**
- * Professional business background: deep navy gradient with a single restrained
- * accent glow at the top. Intentionally calmer/more structured than the playful
- * personal ScreenBackground.
+ * The same ground, mint side.
+ *
+ * §0: the two profiles share one neutral ground and differ only in a quiet
+ * accent hue — switching profiles should feel like changing rooms in the same
+ * house. A navy-to-green gradient on one side and a plum one on the other made
+ * them two different apps that happened to share a login.
  */
 export function BizBackground({ children, style }: { children?: React.ReactNode; style?: StyleProp<ViewStyle> }) {
   const B = useB();
-  return (
-    <View style={[{ flex: 1 }, style]}>
-      <LinearGradient
-        colors={[B.slate900, B.bg, B.bgDeep]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
-        style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
-      />
-      {/* One calm accent wash near the top. Vertical axis for the same reason
-          as the personal one — a diagonal left this box tinted at its bottom
-          edge and drew a line across every business screen at 320pt. */}
-      <LinearGradient
-        colors={[`${B.accent}22`, `${B.accent}00`]}
-        start={{ x: 0.5, y: 0 }}
-        end={{ x: 0.5, y: 1 }}
-        style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 320 }}
-      />
-      {children}
-    </View>
-  );
+  return <View style={[{ flex: 1, backgroundColor: B.ground }, style]}>{children}</View>;
 }
 

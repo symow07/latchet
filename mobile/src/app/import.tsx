@@ -1,32 +1,28 @@
-import {
-  View,
-  Text,
-  ScrollView,
-  Pressable,
-  ActivityIndicator,
-  Alert,
-} from 'react-native';
+import { ActivityIndicator, Alert, ScrollView, View } from 'react-native';
 import { useState, useCallback } from 'react';
-import { useC } from '@/lib/design';
+import { R, S, useC, type Palette } from '@/lib/design';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQueryClient } from '@tanstack/react-query';
-import { LinearGradient } from 'expo-linear-gradient';
-import {
-  ArrowLeft,
-  Upload,
-  FileText,
-  Check,
-  ChevronDown,
-  ChevronUp,
-  Shield,
-  Edit3,
-  Trash2,
-} from 'lucide-react-native';
+import { Check, Edit3, FileText, Shield, Trash2, Upload } from '@/components/icons';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
 import * as Haptics from 'expo-haptics';
-import Animated, { FadeInUp, FadeInDown } from 'react-native-reanimated';
+import { PressableScale } from '@/components/motion';
+import {
+  Card,
+  Empty,
+  FilterChip,
+  IconTile,
+  InfoRow,
+  LinkRow,
+  PrimaryButton,
+  Screen,
+  SectionHeader,
+  SubHeader,
+  Type,
+} from '@/components/kit';
+import { formatCurrency as money } from '@/lib/calculations';
 
 import {
   parseStatement,
@@ -64,6 +60,88 @@ interface StatementRow {
 }
 
 type ImportStep = 'upload' | 'mapping' | 'preview' | 'success';
+
+/** The three sources. Built per call: `t()` at module scope resolves once at
+ *  import and freezes the startup language. */
+function SOURCES(): readonly { source: ImportSource; title: string; sub: string }[] {
+  return [
+    { source: 'bank', title: t('import.sourceBank'), sub: t('import.sourceBankSub') },
+    { source: 'alipay', title: t('import.alipayTitle'), sub: t('import.sourceAlipaySub') },
+    { source: 'wechat', title: t('import.wechatTitle'), sub: t('import.sourceWechatSub') },
+  ];
+}
+
+function MAPPING_FIELDS(): readonly {
+  key: 'dateIdx' | 'amountIdx' | 'descIdx';
+  label: string;
+  required: boolean;
+}[] {
+  return [
+    { key: 'dateIdx', label: t('import.colDate'), required: true },
+    { key: 'amountIdx', label: t('import.colAmount'), required: true },
+    { key: 'descIdx', label: t('import.colDescription'), required: false },
+  ];
+}
+
+function DATE_OPTIONS(): readonly { value: DateConvention; label: string; hint: string }[] {
+  return [
+    { value: 'dmy', label: t('import.dayFirst'), hint: '31/12/2026' },
+    { value: 'mdy', label: t('import.monthFirst'), hint: '12/31/2026' },
+  ];
+}
+
+function SIGN_OPTIONS(): readonly { value: SignConvention; label: string; hint: string }[] {
+  return [
+    { value: 'signed', label: t('import.signed'), hint: t('import.signedHint') },
+    { value: 'all-expense', label: t('import.allSpending'), hint: t('import.allSpendingHint') },
+    { value: 'all-income', label: t('import.allIncome'), hint: t('import.allIncomeHint') },
+  ];
+}
+
+/** A choice in a row of choices: a label, a sample beneath it, ink when
+ *  chosen. Replaces four different blue-tinted bordered boxes. */
+function OptionTile({
+  pal,
+  label,
+  hint,
+  active,
+  onPress,
+}: {
+  pal: Palette;
+  label: string;
+  hint: string;
+  active: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <PressableScale
+      onPress={onPress}
+      accessibilityRole="radio"
+      accessibilityState={{ selected: active }}
+      accessibilityLabel={label}
+      style={{
+        flex: 1,
+        minHeight: 56,
+        justifyContent: 'center',
+        paddingHorizontal: 12,
+        borderRadius: R.sm,
+        backgroundColor: active ? pal.ink : pal.groundSunk,
+      }}
+    >
+      <Type role="meta" color={active ? pal.onInk : pal.ink} numberOfLines={1}>
+        {label}
+      </Type>
+      <Type
+        role="meta"
+        color={active ? pal.onInk : pal.inkDim}
+        numberOfLines={1}
+        style={{ opacity: active ? 0.7 : 1 }}
+      >
+        {hint}
+      </Type>
+    </PressableScale>
+  );
+}
 
 export default function ImportScreen() {
   const C = useC();
@@ -464,193 +542,181 @@ export default function ImportScreen() {
     }
   };
 
-  const formatCurrency = (amount: number) => `$${amount.toFixed(2)}`;
+  const mappingIncomplete =
+    !inspection ||
+    missingColumns({ ...inspection.mapping, ...mapping } as ColumnMapping).length > 0;
 
   return (
-    <View className="flex-1" style={{ backgroundColor: C.bg }}>
-      {/* Header */}
-      <LinearGradient
-        colors={['#3b82f6', '#2563eb', '#1d4ed8']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={{
-          paddingTop: insets.top + 8,
-          paddingBottom: 20,
-          paddingHorizontal: 16,
-        }}
-      >
-        <View className="flex-row items-center justify-between">
-          <Pressable
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              router.back();
-            }}
-            className="w-10 h-10 rounded-full bg-white/20 items-center justify-center"
-          >
-            <ArrowLeft size={20} color="white" />
-          </Pressable>
-          <View className="flex-1 items-center">
-            <Text className="text-white text-lg font-bold">{t('importExtra.title')}</Text>
-            <Text className="text-white/70 text-xs mt-1">
-              {step === 'upload' ? t('import.stepUpload') : step === 'preview' ? t('import.stepPreview') : t('import.stepComplete')}
-            </Text>
-          </View>
-          <View className="w-10" />
-        </View>
-      </LinearGradient>
-
+    <Screen pal={C}>
       <ScrollView
-        className="flex-1"
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 120 }}
+        contentContainerStyle={{ paddingTop: 8, paddingBottom: step === 'preview' ? 130 : 60 }}
+        keyboardShouldPersistTaps="handled"
       >
-        {/* Security Notice */}
-        <Animated.View entering={FadeInDown.duration(400)} className="px-4 pt-4">
-          <View
-            className="rounded-2xl p-4 flex-row items-start"
-            style={{ backgroundColor: 'rgba(34, 197, 94, 0.1)', borderWidth: 1, borderColor: 'rgba(34, 197, 94, 0.2)' }}
-          >
-            <View className="w-10 h-10 rounded-xl bg-green-500/20 items-center justify-center me-3">
-              <Shield size={20} color="#22c55e" />
-            </View>
-            <View className="flex-1">
-              <Text className="text-green-400 font-semibold mb-1">{t('importExtra.privateTitle')}</Text>
-              <Text style={{ color: C.textDim }} className="text-xs leading-4">
+        <SubHeader
+          pal={C}
+          title={t('importExtra.title')}
+          onBack={() => router.back()}
+        />
+
+        <Type role="meta" color={C.inkDim} style={{ paddingHorizontal: S.screen, marginTop: 16 }}>
+          {step === 'upload'
+            ? t('import.stepUpload')
+            : step === 'preview'
+              ? t('import.stepPreview')
+              : t('import.stepComplete')}
+        </Type>
+
+        {/* Where the file goes, said once, in prose. It was a green-tinted
+            card with a green-tinted icon well and a green heading — three
+            things saying "safe" where one sentence does it. */}
+        <View style={{ paddingHorizontal: S.screen, marginTop: 16 }}>
+          <View style={{ flexDirection: 'row', gap: 12 }}>
+            <IconTile pal={C}>
+              <Shield size={19} color={C.accent} strokeWidth={S.stroke} />
+            </IconTile>
+            <View style={{ flex: 1 }}>
+              <Type role="cardTitle" color={C.ink}>{t('importExtra.privateTitle')}</Type>
+              <Type role="body" color={C.inkDim} style={{ marginTop: 4 }}>
                 {t('import.credentialsNote')}
-              </Text>
+              </Type>
             </View>
           </View>
-        </Animated.View>
+        </View>
 
-        {/* Upload Step */}
-        {step === 'upload' && (
-          <Animated.View entering={FadeInUp.delay(200).duration(400)} className="px-4 pt-6">
-            <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-3 ms-1">{t('importExtra.chooseSource')}</Text>
-            <View className="gap-3">
-              {([
-                { source: 'bank' as ImportSource, emoji: '', title: t('import.sourceBank'), sub: t('import.sourceBankSub'), color: '#3b82f6' },
-                { source: 'alipay' as ImportSource, emoji: '', title: 'Alipay 支付宝', sub: t('import.sourceAlipaySub'), color: '#1677ff' },
-                { source: 'wechat' as ImportSource, emoji: '', title: 'WeChat Pay 微信', sub: t('import.sourceWechatSub'), color: '#22c55e' },
-              ]).map((s) => (
-                <Pressable key={s.source} onPress={() => pickFile(s.source)}>
-                  <View
-                    className="rounded-2xl p-4 flex-row items-center"
-                    style={{ backgroundColor: `${s.color}14`, borderWidth: 1, borderColor: `${s.color}33` }}
-                  >
-                    <View style={{ width: 48, height: 48, borderRadius: 16, backgroundColor: `${s.color}22`, alignItems: 'center', justifyContent: 'center', marginEnd: 14 }}>
-                      <Text style={{ fontSize: 24 }}>{s.emoji}</Text>
+        {/* ── Upload ─────────────────────────────────────────────────────── */}
+        {step === 'upload' ? (
+          <>
+            <View style={{ marginTop: S.section }}>
+              <SectionHeader pal={C} title={t('importExtra.chooseSource')} />
+              <View style={{ paddingHorizontal: S.screen }}>
+                <Card pal={C} padding={0} contentStyle={{ paddingHorizontal: S.card }}>
+                  {SOURCES().map((s, i) => (
+                    <View
+                      key={s.source}
+                      style={i > 0 ? { borderTopWidth: 1, borderTopColor: C.hairline } : undefined}
+                    >
+                      <LinkRow
+                        pal={C}
+                        icon={
+                          <IconTile pal={C}>
+                            <Upload size={19} color={C.accent} strokeWidth={S.stroke} />
+                          </IconTile>
+                        }
+                        title={s.title}
+                        body={s.sub}
+                        onPress={() => pickFile(s.source)}
+                        style={{ paddingVertical: 14 }}
+                      />
                     </View>
-                    <View className="flex-1">
-                      <Text className="font-bold" style={{ color: C.text, fontSize: 15 }}>{s.title}</Text>
-                      <Text style={{ color: C.textDim }} className="text-xs mt-0.5">{s.sub}</Text>
-                    </View>
-                    <Upload size={18} color={s.color} />
-                  </View>
-                </Pressable>
-              ))}
-            </View>
-
-            <Text style={{ color: C.textFaint }} className="text-xs mt-4 ms-1 leading-4">
-              {t('import.directNote')}
-            </Text>
-
-            {/* Supported Formats */}
-            <View className="mt-6">
-              <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-3 ms-1">{t('import.supportedFormats')}</Text>
-              <View
-                className="rounded-xl p-4"
-                style={{ backgroundColor: C.glass }}
-              >
-                <View className="flex-row items-center">
-                  <FileText size={20} color="#6b7280" />
-                  <Text style={{ color: C.textDim }} className="ms-3">{t('import.csvTitle')}</Text>
-                </View>
-                <Text style={{ color: C.textFaint }} className="text-xs mt-2">
-                  {t('import.csvNote')}
-                </Text>
-                <View className="flex-row items-center mt-4">
-                  <FileText size={20} color="#6b7280" />
-                  <Text style={{ color: C.textDim }} className="ms-3">{t('import.pdfTitle')}</Text>
-                </View>
-                <Text style={{ color: C.textFaint }} className="text-xs mt-2">
-                  {t('import.pdfNote')}
-                </Text>
+                  ))}
+                </Card>
+                <Type role="meta" color={C.inkDim} style={{ marginTop: 12 }}>
+                  {t('import.directNote')}
+                </Type>
               </View>
             </View>
-          </Animated.View>
-        )}
+
+            <View style={{ marginTop: S.section }}>
+              <SectionHeader pal={C} title={t('import.supportedFormats')} />
+              <View style={{ paddingHorizontal: S.screen }}>
+                <Card pal={C}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                    <FileText size={18} color={C.inkDim} strokeWidth={S.stroke} />
+                    <Type role="cardTitle" color={C.ink}>{t('import.csvTitle')}</Type>
+                  </View>
+                  <Type role="body" color={C.inkDim} style={{ marginTop: 6 }}>
+                    {t('import.csvNote')}
+                  </Type>
+
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 12,
+                      marginTop: 16,
+                    }}
+                  >
+                    <FileText size={18} color={C.inkDim} strokeWidth={S.stroke} />
+                    <Type role="cardTitle" color={C.ink}>{t('import.pdfTitle')}</Type>
+                  </View>
+                  <Type role="body" color={C.inkDim} style={{ marginTop: 6 }}>
+                    {t('import.pdfNote')}
+                  </Type>
+                </Card>
+              </View>
+            </View>
+          </>
+        ) : null}
 
         {/* Reading a PDF can take a while — say so rather than looking stuck. */}
-        {analyzingPdf && (
-          <View className="px-4 pt-6 items-center">
-            <ActivityIndicator color="#3b82f6" />
-            <Text style={{ color: C.textDim }} className="mt-3 font-semibold">{t('import.analysing')}</Text>
-            <Text style={{ color: C.textFaint }} className="text-xs mt-1 text-center">
-{t('import.analysingHint')}
-            </Text>
+        {analyzingPdf ? (
+          <View style={{ paddingHorizontal: S.screen, marginTop: S.section, alignItems: 'center' }}>
+            <ActivityIndicator color={C.accent} />
+            <Type role="cardTitle" color={C.ink} style={{ marginTop: 12 }}>
+              {t('import.analysing')}
+            </Type>
+            <Type role="meta" color={C.inkDim} style={{ marginTop: 4, textAlign: 'center' }}>
+              {t('import.analysingHint')}
+            </Type>
           </View>
-        )}
+        ) : null}
 
-        {/* Mapping Step — shown only when the header could not be read */}
-        {step === 'mapping' && inspection && (
-          <Animated.View entering={FadeInUp.duration(400)} className="pt-4 px-4">
-            <View
-              className="rounded-2xl p-4 mb-4"
-              style={{ backgroundColor: 'rgba(251,191,36,0.12)' }}
-            >
-              <Text className="text-amber-300 font-semibold mb-1">
-{t('import.mappingTitle')}
-              </Text>
-              <Text style={{ color: C.textDim }} className="text-xs leading-5">
-                {t('import.mappingHelp')}
-              </Text>
-            </View>
+        {/* ── Column mapping, only when the header could not be read ─────── */}
+        {step === 'mapping' && inspection ? (
+          <View style={{ paddingHorizontal: S.screen, marginTop: S.section }}>
+            <Type role="section" color={C.ink}>{t('import.mappingTitle')}</Type>
+            <Type role="body" color={C.inkDim} style={{ marginTop: 6 }}>
+              {t('import.mappingHelp')}
+            </Type>
 
-            {([
-              { key: 'dateIdx' as const, label: t('import.colDate'), required: true },
-              { key: 'amountIdx' as const, label: t('import.colAmount'), required: true },
-              { key: 'descIdx' as const, label: t('import.colDescription'), required: false },
-            ]).map(field => {
+            {MAPPING_FIELDS().map((field) => {
               const current = mapping[field.key] ?? inspection.mapping[field.key];
               return (
-                <View key={field.key} className="mb-5">
-                  <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-2 ms-1">
-                    {field.label.toUpperCase()}
-                    {field.required ? ' (required)' : ' (optional)'}
-                  </Text>
-                  <View className="flex-row flex-wrap" style={{ gap: 8 }}>
+                <View key={field.key} style={{ marginTop: 24 }}>
+                  <Type role="meta" color={C.inkDim} style={{ marginBottom: 12 }}>
+                    {`${field.label} · ${field.required ? t('import.required') : t('import.optional')}`}
+                  </Type>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                     {inspection.headers.map((header, idx) => {
                       const active = current === idx;
                       const sample = inspection.sampleRows[0]?.[idx] ?? '';
                       return (
-                        <Pressable
+                        <PressableScale
                           key={`${field.key}-${idx}`}
-                          onPress={() => {
-                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                            setMapping(m => ({ ...m, [field.key]: active ? -1 : idx }));
-                          }}
-                          className="rounded-xl px-3 py-2"
+                          onPress={() =>
+                            setMapping((m) => ({ ...m, [field.key]: active ? -1 : idx }))
+                          }
+                          accessibilityRole="radio"
+                          accessibilityState={{ selected: active }}
+                          accessibilityLabel={header || t('import.columnN', { n: idx + 1 })}
                           style={{
-                            backgroundColor: active
-                              ? 'rgba(59,130,246,0.22)'
-                              : 'rgba(255,255,255,0.05)',
-                            borderWidth: active ? 1 : 0,
-                            borderColor: '#3b82f6',
-                            minWidth: 104,
+                            minWidth: 108,
+                            minHeight: 52,
+                            justifyContent: 'center',
+                            paddingHorizontal: 14,
+                            borderRadius: R.sm,
+                            backgroundColor: active ? C.ink : C.groundSunk,
                           }}
                         >
-                          <Text
+                          <Type
+                            role="meta"
+                            color={active ? C.onInk : C.ink}
                             numberOfLines={1}
-                            className={active ? ' font-semibold' : 'text-gray-300'}
                           >
-                            {header || `Column ${idx + 1}`}
-                          </Text>
-                          {!!sample && (
-                            <Text style={{ color: C.textFaint }} numberOfLines={1} className="text-xs mt-0.5">
+                            {header || t('import.columnN', { n: idx + 1 })}
+                          </Type>
+                          {sample ? (
+                            <Type
+                              role="meta"
+                              color={active ? C.onInk : C.inkDim}
+                              numberOfLines={1}
+                              style={{ opacity: active ? 0.7 : 1 }}
+                            >
                               {sample}
-                            </Text>
-                          )}
-                        </Pressable>
+                            </Type>
+                          ) : null}
+                        </PressableScale>
                       );
                     })}
                   </View>
@@ -658,345 +724,275 @@ export default function ImportScreen() {
               );
             })}
 
-            <Pressable
+            <PrimaryButton
+              pal={C}
+              label={mappingIncomplete ? t('import.pickColumns') : t('common.continue')}
               onPress={confirmMapping}
-              disabled={missingColumns({ ...inspection.mapping, ...mapping } as ColumnMapping).length > 0}
-              className="rounded-xl py-4 items-center mt-2"
-              style={{
-                backgroundColor:
-                  missingColumns({ ...inspection.mapping, ...mapping } as ColumnMapping).length > 0
-                    ? 'rgba(255,255,255,0.08)'
-                    : '#3b82f6',
-              }}
-            >
-              <Text style={{ color: C.text }} className="font-semibold">
-                {missingColumns({ ...inspection.mapping, ...mapping } as ColumnMapping).length > 0
-                  ? 'Pick a date and an amount column'
-                  : 'Continue'}
-              </Text>
-            </Pressable>
-
-            <Pressable
+              disabled={mappingIncomplete}
+              style={{ marginTop: 24 }}
+            />
+            <PressableScale
               onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 setStep('upload');
                 setInspection(null);
               }}
-              className="rounded-xl py-3 items-center mt-2"
+              accessibilityRole="button"
+              accessibilityLabel={t('import.chooseDifferentFile')}
+              style={{ minHeight: 48, alignItems: 'center', justifyContent: 'center', marginTop: 6 }}
             >
-              <Text style={{ color: C.textDim }} >{t('import.chooseDifferentFile')}</Text>
-            </Pressable>
-          </Animated.View>
-        )}
+              <Type role="cardTitle" color={C.inkDim}>{t('import.chooseDifferentFile')}</Type>
+            </PressableScale>
+          </View>
+        ) : null}
 
-        {/* Preview Step */}
-        {step === 'preview' && preview && (
-          <Animated.View entering={FadeInUp.duration(400)} className="pt-4">
-            {/* Summary */}
-            <View className="px-4 mb-4">
-              <View
-                className="rounded-2xl p-4"
-                style={{ backgroundColor: C.glass }}
-              >
-                <Text style={{ color: C.textDim }} className="text-xs mb-3">{t('import.summary')}</Text>
-                <View className="flex-row justify-between mb-2">
-                  <Text style={{ color: C.textDim }} >{t('importExtra.transactions')}</Text>
-                  <Text style={{ color: C.text }} className="font-semibold">{transactions.length}</Text>
-                </View>
-                <View className="flex-row justify-between mb-2">
-                  <Text style={{ color: C.textDim }} >{t('import.totalExpenses')}</Text>
-                  <Text className="text-red-400 font-semibold">
-                    {formatCurrency(transactions.filter(t => t.type === 'Expense').reduce((s, t) => s + t.amount, 0))}
-                  </Text>
-                </View>
-                <View className="flex-row justify-between mb-2">
-                  <Text style={{ color: C.textDim }} >{t('import.totalIncome')}</Text>
-                  <Text className="text-green-400 font-semibold">
-                    {formatCurrency(transactions.filter(t => t.type === 'Income').reduce((s, t) => s + t.amount, 0))}
-                  </Text>
-                </View>
-                {preview.duplicatesFound > 0 && (
-                  <View className="flex-row justify-between">
-                    <Text style={{ color: C.textDim }} >{t('import.duplicatesSkipped')}</Text>
-                    <Text className="text-amber-400 font-semibold">{preview.duplicatesFound}</Text>
+        {/* ── Preview ────────────────────────────────────────────────────── */}
+        {step === 'preview' && preview ? (
+          <>
+            <View style={{ paddingHorizontal: S.screen, marginTop: S.section }}>
+              <Card pal={C}>
+                <Type role="cardTitle" color={C.ink} style={{ marginBottom: 12 }}>
+                  {t('import.summary')}
+                </Type>
+                {[
+                  { label: t('importExtra.transactions'), value: String(transactions.length), tone: C.ink },
+                  {
+                    label: t('import.totalExpenses'),
+                    value: money(
+                      transactions.filter((x) => x.type === 'Expense').reduce((s, x) => s + x.amount, 0)
+                    ),
+                    tone: C.negative,
+                  },
+                  {
+                    label: t('import.totalIncome'),
+                    value: money(
+                      transactions.filter((x) => x.type === 'Income').reduce((s, x) => s + x.amount, 0)
+                    ),
+                    tone: C.positive,
+                  },
+                  ...(preview.duplicatesFound > 0
+                    ? [{
+                        label: t('import.duplicatesSkipped'),
+                        value: String(preview.duplicatesFound),
+                        tone: C.inkDim,
+                      }]
+                    : []),
+                ].map((line) => (
+                  <View
+                    key={line.label}
+                    style={{
+                      flexDirection: 'row',
+                      justifyContent: 'space-between',
+                      gap: 12,
+                      paddingVertical: 5,
+                    }}
+                  >
+                    <Type role="body" color={C.inkDim}>{line.label}</Type>
+                    <Type role="cardTitle" color={line.tone}>{line.value}</Type>
                   </View>
-                )}
-              </View>
+                ))}
+              </Card>
             </View>
 
             {/* Format controls — only for bank CSVs, whose conventions are
                 inferred. Alipay/WeChat exports have a fixed, known shape. */}
-            {format && rawSource === 'bank' && (
-              <View className="px-4 mb-4">
-                <View
-                  className="rounded-2xl p-4"
-                  style={{ backgroundColor: C.glass }}
-                >
-                  <Text style={{ color: C.textDim }} className="text-xs mb-1">
+            {format && rawSource === 'bank' ? (
+              <View style={{ paddingHorizontal: S.screen, marginTop: 16 }}>
+                <Card pal={C}>
+                  <Type role="cardTitle" color={C.ink}>
                     {rememberedBank ? t('import.formatRemembered') : t('import.format')}
-                  </Text>
-                  <Text style={{ color: C.textFaint }} className="text-xs mb-3 leading-4">
+                  </Type>
+                  <Type role="meta" color={C.inkDim} style={{ marginTop: 4 }}>
                     {rememberedBank
                       ? t('import.reusingSettings')
                       : format.dateAmbiguous || format.signAmbiguous
                         ? t('import.guessedSettings')
                         : t('import.detectedSettings')}
-                  </Text>
+                  </Type>
 
-                  <Text style={{ color: C.textDim }} className="text-xs mb-2">{t('import.dateOrder')}</Text>
-                  <View className="flex-row mb-4" style={{ gap: 8 }}>
-                    {([
-                      { value: 'dmy' as DateConvention, label: t('import.dayFirst'), hint: '31/12/2026' },
-                      { value: 'mdy' as DateConvention, label: t('import.monthFirst'), hint: '12/31/2026' },
-                    ]).map(opt => {
-                      const active = format.date === opt.value;
-                      return (
-                        <Pressable
-                          key={opt.value}
-                          onPress={() => applyFormat({ date: opt.value })}
-                          className="flex-1 rounded-xl px-3 py-2"
-                          style={{
-                            backgroundColor: active ? 'rgba(59,130,246,0.2)' : 'rgba(255,255,255,0.05)',
-                            borderWidth: active ? 1 : 0,
-                            borderColor: '#3b82f6',
-                          }}
-                        >
-                          <Text style={{ color: C.text }} className={active ? ' font-semibold' : 'text-gray-400'}>
-                            {opt.label}
-                          </Text>
-                          <Text style={{ color: C.textFaint }} className="text-xs mt-0.5">{opt.hint}</Text>
-                        </Pressable>
-                      );
-                    })}
+                  <Type role="meta" color={C.inkDim} style={{ marginTop: 16, marginBottom: 8 }}>
+                    {t('import.dateOrder')}
+                  </Type>
+                  <View style={{ flexDirection: 'row', gap: 8 }}>
+                    {DATE_OPTIONS().map((opt) => (
+                      <OptionTile
+                        key={opt.value}
+                        pal={C}
+                        label={opt.label}
+                        hint={opt.hint}
+                        active={format.date === opt.value}
+                        onPress={() => applyFormat({ date: opt.value })}
+                      />
+                    ))}
                   </View>
 
-                  <Text style={{ color: C.textDim }} className="text-xs mb-2">{t('import.amountsAre')}</Text>
-                  <View className="flex-row" style={{ gap: 8 }}>
-                    {([
-                      { value: 'signed' as SignConvention, label: t('import.signed'), hint: t('import.signedHint') },
-                      { value: 'all-expense' as SignConvention, label: t('import.allSpending'), hint: t('import.allSpendingHint') },
-                      { value: 'all-income' as SignConvention, label: t('import.allIncome'), hint: t('import.allIncomeHint') },
-                    ]).map(opt => {
-                      const active = format.sign === opt.value;
-                      return (
-                        <Pressable
-                          key={opt.value}
-                          onPress={() => applyFormat({ sign: opt.value })}
-                          className="flex-1 rounded-xl px-3 py-2"
-                          style={{
-                            backgroundColor: active ? 'rgba(59,130,246,0.2)' : 'rgba(255,255,255,0.05)',
-                            borderWidth: active ? 1 : 0,
-                            borderColor: '#3b82f6',
-                          }}
-                        >
-                          <Text
-                            className={active ? ' font-semibold text-xs' : 'text-gray-400 text-xs'}
-                          >
-                            {opt.label}
-                          </Text>
-                          <Text style={{ color: C.textFaint }} className="text-xs mt-0.5">{opt.hint}</Text>
-                        </Pressable>
-                      );
-                    })}
+                  <Type role="meta" color={C.inkDim} style={{ marginTop: 16, marginBottom: 8 }}>
+                    {t('import.amountsAre')}
+                  </Type>
+                  <View style={{ flexDirection: 'row', gap: 8 }}>
+                    {SIGN_OPTIONS().map((opt) => (
+                      <OptionTile
+                        key={opt.value}
+                        pal={C}
+                        label={opt.label}
+                        hint={opt.hint}
+                        active={format.sign === opt.value}
+                        onPress={() => applyFormat({ sign: opt.value })}
+                      />
+                    ))}
                   </View>
-                </View>
+                </Card>
               </View>
-            )}
+            ) : null}
 
-            {/* Transaction List */}
-            <View className="px-4">
-              <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-3 ms-1">
-                TRANSACTIONS ({transactions.length})
-              </Text>
-              {transactions.map((tx, idx) => (
-                <Animated.View
-                  key={tx.id}
-                  entering={FadeInUp.delay(50 * Math.min(idx, 10)).duration(300)}
-                >
-                  <Pressable
-                    onPress={() => setExpandedTx(expandedTx === tx.id ? null : tx.id)}
-                    className="mb-2"
-                  >
-                    <View
-                      className="rounded-xl p-4"
-                      style={{ backgroundColor: C.glass }}
-                    >
-                      {/* Main Row */}
-                      <View className="flex-row items-center justify-between">
-                        <View className="flex-1 me-3">
-                          <Text style={{ color: C.text }} className="font-medium" numberOfLines={1}>
-                            {tx.description}
-                          </Text>
-                          <View className="flex-row items-center mt-1">
-                            <Text style={{ color: C.textFaint }} className="text-xs">{tx.date}</Text>
-                            <View className="w-1 h-1 rounded-full bg-gray-600 mx-2" />
-                            <View className="bg-purple-500/20 rounded-full px-2 py-0.5">
-                              <Text className="text-purple-400 text-xs">{categoryLabel(tx.suggestedCategory)}</Text>
-                            </View>
-                            {tx.isImpulse && (
-                              <>
-                                <View className="w-1 h-1 rounded-full bg-gray-600 mx-2" />
-                                <View className="bg-pink-500/20 rounded-full px-2 py-0.5">
-                                  <Text className="text-pink-400 text-xs">{t('importExtra.impulse')}</Text>
-                                </View>
-                              </>
-                            )}
-                          </View>
-                        </View>
-                        <View className="items-end">
-                          <Text className={`font-bold ${tx.type === 'Expense' ? 'text-red-400' : 'text-green-400'}`}>
-                            {tx.type === 'Expense' ? '-' : '+'}{formatCurrency(tx.amount)}
-                          </Text>
-                          {expandedTx === tx.id ? (
-                            <ChevronUp size={16} color="#6b7280" />
-                          ) : (
-                            <ChevronDown size={16} color="#6b7280" />
-                          )}
-                        </View>
-                      </View>
+            <View style={{ marginTop: S.section }}>
+              <SectionHeader
+                pal={C}
+                title={t('import.transactionCount', { count: transactions.length })}
+              />
+              <View style={{ paddingHorizontal: S.screen }}>
+                <Card pal={C} padding={0} contentStyle={{ paddingHorizontal: S.card }}>
+                  {transactions.map((tx, i) => {
+                    const open = expandedTx === tx.id;
+                    return (
+                      <View
+                        key={tx.id}
+                        style={i > 0 ? { borderTopWidth: 1, borderTopColor: C.hairline } : undefined}
+                      >
+                        <InfoRow
+                          pal={C}
+                          title={tx.description}
+                          meta={[
+                            tx.date,
+                            categoryLabel(tx.suggestedCategory),
+                            tx.isImpulse ? t('importExtra.impulse') : null,
+                          ]
+                            .filter(Boolean)
+                            .join(' · ')}
+                          amount={tx.type === 'Expense' ? -tx.amount : tx.amount}
+                          format={money}
+                          tone={tx.type === 'Expense' ? C.negative : C.positive}
+                          onPress={() => setExpandedTx(open ? null : tx.id)}
+                        />
 
-                      {/* Expanded Edit Options */}
-                      {expandedTx === tx.id && (
-                        <Animated.View entering={FadeInDown.duration(200)} className="mt-4 pt-4 border-t border-gray-800">
-                          {/* Category Selector */}
-                          <Text style={{ color: C.textDim }} className="text-xs mb-2">{t('importExtra.category')}</Text>
-                          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }}>
-                            <View className="flex-row gap-2">
-                              {CATEGORIES.map(cat => (
-                                <Pressable
-                                  key={cat}
-                                  onPress={() => updateTransactionCategory(tx.id, cat)}
-                                >
-                                  <View
-                                    className={`rounded-full px-3 py-1.5 ${
-                                      tx.suggestedCategory === cat
-                                        ? 'bg-purple-600'
-                                        : 'bg-gray-800'
-                                    }`}
-                                  >
-                                    <Text
-                                      className={`text-xs ${
-                                        tx.suggestedCategory === cat
-                                          ? ' font-semibold'
-                                          : ''
-                                      }`}
-                                    >
-                                      {categoryLabel(cat)}
-                                    </Text>
-                                  </View>
-                                </Pressable>
-                              ))}
-                            </View>
-                          </ScrollView>
-
-                          {/* Action Buttons */}
-                          <View className="flex-row gap-2 mt-4">
-                            <Pressable
-                              onPress={() => toggleImpulse(tx.id)}
-                              className="flex-1"
+                        {open ? (
+                          <View style={{ paddingBottom: 16 }}>
+                            <Type role="meta" color={C.inkDim} style={{ marginBottom: 8 }}>
+                              {t('importExtra.category')}
+                            </Type>
+                            <ScrollView
+                              horizontal
+                              showsHorizontalScrollIndicator={false}
+                              style={{ flexGrow: 0 }}
+                              contentContainerStyle={{ gap: 8 }}
                             >
-                              <View
-                                className={`rounded-xl p-3 flex-row items-center justify-center ${
-                                  tx.isImpulse ? 'bg-pink-500/20' : 'bg-gray-800'
-                                }`}
-                              >
-                                <Edit3 size={16} color={tx.isImpulse ? '#ec4899' : '#9ca3af'} />
-                                <Text style={{ color: C.textDim }} className={`ms-2 text-sm ${tx.isImpulse ? 'text-pink-400' : ''}`}>
-                                  {tx.isImpulse ? t('import.impulse') : t('import.markImpulse')}
-                                </Text>
-                              </View>
-                            </Pressable>
-                            <Pressable onPress={() => removeTransaction(tx.id)}>
-                              <View className="rounded-xl p-3 bg-red-500/20">
-                                <Trash2 size={16} color="#ef4444" />
-                              </View>
-                            </Pressable>
-                          </View>
-                        </Animated.View>
-                      )}
-                    </View>
-                  </Pressable>
-                </Animated.View>
-              ))}
-            </View>
-          </Animated.View>
-        )}
+                              {CATEGORIES.map((cat) => (
+                                <FilterChip
+                                  key={cat}
+                                  pal={C}
+                                  label={categoryLabel(cat)}
+                                  active={tx.suggestedCategory === cat}
+                                  onPress={() => updateTransactionCategory(tx.id, cat)}
+                                />
+                              ))}
+                            </ScrollView>
 
-        {/* Success Step */}
-        {step === 'success' && (
-          <Animated.View entering={FadeInUp.duration(400)} className="px-4 pt-8 items-center">
-            <View className="w-24 h-24 rounded-full bg-green-500/20 items-center justify-center mb-6">
-              <Check size={48} color="#22c55e" />
+                            <View style={{ flexDirection: 'row', gap: 12, marginTop: 16 }}>
+                              <PressableScale
+                                onPress={() => toggleImpulse(tx.id)}
+                                accessibilityRole="button"
+                                accessibilityState={{ selected: tx.isImpulse }}
+                                accessibilityLabel={t('import.markImpulse')}
+                                style={{
+                                  flex: 1,
+                                  minHeight: 44,
+                                  flexDirection: 'row',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  gap: 8,
+                                  borderRadius: R.pill,
+                                  backgroundColor: tx.isImpulse ? C.ink : C.groundSunk,
+                                }}
+                              >
+                                <Edit3
+                                  size={15}
+                                  color={tx.isImpulse ? C.onInk : C.inkDim}
+                                  strokeWidth={S.stroke}
+                                />
+                                <Type role="meta" color={tx.isImpulse ? C.onInk : C.ink}>
+                                  {tx.isImpulse ? t('import.impulse') : t('import.markImpulse')}
+                                </Type>
+                              </PressableScale>
+
+                              <PressableScale
+                                onPress={() => removeTransaction(tx.id)}
+                                haptic="light"
+                                accessibilityRole="button"
+                                accessibilityLabel={t('dialogs.delete')}
+                                style={{
+                                  width: 44,
+                                  height: 44,
+                                  borderRadius: 22,
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  backgroundColor: C.groundSunk,
+                                }}
+                              >
+                                <Trash2 size={16} color={C.negative} strokeWidth={S.stroke} />
+                              </PressableScale>
+                            </View>
+                          </View>
+                        ) : null}
+                      </View>
+                    );
+                  })}
+                </Card>
+              </View>
             </View>
-            <Text style={{ color: C.text }} className="text-2xl font-bold mb-2">{t('importExtra.complete')}</Text>
-            <Text style={{ color: C.textDim }} className="text-center mb-6">
-              {t('import.successBody', { count: importedCount })}
-            </Text>
-            <Pressable
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                router.replace('/(tabs)');
-              }}
-              className="w-full"
-            >
-              <LinearGradient
-                colors={['#22c55e', '#16a34a']}
-                style={{
-                  borderRadius: 16,
-                  paddingVertical: 16,
-                  alignItems: 'center',
-                }}
-              >
-                <Text className="text-white font-bold text-lg">{t('importExtra.goToDashboard')}</Text>
-              </LinearGradient>
-            </Pressable>
-          </Animated.View>
-        )}
+          </>
+        ) : null}
+
+        {/* ── Done ───────────────────────────────────────────────────────── */}
+        {step === 'success' ? (
+          <Empty
+            pal={C}
+            icon={<Check size={26} color={C.accent} strokeWidth={2.4} />}
+            title={t('importExtra.complete')}
+            body={t('import.successBody', { count: importedCount })}
+            actionLabel={t('importExtra.goToDashboard')}
+            onAction={() => router.replace('/(tabs)')}
+            style={{ marginTop: S.section }}
+          />
+        ) : null}
       </ScrollView>
 
-      {/* Bottom Action Bar for Preview */}
-      {step === 'preview' && transactions.length > 0 && (
+      {/* The commit, pinned where a thumb is. */}
+      {step === 'preview' && transactions.length > 0 ? (
         <View
-          className="absolute bottom-0 left-0 right-0 px-4 pt-4 pb-2 border-t border-gray-800"
           style={{
+            position: 'absolute',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            paddingHorizontal: S.screen,
+            paddingTop: 14,
             paddingBottom: Math.max(insets.bottom, 16),
-            backgroundColor: C.bg,
+            backgroundColor: C.ground,
+            borderTopWidth: 1,
+            borderTopColor: C.hairline,
           }}
         >
-          <Pressable
+          <PrimaryButton
+            pal={C}
+            label={
+              importing
+                ? t('import.importing', { done: importedCount, total: transactions.length })
+                : t('import.importCta', { count: transactions.length })
+            }
             onPress={importTransactions}
             disabled={importing}
-            className="active:scale-98"
-          >
-            <LinearGradient
-              colors={importing ? ['#374151', '#374151'] : ['#3b82f6', '#2563eb']}
-              style={{
-                borderRadius: 16,
-                paddingVertical: 16,
-                alignItems: 'center',
-                flexDirection: 'row',
-                justifyContent: 'center',
-              }}
-            >
-              {importing ? (
-                <>
-                  <ActivityIndicator size="small" color="white" />
-                  <Text className="text-white font-bold text-lg ms-3">
-                    Importing... ({importedCount}/{transactions.length})
-                  </Text>
-                </>
-              ) : (
-                <>
-                  <Check size={20} color="white" />
-                  <Text className="text-white font-bold text-lg ms-2">
-                    Import {transactions.length} Transactions
-                  </Text>
-                </>
-              )}
-            </LinearGradient>
-          </Pressable>
+          />
         </View>
-      )}
-    </View>
+      ) : null}
+    </Screen>
   );
 }

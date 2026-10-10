@@ -1,15 +1,15 @@
-import { ScreenBackground } from '@/components/ui';
-import { useC } from '@/lib/design';
 import {
-  View, Text, TextInput, Pressable,
+  View, Pressable,
   KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator,
 } from 'react-native';
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { useMutation } from '@tanstack/react-query';
-import { LinearGradient } from 'expo-linear-gradient';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Mail, Lock, Eye, EyeOff, ArrowRight, User } from 'lucide-react-native';
+import { Eye, EyeOff, Lock, Mail, User } from '@/components/icons';
+import { S, useC } from '@/lib/design';
+import {
+  Field, FormError, IconTile, PrimaryButton, Screen, Type,
+} from '@/components/kit';
 import * as Haptics from 'expo-haptics';
 import * as SecureStore from 'expo-secure-store';
 import { authClient } from '@/lib/auth/auth-client';
@@ -30,7 +30,7 @@ function friendlyAuthError(raw: string | null | undefined, fallback: string): st
   if (!raw) return fallback;
   const lower = raw.toLowerCase();
   if (lower.includes('network') || lower.includes('failed to fetch') || lower.includes('timed out') || lower.includes('aborted')) {
-    return "Couldn't reach the server. Check your connection and try again.";
+    return t('auth.errorNetwork');
   }
   return raw;
 }
@@ -54,7 +54,6 @@ async function probeSecureStore(label: string) {
 export default function SignUpScreen() {
   const C = useC();
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const invalidateSession = useInvalidateSession();
 
   const [name, setName] = useState('');
@@ -67,13 +66,13 @@ export default function SignUpScreen() {
   const signUpMutation = useMutation({
     mutationFn: async () => {
       if (!name.trim() || !email.trim() || !password) {
-        throw new Error('Please fill in all fields');
+        throw new Error(t('auth.errorAllFields'));
       }
       if (password.length < 8) {
-        throw new Error('Password must be at least 8 characters');
+        throw new Error(t('auth.errorShortPassword'));
       }
       if (password !== confirmPassword) {
-        throw new Error('Passwords do not match');
+        throw new Error(t('auth.errorMismatch'));
       }
 
       const t0 = Date.now();
@@ -121,7 +120,7 @@ export default function SignUpScreen() {
       await probeSecureStore('post');
 
       if (result.error) {
-        throw new Error(friendlyAuthError(result.error.message, 'Failed to create account'));
+        throw new Error(friendlyAuthError(result.error.message, t('auth.errorCreateFailed')));
       }
 
       return result.data;
@@ -136,180 +135,119 @@ export default function SignUpScreen() {
     onError: (err: Error) => {
       console.warn(`[mobile:signup:onError] ${err.message}`);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      setError(friendlyAuthError(err.message, 'Failed to create account'));
+      setError(friendlyAuthError(err.message, t('auth.errorCreateFailed')));
     },
   });
 
   return (
-    <ScreenBackground>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        className="flex-1"
-      >
+    <Screen pal={C}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
         <ScrollView
-          className="flex-1"
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{ paddingHorizontal: S.screen, paddingTop: 32, paddingBottom: 40 }}
         >
-          {/* Header */}
-          <LinearGradient
-            colors={['#1a0533', '#3b1070', '#1a0533']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={{
-              paddingTop: insets.top + 40,
-              paddingBottom: 56,
-              paddingHorizontal: 28,
-              borderBottomLeftRadius: 48,
-              borderBottomRightRadius: 48,
-            }}
-          >
-            <Text className="text-4xl font-bold text-white mb-2">{t('auth.createAccount')}</Text>
-            <Text className="text-white/55 text-base">{t('auth.startJourney')}</Text>
-          </LinearGradient>
+          <IconTile pal={C} size={56} style={{ marginBottom: 24 }}>
+            <User size={26} color={C.accent} strokeWidth={S.stroke} />
+          </IconTile>
 
-          {/* Form */}
-          <View className="flex-1 px-6 pt-8 pb-10">
-            {error ? (
-              <View className="bg-red-500/15 border border-red-500/25 rounded-2xl p-4 mb-5">
-                <Text className="text-red-400 text-sm text-center">{error}</Text>
-              </View>
-            ) : null}
+          <Type role="title" color={C.ink}>{t('auth.createAccount')}</Type>
+          <Type role="body" color={C.inkDim} style={{ marginTop: 6, marginBottom: 36 }}>
+            {t('auth.startJourney')}
+          </Type>
 
-            {/* Name */}
-            <View className="mb-4">
-              <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-2.5 ms-1 tracking-wider uppercase">
-                {t('auth.fullName')}
-              </Text>
-              <View
-                className="flex-row items-center rounded-2xl px-4 py-4"
-                style={{ backgroundColor: C.glass, borderWidth: 1, borderColor: C.glassBorder }}
+          <Field
+            pal={C}
+            label={t('auth.fullName')}
+            icon={<User size={19} color={C.inkDim} strokeWidth={S.stroke} />}
+            value={name}
+            onChangeText={(v) => { setName(v); setError(''); }}
+            placeholder={t('fields.namePlaceholder')}
+            autoCapitalize="words"
+            autoComplete="name"
+            returnKeyType="next"
+          />
+
+          <Field
+            pal={C}
+            label={t('auth.email')}
+            icon={<Mail size={19} color={C.inkDim} strokeWidth={S.stroke} />}
+            value={email}
+            onChangeText={(v) => { setEmail(v); setError(''); }}
+            placeholder={t('fields.emailPlaceholder2')}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoCorrect={false}
+            autoComplete="email"
+            returnKeyType="next"
+            style={{ marginTop: 16 }}
+          />
+
+          <Field
+            pal={C}
+            label={t('auth.password')}
+            icon={<Lock size={19} color={C.inkDim} strokeWidth={S.stroke} />}
+            value={password}
+            onChangeText={(v) => { setPassword(v); setError(''); }}
+            placeholder={t('fields.passwordHint')}
+            secureTextEntry={!showPassword}
+            returnKeyType="next"
+            style={{ marginTop: 16 }}
+            trailing={
+              <Pressable
+                onPress={() => setShowPassword((prev) => !prev)}
+                hitSlop={12}
+                accessibilityRole="button"
+                accessibilityLabel={t('auth.password')}
               >
-                <User size={20} color="#6b7280" />
-                <TextInput
-                  value={name}
-                  onChangeText={(t) => { setName(t); setError(''); }}
-                  placeholder={t('fields.namePlaceholder')}
-                  placeholderTextColor="#4b5563"
-                  autoCapitalize="words"
-                  className="flex-1 ms-3 text-base"
-                  selectionColor={C.p500}
-                />
-              </View>
-            </View>
-
-            {/* Email */}
-            <View className="mb-4">
-              <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-2.5 ms-1 tracking-wider uppercase">
-                {t('auth.email')}
-              </Text>
-              <View
-                className="flex-row items-center rounded-2xl px-4 py-4"
-                style={{ backgroundColor: C.glass, borderWidth: 1, borderColor: C.glassBorder }}
-              >
-                <Mail size={20} color="#6b7280" />
-                <TextInput
-                  value={email}
-                  onChangeText={(t) => { setEmail(t); setError(''); }}
-                  placeholder={t('fields.emailPlaceholder')}
-                  placeholderTextColor="#4b5563"
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  className="flex-1 ms-3 text-base"
-                  selectionColor={C.p500}
-                />
-              </View>
-            </View>
-
-            {/* Password */}
-            <View className="mb-4">
-              <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-2.5 ms-1 tracking-wider uppercase">
-                {t('auth.password')}
-              </Text>
-              <View
-                className="flex-row items-center rounded-2xl px-4 py-4"
-                style={{ backgroundColor: C.glass, borderWidth: 1, borderColor: C.glassBorder }}
-              >
-                <Lock size={20} color="#6b7280" />
-                <TextInput
-                  value={password}
-                  onChangeText={(t) => { setPassword(t); setError(''); }}
-                  placeholder={t('fields.passwordHint')}
-                  placeholderTextColor="#4b5563"
-                  secureTextEntry={!showPassword}
-                  className="flex-1 ms-3 text-base"
-                  selectionColor={C.p500}
-                />
-                <Pressable onPress={() => setShowPassword(p => !p)} hitSlop={8}>
-                  {showPassword ? <EyeOff size={20} color="#6b7280" /> : <Eye size={20} color="#6b7280" />}
-                </Pressable>
-              </View>
-            </View>
-
-            {/* Confirm Password */}
-            <View className="mb-7">
-              <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-2.5 ms-1 tracking-wider uppercase">
-                {t('auth.confirmPassword')}
-              </Text>
-              <View
-                className="flex-row items-center rounded-2xl px-4 py-4"
-                style={{ backgroundColor: C.glass, borderWidth: 1, borderColor: C.glassBorder }}
-              >
-                <Lock size={20} color="#6b7280" />
-                <TextInput
-                  value={confirmPassword}
-                  onChangeText={(t) => { setConfirmPassword(t); setError(''); }}
-                  placeholder={t('fields.repeatPassword')}
-                  placeholderTextColor="#4b5563"
-                  secureTextEntry={!showPassword}
-                  className="flex-1 ms-3 text-base"
-                  selectionColor={C.p500}
-                  returnKeyType="done"
-                  onSubmitEditing={() => signUpMutation.mutate()}
-                />
-              </View>
-            </View>
-
-            {/* CTA */}
-            <Pressable
-              onPress={() => signUpMutation.mutate()}
-              disabled={signUpMutation.isPending}
-              className="active:opacity-80"
-            >
-              <LinearGradient
-                colors={signUpMutation.isPending ? ['#374151', '#374151'] : [C.p600, C.p500, C.p400]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={{
-                  borderRadius: 18,
-                  paddingVertical: 18,
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                {signUpMutation.isPending ? (
-                  <ActivityIndicator color="white" size="small" />
-                ) : (
-                  <>
-                    <Text className="text-white font-bold text-base me-2">{t('auth.createAccount')}</Text>
-                    <ArrowRight size={18} color="white" />
-                  </>
-                )}
-              </LinearGradient>
-            </Pressable>
-
-            {/* Login Link */}
-            <View className="flex-row justify-center mt-7">
-              <Text style={{ color: C.textFaint }} className="text-sm">{t('auth.haveAccount')}</Text>
-              <Pressable onPress={() => router.push('/login')}>
-                <Text className="text-purple-400 font-semibold text-sm">{t('auth.signIn')}</Text>
+                {showPassword
+                  ? <EyeOff size={19} color={C.inkDim} strokeWidth={S.stroke} />
+                  : <Eye size={19} color={C.inkDim} strokeWidth={S.stroke} />}
               </Pressable>
+            }
+          />
+
+          <Field
+            pal={C}
+            label={t('auth.confirmPassword')}
+            icon={<Lock size={19} color={C.inkDim} strokeWidth={S.stroke} />}
+            value={confirmPassword}
+            onChangeText={(v) => { setConfirmPassword(v); setError(''); }}
+            placeholder={t('fields.repeatPassword')}
+            secureTextEntry={!showPassword}
+            returnKeyType="done"
+            onSubmitEditing={() => signUpMutation.mutate()}
+            style={{ marginTop: 16 }}
+          />
+
+          <FormError pal={C} message={error} />
+
+          {signUpMutation.isPending ? (
+            <View style={{ height: 56, marginTop: 24, alignItems: 'center', justifyContent: 'center' }}>
+              <ActivityIndicator color={C.accent} />
             </View>
-          </View>
+          ) : (
+            <PrimaryButton
+              pal={C}
+              label={t('auth.createAction')}
+              onPress={() => signUpMutation.mutate()}
+              style={{ marginTop: 24 }}
+            />
+          )}
+
+          <Pressable
+            onPress={() => router.push('/login')}
+            hitSlop={10}
+            accessibilityRole="link"
+            style={{ marginTop: 24, alignItems: 'center' }}
+          >
+            <Type role="meta" color={C.inkDim}>
+              {t('auth.haveAccount')}
+              <Type role="meta" color={C.accent}>{t('auth.signInAction')}</Type>
+            </Type>
+          </Pressable>
         </ScrollView>
       </KeyboardAvoidingView>
-    </ScreenBackground>
+    </Screen>
   );
 }

@@ -1,14 +1,26 @@
-import { View, Modal, Pressable, TextInput, ScrollView, ActivityIndicator, Linking } from 'react-native';
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, Linking, Modal, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { AlertTriangle, X, ExternalLink } from 'lucide-react-native';
+import { AlertTriangle, ExternalLink } from '@/components/icons';
 import * as Haptics from 'expo-haptics';
-import { Txt, GlassCard } from '@/components/ui';
 import { t } from '@/lib/i18n/core';
-import { useC } from '@/lib/design';
+import { S, useC, type Palette } from '@/lib/design';
+import { PressableScale } from '@/components/motion';
 import {
-  fetchDeletionPreview,
+  Card,
+  Field,
+  FormError,
+  IconTile,
+  InfoRow,
+  PrimaryButton,
+  Screen,
+  Sheet,
+  SubHeader,
+  Type,
+} from '@/components/kit';
+import {
   deleteAccount,
+  fetchDeletionPreview,
   type DeletionPreview,
   type UnrevokedGrant,
 } from '@/lib/accountApi';
@@ -16,9 +28,16 @@ import {
 /**
  * Account deletion, with the consequences shown before the user commits.
  *
- * A modal rather than Alert.alert because deletion is irreversible and takes a
- * typed confirmation — Alert.prompt is iOS-only, and a single destructive
- * button is too easy to hit by accident for something with no undo.
+ * A full-screen sheet rather than `Alert.alert` because deletion is
+ * irreversible and takes a typed confirmation — `Alert.prompt` is iOS-only,
+ * and a single destructive button is too easy to hit by accident for
+ * something with no undo.
+ *
+ * Every string in here was `#fff` or `rgba(255,255,255,…)`, painted on
+ * `C.bgRaise`. That token now resolves to the white card surface, so the
+ * entire dialog — the warning, the counts, the confirmation prompt, the
+ * button label — was white text on a white sheet. On the one screen in the
+ * app where the user has to read carefully before agreeing.
  */
 export function DeleteAccountModal({
   visible,
@@ -30,17 +49,16 @@ export function DeleteAccountModal({
   onDeleted: (unrevoked: UnrevokedGrant[]) => void;
 }) {
   const C = useC();
-  const insets = useSafeAreaInsets();
   const [preview, setPreview] = useState<DeletionPreview | null>(null);
   const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState('');
   const [typed, setTyped] = useState('');
   const [deleting, setDeleting] = useState(false);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
-    setLoadError(null);
+    setLoadError('');
     try {
       setPreview(await fetchDeletionPreview());
     } catch (e) {
@@ -54,7 +72,7 @@ export function DeleteAccountModal({
   useEffect(() => {
     if (!visible) return;
     setTyped('');
-    setDeleteError(null);
+    setDeleteError('');
     load();
   }, [visible, load]);
 
@@ -65,7 +83,7 @@ export function DeleteAccountModal({
     if (!confirmed || deleting) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     setDeleting(true);
-    setDeleteError(null);
+    setDeleteError('');
     try {
       const result = await deleteAccount(typed.trim());
 
@@ -91,163 +109,149 @@ export function DeleteAccountModal({
     }
   };
 
-  const line = (label: string, value: number) =>
-    value > 0 ? (
-      <View className="flex-row justify-between" style={{ marginTop: 4 }}>
-        <Txt size={13} color="rgba(255,255,255,0.55)">{label}</Txt>
-        <Txt size={13} weight="semibold" color="#fff">{value}</Txt>
-      </View>
-    ) : null;
+  const countLine = (label: string, value: number) =>
+    value > 0 ? <InfoRow key={label} pal={C} title={label} amount={value} format={String} /> : null;
+
+  const counts = preview
+    ? [
+        countLine(t('deleteAccount.transactions'), preview.transactions),
+        countLine(t('deleteAccount.accounts'), preview.accounts),
+        countLine(t('deleteAccount.linkedBanks'), preview.linkedBanks),
+        countLine(t('deleteAccount.connectedInboxes'), preview.connectedInboxes),
+      ].filter(Boolean)
+    : [];
 
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'flex-end' }}>
-        <View
-          style={{
-            backgroundColor: C.bgRaise,
-            borderTopLeftRadius: 24,
-            borderTopRightRadius: 24,
-            paddingBottom: insets.bottom + 16,
-            maxHeight: '92%',
-          }}
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+      <Screen pal={C}>
+        <SubHeader
+          pal={C}
+          title={t('deleteAccount.title')}
+          onBack={onClose}
+          style={{ marginTop: 14 }}
+        />
+
+        <ScrollView
+          contentContainerStyle={{ paddingTop: 24, paddingBottom: 48 }}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
-          <View className="flex-row items-center justify-between" style={{ padding: 20, paddingBottom: 8 }}>
-            <View className="flex-row items-center" style={{ gap: 10 }}>
-              <AlertTriangle size={22} color="#ef4444" />
-              <Txt weight="bold" size={19} color="#fff">{t('deleteAccount.title')}</Txt>
+          {loading ? (
+            <View style={{ paddingVertical: 48, alignItems: 'center' }}>
+              <ActivityIndicator color={C.accent} />
             </View>
-            <Pressable onPress={onClose} hitSlop={12} accessibilityLabel={t('common.close')}>
-              <X size={22} color="rgba(255,255,255,0.5)" />
-            </Pressable>
-          </View>
-
-          <ScrollView style={{ paddingHorizontal: 20 }} keyboardShouldPersistTaps="handled">
-            {loading ? (
-              <View style={{ paddingVertical: 40, alignItems: 'center' }}>
-                <ActivityIndicator color="#ef4444" />
+          ) : loadError ? (
+            <View style={{ paddingHorizontal: S.screen }}>
+              <Type role="body" color={C.negative}>
+                {loadError}
+              </Type>
+              <PrimaryButton
+                pal={C}
+                label={t('common.retry')}
+                onPress={load}
+                variant="secondary"
+                style={{ marginTop: 18 }}
+              />
+            </View>
+          ) : preview ? (
+            <View style={{ paddingHorizontal: S.screen }}>
+              <View style={{ flexDirection: 'row', gap: 14 }}>
+                <IconTile pal={C}>
+                  <AlertTriangle size={19} color={C.negative} strokeWidth={S.stroke} />
+                </IconTile>
+                <Type role="body" color={C.ink} style={{ flex: 1 }}>
+                  {t('deleteAccount.intro')}
+                </Type>
               </View>
-            ) : loadError ? (
-              <View style={{ paddingVertical: 24 }}>
-                <Txt size={14} color="#f87171">{loadError}</Txt>
-                <Pressable onPress={load} style={{ marginTop: 14 }}>
-                  <GlassCard padding={12}>
-                    <Txt weight="semibold" size={14} color="#fff" style={{ textAlign: 'center' }}>
-{t('common.retry')}
-                    </Txt>
-                  </GlassCard>
-                </Pressable>
-              </View>
-            ) : preview ? (
-              <>
-                <Txt size={14} color="rgba(255,255,255,0.7)" style={{ lineHeight: 20 }}>
-{t('deleteAccount.intro')}
-                </Txt>
 
-                <View style={{ marginTop: 16 }}>
-                  <GlassCard padding={14}>
-                    <Txt size={11} weight="semibold" color="rgba(255,255,255,0.45)">
-{t('deleteAccount.whatGetsDeleted')}
-                    </Txt>
-                    {line(t('deleteAccount.transactions'), preview.transactions)}
-                    {line(t('deleteAccount.accounts'), preview.accounts)}
-                    {line(t('deleteAccount.linkedBanks'), preview.linkedBanks)}
-                    {line(t('deleteAccount.connectedInboxes'), preview.connectedInboxes)}
-                    <Txt size={12} color="rgba(255,255,255,0.4)" style={{ marginTop: 8, lineHeight: 17 }}>
-{t('deleteAccount.plusRest')}
-                    </Txt>
-                  </GlassCard>
-                </View>
-
-                {/* An owner deleting their account takes the whole group with
-                    them. Nobody should discover that afterwards — and someone
-                    who owns both a company and a household gets told about
-                    both, which is why this maps rather than testing one field. */}
-                {preview.ownedGroups.map((group) => (
-                  <View key={group.id} style={{ marginTop: 12 }}>
-                    <GlassCard padding={14} tint="rgba(239,68,68,0.1)" border="rgba(239,68,68,0.28)">
-                      <Txt weight="semibold" size={14} color="#f87171">
-                        {t('deleteAccount.groupWarningTitle', { name: group.name })}
-                      </Txt>
-                      <Txt size={13} color="rgba(255,255,255,0.7)" style={{ marginTop: 6, lineHeight: 19 }}>
-                        {group.type === 'household'
-                          ? t('deleteAccount.ownedHouseholdBody', { members: group.members })
-                          : t('deleteAccount.ownedBusinessBody', {
-                              expenses: group.expenses,
-                              members: group.members,
-                            })}
-                      </Txt>
-                    </GlassCard>
-                  </View>
-                ))}
-
-                {(preview.linkedBanks > 0 || preview.connectedInboxes > 0) && (
-                  <Txt size={12} color="rgba(255,255,255,0.45)" style={{ marginTop: 12, lineHeight: 18 }}>
-{t('deleteAccount.revokeNote')}
-                  </Txt>
-                )}
-
-                <Txt size={13} color="rgba(255,255,255,0.7)" style={{ marginTop: 20 }}>
-                  {t('deleteAccount.typeToConfirm', { email: preview.email })}
-                </Txt>
-                <TextInput
-                  value={typed}
-                  onChangeText={setTyped}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  keyboardType="email-address"
-                  placeholder={t('deleteAccount.confirmPlaceholder')}
-                  placeholderTextColor="rgba(255,255,255,0.28)"
-                  accessibilityLabel={t('deleteAccount.confirmPrompt', { email: preview.email })}
-                  style={{
-                    marginTop: 8,
-                    borderRadius: 12,
-                    paddingHorizontal: 14,
-                    paddingVertical: 12,
-                    color: C.text,
-                    fontSize: 15,
-                    backgroundColor: C.glass,
-                    borderWidth: 1,
-                    borderColor: confirmed ? '#ef4444' : 'rgba(255,255,255,0.1)',
-                  }}
-                />
-
-                {deleteError && (
-                  <Txt size={13} color="#f87171" style={{ marginTop: 10 }}>{deleteError}</Txt>
-                )}
-
-                <Pressable
-                  onPress={handleDelete}
-                  disabled={!confirmed || deleting}
-                  accessibilityRole="button"
-                  style={{
-                    marginTop: 16,
-                    borderRadius: 14,
-                    paddingVertical: 15,
-                    alignItems: 'center',
-                    backgroundColor: confirmed && !deleting ? '#ef4444' : 'rgba(255,255,255,0.07)',
-                  }}
-                >
-                  {deleting ? (
-                    <ActivityIndicator color="#fff" />
-                  ) : (
-                    <Txt
-                      weight="bold"
-                      size={15}
-                      color={confirmed ? '#fff' : 'rgba(255,255,255,0.35)'}
+              <Type role="cardTitle" color={C.ink} style={{ marginTop: 26, marginBottom: 12 }}>
+                {t('deleteAccount.whatGetsDeleted')}
+              </Type>
+              {counts.length > 0 ? (
+                <Card pal={C} padding={0} contentStyle={{ paddingHorizontal: S.card }}>
+                  {counts.map((child, i) => (
+                    <View
+                      key={i}
+                      style={i > 0 ? { borderTopWidth: 1, borderTopColor: C.hairline } : undefined}
                     >
-{t('deleteAccount.confirmButton')}
-                    </Txt>
-                  )}
-                </Pressable>
+                      {child}
+                    </View>
+                  ))}
+                </Card>
+              ) : null}
+              <Type role="meta" color={C.inkDim} style={{ marginTop: 12 }}>
+                {t('deleteAccount.plusRest')}
+              </Type>
 
-                <Pressable onPress={onClose} disabled={deleting} style={{ paddingVertical: 14, alignItems: 'center' }}>
-                  <Txt size={14} color="rgba(255,255,255,0.55)">{t('deleteAccount.keepAccount')}</Txt>
-                </Pressable>
-              </>
-            ) : null}
-          </ScrollView>
-        </View>
-      </View>
+              {/* An owner deleting their account takes the whole group with
+                  them. Nobody should discover that afterwards — and someone
+                  who owns both a company and a household gets told about
+                  both, which is why this maps rather than testing one field. */}
+              {preview.ownedGroups.map((group) => (
+                <Card key={group.id} pal={C} style={{ marginTop: 16 }}>
+                  <Type role="cardTitle" color={C.negative}>
+                    {t('deleteAccount.groupWarningTitle', { name: group.name })}
+                  </Type>
+                  <Type role="body" color={C.inkDim} style={{ marginTop: 6 }}>
+                    {group.type === 'household'
+                      ? t('deleteAccount.ownedHouseholdBody', { members: group.members })
+                      : t('deleteAccount.ownedBusinessBody', {
+                          expenses: group.expenses,
+                          members: group.members,
+                        })}
+                  </Type>
+                </Card>
+              ))}
+
+              {preview.linkedBanks > 0 || preview.connectedInboxes > 0 ? (
+                <Type role="meta" color={C.inkDim} style={{ marginTop: 16 }}>
+                  {t('deleteAccount.revokeNote')}
+                </Type>
+              ) : null}
+
+              <Field
+                pal={C}
+                label={t('deleteAccount.typeToConfirm', { email: preview.email })}
+                value={typed}
+                onChangeText={setTyped}
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="email-address"
+                placeholder={t('deleteAccount.confirmPlaceholder')}
+                accessibilityLabel={t('deleteAccount.confirmPrompt', { email: preview.email })}
+                style={{ marginTop: 28 }}
+              />
+
+              <FormError pal={C} message={deleteError} />
+
+              <PrimaryButton
+                pal={C}
+                label={t('deleteAccount.confirmButton')}
+                onPress={handleDelete}
+                disabled={!confirmed || deleting}
+                style={{ marginTop: 20 }}
+              />
+              {deleting ? <ActivityIndicator color={C.accent} style={{ marginTop: 14 }} /> : null}
+
+              <PressableScale
+                onPress={deleting ? undefined : onClose}
+                accessibilityRole="button"
+                accessibilityLabel={t('deleteAccount.keepAccount')}
+                style={{
+                  minHeight: 48,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginTop: 6,
+                }}
+              >
+                <Type role="cardTitle" color={C.inkDim}>
+                  {t('deleteAccount.keepAccount')}
+                </Type>
+              </PressableScale>
+            </View>
+          ) : null}
+        </ScrollView>
+      </Screen>
     </Modal>
   );
 }
@@ -263,44 +267,45 @@ export function UnrevokedGrantsNotice({
   grants: UnrevokedGrant[];
   onDismiss: () => void;
 }) {
-  const C = useC();
+  const C: Palette = useC();
   const insets = useSafeAreaInsets();
   if (grants.length === 0) return null;
 
   return (
-    <Modal visible animationType="fade" transparent onRequestClose={onDismiss}>
-      <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'center', padding: 24 }}>
-        <View style={{ backgroundColor: C.bgRaise, borderRadius: 20, padding: 20, paddingBottom: insets.bottom + 20 }}>
-          <Txt weight="bold" size={18} color="#fff">{t('deleteAccount.deletedTitle')}</Txt>
-          <Txt size={14} color="rgba(255,255,255,0.7)" style={{ marginTop: 10, lineHeight: 20 }}>
-            {t('deleteAccount.manualRevoke')}
-          </Txt>
+    <Sheet pal={C} visible onClose={onDismiss} title={t('deleteAccount.deletedTitle')}>
+      <View style={{ paddingHorizontal: S.card, paddingBottom: insets.bottom > 0 ? 0 : 8 }}>
+        <Type role="body" color={C.inkDim}>
+          {t('deleteAccount.manualRevoke')}
+        </Type>
 
+        <Card pal={C} padding={0} contentStyle={{ paddingHorizontal: S.card }} style={{ marginTop: 18 }}>
           {grants.map((g, i) => (
-            <Pressable
+            <View
               key={`${g.kind}-${i}`}
-              onPress={() => Linking.openURL(g.manualRevokeUrl).catch(() => {})}
-              style={{ marginTop: 12 }}
+              style={i > 0 ? { borderTopWidth: 1, borderTopColor: C.hairline } : undefined}
             >
-              <GlassCard padding={12}>
-                <View className="flex-row items-center justify-between">
-                  <View style={{ flex: 1 }}>
-                    <Txt weight="semibold" size={14} color="#fff">{g.label}</Txt>
-                    <Txt size={12} color="rgba(255,255,255,0.45)" style={{ marginTop: 2 }}>
-                      {g.kind === 'bank' ? t('deleteAccount.bankConnection') : t('deleteAccount.inboxConnection')}
-                    </Txt>
-                  </View>
-                  <ExternalLink size={18} color="rgba(255,255,255,0.5)" />
-                </View>
-              </GlassCard>
-            </Pressable>
+              <InfoRow
+                pal={C}
+                title={g.label}
+                meta={
+                  g.kind === 'bank'
+                    ? t('deleteAccount.bankConnection')
+                    : t('deleteAccount.inboxConnection')
+                }
+                onPress={() => Linking.openURL(g.manualRevokeUrl).catch(() => {})}
+                trailing={<ExternalLink size={17} color={C.inkFaint} strokeWidth={S.stroke} />}
+              />
+            </View>
           ))}
+        </Card>
 
-          <Pressable onPress={onDismiss} style={{ marginTop: 18, paddingVertical: 12, alignItems: 'center' }}>
-            <Txt weight="semibold" size={15} color="#fff">{t('common.done')}</Txt>
-          </Pressable>
-        </View>
+        <PrimaryButton
+          pal={C}
+          label={t('common.done')}
+          onPress={onDismiss}
+          style={{ marginTop: 22 }}
+        />
       </View>
-    </Modal>
+    </Sheet>
   );
 }

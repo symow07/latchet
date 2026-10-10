@@ -1,15 +1,28 @@
 import { useEffect, useState } from 'react';
-import { View, ScrollView, Pressable, TextInput, ActivityIndicator, Switch } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ActivityIndicator, Alert, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { ArrowLeft, HeartPulse, Lock, Trash2, ShieldCheck } from 'lucide-react-native';
+import { HeartPulse, Lock, ShieldCheck } from '@/components/icons';
 import * as Haptics from 'expo-haptics';
 import {
-  getHealthProfile, saveHealthProfile, deleteHealthProfile, revokeSensitiveConsent,
+  deleteHealthProfile,
+  getHealthProfile,
+  revokeSensitiveConsent,
+  saveHealthProfile,
   type HealthProfile,
 } from '@/lib/health-profile';
-import { R, useC } from '@/lib/design';
-import { Txt, GlassCard, BubbleButton, ScreenBackground } from '@/components/ui';
+import { S, useC } from '@/lib/design';
+import { PressableScale } from '@/components/motion';
+import {
+  Card,
+  Field,
+  IconTile,
+  PrimaryButton,
+  Screen,
+  SectionHeader,
+  SubHeader,
+  SwitchRow,
+  Type,
+} from '@/components/kit';
 import { t } from '@/lib/i18n/core';
 
 /**
@@ -24,55 +37,23 @@ import { t } from '@/lib/i18n/core';
  * The standard tier is presented first and described as sufficient, because it
  * is. Nobody should feel they have to disclose a medical condition to get a
  * decent budgeting experience.
- */
-/**
- * Defined at module scope, NOT inside the screen.
  *
- * A component declared inside another component's body is a new function
+ * The fields come from the kit now, which matters for a reason beyond looks:
+ * a component declared inside another component's body is a new function
  * identity on every render, so React unmounts and remounts it rather than
- * updating it — and a remounted TextInput loses focus. The symptom is that
- * typing "peanuts" into a field leaves "P" in it: the first keystroke sets
- * state, the re-render swaps the component type, and the keyboard is talking
- * to an input that no longer exists.
- *
- * Found by typing into the simulator, not by reading the diff.
+ * updating it — and a remounted TextInput loses focus after one keystroke.
+ * The kit's `Field` is module scope, which is the property that fixes it.
  */
-function Field({ C, label, value, onChange, placeholder, multiline }: {
-  C: ReturnType<typeof useC>;
-  label: string;
-  value: string | null;
-  onChange: (v: string) => void;
-  placeholder: string;
-  multiline?: boolean;
-}) {
-  return (
-    <View style={{ marginTop: 14 }}>
-      <Txt size={13} color={C.textDim}>{label}</Txt>
-      <TextInput
-        value={value ?? ''}
-        onChangeText={onChange}
-        placeholder={placeholder}
-        placeholderTextColor={C.textFaint}
-        multiline={multiline}
-        style={{
-          marginTop: 6, borderRadius: R.sm, paddingHorizontal: 14, paddingVertical: 11,
-          backgroundColor: C.glass, color: C.text, fontSize: 15,
-          minHeight: multiline ? 72 : undefined, textAlignVertical: multiline ? 'top' : 'center',
-        }}
-      />
-    </View>
-  );
-}
-
 export default function AdvisorProfileScreen() {
   const C = useC();
-  const insets = useSafeAreaInsets();
   const router = useRouter();
 
   const [profile, setProfile] = useState<HealthProfile | null>(null);
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => { getHealthProfile().then(setProfile); }, []);
+  useEffect(() => {
+    getHealthProfile().then(setProfile);
+  }, []);
 
   const patch = (p: Partial<HealthProfile>) =>
     setProfile((prev) => (prev ? { ...prev, ...p } : prev));
@@ -92,7 +73,6 @@ export default function AdvisorProfileScreen() {
   };
 
   const toggleSensitive = async (on: boolean) => {
-    Haptics.selectionAsync();
     if (on) {
       patch({ sensitiveConsentAt: new Date().toISOString() });
     } else {
@@ -103,137 +83,209 @@ export default function AdvisorProfileScreen() {
     }
   };
 
-  const wipe = async () => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-    await deleteHealthProfile();
-    setProfile(await getHealthProfile());
+  // Erasing the profile cannot be undone, which is the one case §16.2 keeps a
+  // dialog for. It used to happen on a single tap.
+  const confirmWipe = () => {
+    Alert.alert(t('advisorProfile.deleteAll'), t('advisorProfile.deleteNote'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      {
+        text: t('dialogs.delete'),
+        style: 'destructive',
+        onPress: async () => {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+          await deleteHealthProfile();
+          setProfile(await getHealthProfile());
+        },
+      },
+    ]);
   };
 
   if (!profile) {
     return (
-      <ScreenBackground>
+      <Screen pal={C}>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <ActivityIndicator color={C.p400} />
+          <ActivityIndicator color={C.accent} />
         </View>
-      </ScreenBackground>
+      </Screen>
     );
   }
 
+  const sensitiveOn = !!profile.sensitiveConsentAt;
+
   return (
-    <ScreenBackground>
+    <Screen pal={C}>
       <ScrollView
-        contentContainerStyle={{ padding: 20, paddingTop: insets.top + 8, paddingBottom: insets.bottom + 40 }}
+        contentContainerStyle={{ paddingTop: 8, paddingBottom: 60 }}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
-          <Pressable onPress={() => router.back()} hitSlop={12}>
-            <ArrowLeft size={24} color={C.text} />
-          </Pressable>
-          <Txt weight="bold" size={22} style={{ marginStart: 12 }}>
-            {t('advisorProfile.title')}
-          </Txt>
+        <SubHeader pal={C} title={t('advisorProfile.title')} onBack={() => router.back()} />
+
+        {/* Where this is stored, stated before anything is asked for. */}
+        <View style={{ paddingHorizontal: S.screen, marginTop: 24 }}>
+          <Card pal={C}>
+            <View style={{ flexDirection: 'row', gap: 12 }}>
+              <IconTile pal={C}>
+                <Lock size={19} color={C.accent} strokeWidth={S.stroke} />
+              </IconTile>
+              <View style={{ flex: 1 }}>
+                <Type role="cardTitle" color={C.ink}>
+                  {t('advisorProfile.storageTitle')}
+                </Type>
+                <Type role="body" color={C.inkDim} style={{ marginTop: 4 }}>
+                  {t('advisorProfile.storageBody')}
+                </Type>
+              </View>
+            </View>
+          </Card>
         </View>
 
-        {/* ── Where this is stored, stated up front ─────────────────────── */}
-        <GlassCard padding={16} radius={R.md}>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Lock size={16} color={C.green} />
-            <Txt weight="semibold" size={14} style={{ marginStart: 8 }}>
-              {t('advisorProfile.storageTitle')}
-            </Txt>
-          </View>
-          <Txt size={13} color={C.textDim} style={{ marginTop: 8, lineHeight: 19 }}>
-            {t('advisorProfile.storageBody')}
-          </Txt>
-        </GlassCard>
-
         {/* ── Standard tier ────────────────────────────────────────────── */}
-        <View style={{ marginTop: 20 }}>
-          <Txt weight="semibold" size={16}>{t('advisorProfile.standardTitle')}</Txt>
-          <Txt size={13} color={C.textDim} style={{ marginTop: 4, lineHeight: 19 }}>
-            {t('advisorProfile.standardBody')}
-          </Txt>
+        <View style={{ marginTop: S.section }}>
+          <SectionHeader pal={C} title={t('advisorProfile.standardTitle')} />
+          <View style={{ paddingHorizontal: S.screen }}>
+            <Type role="body" color={C.inkDim}>
+              {t('advisorProfile.standardBody')}
+            </Type>
 
-          <Field
-            C={C}
-            label={t('advisorProfile.householdSize')}
-            value={profile.householdSize == null ? null : String(profile.householdSize)}
-            onChange={(v) => patch({ householdSize: v.trim() === '' ? null : Number(v.replace(/\D/g, '')) || null })}
-            placeholder="2"
-          />
-          <Field C={C} label={t('advisorProfile.city')} value={profile.city}
-                 onChange={(v) => patch({ city: v })} placeholder={t('advisorProfile.cityPlaceholder')} />
-          <Field C={C} label={t('advisorProfile.cooking')} value={profile.cookingHabits}
-                 onChange={(v) => patch({ cookingHabits: v })} placeholder={t('advisorProfile.cookingPlaceholder')} />
-          <Field C={C} label={t('advisorProfile.goals')} value={profile.goals}
-                 onChange={(v) => patch({ goals: v })} placeholder={t('advisorProfile.goalsPlaceholder')} multiline />
-          <Field C={C} label={t('advisorProfile.interests')} value={profile.activityInterests}
-                 onChange={(v) => patch({ activityInterests: v })} placeholder={t('advisorProfile.interestsPlaceholder')} />
-          <Field C={C} label={t('advisorProfile.dietary')} value={profile.dietaryPreferences}
-                 onChange={(v) => patch({ dietaryPreferences: v })} placeholder={t('advisorProfile.dietaryPlaceholder')} />
+            <Field
+              pal={C}
+              label={t('advisorProfile.householdSize')}
+              value={profile.householdSize == null ? '' : String(profile.householdSize)}
+              onChangeText={(v) =>
+                patch({
+                  householdSize: v.trim() === '' ? null : Number(v.replace(/\D/g, '')) || null,
+                })
+              }
+              placeholder="2"
+              keyboardType="number-pad"
+              style={{ marginTop: 16 }}
+            />
+            <Field
+              pal={C}
+              label={t('advisorProfile.city')}
+              value={profile.city ?? ''}
+              onChangeText={(v) => patch({ city: v })}
+              placeholder={t('advisorProfile.cityPlaceholder')}
+              style={{ marginTop: 16 }}
+            />
+            <Field
+              pal={C}
+              label={t('advisorProfile.cooking')}
+              value={profile.cookingHabits ?? ''}
+              onChangeText={(v) => patch({ cookingHabits: v })}
+              placeholder={t('advisorProfile.cookingPlaceholder')}
+              style={{ marginTop: 16 }}
+            />
+            <Field
+              pal={C}
+              label={t('advisorProfile.goals')}
+              value={profile.goals ?? ''}
+              onChangeText={(v) => patch({ goals: v })}
+              placeholder={t('advisorProfile.goalsPlaceholder')}
+              multiline
+              style={{ marginTop: 16 }}
+            />
+            <Field
+              pal={C}
+              label={t('advisorProfile.interests')}
+              value={profile.activityInterests ?? ''}
+              onChangeText={(v) => patch({ activityInterests: v })}
+              placeholder={t('advisorProfile.interestsPlaceholder')}
+              style={{ marginTop: 16 }}
+            />
+            <Field
+              pal={C}
+              label={t('advisorProfile.dietary')}
+              value={profile.dietaryPreferences ?? ''}
+              onChangeText={(v) => patch({ dietaryPreferences: v })}
+              placeholder={t('advisorProfile.dietaryPlaceholder')}
+              style={{ marginTop: 16 }}
+            />
+          </View>
         </View>
 
         {/* ── Sensitive tier, behind its own consent ───────────────────── */}
-        <View style={{ marginTop: 26 }}>
-          <GlassCard padding={16} radius={R.md} border={profile.sensitiveConsentAt ? C.amber : undefined}>
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <HeartPulse size={17} color={C.amber} />
-              <Txt weight="semibold" size={15} style={{ marginStart: 8, flex: 1 }}>
-                {t('advisorProfile.sensitiveTitle')}
-              </Txt>
-              <Switch
-                value={!!profile.sensitiveConsentAt}
-                onValueChange={toggleSensitive}
-                trackColor={{ true: C.p600, false: C.glassBorder }}
-              />
-            </View>
-            <Txt size={13} color={C.textDim} style={{ marginTop: 10, lineHeight: 19 }}>
+        <View style={{ marginTop: S.section, paddingHorizontal: S.screen }}>
+          <Card pal={C}>
+            <SwitchRow
+              pal={C}
+              icon={
+                <IconTile pal={C}>
+                  <HeartPulse size={19} color={C.accent} strokeWidth={S.stroke} />
+                </IconTile>
+              }
+              title={t('advisorProfile.sensitiveTitle')}
+              value={sensitiveOn}
+              onValueChange={toggleSensitive}
+            />
+            <Type role="body" color={C.inkDim} style={{ marginTop: 12 }}>
               {t('advisorProfile.sensitiveBody')}
-            </Txt>
-            <Txt size={12} color={C.textDim} style={{ marginTop: 10, lineHeight: 18 }}>
+            </Type>
+            <Type role="meta" color={C.inkDim} style={{ marginTop: 12 }}>
               {t('advisorProfile.sensitiveOptional')}
-            </Txt>
+            </Type>
 
-            {profile.sensitiveConsentAt && (
+            {sensitiveOn ? (
               <>
-                <Field C={C} label={t('advisorProfile.allergies')} value={profile.allergies}
-                       onChange={(v) => patch({ allergies: v })}
-                       placeholder={t('advisorProfile.allergiesPlaceholder')} />
-                <Field C={C} label={t('advisorProfile.conditions')} value={profile.healthConsiderations}
-                       onChange={(v) => patch({ healthConsiderations: v })}
-                       placeholder={t('advisorProfile.conditionsPlaceholder')} multiline />
-                <View style={{ flexDirection: 'row', marginTop: 14, alignItems: 'flex-start' }}>
-                  <ShieldCheck size={15} color={C.green} style={{ marginTop: 2 }} />
-                  <Txt size={12} color={C.textDim} style={{ marginStart: 8, flex: 1, lineHeight: 18 }}>
+                <Field
+                  pal={C}
+                  label={t('advisorProfile.allergies')}
+                  value={profile.allergies ?? ''}
+                  onChangeText={(v) => patch({ allergies: v })}
+                  placeholder={t('advisorProfile.allergiesPlaceholder')}
+                  style={{ marginTop: 16 }}
+                />
+                <Field
+                  pal={C}
+                  label={t('advisorProfile.conditions')}
+                  value={profile.healthConsiderations ?? ''}
+                  onChangeText={(v) => patch({ healthConsiderations: v })}
+                  placeholder={t('advisorProfile.conditionsPlaceholder')}
+                  multiline
+                  style={{ marginTop: 16 }}
+                />
+                <View style={{ flexDirection: 'row', gap: 8, marginTop: 16 }}>
+                  <ShieldCheck
+                    size={16}
+                    color={C.positive}
+                    strokeWidth={S.stroke}
+                    style={{ marginTop: 1 }}
+                  />
+                  <Type role="meta" color={C.inkDim} style={{ flex: 1 }}>
                     {t('advisorProfile.neverAdvises')}
-                  </Txt>
+                  </Type>
                 </View>
               </>
-            )}
-          </GlassCard>
+            ) : null}
+          </Card>
         </View>
 
-        <BubbleButton
-          label={saving ? t('common.saving') : t('common.save')}
-          onPress={save}
-          disabled={saving}
-          style={{ marginTop: 22 }}
-        />
+        <View style={{ paddingHorizontal: S.screen, marginTop: S.section }}>
+          <PrimaryButton
+            pal={C}
+            label={saving ? t('common.saving') : t('common.save')}
+            onPress={save}
+            disabled={saving}
+          />
 
-        <Pressable
-          onPress={wipe}
-          style={{ marginTop: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}
-        >
-          <Trash2 size={15} color="#f87171" />
-          <Txt size={14} color="#f87171" weight="semibold" style={{ marginStart: 8 }}>
-            {t('advisorProfile.deleteAll')}
-          </Txt>
-        </Pressable>
-        <Txt size={11} color={C.textDim} style={{ marginTop: 8, textAlign: 'center', lineHeight: 16 }}>
-          {t('advisorProfile.deleteNote')}
-        </Txt>
+          <PressableScale
+            onPress={confirmWipe}
+            haptic="light"
+            accessibilityRole="button"
+            accessibilityLabel={t('advisorProfile.deleteAll')}
+            style={{ minHeight: 48, alignItems: 'center', justifyContent: 'center', marginTop: 12 }}
+          >
+            <Type role="cardTitle" color={C.negative}>
+              {t('advisorProfile.deleteAll')}
+            </Type>
+          </PressableScale>
+
+          <Type role="meta" color={C.inkDim} style={{ marginTop: 6, textAlign: 'center' }}>
+            {t('advisorProfile.deleteNote')}
+          </Type>
+        </View>
       </ScrollView>
-    </ScreenBackground>
+    </Screen>
   );
 }

@@ -1,13 +1,21 @@
 import { useState } from 'react';
-import { View, ScrollView, Pressable, TextInput, ActivityIndicator } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ActivityIndicator, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Check, X, ShieldCheck } from 'lucide-react-native';
-import * as Haptics from 'expo-haptics';
-import { previewInvite, joinHousehold, type JoinPreview } from '@/lib/householdApi';
-import { R, useC } from '@/lib/design';
-import { Txt, GlassCard, BubbleButton, ScreenBackground } from '@/components/ui';
+import { Check, ShieldCheck, X } from '@/components/icons';
+import { joinHousehold, previewInvite, type JoinPreview } from '@/lib/householdApi';
+import { S, useC, type Palette } from '@/lib/design';
+import { PressableScale } from '@/components/motion';
+import {
+  Card,
+  Field,
+  FormError,
+  IconTile,
+  PrimaryButton,
+  Screen,
+  SubHeader,
+  Type,
+} from '@/components/kit';
 import { t } from '@/lib/i18n/core';
 
 /**
@@ -21,39 +29,52 @@ import { t } from '@/lib/i18n/core';
  * from a local copy of them. If the server's idea of what joining reveals ever
  * changes, this screen changes with it — a hardcoded list would keep promising
  * the old terms.
+ *
+ * It is the same trust pattern as the bank consent sheet (§6.10): a headline,
+ * icon rows saying exactly what is and is not granted, one ink pill, legal
+ * text beneath.
  */
+
 /** Module scope, so it is not a fresh component type on every render. */
-function Line({ C, ok, label }: {
-  C: ReturnType<typeof useC>; ok: boolean; label: string;
-}) {
+function Line({ pal, ok, label }: { pal: Palette; ok: boolean; label: string }) {
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 7 }}>
-      {ok ? <Check size={15} color={C.green} /> : <X size={15} color={C.textFaint} />}
-      <Txt size={13} color={ok ? C.text : C.textDim} style={{ marginStart: 9, flex: 1 }}>
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 8 }}>
+      {ok ? (
+        <Check size={16} color={pal.positive} strokeWidth={2.2} />
+      ) : (
+        <X size={16} color={pal.inkFaint} strokeWidth={2.2} />
+      )}
+      <Type role="body" color={ok ? pal.ink : pal.inkDim} style={{ flex: 1 }}>
         {label}
-      </Txt>
+      </Type>
     </View>
   );
 }
 
 export default function HouseholdJoinScreen() {
   const C = useC();
-  const insets = useSafeAreaInsets();
   const router = useRouter();
   const qc = useQueryClient();
 
   const [code, setCode] = useState('');
   const [preview, setPreview] = useState<JoinPreview | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState('');
 
   const lookup = useMutation({
     mutationFn: () => previewInvite(code.trim().toUpperCase()),
-    onSuccess: (p) => { setPreview(p); setError(null); },
-    onError: (e: Error) => { setPreview(null); setError(e.message); },
+    onSuccess: (p) => {
+      setPreview(p);
+      setError('');
+    },
+    onError: (e: Error) => {
+      setPreview(null);
+      setError(e.message);
+    },
   });
 
   const join = useMutation({
-    mutationFn: () => joinHousehold(code.trim().toUpperCase(), preview!.joiningMeans.defaultShareLevel),
+    mutationFn: () =>
+      joinHousehold(code.trim().toUpperCase(), preview!.joiningMeans.defaultShareLevel),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['household'] });
       router.replace('/household');
@@ -62,114 +83,126 @@ export default function HouseholdJoinScreen() {
   });
 
   return (
-    <ScreenBackground>
+    <Screen pal={C}>
       <ScrollView
-        contentContainerStyle={{ padding: 20, paddingTop: insets.top + 8, paddingBottom: insets.bottom + 40 }}
+        contentContainerStyle={{ paddingTop: 8, paddingBottom: 60 }}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 18 }}>
-          <Pressable onPress={() => router.back()} hitSlop={12}>
-            <ArrowLeft size={24} color={C.text} />
-          </Pressable>
-          <Txt weight="bold" size={22} style={{ marginStart: 12 }}>
-            {t('household.joinTitle')}
-          </Txt>
+        <SubHeader pal={C} title={t('household.joinTitle')} onBack={() => router.back()} />
+
+        <View style={{ paddingHorizontal: S.screen, marginTop: 24 }}>
+          <Card pal={C}>
+            <Type role="body" color={C.inkDim}>
+              {t('household.joinBlurb')}
+            </Type>
+            <Field
+              pal={C}
+              value={code}
+              onChangeText={(v) => {
+                setCode(v);
+                setPreview(null);
+                setError('');
+              }}
+              placeholder={t('household.codePlaceholder')}
+              autoCapitalize="characters"
+              autoCorrect={false}
+              maxLength={12}
+              style={{ marginTop: 16 }}
+            />
+            {!preview ? (
+              <PrimaryButton
+                pal={C}
+                label={t('household.lookUp')}
+                onPress={() => lookup.mutate()}
+                disabled={code.trim().length < 4 || lookup.isPending}
+                style={{ marginTop: 16 }}
+              />
+            ) : null}
+          </Card>
+
+          {lookup.isPending ? (
+            <ActivityIndicator color={C.accent} style={{ marginTop: 16 }} />
+          ) : null}
+
+          <FormError pal={C} message={error} />
         </View>
 
-        <GlassCard padding={16} radius={R.md}>
-          <Txt size={13} color={C.textDim} style={{ lineHeight: 19 }}>
-            {t('household.joinBlurb')}
-          </Txt>
-          <TextInput
-            value={code}
-            onChangeText={(v) => { setCode(v); setPreview(null); setError(null); }}
-            placeholder={t('household.codePlaceholder')}
-            placeholderTextColor={C.textDim}
-            autoCapitalize="characters"
-            autoCorrect={false}
-            maxLength={12}
-            style={{
-              marginTop: 12, borderRadius: R.sm, paddingHorizontal: 14, paddingVertical: 12,
-              backgroundColor: C.glass, color: C.text, fontSize: 18, letterSpacing: 3,
-            }}
-          />
-          {!preview && (
-            <BubbleButton
-              label={t('household.lookUp')}
-              onPress={() => { Haptics.selectionAsync(); lookup.mutate(); }}
-              disabled={code.trim().length < 4 || lookup.isPending}
-              style={{ marginTop: 12 }}
-            />
-          )}
-        </GlassCard>
-
-        {lookup.isPending && (
-          <ActivityIndicator color={C.p400} style={{ marginTop: 20 }} />
-        )}
-
-        {error && (
-          <GlassCard padding={14} radius={R.sm} style={{ marginTop: 14 }} border="rgba(239,68,68,0.28)">
-            <Txt size={13} color="#f87171">{error}</Txt>
-          </GlassCard>
-        )}
-
         {/* ── The consent screen proper ──────────────────────────────────── */}
-        {preview && (
-          <>
-            <GlassCard padding={18} radius={R.md} style={{ marginTop: 18 }}>
-              <Txt weight="bold" size={18}>{preview.name}</Txt>
-              <Txt size={13} color={C.textDim} style={{ marginTop: 4 }}>
+        {preview ? (
+          <View style={{ paddingHorizontal: S.screen, marginTop: 16 }}>
+            <Card pal={C}>
+              <Type role="section" color={C.ink}>
+                {preview.name}
+              </Type>
+              <Type role="meta" color={C.inkDim} style={{ marginTop: 4 }}>
                 {t('household.memberCount', { count: preview.memberCount })}
-              </Txt>
-              {preview.memberNames.length > 0 && (
-                <Txt size={13} color={C.textDim} style={{ marginTop: 2 }}>
+              </Type>
+              {preview.memberNames.length > 0 ? (
+                <Type role="meta" color={C.inkDim} style={{ marginTop: 2 }}>
                   {preview.memberNames.join(', ')}
-                </Txt>
-              )}
-            </GlassCard>
+                </Type>
+              ) : null}
+            </Card>
 
-            <GlassCard padding={18} radius={R.md} style={{ marginTop: 12 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <ShieldCheck size={17} color={C.green} />
-                <Txt weight="semibold" size={15} style={{ marginStart: 8 }}>
+            <Card pal={C} style={{ marginTop: 12 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                <IconTile pal={C}>
+                  <ShieldCheck size={19} color={C.accent} strokeWidth={S.stroke} />
+                </IconTile>
+                <Type role="cardTitle" color={C.ink} style={{ flex: 1 }}>
                   {t('household.whatTheySee')}
-                </Txt>
+                </Type>
               </View>
 
-              <Txt size={12} color={C.textDim} style={{ marginTop: 10 }}>
+              <Type role="meta" color={C.inkDim} style={{ marginTop: 16 }}>
                 {t('household.willBeShared')}
-              </Txt>
+              </Type>
               {preview.joiningMeans.sharedOnJoin.map((key) => (
-                <Line key={key} C={C} ok label={t(`household.field_${key}`)} />
+                <Line key={key} pal={C} ok label={t(`household.field_${key}`)} />
               ))}
 
-              <Txt size={12} color={C.textDim} style={{ marginTop: 14 }}>
+              <Type role="meta" color={C.inkDim} style={{ marginTop: 16 }}>
                 {t('household.willNotBeShared')}
-              </Txt>
+              </Type>
               {preview.joiningMeans.notSharedOnJoin.map((key) => (
-                <Line key={key} C={C} ok={false} label={t(`household.field_${key}`)} />
+                <Line key={key} pal={C} ok={false} label={t(`household.field_${key}`)} />
               ))}
 
-              <View style={{ marginTop: 16, paddingTop: 14, borderTopWidth: 1, borderTopColor: C.glassBorder }}>
-                <Txt size={12} color={C.textDim} style={{ lineHeight: 18 }}>
+              <View
+                style={{
+                  marginTop: 16,
+                  paddingTop: 16,
+                  borderTopWidth: 1,
+                  borderTopColor: C.hairline,
+                }}
+              >
+                <Type role="meta" color={C.inkDim}>
                   {t('household.consentFooter')}
-                </Txt>
+                </Type>
               </View>
-            </GlassCard>
+            </Card>
 
-            <BubbleButton
+            <PrimaryButton
+              pal={C}
               label={t('household.joinCta', { name: preview.name })}
-              onPress={() => { Haptics.selectionAsync(); join.mutate(); }}
+              onPress={() => join.mutate()}
               disabled={join.isPending}
-              style={{ marginTop: 18 }}
+              style={{ marginTop: 16 }}
             />
-            <Pressable onPress={() => router.back()} style={{ marginTop: 14, alignItems: 'center' }}>
-              <Txt size={14} color={C.textDim}>{t('common.cancel')}</Txt>
-            </Pressable>
-          </>
-        )}
+            <PressableScale
+              onPress={() => router.back()}
+              accessibilityRole="button"
+              accessibilityLabel={t('common.cancel')}
+              style={{ minHeight: 48, alignItems: 'center', justifyContent: 'center', marginTop: 6 }}
+            >
+              <Type role="cardTitle" color={C.inkDim}>
+                {t('common.cancel')}
+              </Type>
+            </PressableScale>
+          </View>
+        ) : null}
       </ScrollView>
-    </ScreenBackground>
+    </Screen>
   );
 }

@@ -32,10 +32,14 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/splash-icon.png",
+          "image": "./assets/splash-icon-light.png",
           "imageWidth": 180,
           "resizeMode": "contain",
-          "backgroundColor": "#0c0716"
+          "backgroundColor": "#F7F5F1",
+          "dark": {
+            "image": "./assets/splash-icon.png",
+            "backgroundColor": "#0E1119"
+          }
         }
       ],
       "expo-router",

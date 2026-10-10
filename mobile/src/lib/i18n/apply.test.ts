@@ -17,7 +17,7 @@ test('a chosen language survives a persist step that re-applies the old one', as
 test('what t() returns is the chosen language, not just what was stored', async () => {
   setLocale('en');
   await applyChosenLocale('fr', async () => { setLocale('en'); });
-  expect(t('business.label')).toBe('ENTREPRISE');
+  expect(t('business.label')).toBe('Entreprise');
 });
 
 test('a failing persist still applies the language', async () => {

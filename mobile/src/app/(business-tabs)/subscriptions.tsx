@@ -1,17 +1,8 @@
-import type { StyleProp, ViewStyle } from 'react-native';
 import {
-  View, ScrollView, Pressable, Modal, TextInput,
-  ActivityIndicator, Alert, KeyboardAvoidingView, Platform,
-  RefreshControl,
+  View, ScrollView, Switch, Alert, RefreshControl, ActivityIndicator,
 } from 'react-native';
 import { useState, useCallback } from 'react';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
-import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
-import {
-  DollarSign, Plus, X, Check, ChevronLeft, ChevronRight,
-  Briefcase, UserCheck, Clock, Trash2, ChevronDown,
-} from 'lucide-react-native';
+import { Briefcase, Plus, Trash2 } from '@/components/icons';
 import * as Haptics from 'expo-haptics';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useFocusEffect } from 'expo-router';
@@ -22,198 +13,262 @@ import {
 } from '@/lib/salaryApi';
 import { type GroupMember } from '@/lib/businessApi';
 import { roleOf } from '@/lib/group-members';
-import { R, glow, useB } from '@/lib/design';
-import { Txt, GlassCard, IconBubble, Pill, BizBackground, BubbleButton } from '@/components/ui';
-import { t } from '@/lib/i18n/core';
+import { formatCurrency } from '@/lib/calculations';
+import { BAR, S, useB, type BizPalette } from '@/lib/design';
+import {
+  Amount, Card, ChoiceRow, CircleAction, Empty, Field, FormError, PrimaryButton,
+  Screen, SectionHeader, Sheet, Stat, Stepper, Touchable, Type,
+} from '@/components/kit';
+import { t, getDateFnsLocale } from '@/lib/i18n/core';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-
-function FieldLabel({ children }: { children: string }) {
-  const B = useB();
-  return <Txt weight="bold" size={11} color={B.textFaint} style={{ letterSpacing: 1.2, marginBottom: 8 }}>{children}</Txt>;
+/** The month name in the user's own language, not a baked-in English table. */
+function monthName(month: number, year: number): string {
+  return new Date(year, month - 1, 1).toLocaleDateString(getDateFnsLocale()?.code ?? undefined, {
+    month: 'long',
+  });
 }
 
-// ─── Add Salary Modal ──────────────────────────────────────────────────────────────
-function AddSalaryModal({ visible, onClose, members, existingUserIds }: { visible: boolean; onClose: () => void; members: GroupMember[]; existingUserIds: Set<string> }) {
+function initialsOf(name: string | null | undefined): string {
+  return (name ?? '?')
+    .split(' ')
+    .map((w) => w[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+}
+
+// ── Add salary ───────────────────────────────────────────────────────────────
+
+/**
+ * The add form, as a sheet rather than a full-screen modal with its own
+ * dropdown inside it.
+ *
+ * The old version nested a custom select inside a modal inside a keyboard
+ * avoider — three layers of chrome around three fields. The eligible members
+ * are a short list, so they are simply *shown*: picking one is one tap instead
+ * of two, and there is no closed state to misread.
+ */
+function AddSalarySheet({
+  visible, onClose, members, existingUserIds,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  members: GroupMember[];
+  existingUserIds: Set<string>;
+}) {
   const B = useB();
   const qc = useQueryClient();
-  const [selectedUserId, setSelectedUserId] = useState('');
+  const [userId, setUserId] = useState('');
   const [amount, setAmount] = useState('');
   const [title, setTitle] = useState('');
-  const [dropOpen, setDropOpen] = useState(false);
-  const [err, setErr] = useState('');
+  const [error, setError] = useState('');
 
-  const eligible = members.filter(m => m.role !== 'owner' && !existingUserIds.has(m.userId));
-  const selected = members.find(m => m.userId === selectedUserId);
+  const eligible = members.filter((m) => m.role !== 'owner' && !existingUserIds.has(m.userId));
 
-  const saveMut = useMutation({
+  function reset() {
+    setUserId('');
+    setAmount('');
+    setTitle('');
+    setError('');
+  }
+
+  const save = useMutation({
     mutationFn: () => {
-      if (!selectedUserId) throw new Error('Select a team member');
-      const num = parseFloat(amount);
-      if (isNaN(num) || num <= 0) throw new Error('Enter a valid monthly salary');
-      return setSalary({ userId: selectedUserId, amount: num, title: title.trim() || null });
+      if (!userId) throw new Error(t('businessPayroll.selectMember'));
+      const value = parseFloat(amount);
+      if (isNaN(value) || value <= 0) throw new Error(t('businessPayroll.monthlySalary'));
+      return setSalary({ userId, amount: value, title: title.trim() || null });
     },
-    onSuccess: () => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); qc.invalidateQueries({ queryKey: ['payroll'] }); setSelectedUserId(''); setAmount(''); setTitle(''); setErr(''); onClose(); },
-    onError: (e: Error) => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error); setErr(e.message); },
+    onSuccess: () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      qc.invalidateQueries({ queryKey: ['payroll'] });
+      reset();
+      onClose();
+    },
+    onError: (e: Error) => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      setError(e.message);
+    },
   });
 
-  function handleClose() { setSelectedUserId(''); setAmount(''); setTitle(''); setErr(''); setDropOpen(false); onClose(); }
-
   return (
-    <Modal visible={visible} animationType="slide" transparent presentationStyle="overFullScreen">
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1, justifyContent: 'flex-end' }}>
-        <Pressable style={{ flex: 1 }} onPress={handleClose} />
-        <View style={{ backgroundColor: B.slate900, borderTopLeftRadius: 30, borderTopRightRadius: 30, borderWidth: 1, borderColor: `${B.accent}26`, paddingBottom: 44, maxHeight: '88%' }}>
-          <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 22 }}>
-            <View style={{ width: 40, height: 4, backgroundColor: B.slate700, borderRadius: 2, alignSelf: 'center', marginBottom: 20 }} />
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 22 }}>
-              <Txt weight="bold" size={20} color={B.text}>{t('businessPayroll.addSalary')}</Txt>
-              <Pressable onPress={handleClose} hitSlop={10}><X size={22} color={B.textFaint} /></Pressable>
-            </View>
+    <Sheet
+      pal={B}
+      visible={visible}
+      title={t('businessPayroll.addSalary')}
+      onClose={() => {
+        reset();
+        onClose();
+      }}
+    >
+      <ScrollView
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingHorizontal: S.card, paddingBottom: 8 }}
+      >
+        {eligible.length === 0 ? (
+          <Type role="body" color={B.inkDim} style={{ paddingVertical: 12 }}>
+            {t('businessPayroll.allHaveSalaries')}
+          </Type>
+        ) : (
+          <View style={{ gap: 8, marginBottom: 16 }}>
+            {eligible.map((m) => (
+              <ChoiceRow
+                key={m.userId}
+                pal={B}
+                title={m.user?.name ?? m.userId}
+                body={m.user?.email}
+                selected={userId === m.userId}
+                onPress={() => {
+                  setUserId(m.userId);
+                  setError('');
+                }}
+                icon={
+                  <View
+                    style={{
+                      width: 40, height: 40, borderRadius: 20,
+                      backgroundColor: B.accentSoft,
+                      alignItems: 'center', justifyContent: 'center',
+                    }}
+                  >
+                    <Type role="meta" color={B.accent}>{initialsOf(m.user?.name)}</Type>
+                  </View>
+                }
+              />
+            ))}
+          </View>
+        )}
 
-            {!!err && (
-              <GlassCard padding={12} radius={R.sm} tint={`${B.red}16`} border={`${B.red}33`} style={{ marginBottom: 14 }}>
-                <Txt size={13} color={B.red} style={{ textAlign: 'center' }}>{err}</Txt>
-              </GlassCard>
-            )}
+        <Field
+          pal={B}
+          label={t('businessPayroll.jobTitle')}
+          value={title}
+          onChangeText={setTitle}
+          placeholder={t('fields.rolePlaceholder')}
+          style={{ marginBottom: 16 }}
+        />
+        <Field
+          pal={B}
+          label={t('businessPayroll.monthlySalary')}
+          value={amount}
+          onChangeText={(v) => {
+            setAmount(v);
+            setError('');
+          }}
+          placeholder="0"
+          keyboardType="decimal-pad"
+        />
+        <FormError pal={B} message={error} />
 
-            <FieldLabel>{t('businessPayroll.employee')}</FieldLabel>
-            {eligible.length === 0 ? (
-              <GlassCard padding={14} radius={R.sm} style={{ marginBottom: 14 }}>
-                <Txt size={13} color={B.textFaint} style={{ textAlign: 'center' }}>{t('businessPayroll.allHaveSalaries')}</Txt>
-              </GlassCard>
-            ) : (
-              <>
-                <Pressable onPress={() => setDropOpen(v => !v)}>
-                  <GlassCard padding={0} radius={R.md} border={dropOpen ? `${B.accent}55` : B.glassBorder} style={{ marginBottom: dropOpen ? 0 : 14 }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 13 }}>
-                      <View style={{ flex: 1 }}>
-                        {selected ? (
-                          <>
-                            <Txt weight="semibold" size={15} color={B.text}>{selected.user?.name}</Txt>
-                            <Txt size={11} color={B.textFaint} style={{ marginTop: 2 }}>{selected.user?.email}</Txt>
-                          </>
-                        ) : <Txt size={15} color={B.textFaint}>{t('businessPayroll.selectMember')}</Txt>}
-                      </View>
-                      <ChevronDown size={16} color={B.textFaint} />
-                    </View>
-                  </GlassCard>
-                </Pressable>
-                {dropOpen && (
-                  <GlassCard padding={0} radius={R.md} tint={B.bgDeep} style={{ marginBottom: 14, overflow: 'hidden' }}>
-                    {eligible.map(m => {
-                      const initials = (m.user?.name ?? '?').split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase();
-                      return (
-                        <Pressable key={m.userId} onPress={() => { setSelectedUserId(m.userId); setDropOpen(false); setErr(''); }} style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 11, backgroundColor: selectedUserId === m.userId ? `${B.accent}12` : 'transparent' })}>
-                          <View style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: `${B.accent}1f`, alignItems: 'center', justifyContent: 'center', marginEnd: 12 }}>
-                            <Txt weight="bold" size={13} color={B.accent}>{initials}</Txt>
-                          </View>
-                          <View style={{ flex: 1 }}>
-                            <Txt weight="semibold" size={14} color={B.text}>{m.user?.name}</Txt>
-                            <Txt size={11} color={B.textFaint}>{m.role} · {m.user?.email}</Txt>
-                          </View>
-                          {selectedUserId === m.userId && <Check size={14} color={B.accent} />}
-                        </Pressable>
-                      );
-                    })}
-                  </GlassCard>
-                )}
-              </>
-            )}
-
-            <FieldLabel>{t('businessPayroll.jobTitle')}</FieldLabel>
-            <TextInput value={title} onChangeText={setTitle} placeholder={t('fields.rolePlaceholder')} placeholderTextColor={B.textFaint} style={{ color: B.text, fontSize: 15, fontFamily: 'PlusJakartaSans_500Medium', backgroundColor: B.glass, borderRadius: R.md, paddingHorizontal: 16, paddingVertical: 14, borderWidth: 1, borderColor: B.glassBorder, marginBottom: 14 }} selectionColor={B.accent} />
-
-            <FieldLabel>{t('businessPayroll.monthlySalary')}</FieldLabel>
-            <GlassCard padding={0} radius={R.md} border={`${B.accent}33`} style={{ marginBottom: 22 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14 }}>
-                <Txt weight="bold" size={20} color={B.accent} style={{ marginEnd: 8 }}>$</Txt>
-                <TextInput value={amount} onChangeText={v => { setAmount(v); setErr(''); }} placeholder="0.00" placeholderTextColor={B.textFaint} keyboardType="decimal-pad" style={{ flex: 1, color: B.text, fontSize: 24, fontFamily: 'PlusJakartaSans_700Bold', padding: 0 }} selectionColor={B.accent} />
-              </View>
-            </GlassCard>
-
-            <BubbleButton label={saveMut.isPending ? t('businessPayroll.adding') : t('businessPayroll.addToPayroll')} onPress={() => { if (eligible.length > 0) saveMut.mutate(); }} disabled={saveMut.isPending || eligible.length === 0} radius={R.md} colors={[B.accentDeep, B.accent]} glowColor={B.accent} />
-          </ScrollView>
-        </View>
-      </KeyboardAvoidingView>
-    </Modal>
+        <PrimaryButton
+          pal={B}
+          label={save.isPending ? t('businessPayroll.adding') : t('businessPayroll.addToPayroll')}
+          onPress={() => save.mutate()}
+          disabled={save.isPending || eligible.length === 0}
+          style={{ marginTop: 16 }}
+        />
+      </ScrollView>
+    </Sheet>
   );
 }
 
-// ─── Pay Toggle ──────────────────────────────────────────────────────────────────
-function PayToggle({ paid, onToggle, disabled }: { paid: boolean; onToggle: () => void; disabled: boolean }) {
-  const B = useB();
-  const tx = useSharedValue(paid ? 22 : 2);
-  const handleToggle = () => { if (disabled) return; const next = !paid; tx.value = withSpring(next ? 22 : 2, { damping: 18, stiffness: 200 }); onToggle(); };
-  const thumbStyle = useAnimatedStyle(() => ({ transform: [{ translateX: tx.value }] }));
-  return (
-    <Pressable onPress={handleToggle} disabled={disabled} style={{ width: 50, height: 28, borderRadius: 14, backgroundColor: paid ? `${B.teal}2a` : 'rgba(255,255,255,0.08)', borderWidth: 1.5, borderColor: paid ? `${B.teal}55` : 'rgba(255,255,255,0.12)', justifyContent: 'center' }}>
-      <Animated.View style={[{ width: 22, height: 22, borderRadius: 11, backgroundColor: paid ? B.teal : '#3a4660' }, thumbStyle]} />
-    </Pressable>
-  );
-}
+// ── Employee ─────────────────────────────────────────────────────────────────
 
-// ─── Employee Row ────────────────────────────────────────────────────────────────
-function EmployeeRow({ record, month, canEdit, onToggle, onDelete }: { record: SalaryRecord; month: number; year: number; canEdit: boolean; onToggle: (id: string, paid: boolean) => void; onDelete: (id: string, name: string) => void }) {
-  const B = useB();
+/**
+ * One employee. Avatar, name, salary, and a switch that means "paid".
+ *
+ * The paid state used to be carried by a tinted card, a tinted avatar, a
+ * tinted border and a custom toggle — four ways of saying one boolean. It is
+ * now the switch, plus a line of prose under the name saying when they were
+ * paid. A switch is a familiar control that already means exactly this, so it
+ * needs no colour vocabulary of its own.
+ */
+function EmployeeRow({
+  pal, record, month, year, canEdit, onToggle, onDelete,
+}: {
+  pal: BizPalette;
+  record: SalaryRecord;
+  month: number;
+  year: number;
+  canEdit: boolean;
+  onToggle: (id: string, paid: boolean) => void;
+  onDelete: (id: string, name: string) => void;
+}) {
   const paid = record.payment.status === 'paid';
-  const initials = (record.user.name ?? '?').split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase();
+  const when = paid && record.payment.paidAt
+    ? t('businessPayroll.paidPill')
+    : t('businessPayroll.pendingFor', { month: monthName(month, year) });
 
   return (
-    <GlassCard padding={16} radius={R.lg} tint={paid ? `${B.teal}0a` : B.glass} border={paid ? `${B.teal}26` : B.glassBorder}>
-      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-        <View style={{ width: 46, height: 46, borderRadius: 15, backgroundColor: paid ? `${B.teal}1f` : `${B.accent}1f`, borderWidth: 1.5, borderColor: paid ? `${B.teal}40` : `${B.accent}33`, alignItems: 'center', justifyContent: 'center', marginEnd: 12 }}>
-          <Txt weight="bold" size={15} color={paid ? B.teal : B.accent}>{initials}</Txt>
-        </View>
-        <View style={{ flex: 1 }}>
-          <Txt weight="bold" size={15} color={B.text}>{record.user.name}</Txt>
-          <Txt size={12} color={B.textFaint} style={{ marginTop: 2 }}>{record.title || record.user.email}</Txt>
-        </View>
-        <View style={{ alignItems: 'flex-end', gap: 8 }}>
-          <Txt weight="bold" size={16} color={B.text}>${record.amount.toLocaleString()}</Txt>
-          {canEdit ? (
-            <PayToggle paid={paid} onToggle={() => onToggle(record.id, paid)} disabled={false} />
-          ) : (
-            <Pill label={paid ? t('businessPayroll.paidPill') : t('businessPayroll.duePill')} color={paid ? B.teal : B.amber} />
-          )}
-        </View>
+    <View style={{ flexDirection: 'row', alignItems: 'center', minHeight: 64, gap: 12 }}>
+      <View
+        style={{
+          width: 40, height: 40, borderRadius: 20,
+          backgroundColor: pal.accentSoft,
+          alignItems: 'center', justifyContent: 'center',
+        }}
+      >
+        <Type role="meta" color={pal.accent}>{initialsOf(record.user.name)}</Type>
       </View>
 
-      {(paid || canEdit) && (
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: B.glassBorder }}>
-          <View style={{ flex: 1 }}>
-            {paid && record.payment.paidAt && <Txt size={11} color={B.textFaint}>Paid {new Date(record.payment.paidAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</Txt>}
-            {!paid && <Txt size={11} color={B.textFaint}>{t('businessPayroll.pendingFor', { month: MONTH_NAMES[month - 1] })}</Txt>}
-          </View>
-          {canEdit && (
-            <Pressable onPress={() => onDelete(record.id, record.user.name)} hitSlop={8} style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}>
-              <Trash2 size={14} color={B.textFaint} />
-            </Pressable>
-          )}
-        </View>
-      )}
-    </GlassCard>
+      <View style={{ flex: 1 }}>
+        <Type role="cardTitle" color={pal.ink} numberOfLines={1}>{record.user.name}</Type>
+        <Type role="meta" color={pal.inkDim} numberOfLines={1}>
+          {record.title || when}
+        </Type>
+      </View>
+
+      <View style={{ alignItems: 'flex-end', gap: 6 }}>
+        <Amount
+          value={record.amount}
+          format={formatCurrency}
+          size={17}
+          weight="semibold"
+          color={pal.ink}
+        />
+        {canEdit ? (
+          <Switch
+            value={paid}
+            onValueChange={() => onToggle(record.id, paid)}
+            accessibilityLabel={t('businessPayroll.paidPill')}
+            trackColor={{ false: pal.groundSunk, true: pal.accent }}
+            thumbColor={pal.groundAlt}
+            ios_backgroundColor={pal.groundSunk}
+            style={{ transform: [{ scale: 0.85 }] }}
+          />
+        ) : (
+          <Type role="meta" color={paid ? pal.positive : pal.inkDim}>
+            {paid ? t('businessPayroll.paidPill') : t('businessPayroll.duePill')}
+          </Type>
+        )}
+      </View>
+
+      {canEdit ? (
+        <Touchable
+          pal={pal}
+          bleed={6}
+          onPress={() => onDelete(record.id, record.user.name)}
+          accessibilityLabel={t('dialogs.remove')}
+          style={{ padding: 8 }}
+        >
+          <Trash2 size={16} color={pal.inkFaint} strokeWidth={S.stroke} />
+        </Touchable>
+      ) : null}
+    </View>
   );
 }
 
-// ─── Main Screen ─────────────────────────────────────────────────────────────────
-/**
- * Also rendered inside the Money tab, which supplies the background, the
- * heading and the segmented control. `embedded` drops this screen's own
- * chrome so the two do not stack — the action button stays, because it acts
- * on this view specifically.
- */
-/** BizBackground normally; a bare View when the Money tab already drew one. */
-function Wrapper({ style, children }: { style?: StyleProp<ViewStyle>; children: React.ReactNode }) {
-  const embedded = !!(style && typeof style === 'object' && 'flex' in (style as object));
-  return embedded
-    ? <View style={style}>{children}</View>
-    : <BizBackground style={style}>{children}</BizBackground>;
-}
+// ── Screen ───────────────────────────────────────────────────────────────────
 
+/**
+ * Payroll. Also rendered inside the Money tab, which supplies the ground, the
+ * heading and the segmented control; `embedded` drops this screen's own
+ * chrome so the two do not stack.
+ */
 export default function PayrollScreen({ embedded }: { embedded?: boolean } = {}) {
-  const B = useB();
   const insets = useSafeAreaInsets();
+  const B = useB();
   const qc = useQueryClient();
   const { data: session } = useSession();
 
@@ -222,9 +277,18 @@ export default function PayrollScreen({ embedded }: { embedded?: boolean } = {})
   const [year, setYear] = useState(now.getFullYear());
   const [showAdd, setShowAdd] = useState(false);
 
-  const { data, isLoading, refetch, isRefetching } = useQuery({ queryKey: ['payroll', month, year], queryFn: () => getPayroll(month, year) });
-  const { data: business } = useQuery({ queryKey: ['my-business'], queryFn: () => import('@/lib/businessApi').then(m => m.getBusiness()) });
-  const { data: members = [] } = useQuery({ queryKey: ['biz-members'], queryFn: () => import('@/lib/businessApi').then(m => m.getMembers()) });
+  const { data, isLoading, refetch, isRefetching } = useQuery({
+    queryKey: ['payroll', month, year],
+    queryFn: () => getPayroll(month, year),
+  });
+  const { data: business } = useQuery({
+    queryKey: ['my-business'],
+    queryFn: () => import('@/lib/businessApi').then((m) => m.getBusiness()),
+  });
+  const { data: members = [] } = useQuery({
+    queryKey: ['biz-members'],
+    queryFn: () => import('@/lib/businessApi').then((m) => m.getMembers()),
+  });
 
   useFocusEffect(useCallback(() => { qc.invalidateQueries({ queryKey: ['payroll'] }); }, [qc]));
 
@@ -233,12 +297,17 @@ export default function PayrollScreen({ embedded }: { embedded?: boolean } = {})
   const invalidate = () => qc.invalidateQueries({ queryKey: ['payroll'] });
 
   const toggleMut = useMutation({
-    mutationFn: ({ id, paid }: { id: string; paid: boolean }) => paid ? markUnpaid(id, month, year) : markPaid(id, month, year),
-    onMutate: () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium),
+    mutationFn: ({ id, paid }: { id: string; paid: boolean }) =>
+      paid ? markUnpaid(id, month, year) : markPaid(id, month, year),
+    onMutate: () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light),
     onSuccess: () => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); invalidate(); },
     onError: (e: Error) => Alert.alert(t('common.error'), e.message),
   });
-  const deleteMut = useMutation({ mutationFn: deleteSalary, onSuccess: () => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning); invalidate(); }, onError: (e: Error) => Alert.alert(t('common.error'), e.message) });
+  const deleteMut = useMutation({
+    mutationFn: deleteSalary,
+    onSuccess: () => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning); invalidate(); },
+    onError: (e: Error) => Alert.alert(t('common.error'), e.message),
+  });
 
   function handleDelete(id: string, name: string) {
     Alert.alert(t('dialogs.removePayroll'), t('dialogs.removePayrollBody', { name }), [
@@ -247,129 +316,176 @@ export default function PayrollScreen({ embedded }: { embedded?: boolean } = {})
     ]);
   }
 
-  function prevMonth() { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); if (month === 1) { setMonth(12); setYear(y => y - 1); } else setMonth(m => m - 1); }
-  function nextMonth() { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); if (month === 12) { setMonth(1); setYear(y => y + 1); } else setMonth(m => m + 1); }
-  const isCurrentMonth = month === now.getMonth() + 1 && year === now.getFullYear();
+  function step(delta: number) {
+    Haptics.selectionAsync();
+    const next = month + delta;
+    if (next < 1) { setMonth(12); setYear((y) => y - 1); }
+    else if (next > 12) { setMonth(1); setYear((y) => y + 1); }
+    else setMonth(next);
+  }
 
   const salaries = data?.salaries ?? [];
   const summary = data?.summary;
-  const paidCount = salaries.filter(s => s.payment.status === 'paid').length;
-  const unpaidCount = salaries.length - paidCount;
-  const paidPct = salaries.length > 0 ? Math.round((paidCount / salaries.length) * 100) : 0;
-  const existingIds = new Set(salaries.map(s => s.userId));
+  const paid = salaries.filter((s) => s.payment.status === 'paid');
+  const unpaid = salaries.filter((s) => s.payment.status === 'unpaid');
+  const paidRatio = salaries.length > 0 ? paid.length / salaries.length : 0;
+  const existingIds = new Set(salaries.map((s) => s.userId));
+  const isCurrentMonth = month === now.getMonth() + 1 && year === now.getFullYear();
 
-  return (
-    <Wrapper style={embedded ? { flex: 1 } : { paddingTop: insets.top }}>
-      <AddSalaryModal visible={showAdd} onClose={() => setShowAdd(false)} members={members} existingUserIds={existingIds} />
+  const body = (
+    <>
+      <AddSalarySheet
+        visible={showAdd}
+        onClose={() => setShowAdd(false)}
+        members={members}
+        existingUserIds={existingIds}
+      />
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 110 }} refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={B.accent} />}>
-        {/* Header */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: embedded ? 0 : 16, paddingBottom: embedded ? 4 : 14 }}>
-          {embedded ? <View /> : (
-            <View>
-              <Txt weight="bold" size={25} color={B.text}>{t('businessPayroll.title')}</Txt>
-            </View>
-          )}
-          {canEdit && (
-            <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setShowAdd(true); }} style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 9, borderRadius: 13, backgroundColor: `${B.accent}22`, borderWidth: 1.5, borderColor: `${B.accent}44` })}>
-              <Plus size={16} color={B.accent} />
-              <Txt weight="bold" size={13} color={B.accent}>{t('businessPayroll.addButton')}</Txt>
-            </Pressable>
-          )}
-        </View>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: BAR.clearance(insets.bottom) }}
+        refreshControl={
+          <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={B.accent} />
+        }
+      >
+        {embedded ? null : (
+          <SectionHeader pal={B} title={t('businessPayroll.title')} style={{ marginTop: 8 }} />
+        )}
 
-        {/* Month nav */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginHorizontal: 20, marginBottom: 18 }}>
-          <Pressable onPress={prevMonth} style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1, width: 36, height: 36, borderRadius: 11, backgroundColor: B.glass, borderWidth: 1, borderColor: B.glassBorder, alignItems: 'center', justifyContent: 'center' })}>
-            <ChevronLeft size={18} color={B.textDim} />
-          </Pressable>
-          <View style={{ alignItems: 'center' }}>
-            <Txt weight="bold" size={17} color={B.text}>{MONTH_NAMES[month - 1]} {year}</Txt>
-            {isCurrentMonth && <View style={{ marginTop: 3 }}><Pill label={t('businessPayroll.currentMonth')} color={B.accent} /></View>}
-          </View>
-          <Pressable onPress={nextMonth} style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1, width: 36, height: 36, borderRadius: 11, backgroundColor: B.glass, borderWidth: 1, borderColor: B.glassBorder, alignItems: 'center', justifyContent: 'center' })}>
-            <ChevronRight size={18} color={B.textDim} />
-          </Pressable>
-        </View>
+        <Stepper
+          pal={B}
+          label={`${monthName(month, year)} ${year}`}
+          caption={isCurrentMonth ? t('businessPayroll.currentMonth') : undefined}
+          onPrev={() => step(-1)}
+          onNext={() => step(1)}
+          style={{ marginTop: embedded ? 24 : 16 }}
+        />
 
         {isLoading ? (
-          <View style={{ alignItems: 'center', paddingVertical: 80 }}><ActivityIndicator color={B.accent} size="large" /></View>
+          <View style={{ paddingVertical: 80, alignItems: 'center' }}>
+            <ActivityIndicator color={B.accent} />
+          </View>
         ) : (
           <>
-            {/* Summary banner */}
-            <View style={{ marginHorizontal: 20, marginBottom: 16 }}>
-              <LinearGradient colors={[B.heroFrom, '#102a4a']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[{ borderRadius: R.lg, padding: 22, borderWidth: 1, borderColor: `${B.accent}2a` }, glow(B.accentDeep, 0.25, 20, B.glowScale)]}>
-                <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 18 }}>
-                  <View>
-                    <Txt weight="semibold" size={12} color="rgba(255,255,255,0.4)" style={{ letterSpacing: 1, marginBottom: 4 }}>{t('businessPayroll.total')}</Txt>
-                    <Txt weight="bold" size={38} color="#fff" style={{ lineHeight: 42 }}>${(summary?.totalPayroll ?? 0).toLocaleString()}</Txt>
-                    <Txt size={12} color={B.textFaint} style={{ marginTop: 4 }}>{salaries.length} employee{salaries.length !== 1 ? 's' : ''} · {MONTH_NAMES[month - 1]}</Txt>
-                  </View>
-                  <View style={{ alignItems: 'center' }}>
-                    <View style={{ width: 52, height: 52, borderRadius: 18, backgroundColor: `${B.accent}1f`, borderWidth: 1.5, borderColor: `${B.accent}33`, alignItems: 'center', justifyContent: 'center', marginBottom: 4 }}>
-                      <DollarSign size={22} color={B.accent} />
-                    </View>
-                    <Txt weight="bold" size={11} color={B.accent}>{paidPct}% paid</Txt>
-                  </View>
-                </View>
+            {/* The one dark object (§1.1). Flat inkSoft — the old version was a
+                navy gradient carrying a glow, a bordered icon chip and three
+                differently-coloured figures, one of them the *personal*
+                profile's violet. Colour now says one thing here: paid or due. */}
+            <View style={{ paddingHorizontal: S.screen, marginTop: S.section }}>
+              <Card pal={B} padding={S.card + 2} style={{ backgroundColor: 'transparent' }}
+                contentStyle={{ backgroundColor: B.inkSoft }}>
+                <Type role="meta" color={B.onInk} style={{ opacity: 0.7 }}>
+                  {t('businessPayroll.total')}
+                </Type>
+                <Amount
+                  value={summary?.totalPayroll ?? 0}
+                  format={formatCurrency}
+                  size={40}
+                  color={B.onInk}
+                  style={{ marginTop: 6 }}
+                />
 
-                {salaries.length > 0 && (
-                  <View style={{ marginBottom: 14, height: 7, backgroundColor: B.glassStrong, borderRadius: 4, overflow: 'hidden' }}>
-                    <View style={{ height: '100%', width: `${paidPct}%`, borderRadius: 4, backgroundColor: paidPct === 100 ? B.teal : B.accent }} />
+                {salaries.length > 0 ? (
+                  <View
+                    accessibilityRole="progressbar"
+                    accessibilityValue={{ min: 0, max: 100, now: Math.round(paidRatio * 100) }}
+                    style={{
+                      height: 6, borderRadius: 3, marginTop: 16, marginBottom: 16,
+                      backgroundColor: 'rgba(255,255,255,0.16)',
+                      overflow: 'hidden', flexDirection: 'row',
+                    }}
+                  >
+                    <View
+                      style={{
+                        width: `${paidRatio * 100}%`,
+                        borderRadius: 3,
+                        backgroundColor: B.accentGlow,
+                      }}
+                    />
                   </View>
-                )}
+                ) : null}
 
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                  {[
-                    { label: 'PAID', value: `$${(summary?.paidTotal ?? 0).toLocaleString()}`, color: B.teal, count: paidCount },
-                    { label: 'DUE', value: `$${(summary?.unpaidTotal ?? 0).toLocaleString()}`, color: B.amber, count: unpaidCount },
-                    { label: 'ANNUAL', value: `$${((summary?.totalPayroll ?? 0) * 12).toLocaleString()}`, color: '#a78bfa', count: null as number | null },
-                  ].map(s => (
-                    <View key={s.label} style={{ alignItems: 'center' }}>
-                      <Txt weight="bold" size={10} color={B.textFaint} style={{ letterSpacing: 0.8, marginBottom: 4 }}>{s.label}</Txt>
-                      <Txt weight="bold" size={16} color={s.color}>{s.value}</Txt>
-                      {s.count !== null && <Txt size={10} color={B.textFaint} style={{ marginTop: 2 }}>{s.count} employee{s.count !== 1 ? 's' : ''}</Txt>}
-                    </View>
-                  ))}
+                  <Stat
+                    pal={B}
+                    label={t('businessPayroll.paidCount', { count: paid.length })}
+                    value={summary?.paidTotal ?? 0}
+                    format={formatCurrency}
+                    size={17}
+                    tone={B.onInk}
+                    labelTone={B.onInk}
+                  />
+                  <Stat
+                    pal={B}
+                    label={t('businessPayroll.duePill')}
+                    value={summary?.unpaidTotal ?? 0}
+                    format={formatCurrency}
+                    size={17}
+                    tone={B.onInk}
+                    labelTone={B.onInk}
+                    align="flex-end"
+                  />
                 </View>
-              </LinearGradient>
+              </Card>
             </View>
 
-            {/* List */}
             {salaries.length === 0 ? (
-              <View style={{ marginHorizontal: 20 }}>
-                <GlassCard padding={40} radius={R.lg} style={{ alignItems: 'center' }}>
-                  <Briefcase size={32} color={B.slate700} />
-                  <Txt weight="semibold" size={14} color={B.textDim} style={{ marginTop: 12, marginBottom: 4 }}>{t('businessPayroll.none')}</Txt>
-                  <Txt size={12} color={B.textFaint} style={{ textAlign: 'center' }}>{canEdit ? t('businessPayroll.tapAdd') : t('businessPayroll.notConfigured')}</Txt>
-                </GlassCard>
-              </View>
+              <Empty
+                pal={B}
+                icon={<Briefcase size={26} color={B.accent} strokeWidth={S.stroke} />}
+                title={t('businessPayroll.none')}
+                body={canEdit ? t('businessPayroll.tapAdd') : t('businessPayroll.notConfigured')}
+                actionLabel={canEdit ? t('businessPayroll.addButton') : undefined}
+                onAction={canEdit ? () => setShowAdd(true) : undefined}
+                style={{ marginTop: 64 }}
+              />
             ) : (
-              <View style={{ paddingHorizontal: 20, gap: 10 }}>
-                {unpaidCount > 0 && (
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    <Clock size={13} color={B.amber} />
-                    <Txt weight="bold" size={11} color={B.amber} style={{ letterSpacing: 1 }}>{t('businessPayroll.dueCount', { count: unpaidCount })}</Txt>
-                  </View>
-                )}
-                {salaries.filter(s => s.payment.status === 'unpaid').map(s => (
-                  <EmployeeRow key={s.id} record={s} month={month} year={year} canEdit={canEdit} onToggle={(id, paid) => toggleMut.mutate({ id, paid })} onDelete={handleDelete} />
-                ))}
-
-                {paidCount > 0 && (
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: unpaidCount > 0 ? 6 : 0 }}>
-                    <UserCheck size={13} color={B.teal} />
-                    <Txt weight="bold" size={11} color={B.teal} style={{ letterSpacing: 1 }}>{t('businessPayroll.paidCount', { count: paidCount })}</Txt>
-                  </View>
-                )}
-                {salaries.filter(s => s.payment.status === 'paid').map(s => (
-                  <EmployeeRow key={s.id} record={s} month={month} year={year} canEdit={canEdit} onToggle={(id, paid) => toggleMut.mutate({ id, paid })} onDelete={handleDelete} />
-                ))}
+              <View style={{ marginTop: S.section }}>
+                <SectionHeader
+                  pal={B}
+                  title={t('businessPayroll.title')}
+                  actionLabel={canEdit ? t('businessPayroll.addButton') : undefined}
+                  onAction={canEdit ? () => setShowAdd(true) : undefined}
+                />
+                <View style={{ paddingHorizontal: S.screen }}>
+                  <Card pal={B} padding={0} contentStyle={{ paddingHorizontal: S.card }}>
+                    {[...unpaid, ...paid].map((record, i) => (
+                      <View
+                        key={record.id}
+                        style={i > 0 ? { borderTopWidth: 1, borderTopColor: B.hairline } : undefined}
+                      >
+                        <EmployeeRow
+                          pal={B}
+                          record={record}
+                          month={month}
+                          year={year}
+                          canEdit={canEdit}
+                          onToggle={(id, isPaid) => toggleMut.mutate({ id, paid: isPaid })}
+                          onDelete={handleDelete}
+                        />
+                      </View>
+                    ))}
+                  </Card>
+                </View>
               </View>
             )}
           </>
         )}
       </ScrollView>
-    </Wrapper>
+    </>
+  );
+
+  if (embedded) return <View style={{ flex: 1 }}>{body}</View>;
+  return (
+    <Screen pal={B}>
+      <View style={{ alignItems: 'flex-end', paddingHorizontal: S.screen, paddingTop: 8 }}>
+        {canEdit ? (
+          <CircleAction pal={B} label={t('businessPayroll.addButton')} onPress={() => setShowAdd(true)}>
+            <Plus size={19} color={B.ink} strokeWidth={S.stroke} />
+          </CircleAction>
+        ) : null}
+      </View>
+      {body}
+    </Screen>
   );
 }

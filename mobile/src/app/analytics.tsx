@@ -1,568 +1,397 @@
-import {
-  View,
-  Text,
-  ScrollView,
-  Pressable,
-} from 'react-native';
-import { useState, useEffect } from 'react';
-import { useC } from '@/lib/design';
+import { useEffect, useState } from 'react';
+import { ScrollView, View } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
-import {
-  ArrowLeft,
-  TrendingUp,
-  AlertTriangle,
-  RefreshCw,
-  Calendar,
-  Zap,
-  ChevronRight,
-  AlertCircle,
-  Lightbulb,
-} from 'lucide-react-native';
-import * as Haptics from 'expo-haptics';
-import Animated, { FadeInUp } from 'react-native-reanimated';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { PartyPopper, RefreshCw } from '@/components/icons';
 
-import { getTransactions, getSettings } from '@/lib/db';
-import { t } from '@/lib/i18n/core';
+import { getSettings, getTransactions } from '@/lib/db';
+import { formatCurrency } from '@/lib/calculations';
 import { categoryLabel } from '@/lib/category-meta';
 import {
   generateAnalyticsSummary,
   type AnalyticsSummary,
-  type DetectedSubscription,
-  type WasteCategory,
-  type UnusualTransaction,
-  type SpendingPattern,
 } from '@/lib/behavior-detection';
+import { S, useC } from '@/lib/design';
+import {
+  BalanceCard,
+  Card,
+  Empty,
+  FilterChip,
+  InfoRow,
+  LinkRow,
+  Screen,
+  SectionHeader,
+  SubHeader,
+  Type,
+} from '@/components/kit';
+import { t } from '@/lib/i18n/core';
 
 type TabType = 'overview' | 'subscriptions' | 'insights' | 'alerts';
+
+/**
+ * Spending report — DESIGN-PROMPT.md §20, plus the alerts of board §21.
+ *
+ * This screen was the loudest thing in the app. It opened on an amber
+ * gradient header in a hue that appears nowhere else in the system, carried
+ * four pill tabs filled in `#f59e0b`, and then stacked five *different*
+ * tinted card styles — purple, blue, red, amber, green — each with a 1px
+ * border in its own colour. Six section labels were 11px uppercase, which §3
+ * has no style for on purpose: adding one is what makes an app look like a
+ * dashboard, and "dashboard" is the first word in §1's anti-tone list.
+ *
+ * The rebuild keeps every finding and changes how they are said. One dark
+ * object carries the number worth acting on — what you could save — and folds
+ * the alert count into its caption, so the two competing stat tiles become
+ * one. Everything below is white cards and rows on bone, and severity is
+ * written in words rather than encoded in a border colour, which is the same
+ * rule §3 applies to signed amounts.
+ */
+
+/** Rows of a card, hairline-separated. Used four times here; it is not worth
+ *  a kit component until a second screen needs it. */
+function Rows({ pal, children }: { pal: ReturnType<typeof useC>; children: React.ReactNode }) {
+  const items = (Array.isArray(children) ? children : [children]).filter(Boolean);
+  return (
+    <View style={{ paddingHorizontal: S.screen }}>
+      <Card pal={pal} padding={0} contentStyle={{ paddingHorizontal: S.card }}>
+        {items.map((child, i) => (
+          <View
+            key={i}
+            style={i > 0 ? { borderTopWidth: 1, borderTopColor: pal.hairline } : undefined}
+          >
+            {child}
+          </View>
+        ))}
+      </Card>
+    </View>
+  );
+}
+
+/** A paragraph of the advisor's prose, with its subject above it. §1.3. */
+function Note({
+  pal,
+  title,
+  body,
+  footnote,
+}: {
+  pal: ReturnType<typeof useC>;
+  title: string;
+  body: string;
+  footnote?: string;
+}) {
+  return (
+    <View style={{ paddingVertical: 14 }}>
+      <Type role="cardTitle" color={pal.ink}>
+        {title}
+      </Type>
+      <Type role="body" color={pal.inkDim} style={{ marginTop: 4 }}>
+        {body}
+      </Type>
+      {footnote ? (
+        <Type role="meta" color={pal.accent} style={{ marginTop: 8 }}>
+          {footnote}
+        </Type>
+      ) : null}
+    </View>
+  );
+}
 
 export default function AnalyticsScreen() {
   const C = useC();
   const router = useRouter();
-  const insets = useSafeAreaInsets();
-  const [activeTab, setActiveTab] = useState<TabType>('overview');
+
+  // The Insights hub links straight to a section — "Alerts" there should open
+  // alerts here, not drop the user on Overview to find them.
+  const { tab } = useLocalSearchParams<{ tab?: string }>();
+  const initialTab: TabType =
+    tab === 'subscriptions' || tab === 'insights' || tab === 'alerts' ? tab : 'overview';
+  const [activeTab, setActiveTab] = useState<TabType>(initialTab);
   const [analytics, setAnalytics] = useState<AnalyticsSummary | null>(null);
 
   const { data: transactions = [] } = useQuery({
     queryKey: ['transactions'],
     queryFn: getTransactions,
   });
+  // Read so the screen re-renders when the currency changes; the amounts
+  // themselves go through the shared formatter.
+  useQuery({ queryKey: ['settings'], queryFn: getSettings });
 
-  const { data: settings } = useQuery({
-    queryKey: ['settings'],
-    queryFn: getSettings,
-  });
-
-  // Analyze spending when data loads - use length to avoid unnecessary re-runs
   const transactionsLength = transactions.length;
   useEffect(() => {
-    if (transactionsLength > 0) {
-      const summary = generateAnalyticsSummary(transactions);
-      setAnalytics(summary);
-    }
+    if (transactionsLength > 0) setAnalytics(generateAnalyticsSummary(transactions));
   }, [transactionsLength, transactions]);
 
-  const formatCurrency = (amount: number) => {
-    const symbol = settings?.currencySymbol || '$';
-    return `${symbol}${amount.toFixed(2)}`;
-  };
-
-  const tabs: { id: TabType; label: string; icon: typeof TrendingUp }[] = [
-    { id: 'overview', label: t('analyticsTabs.overview'), icon: TrendingUp },
-    { id: 'subscriptions', label: 'Subscriptions', icon: RefreshCw },
-    { id: 'insights', label: t('analyticsTabs.insights'), icon: Lightbulb },
-    { id: 'alerts', label: t('analyticsTabs.alerts'), icon: AlertTriangle },
+  const alertCount = analytics?.alertCount ?? 0;
+  const tabs: readonly { id: TabType; label: string }[] = [
+    { id: 'overview', label: t('analyticsTabs.overview') },
+    { id: 'subscriptions', label: t('analyticsTabs.subscriptions') },
+    { id: 'insights', label: t('analyticsTabs.insights') },
+    { id: 'alerts', label: t('analyticsTabs.alerts') },
   ];
 
+  const priority = (severity: 'low' | 'medium' | 'high') =>
+    severity === 'high'
+      ? t('analytics.priorityHigh')
+      : severity === 'medium'
+        ? t('analytics.priorityMedium')
+        : t('analytics.priorityLow');
+
   return (
-    <View className="flex-1" style={{ backgroundColor: C.bg }}>
-      {/* Header */}
-      <LinearGradient
-        colors={['#f59e0b', '#d97706', '#b45309']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={{
-          paddingTop: insets.top + 8,
-          paddingBottom: 20,
-          paddingHorizontal: 16,
-        }}
-      >
-        <View className="flex-row items-center justify-between">
-          <Pressable
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              router.back();
-            }}
-            className="w-10 h-10 rounded-full bg-white/20 items-center justify-center"
-          >
-            <ArrowLeft size={20} color="white" />
-          </Pressable>
-          <View className="flex-1 items-center">
-            <Text className="text-white text-lg font-bold">{t('analytics.title')}</Text>
-            <Text className="text-white/70 text-xs mt-1">{t('analytics.behaviorDetection')}</Text>
-          </View>
-          <View className="w-10" />
-        </View>
-
-        {/* Quick Stats */}
-        {analytics && (
-          <View className="flex-row mt-4 gap-3">
-            <View className="flex-1 bg-white/20 rounded-xl p-3">
-              <Text className="text-white/70 text-xs">{t('analytics.potentialSavings')}</Text>
-              <Text className="text-white text-xl font-bold">
-                {formatCurrency(analytics.potentialMonthlySavings)}
-              </Text>
-            </View>
-            <View className="flex-1 bg-white/20 rounded-xl p-3">
-              <Text className="text-white/70 text-xs">{t('analytics.activeAlerts')}</Text>
-              <Text className="text-white text-xl font-bold">{analytics.alertCount}</Text>
-            </View>
-          </View>
-        )}
-      </LinearGradient>
-
-      {/* Tab Bar */}
+    <Screen pal={C}>
       <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        className="border-b border-gray-800"
-        contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 12 }}
-        style={{ flexGrow: 0 }}
-      >
-        {tabs.map(tab => (
-          <Pressable
-            key={tab.id}
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              setActiveTab(tab.id);
-            }}
-            className="me-3"
-          >
-            <View
-              className={`flex-row items-center px-4 py-2 rounded-full ${
-                activeTab === tab.id ? 'bg-amber-500' : 'bg-gray-800'
-              }`}
-            >
-              <tab.icon size={16} color={activeTab === tab.id ? 'white' : '#9ca3af'} />
-              <Text
-                className={`ms-2 text-sm font-medium ${
-                  activeTab === tab.id ? '' : 'text-gray-400'
-                }`}
-              >
-                {tab.label}
-              </Text>
-              {tab.id === 'alerts' && analytics && analytics.alertCount > 0 && (
-                <View className="ms-2 bg-red-500 rounded-full w-5 h-5 items-center justify-center">
-                  <Text style={{ color: C.text }} className="text-xs font-bold">{analytics.alertCount}</Text>
-                </View>
-              )}
-            </View>
-          </Pressable>
-        ))}
-      </ScrollView>
-
-      <ScrollView
-        className="flex-1"
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 100 }}
+        contentContainerStyle={{ paddingTop: 8, paddingBottom: 80 }}
       >
-        {/* Overview Tab */}
-        {activeTab === 'overview' && analytics && (
-          <Animated.View entering={FadeInUp.duration(400)} className="px-4 pt-4">
-            {/* Top Waste Categories */}
-            <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-3 ms-1">
-              {t('analytics.topWaste')}
-            </Text>
-            {analytics.wasteCategories.map((waste, idx) => (
-              <WasteCategoryCard key={idx} waste={waste} formatCurrency={formatCurrency} index={idx} />
-            ))}
+        <SubHeader pal={C} title={t('analytics.title')} onBack={() => router.back()} />
 
-            {/* Spending Patterns */}
-            {analytics.spendingPatterns.length > 0 && (
+        {/* The one dark object. Two stat tiles became one card because only
+            one of the two numbers is something you can act on; the other is
+            a count, and a count belongs in a caption. */}
+        <BalanceCard
+          pal={C}
+          label={t('analytics.potentialSavings')}
+          amount={analytics?.potentialMonthlySavings ?? 0}
+          format={formatCurrency}
+          caption={t('analytics.alertsCaption', { count: alertCount })}
+          style={{ paddingHorizontal: S.screen, marginTop: 24 }}
+        />
+
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={{ flexGrow: 0, marginTop: 24 }}
+          contentContainerStyle={{ paddingHorizontal: S.screen, gap: 8 }}
+        >
+          {tabs.map((tabSpec) => (
+            <FilterChip
+              key={tabSpec.id}
+              pal={C}
+              label={tabSpec.label}
+              active={activeTab === tabSpec.id}
+              onPress={() => setActiveTab(tabSpec.id)}
+            />
+          ))}
+        </ScrollView>
+
+        {!analytics ? (
+          <Empty
+            pal={C}
+            icon={<RefreshCw size={26} color={C.accent} strokeWidth={S.stroke} />}
+            title={t('common.nothingYet')}
+            body={t('analytics.noPatterns')}
+            style={{ marginTop: 72 }}
+          />
+        ) : activeTab === 'overview' ? (
+          <View style={{ marginTop: S.section }}>
+            <SectionHeader pal={C} title={t('analytics.topWaste')} />
+            <Rows pal={C}>
+              {analytics.wasteCategories.map((waste, i) => (
+                <InfoRow
+                  key={waste.category}
+                  pal={C}
+                  title={categoryLabel(waste.category)}
+                  meta={[
+                    t('common.transactions', { count: waste.transactionCount }),
+                    `${t('analytics.avg')} ${formatCurrency(waste.averageTransaction)}`,
+                    `${Math.round(waste.impulsePercentage)}% ${t('importExtra.impulse')}`,
+                  ].join(' · ')}
+                  amount={waste.totalSpent}
+                  format={formatCurrency}
+                  lead={
+                    <View
+                      style={{
+                        width: 28,
+                        height: 28,
+                        borderRadius: 14,
+                        backgroundColor: C.groundSunk,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <Type role="meta" color={C.inkDim}>
+                        {i + 1}
+                      </Type>
+                    </View>
+                  }
+                />
+              ))}
+            </Rows>
+
+            {analytics.spendingPatterns.length > 0 ? (
+              <View style={{ marginTop: S.section }}>
+                <SectionHeader pal={C} title={t('analytics.patternsDetected')} />
+                <Rows pal={C}>
+                  {analytics.spendingPatterns.map((pattern) => (
+                    <Note
+                      key={pattern.type + pattern.period}
+                      pal={C}
+                      title={
+                        pattern.type === 'weekend'
+                          ? t('analytics.weekendSpike')
+                          : t('analytics.seasonalChange')
+                      }
+                      body={pattern.insight}
+                    />
+                  ))}
+                </Rows>
+              </View>
+            ) : null}
+
+            <View style={{ marginTop: S.section }}>
+              <Rows pal={C}>
+                <LinkRow
+                  pal={C}
+                  title={t('analytics.monthlySubscriptions')}
+                  body={formatCurrency(analytics.totalMonthlySubscriptions)}
+                  onPress={() => setActiveTab('subscriptions')}
+                />
+              </Rows>
+            </View>
+          </View>
+        ) : activeTab === 'subscriptions' ? (
+          <View style={{ marginTop: S.section }}>
+            {analytics.subscriptions.length === 0 ? (
+              <Empty
+                pal={C}
+                icon={<RefreshCw size={26} color={C.accent} strokeWidth={S.stroke} />}
+                title={t('common.nothingYet')}
+                body={t('analytics.noPatterns')}
+                style={{ marginTop: 40 }}
+              />
+            ) : (
               <>
-                <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-3 ms-1 mt-6">
-                  {t('analytics.patternsDetected')}
-                </Text>
-                {analytics.spendingPatterns.map((pattern, idx) => (
-                  <SpendingPatternCard key={idx} pattern={pattern} formatCurrency={formatCurrency} />
-                ))}
+                <SectionHeader
+                  pal={C}
+                  title={t('analytics.recurringFound', { count: analytics.subscriptions.length })}
+                />
+                <Rows pal={C}>
+                  {analytics.subscriptions.map((sub) => (
+                    <InfoRow
+                      key={`${sub.description}-${sub.amount}`}
+                      pal={C}
+                      title={sub.description}
+                      meta={[
+                        t(`frequency.${sub.frequency}`),
+                        `${t('analytics.nextDue')} ${sub.nextExpected}`,
+                        `${t('analytics.totalSpent')} ${formatCurrency(sub.totalSpent)}`,
+                      ].join(' · ')}
+                      amount={sub.amount}
+                      format={formatCurrency}
+                    />
+                  ))}
+                </Rows>
               </>
             )}
+          </View>
+        ) : activeTab === 'insights' ? (
+          <View style={{ marginTop: S.section }}>
+            <SectionHeader pal={C} title={t('analytics.savingsTips')} />
+            <Rows pal={C}>
+              {analytics.wasteCategories.map((waste) => (
+                <Note
+                  key={waste.category}
+                  pal={C}
+                  title={categoryLabel(waste.category)}
+                  body={waste.tip}
+                  footnote={t('analytics.savingsPerMonth', {
+                    amount: formatCurrency(waste.potentialSavings),
+                  })}
+                />
+              ))}
+            </Rows>
 
-            {/* Monthly Subscriptions Total */}
-            <View className="mt-6">
-              <View
-                className="rounded-2xl p-4"
-                style={{ backgroundColor: 'rgba(168, 85, 247, 0.1)', borderWidth: 1, borderColor: 'rgba(168, 85, 247, 0.2)' }}
-              >
-                <View className="flex-row items-center justify-between">
-                  <View className="flex-row items-center">
-                    <View className="w-10 h-10 rounded-xl bg-purple-500/20 items-center justify-center me-3">
-                      <RefreshCw size={20} color={C.p500} />
-                    </View>
-                    <View>
-                      <Text style={{ color: C.textDim }} className="text-xs">{t('analytics.monthlySubscriptions')}</Text>
-                      <Text style={{ color: C.text }} className="text-xl font-bold">
-                        {formatCurrency(analytics.totalMonthlySubscriptions)}
-                      </Text>
-                    </View>
-                  </View>
-                  <Pressable
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      setActiveTab('subscriptions');
+            {analytics.spendingPatterns.length > 0 ? (
+              <View style={{ marginTop: S.section }}>
+                <SectionHeader pal={C} title={t('analytics.behavioralInsights')} />
+                <Rows pal={C}>
+                  {analytics.spendingPatterns.map((pattern) => (
+                    <Note
+                      key={pattern.type + pattern.period}
+                      pal={C}
+                      title={
+                        pattern.type === 'weekend'
+                          ? t('analytics.weekendSpending')
+                          : t('analytics.seasonalTrend')
+                      }
+                      body={pattern.insight}
+                    />
+                  ))}
+                </Rows>
+              </View>
+            ) : null}
+          </View>
+        ) : (
+          <View style={{ marginTop: S.section }}>
+            {alertCount === 0 ? (
+              /* §8 board 21: the all-clear should feel like a reward, not
+                 like a screen that failed to load. */
+              <Empty
+                pal={C}
+                icon={<PartyPopper size={26} color={C.accent} strokeWidth={S.stroke} />}
+                title={t('analytics.allClear')}
+                body={t('analytics.allClearBody')}
+                style={{ marginTop: 40 }}
+              />
+            ) : (
+              <>
+                {analytics.duplicateCharges.length > 0 ? (
+                  <>
+                    <SectionHeader pal={C} title={t('analytics.duplicateCharges')} />
+                    <Rows pal={C}>
+                      {analytics.duplicateCharges.map((dup) => (
+                        <InfoRow
+                          key={`${dup.description}-${dup.date}`}
+                          pal={C}
+                          title={dup.description}
+                          meta={`${t('analytics.chargesOf', {
+                            count: dup.transactions.length,
+                            amount: formatCurrency(dup.amount),
+                            date: dup.date,
+                          })} · ${t('analytics.refundLine', {
+                            amount: formatCurrency(dup.potentialRefund),
+                          })}`}
+                          amount={-dup.potentialRefund}
+                          format={formatCurrency}
+                          tone={C.negative}
+                        />
+                      ))}
+                    </Rows>
+                  </>
+                ) : null}
+
+                {analytics.unusualTransactions.length > 0 ? (
+                  <View
+                    style={{
+                      marginTop: analytics.duplicateCharges.length > 0 ? S.section : 0,
                     }}
                   >
-                    <ChevronRight size={20} color={C.p500} />
-                  </Pressable>
-                </View>
-              </View>
-            </View>
-          </Animated.View>
-        )}
-
-        {/* Subscriptions Tab */}
-        {activeTab === 'subscriptions' && analytics && (
-          <Animated.View entering={FadeInUp.duration(400)} className="px-4 pt-4">
-            <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-3 ms-1">
-              DETECTED RECURRING CHARGES ({analytics.subscriptions.length})
-            </Text>
-            {analytics.subscriptions.length === 0 ? (
-              <View
-                className="rounded-2xl p-6 items-center"
-                style={{ backgroundColor: C.glass }}
-              >
-                <RefreshCw size={32} color="#6b7280" />
-                <Text style={{ color: C.textDim }} className="mt-3 text-center">
-                  {t('analytics.noPatterns')}
-                </Text>
-              </View>
-            ) : (
-              analytics.subscriptions.map((sub, idx) => (
-                <SubscriptionCard key={idx} subscription={sub} formatCurrency={formatCurrency} />
-              ))
-            )}
-          </Animated.View>
-        )}
-
-        {/* Insights Tab */}
-        {activeTab === 'insights' && analytics && (
-          <Animated.View entering={FadeInUp.duration(400)} className="px-4 pt-4">
-            {/* Waste Category Tips */}
-            <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-3 ms-1">
-              {t('analytics.savingsTips')}
-            </Text>
-            {analytics.wasteCategories.map((waste, idx) => (
-              <Animated.View
-                key={idx}
-                entering={FadeInUp.delay(100 * idx).duration(300)}
-                className="mb-3"
-              >
-                <View
-                  className="rounded-xl p-4"
-                  style={{ backgroundColor: C.glass }}
-                >
-                  <View className="flex-row items-start">
-                    <View className="w-8 h-8 rounded-lg bg-amber-500/20 items-center justify-center me-3">
-                      <Lightbulb size={16} color="#f59e0b" />
-                    </View>
-                    <View className="flex-1">
-                      <Text style={{ color: C.text }} className="font-medium">{categoryLabel(waste.category)}</Text>
-                      <Text style={{ color: C.textDim }} className="text-sm mt-1">{waste.tip}</Text>
-                      <Text className="text-amber-400 text-xs mt-2">
-                        {t('analytics.savingsPerMonth', { amount: formatCurrency(waste.potentialSavings) })}
-                      </Text>
-                    </View>
+                    <SectionHeader pal={C} title={t('analytics.unusualTransactions')} />
+                    <Rows pal={C}>
+                      {analytics.unusualTransactions.map((unusual) => (
+                        <InfoRow
+                          key={unusual.transaction.id}
+                          pal={C}
+                          title={
+                            unusual.transaction.note ||
+                            categoryLabel(unusual.transaction.category)
+                          }
+                          // Severity is said, not shown. Three tinted card
+                          // styles asked the reader to learn a colour
+                          // vocabulary to find out which alert mattered.
+                          meta={`${priority(unusual.severity)} · ${unusual.reason}`}
+                          amount={-unusual.transaction.amount}
+                          format={formatCurrency}
+                          tone={C.negative}
+                        />
+                      ))}
+                    </Rows>
                   </View>
-                </View>
-              </Animated.View>
-            ))}
-
-            {/* Spending Patterns Insights */}
-            {analytics.spendingPatterns.length > 0 && (
-              <>
-                <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-3 ms-1 mt-6">
-                  {t('analytics.behavioralInsights')}
-                </Text>
-                {analytics.spendingPatterns.map((pattern, idx) => (
-                  <View
-                    key={idx}
-                    className="rounded-xl p-4 mb-3"
-                    style={{ backgroundColor: C.glass }}
-                  >
-                    <View className="flex-row items-start">
-                      <View className="w-8 h-8 rounded-lg bg-blue-500/20 items-center justify-center me-3">
-                        {pattern.type === 'weekend' ? (
-                          <Calendar size={16} color="#3b82f6" />
-                        ) : (
-                          <TrendingUp size={16} color="#3b82f6" />
-                        )}
-                      </View>
-                      <View className="flex-1">
-                        <Text style={{ color: C.text }} className="font-medium">
-                          {pattern.type === 'weekend' ? t('analytics.weekendSpending') : t('analytics.seasonalTrend')}
-                        </Text>
-                        <Text style={{ color: C.textDim }} className="text-sm mt-1">{pattern.insight}</Text>
-                      </View>
-                    </View>
-                  </View>
-                ))}
+                ) : null}
               </>
             )}
-          </Animated.View>
-        )}
-
-        {/* Alerts Tab */}
-        {activeTab === 'alerts' && analytics && (
-          <Animated.View entering={FadeInUp.duration(400)} className="px-4 pt-4">
-            {/* Duplicate Charges */}
-            {analytics.duplicateCharges.length > 0 && (
-              <>
-                <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-3 ms-1">
-                  {t('analytics.duplicateCharges')}
-                </Text>
-                {analytics.duplicateCharges.map((dup, idx) => (
-                  <View
-                    key={idx}
-                    className="rounded-xl p-4 mb-3"
-                    style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', borderWidth: 1, borderColor: 'rgba(239, 68, 68, 0.2)' }}
-                  >
-                    <View className="flex-row items-center mb-2">
-                      <AlertCircle size={16} color="#ef4444" />
-                      <Text className="text-red-400 font-medium ms-2">{t('analytics.duplicateDetected')}</Text>
-                    </View>
-                    <Text style={{ color: C.text }} >{dup.description}</Text>
-                    <Text style={{ color: C.textDim }} className="text-sm">
-                      {t('analytics.chargesOf', { count: dup.transactions.length, amount: formatCurrency(dup.amount), date: dup.date })}
-                    </Text>
-                    <Text className="text-amber-400 text-xs mt-2">
-                      {t('analytics.refundLine', { amount: formatCurrency(dup.potentialRefund) })}
-                    </Text>
-                  </View>
-                ))}
-              </>
-            )}
-
-            {/* Unusual Transactions */}
-            {analytics.unusualTransactions.length > 0 && (
-              <>
-                <Text style={{ color: C.textDim }} className="text-xs font-semibold mb-3 ms-1 mt-4">
-                  {t('analytics.unusualTransactions')}
-                </Text>
-                {analytics.unusualTransactions.map((unusual, idx) => (
-                  <UnusualTransactionCard
-                    key={idx}
-                    unusual={unusual}
-                    formatCurrency={formatCurrency}
-                  />
-                ))}
-              </>
-            )}
-
-            {/* No Alerts */}
-            {analytics.alertCount === 0 && (
-              <View
-                className="rounded-2xl p-6 items-center"
-                style={{ backgroundColor: 'rgba(34, 197, 94, 0.1)' }}
-              >
-                <View className="w-12 h-12 rounded-full bg-green-500/20 items-center justify-center mb-3">
-                  <Zap size={24} color="#22c55e" />
-                </View>
-                <Text className="text-green-400 font-semibold text-lg">{t('analytics.allClear')}</Text>
-                <Text style={{ color: C.textDim }} className="text-center mt-2">
-                  {t('analytics.allClearBody')}
-                </Text>
-              </View>
-            )}
-          </Animated.View>
+          </View>
         )}
       </ScrollView>
-    </View>
-  );
-}
-
-// Component Cards
-function WasteCategoryCard({
-  waste,
-  formatCurrency,
-  index,
-}: {
-  waste: WasteCategory;
-  formatCurrency: (n: number) => string;
-  index: number;
-}) {
-  const C = useC();
-  const colors = ['#ef4444', '#f59e0b', '#eab308'];
-  const color = colors[index] || '#6b7280';
-
-  return (
-    <Animated.View
-      entering={FadeInUp.delay(100 * index).duration(300)}
-      className="mb-3"
-    >
-      <View
-        className="rounded-xl p-4"
-        style={{ backgroundColor: C.glass }}
-      >
-        <View className="flex-row items-center justify-between mb-3">
-          <View className="flex-row items-center">
-            <View
-              className="w-8 h-8 rounded-lg items-center justify-center me-3"
-              style={{ backgroundColor: `${color}20` }}
-            >
-              <Text style={{ color, fontWeight: 'bold' }}>#{index + 1}</Text>
-            </View>
-            <Text style={{ color: C.text }} className="font-semibold">{categoryLabel(waste.category)}</Text>
-          </View>
-          <Text style={{ color: C.text }} className="font-bold">{formatCurrency(waste.totalSpent)}</Text>
-        </View>
-
-        <View className="flex-row justify-between">
-          <View>
-            <Text style={{ color: C.textFaint }} className="text-xs">{t('importExtra.impulse')}</Text>
-            <Text className="text-pink-400 font-medium">
-              {formatCurrency(waste.impulseSpent)} ({Math.round(waste.impulsePercentage)}%)
-            </Text>
-          </View>
-          <View>
-            <Text style={{ color: C.textFaint }} className="text-xs">{t('analytics.transactions')}</Text>
-            <Text style={{ color: C.textDim }} className="font-medium">{waste.transactionCount}</Text>
-          </View>
-          <View>
-            <Text style={{ color: C.textFaint }} className="text-xs">{t('analytics.avg')}</Text>
-            <Text style={{ color: C.textDim }} className="font-medium">
-              {formatCurrency(waste.averageTransaction)}
-            </Text>
-          </View>
-        </View>
-      </View>
-    </Animated.View>
-  );
-}
-
-function SubscriptionCard({
-  subscription,
-  formatCurrency,
-}: {
-  subscription: DetectedSubscription;
-  formatCurrency: (n: number) => string;
-}) {
-  const C = useC();
-  return (
-    <View
-      className="rounded-xl p-4 mb-3"
-      style={{ backgroundColor: C.glass }}
-    >
-      <View className="flex-row items-center justify-between mb-2">
-        <Text style={{ color: C.text }} className="font-semibold flex-1" numberOfLines={1}>
-          {subscription.description}
-        </Text>
-        <View className="bg-purple-500/20 rounded-full px-2 py-0.5 ms-2">
-          <Text className="text-purple-400 text-xs capitalize">{subscription.frequency}</Text>
-        </View>
-      </View>
-
-      <View className="flex-row justify-between items-center">
-        <View>
-          <Text style={{ color: C.textFaint }} className="text-xs">{t('analytics.amount')}</Text>
-          <Text style={{ color: C.text }} className="font-bold text-lg">
-            {formatCurrency(subscription.amount)}
-          </Text>
-        </View>
-        <View>
-          <Text style={{ color: C.textFaint }} className="text-xs">{t('analytics.totalSpent')}</Text>
-          <Text style={{ color: C.textDim }} >{formatCurrency(subscription.totalSpent)}</Text>
-        </View>
-        <View>
-          <Text style={{ color: C.textFaint }} className="text-xs">{t('analytics.nextDue')}</Text>
-          <Text className="text-amber-400">{subscription.nextExpected}</Text>
-        </View>
-      </View>
-    </View>
-  );
-}
-
-function SpendingPatternCard({
-  pattern,
-  formatCurrency,
-}: {
-  pattern: SpendingPattern;
-  formatCurrency: (n: number) => string;
-}) {
-  const C = useC();
-  return (
-    <View
-      className="rounded-xl p-4 mb-3"
-      style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)', borderWidth: 1, borderColor: 'rgba(59, 130, 246, 0.2)' }}
-    >
-      <View className="flex-row items-center mb-2">
-        {pattern.type === 'weekend' ? (
-          <Calendar size={16} color="#3b82f6" />
-        ) : (
-          <TrendingUp size={16} color="#3b82f6" />
-        )}
-        <Text className="text-blue-400 font-medium ms-2">
-          {pattern.type === 'weekend' ? t('analytics.weekendSpike') : t('analytics.seasonalChange')}
-        </Text>
-      </View>
-      <Text style={{ color: C.textDim }} className="text-sm">{pattern.insight}</Text>
-      <View className="flex-row mt-2">
-        {pattern.topCategories.map((cat, idx) => (
-          <View key={idx} className="bg-blue-500/20 rounded-full px-2 py-1 me-2">
-            <Text className="text-blue-300 text-xs">
-              {categoryLabel(cat.category)}: {formatCurrency(cat.amount)}
-            </Text>
-          </View>
-        ))}
-      </View>
-    </View>
-  );
-}
-
-function UnusualTransactionCard({
-  unusual,
-  formatCurrency,
-}: {
-  unusual: UnusualTransaction;
-  formatCurrency: (n: number) => string;
-}) {
-  const C = useC();
-  const severityColors = {
-    low: { bg: 'rgba(234, 179, 8, 0.1)', border: 'rgba(234, 179, 8, 0.2)', text: '#eab308' },
-    medium: { bg: 'rgba(249, 115, 22, 0.1)', border: 'rgba(249, 115, 22, 0.2)', text: '#f97316' },
-    high: { bg: 'rgba(239, 68, 68, 0.1)', border: 'rgba(239, 68, 68, 0.2)', text: '#ef4444' },
-  };
-
-  const colors = severityColors[unusual.severity];
-
-  return (
-    <View
-      className="rounded-xl p-4 mb-3"
-      style={{ backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.border }}
-    >
-      <View className="flex-row items-center justify-between mb-2">
-        <View className="flex-row items-center">
-          <AlertTriangle size={16} color={colors.text} />
-          <Text style={{ color: colors.text }} className="font-medium ms-2 capitalize">
-            {unusual.severity} Priority
-          </Text>
-        </View>
-        <Text style={{ color: C.text }} className="font-bold">
-          {formatCurrency(unusual.transaction.amount)}
-        </Text>
-      </View>
-      <Text style={{ color: C.text }}  numberOfLines={1}>
-        {unusual.transaction.note || unusual.transaction.category}
-      </Text>
-      <Text style={{ color: C.textDim }} className="text-sm mt-1">{unusual.reason}</Text>
-      <Text style={{ color: C.textFaint }} className="text-xs mt-1">
-        {t('analytics.avgFor', {
-          category: categoryLabel(unusual.transaction.category),
-          amount: formatCurrency(unusual.averageForCategory),
-        })}
-      </Text>
-    </View>
+    </Screen>
   );
 }

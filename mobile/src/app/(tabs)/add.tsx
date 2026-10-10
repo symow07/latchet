@@ -1,76 +1,146 @@
-import {
-  View,
-  Pressable,
-  ScrollView,
-  TextInput,
-  Switch,
-  Modal,
-} from 'react-native';
-import { useState } from 'react';
+import { View, ScrollView, Text as RNText } from 'react-native';
+import { useMemo, useState } from 'react';
 import { useRouter } from 'expo-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { addTransaction, getSettings, getAccounts, addCustomCategory } from '@/lib/db';
-import { Calendar, Clock, Zap, DollarSign, Tag, FileText, ArrowDownCircle, ArrowUpCircle, Wallet, ChevronDown, Building2, PiggyBank, CreditCard, TrendingUp, MoreHorizontal, Plus, X } from 'lucide-react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Calendar, Wallet, Zap, FileText } from '@/components/icons';
 import * as Haptics from 'expo-haptics';
-import Animated, { FadeInUp } from 'react-native-reanimated';
-import { R, glow, useC } from '@/lib/design';
-import { Txt, GlassCard, IconBubble, BubbleButton, ScreenBackground, Emoji } from '@/components/ui';
-import { getCategories, DEFAULT_CATEGORIES, CATEGORY_EMOJIS, CATEGORY_COLORS, categoryLabel } from '@/lib/categories';
+import { BAR, F, S, useC } from '@/lib/design';
+import { currencyParts } from '@/lib/motion';
+import {
+  Card, ChoiceRow, Field, FilterChip, Group, Header, Keypad, LinkRow,
+  PrimaryButton, Screen, Segmented, Sheet, SwitchRow, Type,
+} from '@/components/kit';
+import {
+  getCategories, DEFAULT_CATEGORIES, CATEGORY_EMOJIS, CATEGORY_COLORS, categoryLabel,
+} from '@/lib/categories';
+import { formatCurrency, formatTimeCost, calculateTimeCost } from '@/lib/calculations';
 import { t, getDateFnsLocale } from '@/lib/i18n/core';
 import { accountTypeLabel } from '@/lib/tx-display';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const getAccountIcon = (type: string) => {
-  switch (type) {
-    case 'cash': return Wallet;
-    case 'checking': return Building2;
-    case 'savings': return PiggyBank;
-    case 'credit': return CreditCard;
-    case 'investment': return TrendingUp;
-    default: return MoreHorizontal;
-  }
-};
+/** Two decimal places, one separator, and a ceiling that fits the display. */
+const MAX_DIGITS = 9;
 
-function FieldLabel({ icon, label }: { icon: React.ReactNode; label: string }) {
-  const C = useC();
+/**
+ * The amount, drawn from what was actually typed.
+ *
+ * `Amount` renders a *number*, which is right everywhere the figure is being
+ * read and wrong here: it would show "12.00" the instant someone typed "12",
+ * and turn "12.5" into "12.50" while their finger was still moving. An entry
+ * display has to echo the keystrokes, so this one renders the raw string and
+ * only borrows the number rules — dimmed decimals, raised symbol, tabular
+ * figures, and the separator the user's own locale uses.
+ */
+function AmountDisplay({ raw, color, dim }: { raw: string; color: string; dim: string }) {
+  const parts = useMemo(() => currencyParts(formatCurrency), []);
+  const [whole = '', fraction] = raw.split('.');
+  const grouped = (whole || '0').replace(/\B(?=(\d{3})+(?!\d))/g, parts.group);
+
+  const size = 52;
+  const big = {
+    ...F.bold,
+    fontSize: size,
+    lineHeight: size * 1.1,
+    letterSpacing: size * -0.02,
+    fontVariant: ['tabular-nums' as const],
+  };
+  const symbol = {
+    ...big,
+    fontSize: size * 0.65,
+    lineHeight: size * 0.72,
+    marginTop: size * 0.12,
+  };
+
   return (
-    <View className="flex-row items-center mb-3" style={{ gap: 8 }}>
-      {icon}
-      <Txt weight="semibold" size={12} color={C.textDim}>{label}</Txt>
+    <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'center' }}>
+      {parts.prefix.trim() ? (
+        <RNText style={[symbol, { color: whole ? color : dim }]}>{parts.prefix.trim()}</RNText>
+      ) : null}
+      <RNText style={[big, { color: whole ? color : dim }]}>{grouped}</RNText>
+      {fraction !== undefined ? (
+        <RNText style={[big, { color, opacity: 0.55 }]}>
+          {parts.decimal}
+          {fraction}
+        </RNText>
+      ) : null}
+      {parts.suffix.trim() ? (
+        <RNText style={[symbol, { color: whole ? color : dim, marginStart: size * 0.08 }]}>
+          {parts.suffix.trim()}
+        </RNText>
+      ) : null}
     </View>
   );
 }
 
+/**
+ * Add — DESIGN-PROMPT.md §15, artboard #15.
+ *
+ * The old screen was a seven-field form under a purple gradient hero: a text
+ * input for the amount, two outlined type buttons, an inline account dropdown,
+ * a wrapped grid of outlined category chips, a date card, a note box, an
+ * impulse card and a submit button — all stacked, all visible at once.
+ *
+ * This is an amount, and the interface should mirror what it changes: a
+ * display and a keypad. Everything else is a decision with a sensible default,
+ * so the defaults are shown as one line of summary rows and each opens a
+ * sheet. Nothing was removed; four things moved one tap away.
+ *
+ * The time cost gets its own quiet line under the number, which §15 asks for
+ * by name — it is the one place the app says something about a purchase that
+ * the amount alone does not.
+ */
 export default function AddTransactionScreen() {
+  const insets = useSafeAreaInsets();
   const C = useC();
   const router = useRouter();
-  const insets = useSafeAreaInsets();
+  const queryClient = useQueryClient();
+
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState('Food');
   const [type, setType] = useState<'Expense' | 'Income'>('Expense');
   const [isImpulse, setIsImpulse] = useState(false);
   const [note, setNote] = useState('');
   const [date, setDate] = useState(new Date());
-  const [showDatePicker, setShowDatePicker] = useState(false);
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
-  const [showAccountPicker, setShowAccountPicker] = useState(false);
+  const [sheet, setSheet] = useState<'account' | 'date' | 'note' | 'category' | null>(null);
+
+  const [newCatName, setNewCatName] = useState('');
+  const [newCatEmoji, setNewCatEmoji] = useState(CATEGORY_EMOJIS[0]);
+  const [newCatColor, setNewCatColor] = useState(CATEGORY_COLORS[0]);
 
   const { data: settings } = useQuery({ queryKey: ['settings'], queryFn: getSettings });
   const { data: accounts = [] } = useQuery({ queryKey: ['accounts'], queryFn: getAccounts });
   const { data: categories = DEFAULT_CATEGORIES } = useQuery({ queryKey: ['categories'], queryFn: getCategories });
 
-  const queryClient = useQueryClient();
+  const decimalSeparator = useMemo(() => currencyParts(formatCurrency).decimal, []);
+  const value = parseFloat(amount) || 0;
 
-  // Create-category modal
-  const [showCatModal, setShowCatModal] = useState(false);
-  const [newCatName, setNewCatName] = useState('');
-  const [newCatEmoji, setNewCatEmoji] = useState(CATEGORY_EMOJIS[0]);
-  const [newCatColor, setNewCatColor] = useState(CATEGORY_COLORS[0]);
+  const defaultAccount = accounts.find((a) => a.isDefault === 1);
+  const currentAccountId = selectedAccountId ?? defaultAccount?.id;
+  const selectedAccount = accounts.find((a) => a.id === currentAccountId);
 
-  async function handleCreateCategory() {
+  function pressDigit(digit: string) {
+    setAmount((current) => {
+      const [whole = '', fraction] = current.split('.');
+      if (fraction !== undefined && fraction.length >= 2) return current;
+      if (fraction === undefined && whole.replace(/\D/g, '').length >= MAX_DIGITS) return current;
+      if (current === '0') return digit;
+      return current + digit;
+    });
+  }
+
+  function pressDecimal() {
+    setAmount((current) => (current.includes('.') ? current : `${current || '0'}.`));
+  }
+
+  function pressBackspace() {
+    setAmount((current) => current.slice(0, -1));
+  }
+
+  async function createCategory() {
     const name = newCatName.trim();
     if (!name) return;
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -78,21 +148,17 @@ export default function AddTransactionScreen() {
     await queryClient.invalidateQueries({ queryKey: ['categories'] });
     setCategory(name);
     setNewCatName('');
-    setShowCatModal(false);
+    setSheet(null);
   }
-
-  const defaultAccount = accounts.find(a => a.isDefault === 1);
-  const currentAccountId = selectedAccountId || defaultAccount?.id;
-  const selectedAccount = accounts.find(a => a.id === currentAccountId);
 
   const mutation = useMutation({
     mutationFn: async () => {
-      if (!amount || parseFloat(amount) <= 0) {
+      if (value <= 0) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
         throw new Error('Invalid amount');
       }
       await addTransaction({
-        amount: parseFloat(amount),
+        amount: value,
         category,
         type,
         isImpulse,
@@ -107,7 +173,7 @@ export default function AddTransactionScreen() {
       const previousTransactions = queryClient.getQueryData(['transactions']);
       const optimisticTx = {
         id: `temp_${Date.now()}`,
-        amount: parseFloat(amount || '0'),
+        amount: value,
         category,
         type,
         isImpulse: isImpulse ? 1 : 0,
@@ -138,288 +204,272 @@ export default function AddTransactionScreen() {
     },
   });
 
-  const handleDateChange = (event: any, selectedDate?: Date) => {
-    if (selectedDate) setDate(selectedDate);
-    setShowDatePicker(false);
-  };
-
-  const handleTypeChange = (newType: 'Expense' | 'Income') => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setType(newType);
-  };
-
-  const handleCategoryChange = (cat: string) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setCategory(cat);
-  };
-
-  const canSubmit = !mutation.isPending && !!amount && parseFloat(amount) > 0;
+  const showTimeCost = !!settings?.showTimeCost && settings.hourlyValue > 0 && value > 0;
+  const locale = getDateFnsLocale();
 
   return (
-    <ScreenBackground>
+    <Screen pal={C}>
       <ScrollView
-        className="flex-1"
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 130 }}
+        contentContainerStyle={{ paddingTop: 8, paddingBottom: BAR.clearance(insets.bottom) }}
         keyboardShouldPersistTaps="handled"
       >
-        {/* ── Header + amount ── */}
-        <View style={{ paddingTop: insets.top + 16, paddingHorizontal: 20 }}>
-          <Txt weight="bold" size={30} color={C.text}>{t('addTransaction.title')}</Txt>
-          <Txt weight="medium" size={13} color={C.textDim} style={{ marginTop: 2 }}>{t('addTransaction.subtitle')}</Txt>
+        <Header pal={C} title={t('addTransaction.title')} />
 
-          <Animated.View entering={FadeInUp.delay(40).springify().damping(16)}>
-            <LinearGradient
-              colors={[C.p700, C.p600, C.p800]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={[{ borderRadius: R.xl, padding: 22, marginTop: 18, overflow: 'hidden' }, glow(C.p600, 0.4, 24, C.glowScale)]}
-            >
-              <View style={{ position: 'absolute', top: -50, right: -40, width: 160, height: 160, borderRadius: 80, backgroundColor: C.glassStrong }} />
-              <View className="flex-row items-center mb-2" style={{ gap: 6 }}>
-                <DollarSign size={15} color="rgba(255,255,255,0.75)" />
-                <Txt weight="semibold" size={13} color="rgba(255,255,255,0.8)">{t('addTransaction.howMuch')}</Txt>
-              </View>
-              <View className="flex-row items-center">
-                <Txt weight="bold" size={40} color="#fff">$</Txt>
-                <TextInput
-                  value={amount}
-                  onChangeText={setAmount}
-                  placeholder="0.00"
-                  placeholderTextColor="rgba(255,255,255,0.35)"
-                  keyboardType="decimal-pad"
-                  style={{ flex: 1, marginStart: 8, fontSize: 52, fontFamily: 'PlusJakartaSans_700Bold', color: '#fff', padding: 0 }}
-                  selectionColor={C.p300}
-                />
-              </View>
-            </LinearGradient>
-          </Animated.View>
+        <View style={{ paddingHorizontal: S.screen, marginTop: 24 }}>
+          <Segmented
+            pal={C}
+            value={type}
+            onChange={setType}
+            options={[
+              { key: 'Expense' as const, label: t('txTypes.Expense') },
+              { key: 'Income' as const, label: t('txTypes.Income') },
+            ]}
+          />
         </View>
 
-        {/* ── Type ── */}
-        <View style={{ paddingHorizontal: 20, paddingTop: 22 }}>
-          <FieldLabel icon={<Tag size={15} color={C.textFaint} />} label={t('addTx.type')} />
-          <View className="flex-row" style={{ gap: 12 }}>
-            {([
-              { t: 'Expense' as const, Icon: ArrowDownCircle, color: C.rose },
-              { t: 'Income' as const, Icon: ArrowUpCircle, color: C.green },
-            ]).map(({ t, Icon, color }) => {
-              const active = type === t;
-              return (
-                <Pressable key={t} onPress={() => handleTypeChange(t)} style={{ flex: 1 }}>
-                  <View style={{ paddingVertical: 16, borderRadius: R.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: active ? `${color}24` : C.glass, borderWidth: 1.5, borderColor: active ? `${color}77` : 'transparent' }}>
-                    <Icon size={20} color={active ? color : C.textFaint} />
-                    <Txt weight="bold" size={15} color={active ? color : C.textFaint}>{t}</Txt>
-                  </View>
-                </Pressable>
-              );
-            })}
-          </View>
+        {/* The hero: one display-sized number, sitting on the ground with no
+            card around it (§1.2), and one quiet line beneath. */}
+        <View style={{ alignItems: 'center', marginTop: 34, minHeight: 92 }}>
+          <AmountDisplay raw={amount} color={C.ink} dim={C.inkFaint} />
+          <Type role="meta" color={C.inkDim} style={{ marginTop: 12 }}>
+            {showTimeCost
+              ? t('addTx.timeCostLine', {
+                  time: formatTimeCost(calculateTimeCost(value, settings.hourlyValue)),
+                })
+              : t('addTransaction.howMuch')}
+          </Type>
         </View>
 
-        {/* ── Account ── */}
-        {accounts.length > 0 && (
-          <View style={{ paddingHorizontal: 20, paddingTop: 22 }}>
-            <FieldLabel icon={<Wallet size={15} color={C.textFaint} />} label={t('addTx.account')} />
-            <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setShowAccountPicker(!showAccountPicker); }}>
-              <GlassCard padding={14} radius={R.md}>
-                <View className="flex-row items-center justify-between">
-                  {selectedAccount ? (
-                    <View className="flex-row items-center" style={{ gap: 12 }}>
-                      {(() => { const Icon = getAccountIcon(selectedAccount.type); return (
-                        <IconBubble color={selectedAccount.color} size={40}><Icon size={19} color={selectedAccount.color} /></IconBubble>
-                      ); })()}
-                      <View>
-                        <Txt weight="semibold" size={14} color={C.text}>{selectedAccount.name}</Txt>
-                        <Txt size={11} color={C.textFaint}>{accountTypeLabel(selectedAccount.type)}</Txt>
-                      </View>
-                    </View>
-                  ) : <Txt color={C.textFaint}>{t('addTransaction.selectAccount')}</Txt>}
-                  <ChevronDown size={20} color={C.textFaint} />
-                </View>
-              </GlassCard>
-            </Pressable>
+        {/* Category is the field people change most, so it is the one that
+            stays on the surface. */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={{ flexGrow: 0, marginTop: 24 }}
+          contentContainerStyle={{ paddingHorizontal: S.screen, gap: 8 }}
+        >
+          {categories.map((cat) => (
+            <FilterChip
+              key={cat.name}
+              pal={C}
+              label={categoryLabel(cat.name, categories)}
+              active={category === cat.name}
+              onPress={() => setCategory(cat.name)}
+            />
+          ))}
+          <FilterChip
+            pal={C}
+            label={t('addTx.newAccount')}
+            active={false}
+            onPress={() => setSheet('category')}
+          />
+        </ScrollView>
 
-            {showAccountPicker && (
-              <View style={{ marginTop: 8, gap: 8 }}>
-                {accounts.map((account) => {
-                  const Icon = getAccountIcon(account.type);
-                  const isSelected = account.id === currentAccountId;
-                  return (
-                    <Pressable key={account.id} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSelectedAccountId(account.id); setShowAccountPicker(false); }}>
-                      <View style={{ borderRadius: R.sm, padding: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: isSelected ? `${C.p500}22` : C.glass, borderWidth: 1, borderColor: isSelected ? `${C.p500}44` : 'transparent' }}>
-                        <View className="flex-row items-center" style={{ gap: 12 }}>
-                          <IconBubble color={account.color} size={34} radius={12}><Icon size={16} color={account.color} /></IconBubble>
-                          <View>
-                            <Txt size={13} color={C.text}>{account.name}</Txt>
-                            <Txt size={11} color={C.textFaint}>{settings?.currencySymbol}{account.balance.toFixed(2)}</Txt>
-                          </View>
-                        </View>
-                        {isSelected && (
-                          <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: C.p500, alignItems: 'center', justifyContent: 'center' }}>
-                            <Txt size={11} color="#fff">✓</Txt>
-                          </View>
-                        )}
-                      </View>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            )}
-          </View>
-        )}
+        <Keypad
+          pal={C}
+          decimalSeparator={decimalSeparator}
+          onDigit={pressDigit}
+          onDecimal={pressDecimal}
+          onBackspace={pressBackspace}
+          style={{ marginTop: 16, paddingHorizontal: S.screen }}
+        />
 
-        {/* ── Category ── */}
-        <View style={{ paddingHorizontal: 20, paddingTop: 22 }}>
-          <FieldLabel icon={<Tag size={15} color={C.textFaint} />} label={t('addTx.category')} />
-          <View className="flex-row flex-wrap" style={{ gap: 10 }}>
-            {categories.map(cat => {
-              const isSelected = category === cat.name;
-              return (
-                <Pressable key={cat.name} onPress={() => handleCategoryChange(cat.name)}>
-                  <View style={{ paddingVertical: 12, paddingHorizontal: 16, borderRadius: R.pill, flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: isSelected ? `${cat.color}26` : C.glass, borderWidth: 1.5, borderColor: isSelected ? `${cat.color}77` : 'transparent' }}>
-                    <Emoji size={14}>{cat.icon}</Emoji>
-                    <Txt weight="semibold" size={13} color={isSelected ? cat.color : C.textFaint}>{categoryLabel(cat.name, categories)}</Txt>
-                  </View>
-                </Pressable>
-              );
-            })}
-            {/* Add a personalized category */}
-            <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setShowCatModal(true); }}>
-              <View style={{ paddingVertical: 12, paddingHorizontal: 16, borderRadius: R.pill, flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1.5, borderColor: `${C.p500}55`, borderStyle: 'dashed' }}>
-                <Plus size={15} color={C.p400} />
-                <Txt weight="semibold" size={13} color={C.p400}>{t('addTx.newAccount')}</Txt>
-              </View>
-            </Pressable>
-          </View>
+        <Group pal={C} style={{ marginTop: 12 }}>
+          {accounts.length > 0 ? (
+            <LinkRow
+              pal={C}
+              icon={<Wallet size={20} color={C.inkDim} strokeWidth={S.stroke} />}
+              title={t('addTx.account')}
+              body={selectedAccount
+                ? `${selectedAccount.name} · ${accountTypeLabel(selectedAccount.type)}`
+                : t('addTransaction.selectAccount')}
+              onPress={() => setSheet('account')}
+            />
+          ) : null}
+          <LinkRow
+            pal={C}
+            icon={<Calendar size={20} color={C.inkDim} strokeWidth={S.stroke} />}
+            title={t('addTx.dateLabel')}
+            body={format(date, 'd MMMM yyyy', { locale })}
+            onPress={() => setSheet('date')}
+          />
+          <LinkRow
+            pal={C}
+            icon={<FileText size={20} color={C.inkDim} strokeWidth={S.stroke} />}
+            title={t('addTx.noteOptional')}
+            body={note.trim() || t('addTx.spentOnWhat')}
+            onPress={() => setSheet('note')}
+          />
+          <SwitchRow
+            pal={C}
+            icon={<Zap size={20} color={C.inkDim} strokeWidth={S.stroke} />}
+            title={t('addTransaction.impulse')}
+            body={t('addTransaction.impulseHint')}
+            value={isImpulse}
+            onValueChange={setIsImpulse}
+          />
+        </Group>
+
+        <PrimaryButton
+          pal={C}
+          label={mutation.isPending ? t('addTx.logging') : t('addTx.logIt')}
+          onPress={() => mutation.mutate()}
+          disabled={mutation.isPending || value <= 0}
+          style={{ marginHorizontal: S.screen, marginTop: 24 }}
+        />
+      </ScrollView>
+
+      <Sheet
+        pal={C}
+        visible={sheet === 'account'}
+        onClose={() => setSheet(null)}
+        title={t('addTx.account')}
+      >
+        <View style={{ paddingHorizontal: S.card, gap: 8 }}>
+          {accounts.map((account) => (
+            <ChoiceRow
+              key={account.id}
+              pal={C}
+              title={account.name}
+              body={`${accountTypeLabel(account.type)} · ${formatCurrency(account.balance)}`}
+              selected={account.id === currentAccountId}
+              onPress={() => {
+                setSelectedAccountId(account.id);
+                setSheet(null);
+              }}
+            />
+          ))}
         </View>
+      </Sheet>
 
-        {/* ── Create-category modal ── */}
-        <Modal visible={showCatModal} transparent animationType="fade" onRequestClose={() => setShowCatModal(false)}>
-          <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', paddingHorizontal: 24 }} onPress={() => setShowCatModal(false)}>
-            <Pressable onPress={() => {}} style={{ backgroundColor: C.bgRaise, borderRadius: R.xl, padding: 22, borderWidth: 1, borderColor: C.glassBorder }}>
-              <View className="flex-row items-center justify-between" style={{ marginBottom: 18 }}>
-                <Txt weight="bold" size={19} color={C.text}>{t('addTransaction.newCategory')}</Txt>
-                <Pressable onPress={() => setShowCatModal(false)} hitSlop={10}><X size={22} color={C.textFaint} /></Pressable>
-              </View>
-
-              {/* Live preview */}
-              <View style={{ alignSelf: 'flex-start', paddingVertical: 12, paddingHorizontal: 16, borderRadius: R.pill, flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: `${newCatColor}26`, borderWidth: 1.5, borderColor: `${newCatColor}77`, marginBottom: 18 }}>
-                <Emoji size={16}>{newCatEmoji}</Emoji>
-                <Txt weight="semibold" size={14} color={newCatColor}>{newCatName.trim() || 'Category name'}</Txt>
-              </View>
-
-              <TextInput
-                value={newCatName}
-                onChangeText={setNewCatName}
-                placeholder={t('addTx.notePlaceholder')}
-                placeholderTextColor={C.textFaint}
-                maxLength={20}
-                style={{ color: C.text, fontSize: 16, fontFamily: 'PlusJakartaSans_600SemiBold', backgroundColor: C.glass, borderRadius: R.md, paddingHorizontal: 16, paddingVertical: 14, borderWidth: 1, borderColor: C.glassBorder, marginBottom: 16 }}
-                selectionColor={C.p500}
-              />
-
-              <Txt weight="semibold" size={12} color={C.textDim} style={{ marginBottom: 8 }}>{t('addTransaction.icon')}</Txt>
-              <View className="flex-row flex-wrap" style={{ gap: 8, marginBottom: 16 }}>
-                {CATEGORY_EMOJIS.map(e => (
-                  <Pressable key={e} onPress={() => setNewCatEmoji(e)}>
-                    <View style={{ width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: newCatEmoji === e ? `${C.p500}30` : C.glass, borderWidth: 1.5, borderColor: newCatEmoji === e ? C.p400 : 'transparent' }}>
-                      <Emoji size={18}>{e}</Emoji>
-                    </View>
-                  </Pressable>
-                ))}
-              </View>
-
-              <Txt weight="semibold" size={12} color={C.textDim} style={{ marginBottom: 8 }}>{t('addTransaction.color')}</Txt>
-              <View className="flex-row flex-wrap" style={{ gap: 10, marginBottom: 22 }}>
-                {CATEGORY_COLORS.map(col => (
-                  <Pressable key={col} onPress={() => setNewCatColor(col)}>
-                    <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: col, borderWidth: 3, borderColor: newCatColor === col ? '#fff' : 'transparent' }} />
-                  </Pressable>
-                ))}
-              </View>
-
-              <BubbleButton label={t('addTx.createCat')} onPress={handleCreateCategory} disabled={!newCatName.trim()} />
-            </Pressable>
-          </Pressable>
-        </Modal>
-
-        {/* ── Date ── */}
-        <View style={{ paddingHorizontal: 20, paddingTop: 22 }}>
-          <FieldLabel icon={<Calendar size={15} color={C.textFaint} />} label={t('addTx.dateLabel')} />
-          <Pressable onPress={() => setShowDatePicker(true)}>
-            <GlassCard padding={14} radius={R.md}>
-              <View className="flex-row items-center" style={{ gap: 12 }}>
-                <IconBubble color={C.p500} size={40}><Calendar size={19} color={C.p400} /></IconBubble>
-                <Txt weight="semibold" size={16} color={C.text}>{format(date, 'MMMM d, yyyy', { locale: getDateFnsLocale() })}</Txt>
-              </View>
-            </GlassCard>
-          </Pressable>
-          {showDatePicker && (
-            <DateTimePicker value={date} mode="date" display="spinner" onChange={handleDateChange} maximumDate={new Date()} />
-          )}
+      <Sheet
+        pal={C}
+        visible={sheet === 'date'}
+        onClose={() => setSheet(null)}
+        title={t('addTx.dateLabel')}
+      >
+        <View style={{ paddingHorizontal: S.card, alignItems: 'center' }}>
+          <DateTimePicker
+            value={date}
+            mode="date"
+            display="inline"
+            themeVariant={C.scheme}
+            maximumDate={new Date()}
+            onChange={(_, next) => next && setDate(next)}
+            style={{ alignSelf: 'stretch' }}
+          />
+          <PrimaryButton
+            pal={C}
+            label={t('common.done')}
+            onPress={() => setSheet(null)}
+            style={{ alignSelf: 'stretch', marginTop: 12 }}
+          />
         </View>
+      </Sheet>
 
-        {/* ── Impulse ── */}
-        <View style={{ paddingHorizontal: 20, paddingTop: 22 }}>
-          <GlassCard padding={14} radius={R.md} tint={isImpulse ? `${C.rose}16` : C.glass} border={isImpulse ? `${C.rose}3a` : C.glassBorder}>
-            <View className="flex-row items-center justify-between">
-              <View className="flex-row items-center flex-1" style={{ gap: 12 }}>
-                <IconBubble color={C.rose} size={40}><Zap size={19} color={C.rose} /></IconBubble>
-                <View className="flex-1">
-                  <Txt weight="semibold" size={14} color={C.text}>{t('addTransaction.impulse')}</Txt>
-                  <Txt size={11} color={C.textFaint} style={{ marginTop: 1 }}>{t('addTransaction.impulseHint')}</Txt>
-                </View>
-              </View>
-              <Switch
-                value={isImpulse}
-                onValueChange={(val) => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setIsImpulse(val); }}
-                trackColor={{ false: C.bgRaise, true: C.rose }}
-                thumbColor={isImpulse ? '#fff' : '#6b5f86'}
-              />
-            </View>
-          </GlassCard>
-        </View>
-
-        {/* ── Note ── */}
-        <View style={{ paddingHorizontal: 20, paddingTop: 22 }}>
-          <FieldLabel icon={<FileText size={15} color={C.textFaint} />} label={t('addTx.noteOptional')} />
-          <TextInput
+      <Sheet
+        pal={C}
+        visible={sheet === 'note'}
+        onClose={() => setSheet(null)}
+        title={t('addTx.noteOptional')}
+      >
+        <View style={{ paddingHorizontal: S.card }}>
+          <Field
+            pal={C}
+            label={t('addTx.spentOnWhat')}
             value={note}
             onChangeText={setNote}
-            placeholder={t('addTx.spentOnWhat')}
-            placeholderTextColor={C.textFaint}
-            multiline
-            numberOfLines={3}
-            style={{ color: C.text, borderRadius: R.md, padding: 16, fontSize: 15, fontFamily: 'PlusJakartaSans_500Medium', minHeight: 88, textAlignVertical: 'top', backgroundColor: C.glass, borderWidth: 1, borderColor: C.glassBorder }}
-            selectionColor={C.p500}
+            placeholder={t('addTx.notePlaceholder')}
+            autoFocus
+          />
+          <PrimaryButton
+            pal={C}
+            label={t('common.done')}
+            onPress={() => setSheet(null)}
+            style={{ marginTop: 16 }}
           />
         </View>
+      </Sheet>
 
-        {/* ── Time cost ── */}
-        {!!settings?.showTimeCost && settings?.hourlyValue > 0 && amount && parseFloat(amount) > 0 && (
-          <View style={{ paddingHorizontal: 20, paddingTop: 22 }}>
-            <GlassCard padding={14} radius={R.md} tint={`${C.p500}14`} border={`${C.p500}2e`}>
-              <View className="flex-row items-center" style={{ gap: 12 }}>
-                <IconBubble color={C.p500} size={40}><Clock size={19} color={C.p400} /></IconBubble>
-                <View>
-                  <Txt size={11} color={C.textFaint}>{t('addTransaction.timeCost')}</Txt>
-                  <Txt weight="bold" size={17} color={C.p400}>{t('addTx.minutesOfWork', { count: Math.round((parseFloat(amount) / settings.hourlyValue) * 60) })}</Txt>
-                </View>
-              </View>
-            </GlassCard>
+      <Sheet
+        pal={C}
+        visible={sheet === 'category'}
+        onClose={() => setSheet(null)}
+        title={t('addTransaction.newCategory')}
+      >
+        <ScrollView
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingHorizontal: S.card }}
+        >
+          <Field
+            pal={C}
+            label={t('addTx.category')}
+            value={newCatName}
+            onChangeText={setNewCatName}
+            placeholder={t('addTx.notePlaceholder')}
+            maxLength={20}
+          />
+
+          <Type role="meta" color={C.inkDim} style={{ marginTop: 16, marginBottom: 12 }}>
+            {t('addTransaction.icon')}
+          </Type>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+            {CATEGORY_EMOJIS.map((emoji) => (
+              <Card
+                key={emoji}
+                pal={C}
+                padding={0}
+                radius={14}
+                style={{ opacity: newCatEmoji === emoji ? 1 : 0.55 }}
+                contentStyle={{
+                  width: 44,
+                  height: 44,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: newCatEmoji === emoji ? C.accentSoft : C.groundSunk,
+                }}
+              >
+                <RNText
+                  onPress={() => setNewCatEmoji(emoji)}
+                  style={{ fontSize: 20, lineHeight: 26 }}
+                >
+                  {emoji}
+                </RNText>
+              </Card>
+            ))}
           </View>
-        )}
 
-        {/* ── Submit ── */}
-        <View style={{ paddingHorizontal: 20, paddingTop: 28 }}>
-          <BubbleButton
-            label={mutation.isPending ? t('addTx.logging') : t('addTx.logIt')}
-            onPress={() => mutation.mutate()}
-            disabled={!canSubmit}
+          <Type role="meta" color={C.inkDim} style={{ marginTop: 16, marginBottom: 12 }}>
+            {t('addTransaction.color')}
+          </Type>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
+            {CATEGORY_COLORS.map((colour) => (
+              <View
+                key={colour}
+                onTouchEnd={() => setNewCatColor(colour)}
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 18,
+                  backgroundColor: colour,
+                  borderWidth: newCatColor === colour ? 3 : 0,
+                  borderColor: C.ink,
+                }}
+              />
+            ))}
+          </View>
+
+          <PrimaryButton
+            pal={C}
+            label={t('addTx.createCat')}
+            onPress={createCategory}
+            disabled={!newCatName.trim()}
+            style={{ marginTop: 24 }}
           />
-        </View>
-      </ScrollView>
-    </ScreenBackground>
+        </ScrollView>
+      </Sheet>
+    </Screen>
   );
 }

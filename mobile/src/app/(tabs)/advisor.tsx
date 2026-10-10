@@ -7,6 +7,7 @@ import {
   Platform,
   ActivityIndicator, Alert } from 'react-native';
 import { useState, useRef, useEffect } from 'react';
+import { useRouter } from 'expo-router';
 import { VoiceReviewSheet } from '@/components/VoiceReviewSheet';
 import {
   requestMicrophone, extractFromRecording, discardRecording, SPEECH_RECORDING,
@@ -14,11 +15,8 @@ import {
 import { useAudioRecorder } from 'expo-audio';
 import { toTransactionInputs, type ReviewRow, type VoiceResult } from '@/lib/voice-capture';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Send, Bot, User, Sparkles, TrendingUp, PiggyBank, AlertCircle, Lightbulb, Mic } from 'lucide-react-native';
+import { ChevronLeft, Send, TrendingUp, PiggyBank, AlertCircle, Lightbulb, Mic } from '@/components/icons';
 import * as Haptics from 'expo-haptics';
-import Animated, { FadeInUp, FadeInDown } from 'react-native-reanimated';
 
 import { getTransactions, getSettings, addTransaction } from '@/lib/db';
 import {
@@ -27,8 +25,8 @@ import {
   sendAdvisorMessage,
   type SpendingAnalysis,
 } from '@/lib/ai-analysis';
-import { R, glow, useC } from '@/lib/design';
-import { Txt, GlassCard, IconBubble, ScreenBackground } from '@/components/ui';
+import { F, R, S, SHADOW, useC } from '@/lib/design';
+import { Card, Chip, CircleAction, Screen, Type, mirror } from '@/components/kit';
 import { useEntitlement } from '@/lib/useEntitlement';
 import { isUpgradeRequired } from '@/lib/entitlementApi';
 import { t, getLocale } from '@/lib/i18n/core';
@@ -43,18 +41,21 @@ interface Message {
 // Built per call, not at module scope: t() at module scope resolves once at
 // import and freezes the startup language.
 function suggestedPrompts() {
+  // No per-prompt colour. §1.3 makes these suggested-reply chips — white
+  // pills with a hairline (§6.4) — and four differently-tinted icon bubbles
+  // turned four equivalent options into four competing ones.
   return [
-    { icon: TrendingUp, text: t('advisor2.promptDoing'), color: '#a855f7' },
-    { icon: PiggyBank, text: t('advisor2.promptSave'), color: '#10b981' },
-    { icon: AlertCircle, text: t('advisor2.promptOverspend'), color: '#f59e0b' },
-    { icon: Lightbulb, text: t('advisor2.promptTips'), color: '#0ea5e9' },
+    { icon: TrendingUp, text: t('advisor2.promptDoing') },
+    { icon: PiggyBank, text: t('advisor2.promptSave') },
+    { icon: AlertCircle, text: t('advisor2.promptOverspend') },
+    { icon: Lightbulb, text: t('advisor2.promptTips') },
   ];
 }
 
 export default function AdvisorTab() {
   const C = useC();
   const { handleUpgradeRequired } = useEntitlement();
-  const insets = useSafeAreaInsets();
+  const router = useRouter();
   const scrollViewRef = useRef<ScrollView>(null);
   const [inputText, setInputText] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
@@ -194,192 +195,188 @@ export default function AdvisorTab() {
   };
 
   return (
-    <ScreenBackground>
-      {/* ── Header ── */}
-      <View style={{ paddingTop: insets.top + 12, paddingBottom: 6, paddingHorizontal: 20, alignItems: 'center' }}>
-        <View className="flex-row items-center" style={{ gap: 10 }}>
-          <LinearGradient colors={[C.p600, C.p400]} style={[{ width: 38, height: 38, borderRadius: 14, alignItems: 'center', justifyContent: 'center' }, glow(C.p500, 0.45, 12, C.glowScale)]}>
-            <Bot size={20} color="#fff" />
-          </LinearGradient>
-          <View>
-            <Txt weight="bold" size={19} color={C.text}>{t('advisor.title')}</Txt>
-            <Txt size={11} color={C.textDim}>{t('advisor.subtitle')}</Txt>
-          </View>
-        </View>
+    <Screen pal={C}>
+      {/* Ask comes off the tab bar (§5), so it has to carry its own way out.
+          A screen you can reach and not leave is the one wayfinding failure
+          that has no excuse. */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: S.screen, paddingTop: 8 }}>
+        <CircleAction
+          pal={C}
+          label={t('common.back')}
+          onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)'))}
+        >
+          <ChevronLeft size={20} color={C.ink} strokeWidth={S.stroke} style={mirror} />
+        </CircleAction>
+        <Type role="cardTitle" color={C.ink} style={{ flex: 1 }}>
+          {t('advisor.title')}
+        </Type>
       </View>
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        className="flex-1"
+        style={{ flex: 1 }}
         keyboardVerticalOffset={85}
       >
         <ScrollView
           ref={scrollViewRef}
-          className="flex-1"
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingVertical: 12, paddingHorizontal: 20, paddingBottom: 16 }}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{ paddingHorizontal: S.screen, paddingTop: 16, paddingBottom: 16 }}
         >
-          {/* Welcome */}
-          {messages.length === 0 && (
-            <Animated.View entering={FadeInDown.duration(400)}>
-              <GlassCard tint={`${C.p500}14`} border={`${C.p500}2e`} radius={R.lg} style={{ marginBottom: 16 }}>
-                <View className="flex-row items-center mb-3" style={{ gap: 12 }}>
-                  <IconBubble color={C.p500} size={48} radius={18}><Sparkles size={23} color={C.p400} /></IconBubble>
-                  <View className="flex-1">
-                    <Txt weight="bold" size={18} color={C.text}>{t('advisor.welcome')}</Txt>
-                    <Txt size={13} color={C.textDim}>{t('advisor.analyzed')}</Txt>
-                  </View>
-                </View>
-                <Txt size={13} color={C.textDim} style={{ lineHeight: 20 }}>
-                  {t('advisor2.welcomeBody')}
-                </Txt>
-              </GlassCard>
+          {/* The Milo screen (§16, §1.3): a headline sitting directly on the
+              ground, three short paragraphs of ordinary English, and tappable
+              chips. No avatar chip, no gradient badge, no card around the
+              greeting — prose is the interface here, so it gets the room. */}
+          {messages.length === 0 ? (
+            <>
+              <Type role="headline" color={C.ink} style={{ marginTop: 12 }}>
+                {t('advisor.welcome')}
+              </Type>
+              <Type role="body" color={C.inkDim} style={{ marginTop: 12 }}>
+                {t('advisor2.welcomeBody')}
+              </Type>
 
-              {quickInsights.length > 0 && (
-                <View style={{ marginBottom: 16 }}>
-                  <Txt weight="bold" size={11} color={C.textFaint} style={{ marginBottom: 10, marginStart: 2, letterSpacing: 1 }}>{t('advisor.quickInsights')}</Txt>
-                  <View style={{ gap: 8 }}>
-                    {quickInsights.map((insight, idx) => (
-                      <Animated.View key={idx} entering={FadeInUp.delay(100 * idx).duration(300)}>
-                        <GlassCard padding={14} radius={R.md}>
-                          <Txt size={13} color={C.text} style={{ lineHeight: 19 }}>{insight}</Txt>
-                        </GlassCard>
-                      </Animated.View>
-                    ))}
-                  </View>
+              {quickInsights.length > 0 ? (
+                <View style={{ marginTop: 16, gap: 12 }}>
+                  {quickInsights.map((insight, idx) => (
+                    <Type key={idx} role="body" color={C.ink}>
+                      {insight}
+                    </Type>
+                  ))}
                 </View>
-              )}
+              ) : null}
 
-              <Txt weight="bold" size={11} color={C.textFaint} style={{ marginBottom: 10, marginStart: 2, letterSpacing: 1 }}>{t('advisor.tryAsking')}</Txt>
-              <View style={{ gap: 10 }}>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 24 }}>
                 {suggestedPrompts().map((prompt, idx) => (
-                  <Animated.View key={idx} entering={FadeInUp.delay(200 + 100 * idx).duration(300)}>
-                    <Pressable onPress={() => handleSuggestedPrompt(prompt.text)}>
-                      <GlassCard padding={14} radius={R.md}>
-                        <View className="flex-row items-center" style={{ gap: 12 }}>
-                          <IconBubble color={prompt.color} size={40}><prompt.icon size={19} color={prompt.color} /></IconBubble>
-                          <Txt weight="medium" size={14} color={C.text} style={{ flex: 1 }}>{prompt.text}</Txt>
-                        </View>
-                      </GlassCard>
-                    </Pressable>
-                  </Animated.View>
+                  <Chip
+                    key={idx}
+                    pal={C}
+                    label={prompt.text}
+                    onPress={() => handleSuggestedPrompt(prompt.text)}
+                  />
                 ))}
               </View>
-            </Animated.View>
-          )}
+            </>
+          ) : null}
 
-          {/* Messages */}
-          {messages.map((message) => {
-            const isUser = message.role === 'user';
-            return (
-              <Animated.View key={message.id} entering={FadeInUp.duration(300)} style={{ marginBottom: 14, alignItems: isUser ? 'flex-end' : 'flex-start' }}>
-                {isUser ? (
-                  <LinearGradient
-                    colors={[C.p600, C.p500]}
-                    style={[{ maxWidth: '86%', borderRadius: R.lg, borderBottomRightRadius: 8, padding: 14 }, glow(C.p500, 0.3, 14, C.glowScale)]}
-                  >
-                    <View className="flex-row items-center mb-2" style={{ gap: 6 }}>
-                      <View style={{ width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.2)' }}>
-                        <User size={13} color="#fff" />
-                      </View>
-                      <Txt size={11} color="rgba(255,255,255,0.75)">{t('advisor2.you')}</Txt>
-                    </View>
-                    <Txt size={14} color="#fff" style={{ lineHeight: 20 }}>{message.content}</Txt>
-                  </LinearGradient>
-                ) : (
-                  <GlassCard padding={14} radius={R.lg} style={{ maxWidth: '86%', borderBottomLeftRadius: 8 }} tint={C.glassStrong}>
-                    <View className="flex-row items-center mb-2" style={{ gap: 6 }}>
-                      <View style={{ width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: `${C.p500}33` }}>
-                        <Bot size={13} color={C.p400} />
-                      </View>
-                      <Txt size={11} color={C.textDim}>{t('advisor.title')}</Txt>
-                    </View>
-                    <Txt size={14} color={C.text} style={{ lineHeight: 20 }}>{message.content}</Txt>
-                  </GlassCard>
-                )}
-              </Animated.View>
-            );
-          })}
-
-          {/* Loading */}
-          {sendMessageMutation.isPending && (
-            <Animated.View entering={FadeInUp.duration(300)} style={{ alignItems: 'flex-start', marginBottom: 14 }}>
-              <GlassCard padding={14} radius={R.lg} tint={C.glassStrong}>
-                <View className="flex-row items-center" style={{ gap: 10 }}>
-                  <ActivityIndicator size="small" color={C.p400} />
-                  <Txt size={13} color={C.textDim}>{t('advisor.analyzing')}</Txt>
+          {/* A conversation, not two kinds of card. The question is an ink
+              bubble — the screen's one dark object — and the answer is prose
+              on the ground, because that is what it is. */}
+          {messages.map((message) => (
+            <View
+              key={message.id}
+              style={{
+                marginBottom: 16,
+                alignItems: message.role === 'user' ? 'flex-end' : 'flex-start',
+              }}
+            >
+              {message.role === 'user' ? (
+                <View
+                  style={[
+                    SHADOW.near,
+                    {
+                      maxWidth: '86%',
+                      backgroundColor: C.ink,
+                      borderRadius: R.md,
+                      borderBottomEndRadius: 8,
+                      paddingHorizontal: 16,
+                      paddingVertical: 12,
+                    },
+                  ]}
+                >
+                  <Type role="body" color={C.onInk}>{message.content}</Type>
                 </View>
-              </GlassCard>
-            </Animated.View>
-          )}
+              ) : (
+                <Type role="body" color={C.ink} style={{ maxWidth: '96%' }}>
+                  {message.content}
+                </Type>
+              )}
+            </View>
+          ))}
+
+          {sendMessageMutation.isPending ? (
+            <Type role="body" color={C.inkDim}>{t('advisor.analyzing')}</Type>
+          ) : null}
         </ScrollView>
 
         {/* ── Disclaimer ──
             Persistent and on-screen, not a modal nobody reads. It sits directly
             above the input because that is where someone is looking when they
             decide what to ask, which is the moment it has to be true. */}
-        <View style={{ paddingHorizontal: 20, paddingTop: 8 }}>
-          <Txt size={11} color={C.textFaint} style={{ textAlign: 'center', lineHeight: 15 }}>
-            {t('advisor.disclaimer')}
-          </Txt>
-        </View>
+        <Type
+          role="meta"
+          color={C.inkDim}
+          style={{ paddingHorizontal: S.screen, textAlign: 'center' }}
+        >
+          {t('advisor.disclaimer')}
+        </Type>
 
         {/* ── Input ── */}
-        <View style={{ paddingHorizontal: 20, paddingTop: 10, paddingBottom: 28 }}>
+        <View style={{ paddingHorizontal: S.screen, paddingTop: 12, paddingBottom: 28 }}>
           {recording || extracting ? (
-            <Txt size={12} color={recording ? C.rose : C.textFaint} style={{ marginBottom: 8, marginStart: 4 }}>
+            <Type role="meta" color={recording ? C.negative : C.inkDim} style={{ marginBottom: 8 }}>
               {recording ? t('voice.listening') : t('voice.thinking')}
-            </Txt>
+            </Type>
           ) : null}
-          <View className="flex-row items-end" style={{ gap: 10 }}>
-            <View style={{ flex: 1, borderRadius: R.lg, paddingHorizontal: 16, paddingVertical: 12, minHeight: 50, backgroundColor: C.glassStrong, borderWidth: 1, borderColor: C.glassBorder }}>
+
+          {/* One pill holding the field, the mic and send — §16 asks for a pill
+              input with a mic, and three separate 50pt squares was three
+              objects where the reference has one. */}
+          <Card pal={C} padding={0} radius={R.pill} contentStyle={{ paddingStart: 20, paddingEnd: 6, paddingVertical: 6 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 6 }}>
               <TextInput
                 value={inputText}
                 onChangeText={setInputText}
                 placeholder={t('fields.askFinances')}
-                placeholderTextColor={C.textFaint}
+                placeholderTextColor={C.inkFaint}
                 multiline
                 maxLength={500}
-                style={{ color: C.text, fontSize: 15, fontFamily: 'PlusJakartaSans_500Medium', maxHeight: 100 }}
+                style={{
+                  flex: 1,
+                  color: C.ink,
+                  fontSize: 16,
+                  lineHeight: 22,
+                  ...F.regular,
+                  maxHeight: 100,
+                  paddingVertical: 12,
+                }}
                 editable={!sendMessageMutation.isPending}
                 onSubmitEditing={handleSend}
                 returnKeyType="send"
               />
-            </View>
-            {/* Hold to talk. The send button keeps its place and the mic
-                takes the slot beside it, so typing is no harder than before. */}
-            <Pressable
-              onPressIn={beginVoice}
-              onPressOut={endVoice}
-              disabled={extracting || sendMessageMutation.isPending}
-            >
-              <View
-                style={[
-                  {
-                    width: 50, height: 50, borderRadius: 18,
-                    alignItems: 'center', justifyContent: 'center',
-                    backgroundColor: recording ? `${C.rose}26` : C.glassStrong,
-                    borderWidth: 1,
-                    borderColor: recording ? `${C.rose}66` : C.glassBorder,
-                  },
-                  recording ? glow(C.rose, 0.5, 14, C.glowScale) : null,
-                ]}
+
+              {/* Hold to talk. */}
+              <Pressable
+                onPressIn={beginVoice}
+                onPressOut={endVoice}
+                disabled={extracting || sendMessageMutation.isPending}
+                accessibilityRole="button"
+                accessibilityLabel={t('voice.listening')}
+                style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}
               >
                 {extracting
-                  ? <ActivityIndicator size="small" color={C.p400} />
-                  : <Mic size={20} color={recording ? C.rose : C.textFaint} />}
-              </View>
-            </Pressable>
+                  ? <ActivityIndicator size="small" color={C.inkDim} />
+                  : <Mic size={20} color={recording ? C.negative : C.inkDim} strokeWidth={S.stroke} />}
+              </Pressable>
 
-            <Pressable onPress={handleSend} disabled={!canSend}>
-              <LinearGradient
-                colors={canSend ? [C.p600, C.p400] : ['#2a2138', '#2a2138']}
-                style={[{ width: 50, height: 50, borderRadius: 18, alignItems: 'center', justifyContent: 'center' }, canSend ? glow(C.p500, 0.5, 14, C.glowScale) : null]}
+              <Pressable
+                onPress={handleSend}
+                disabled={!canSend}
+                accessibilityRole="button"
+                accessibilityLabel={t('advisor.title')}
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 22,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: canSend ? C.ink : C.groundSunk,
+                }}
               >
-                <Send size={20} color={canSend ? '#fff' : C.textFaint} />
-              </LinearGradient>
-            </Pressable>
-          </View>
+                <Send size={18} color={canSend ? C.onInk : C.inkFaint} strokeWidth={S.stroke} />
+              </Pressable>
+            </View>
+          </Card>
         </View>
       </KeyboardAvoidingView>
 
@@ -390,6 +387,6 @@ export default function AdvisorTab() {
         onCancel={() => setVoiceResult(null)}
         onConfirm={saveVoiceRows}
       />
-    </ScreenBackground>
+    </Screen>
   );
 }

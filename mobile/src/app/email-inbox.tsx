@@ -1,42 +1,79 @@
-import { View, ScrollView, Pressable, RefreshControl, ActivityIndicator } from 'react-native';
+import { useState } from 'react';
+import { ActivityIndicator, RefreshControl, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
-import { useState } from 'react';
-import { ArrowLeft, Copy, Check, Mail, Inbox, KeyRound, ShieldCheck } from 'lucide-react-native';
-import Animated, { FadeInUp } from 'react-native-reanimated';
+import { Check, Copy, Inbox, KeyRound, Mail } from '@/components/icons';
 import { format, parseISO } from 'date-fns';
 
 import {
-  getEmailStatus, getInboxAddress, getInbox, importInboxSubscriptions,
-  type EmailStatus, type InboxItem,
+  getEmailStatus,
+  getInbox,
+  getInboxAddress,
+  importInboxSubscriptions,
+  type EmailStatus,
+  type InboxItem,
 } from '@/lib/emailSubscriptionApi';
-import { R, useC } from '@/lib/design';
-import { Txt, GlassCard, IconBubble, Pill, BubbleButton, ScreenBackground } from '@/components/ui';
+import { formatCurrency } from '@/lib/calculations';
+import { R, S, useC } from '@/lib/design';
+import { PressableScale } from '@/components/motion';
+import {
+  Card,
+  Empty,
+  IconTile,
+  InfoRow,
+  PrimaryButton,
+  Screen,
+  SectionHeader,
+  SubHeader,
+  Type,
+} from '@/components/kit';
 import { t, getDateFnsLocale } from '@/lib/i18n/core';
 
-const STEPS = [
-  'Copy your private Budget address above.',
-  'In Gmail (web): Settings → "See all settings" → Forwarding and POP/IMAP → "Add a forwarding address" → paste it → Next.',
-  'Gmail sends a confirmation — the code appears on this screen. Type that code back into Gmail to confirm.',
-  'Create a filter: in Gmail search, open filter options, set "Has the words" to receipt OR invoice OR subscription OR renewal, then "Forward it to" your Budget address.',
-];
+/** The four setup instructions. They used to be a `const STEPS` array of
+ *  English sentences — the longest untranslated strings in the app, on a
+ *  screen whose whole job is walking someone through a setup. */
+const STEP_KEYS = [
+  'emailInbox.step1',
+  'emailInbox.step2',
+  'emailInbox.step3',
+  'emailInbox.step4',
+] as const;
 
+/**
+ * Email forwarding — DESIGN-PROMPT.md board §31.
+ *
+ * Three tinted-glass card styles became white cards on bone: the address is a
+ * sunk well with one copy button beside it, the Gmail confirmation code is a
+ * feature row, and the detected invoices are ordinary rows with amounts set
+ * by the shared formatter — they were `$${n.toFixed(2)}`, so a euro receipt
+ * was labelled in dollars.
+ */
 export default function EmailInboxScreen() {
   const C = useC();
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const qc = useQueryClient();
   const [copied, setCopied] = useState(false);
 
-  const { data: status } = useQuery<EmailStatus>({ queryKey: ['email-status'], queryFn: getEmailStatus, retry: false });
+  const { data: status } = useQuery<EmailStatus>({
+    queryKey: ['email-status'],
+    queryFn: getEmailStatus,
+    retry: false,
+  });
   const configured = !!status?.inboxConfigured;
 
-  const { data: addr } = useQuery({ queryKey: ['inbox-address'], queryFn: getInboxAddress, enabled: configured, retry: false });
+  const { data: addr } = useQuery({
+    queryKey: ['inbox-address'],
+    queryFn: getInboxAddress,
+    enabled: configured,
+    retry: false,
+  });
   const { data: inbox = [], isLoading, refetch, isRefetching } = useQuery({
-    queryKey: ['email-inbox'], queryFn: getInbox, enabled: configured, retry: false,
+    queryKey: ['email-inbox'],
+    queryFn: getInbox,
+    enabled: configured,
+    retry: false,
   });
 
   const confirmation = inbox.find((i) => i.status === 'confirmation' && i.merchant);
@@ -44,7 +81,7 @@ export default function EmailInboxScreen() {
 
   const importMut = useMutation({
     mutationFn: () => importInboxSubscriptions(invoices),
-    onSuccess: async (saved) => {
+    onSuccess: async () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       await qc.invalidateQueries({ queryKey: ['subscriptions'] });
       await qc.invalidateQueries({ queryKey: ['email-status'] });
@@ -56,151 +93,243 @@ export default function EmailInboxScreen() {
   async function copyAddress() {
     if (!addr?.address) return;
     await Clipboard.setStringAsync(addr.address);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }
 
+  const invoiceMeta = (item: InboxItem) =>
+    [
+      item.cadence !== 'unknown' ? t(`frequency.${item.cadence}`) : null,
+      item.chargedISO
+        ? format(parseISO(item.chargedISO), 'd MMM', { locale: getDateFnsLocale() })
+        : t('emailInbox.recent'),
+    ]
+      .filter(Boolean)
+      .join(' · ');
+
   return (
-    <ScreenBackground>
+    <Screen pal={C}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingTop: insets.top + 8, paddingBottom: 48 }}
-        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={C.p400} />}
+        contentContainerStyle={{ paddingTop: 8, paddingBottom: 60 }}
+        refreshControl={
+          <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={C.accent} />
+        }
       >
-        {/* Header */}
-        <View style={{ paddingHorizontal: 20 }}>
-          <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.back(); }} style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1, flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 14, alignSelf: 'flex-start' })}>
-            <ArrowLeft size={18} color={C.p400} />
-            <Txt weight="semibold" size={14} color={C.p400}>{t('common.back')}</Txt>
-          </Pressable>
-          <Txt weight="bold" size={28} color={C.text}>{t('emailInbox.title')}</Txt>
-          <Txt weight="medium" size={13} color={C.textDim} style={{ marginTop: 2 }}>
-            {t('emailInbox.forwardIntro')}
-          </Txt>
-        </View>
+        <SubHeader pal={C} title={t('emailInbox.title')} onBack={() => router.back()} />
+
+        <Type role="body" color={C.inkDim} style={{ paddingHorizontal: S.screen, marginTop: 16 }}>
+          {t('emailInbox.forwardIntro')}
+        </Type>
 
         {!configured ? (
-          <View style={{ paddingHorizontal: 20, marginTop: 20 }}>
-            <GlassCard tint={`${C.amber}14`} border={`${C.amber}33`}>
-              <View className="flex-row items-start" style={{ gap: 12 }}>
-                <IconBubble color={C.amber}><Mail size={20} color={C.amber} /></IconBubble>
-                <View className="flex-1">
-                  <Txt weight="bold" size={15} color={C.text}>{t('emailInbox.notOn')}</Txt>
-                  <Txt size={13} color={C.textDim} style={{ marginTop: 3, lineHeight: 19 }}>
+          <View style={{ paddingHorizontal: S.screen, marginTop: S.section }}>
+            <Card pal={C}>
+              <View style={{ flexDirection: 'row', gap: 12 }}>
+                <IconTile pal={C}>
+                  <Mail size={19} color={C.accent} strokeWidth={S.stroke} />
+                </IconTile>
+                <View style={{ flex: 1 }}>
+                  <Type role="cardTitle" color={C.ink}>
+                    {t('emailInbox.notOn')}
+                  </Type>
+                  <Type role="body" color={C.inkDim} style={{ marginTop: 4 }}>
                     {t('emailInbox.notEnabled')}
-                  </Txt>
+                  </Type>
                 </View>
               </View>
-            </GlassCard>
+            </Card>
           </View>
         ) : (
           <>
-            {/* Address card */}
-            <Animated.View entering={FadeInUp.delay(40).springify().damping(16)} style={{ paddingHorizontal: 20, marginTop: 18 }}>
-              <GlassCard tint={`${C.p500}14`} border={`${C.p500}2e`}>
-                <View className="flex-row items-center justify-between mb-3">
-                  <Txt weight="semibold" size={12} color={C.p300}>{t('emailInbox.yourAddress')}</Txt>
-                  {addr?.verified
-                    ? <View className="flex-row items-center" style={{ gap: 4 }}><ShieldCheck size={13} color={C.green} /><Txt weight="bold" size={11} color={C.green}>{t('emailInbox.active')}</Txt></View>
-                    : <Pill label={t('misc2.awaitingEmail')} color={C.amber} />}
+            {/* The address, and the one thing you do with it. */}
+            <View style={{ paddingHorizontal: S.screen, marginTop: S.section }}>
+              <Card pal={C}>
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    marginBottom: 12,
+                  }}
+                >
+                  <Type role="meta" color={C.inkDim}>
+                    {t('emailInbox.yourAddress')}
+                  </Type>
+                  <Type role="meta" color={addr?.verified ? C.positive : C.inkDim}>
+                    {addr?.verified ? t('emailInbox.active') : t('misc2.awaitingEmail')}
+                  </Type>
                 </View>
-                <View className="flex-row items-center" style={{ gap: 10 }}>
-                  <View style={{ flex: 1, backgroundColor: C.glass, borderRadius: R.md, paddingHorizontal: 14, paddingVertical: 13, borderWidth: 1, borderColor: C.glassBorder }}>
-                    <Txt weight="semibold" size={14} color={C.text} numberOfLines={1}>{addr?.address ?? '…'}</Txt>
-                  </View>
-                  <Pressable onPress={copyAddress} style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1, width: 48, height: 48, borderRadius: R.md, backgroundColor: copied ? `${C.green}26` : `${C.p500}26`, borderWidth: 1, borderColor: copied ? `${C.green}55` : `${C.p500}55`, alignItems: 'center', justifyContent: 'center' })}>
-                    {copied ? <Check size={18} color={C.green} /> : <Copy size={18} color={C.p400} />}
-                  </Pressable>
-                </View>
-              </GlassCard>
-            </Animated.View>
 
-            {/* Gmail confirmation code */}
-            {confirmation && (
-              <Animated.View entering={FadeInUp.delay(60).springify().damping(16)} style={{ paddingHorizontal: 20, marginTop: 14 }}>
-                <GlassCard tint={`${C.amber}16`} border={`${C.amber}3a`}>
-                  <View className="flex-row items-center" style={{ gap: 12 }}>
-                    <IconBubble color={C.amber}><KeyRound size={20} color={C.amber} /></IconBubble>
-                    <View className="flex-1">
-                      <Txt weight="bold" size={14} color={C.text}>{t('emailInbox.confirmGmail')}</Txt>
-                      <Txt size={12} color={C.textDim} style={{ marginTop: 2 }}>{t('emailInbox.enterCode')}</Txt>
-                      <Txt weight="bold" size={22} color={C.amber} style={{ marginTop: 4, letterSpacing: 2 }}>{confirmation.merchant}</Txt>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                  <View
+                    style={{
+                      flex: 1,
+                      minHeight: 52,
+                      justifyContent: 'center',
+                      paddingHorizontal: 14,
+                      borderRadius: R.sm,
+                      backgroundColor: C.groundSunk,
+                    }}
+                  >
+                    <Type role="cardTitle" color={C.ink} numberOfLines={1}>
+                      {addr?.address ?? '…'}
+                    </Type>
+                  </View>
+                  <PressableScale
+                    onPress={copyAddress}
+                    haptic="light"
+                    accessibilityRole="button"
+                    accessibilityLabel={t('emailInbox.yourAddress')}
+                    style={{
+                      width: 52,
+                      height: 52,
+                      borderRadius: R.sm,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      backgroundColor: copied ? C.accentSoft : C.groundSunk,
+                    }}
+                  >
+                    {copied ? (
+                      <Check size={19} color={C.accent} strokeWidth={2.4} />
+                    ) : (
+                      <Copy size={19} color={C.inkDim} strokeWidth={S.stroke} />
+                    )}
+                  </PressableScale>
+                </View>
+              </Card>
+            </View>
+
+            {confirmation ? (
+              <View style={{ paddingHorizontal: S.screen, marginTop: 12 }}>
+                <Card pal={C}>
+                  <View style={{ flexDirection: 'row', gap: 12 }}>
+                    <IconTile pal={C}>
+                      <KeyRound size={19} color={C.accent} strokeWidth={S.stroke} />
+                    </IconTile>
+                    <View style={{ flex: 1 }}>
+                      <Type role="cardTitle" color={C.ink}>
+                        {t('emailInbox.confirmGmail')}
+                      </Type>
+                      <Type role="meta" color={C.inkDim} style={{ marginTop: 2 }}>
+                        {t('emailInbox.enterCode')}
+                      </Type>
+                      <Type
+                        role="section"
+                        color={C.ink}
+                        style={{ marginTop: 8, letterSpacing: 3, fontVariant: ['tabular-nums'] }}
+                      >
+                        {confirmation.merchant}
+                      </Type>
                     </View>
                   </View>
-                </GlassCard>
-              </Animated.View>
-            )}
-
-            {/* Detected invoices */}
-            <View style={{ paddingHorizontal: 20, marginTop: 18 }}>
-              <View className="flex-row items-center justify-between mb-3">
-                <Txt weight="bold" size={12} color={C.textFaint} style={{ letterSpacing: 1 }}>{t('emailInbox.detected')}</Txt>
-                {invoices.length > 0 && <Pill label={`${invoices.length} new`} color={C.p400} />}
+                </Card>
               </View>
+            ) : null}
+
+            <View style={{ marginTop: S.section }}>
+              <SectionHeader pal={C} title={t('emailInbox.detected')} />
+              {invoices.length > 0 ? (
+                <Type
+                  role="meta"
+                  color={C.inkDim}
+                  style={{ paddingHorizontal: S.screen, marginTop: -6, marginBottom: 12 }}
+                >
+                  {t('emailInbox.newCount', { count: invoices.length })}
+                </Type>
+              ) : null}
 
               {isLoading ? (
-                <ActivityIndicator color={C.p400} style={{ paddingVertical: 30 }} />
+                <ActivityIndicator color={C.accent} style={{ paddingVertical: 30 }} />
               ) : invoices.length === 0 ? (
-                <GlassCard style={{ alignItems: 'center', paddingVertical: 30 }}>
-                  <Inbox size={30} color={C.textFaint} />
-                  <Txt weight="semibold" size={14} color={C.textDim} style={{ marginTop: 10 }}>{t('emailInbox.none')}</Txt>
-                  <Txt size={12} color={C.textFaint} style={{ textAlign: 'center', marginTop: 3 }}>
-                    {t('emailInbox.forwardHint')}
-                  </Txt>
-                </GlassCard>
+                <Empty
+                  pal={C}
+                  icon={<Inbox size={26} color={C.accent} strokeWidth={S.stroke} />}
+                  title={t('emailInbox.none')}
+                  body={t('emailInbox.forwardHint')}
+                  style={{ marginTop: 12 }}
+                />
               ) : (
-                <View style={{ gap: 10 }}>
-                  {invoices.map((item: InboxItem) => (
-                    <GlassCard key={item.id} padding={14}>
-                      <View className="flex-row items-center">
-                        <IconBubble color={C.p500} size={42}><Mail size={19} color={C.p400} /></IconBubble>
-                        <View style={{ flex: 1, marginStart: 12 }}>
-                          <Txt weight="bold" size={15} color={C.text} numberOfLines={1}>
-                            {item.merchant || item.label || item.senderDomain || 'Unrecognised email'}
-                          </Txt>
-                          <Txt size={12} color={C.textFaint} numberOfLines={1} style={{ marginTop: 1 }}>
-                            {item.cadence !== 'unknown' ? `${item.cadence} · ` : ''}{item.chargedISO ? format(parseISO(item.chargedISO), 'MMM d', { locale: getDateFnsLocale() }) : 'recent'}
-                          </Txt>
-                        </View>
-                        {item.amount ? <Txt weight="bold" size={16} color={C.text}>${item.amount.toFixed(2)}</Txt> : null}
+                <View style={{ paddingHorizontal: S.screen }}>
+                  <Card pal={C} padding={0} contentStyle={{ paddingHorizontal: S.card }}>
+                    {invoices.map((item: InboxItem, i) => (
+                      <View
+                        key={item.id}
+                        style={i > 0 ? { borderTopWidth: 1, borderTopColor: C.hairline } : undefined}
+                      >
+                        <InfoRow
+                          pal={C}
+                          title={
+                            item.merchant ||
+                            item.label ||
+                            item.senderDomain ||
+                            t('emailInbox.unrecognised')
+                          }
+                          meta={invoiceMeta(item)}
+                          amount={item.amount ?? undefined}
+                          format={formatCurrency}
+                          lead={
+                            <IconTile pal={C} size={40}>
+                              <Mail size={18} color={C.accent} strokeWidth={S.stroke} />
+                            </IconTile>
+                          }
+                        />
                       </View>
-                    </GlassCard>
-                  ))}
-                </View>
-              )}
+                    ))}
+                  </Card>
 
-              {invoices.length > 0 && (
-                <View style={{ marginTop: 14 }}>
-                  <BubbleButton
-                    label={importMut.isPending ? t('emailInbox.adding') : t('emailInbox.addCount', { count: invoices.length })}
+                  <PrimaryButton
+                    pal={C}
+                    label={
+                      importMut.isPending
+                        ? t('emailInbox.adding')
+                        : t('emailInbox.addCount', { count: invoices.length })
+                    }
                     onPress={() => importMut.mutate()}
                     disabled={importMut.isPending}
+                    style={{ marginTop: 16 }}
                   />
                 </View>
               )}
             </View>
 
-            {/* Setup steps */}
-            <View style={{ paddingHorizontal: 20, marginTop: 22 }}>
-              <Txt weight="bold" size={12} color={C.textFaint} style={{ letterSpacing: 1, marginBottom: 12 }}>{t('emailInbox.setup')}</Txt>
-              <GlassCard>
-                {STEPS.map((step, i) => (
-                  <View key={i} className="flex-row" style={{ gap: 12, marginBottom: i < STEPS.length - 1 ? 16 : 0 }}>
-                    <View style={{ width: 26, height: 26, borderRadius: 9, backgroundColor: `${C.p500}26`, alignItems: 'center', justifyContent: 'center' }}>
-                      <Txt weight="bold" size={12} color={C.p400}>{i + 1}</Txt>
-                    </View>
-                    <Txt size={13} color={C.textDim} style={{ flex: 1, lineHeight: 19 }}>{step}</Txt>
+            <View style={{ marginTop: S.section }}>
+              <SectionHeader pal={C} title={t('emailInbox.setup')} />
+              <View style={{ paddingHorizontal: S.screen }}>
+                <Card pal={C}>
+                  <View style={{ gap: 16 }}>
+                    {STEP_KEYS.map((key, i) => (
+                      <View key={key} style={{ flexDirection: 'row', gap: 12 }}>
+                        <View
+                          style={{
+                            width: 26,
+                            height: 26,
+                            borderRadius: 13,
+                            backgroundColor: C.groundSunk,
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            marginTop: 1,
+                          }}
+                        >
+                          <Type role="meta" color={C.inkDim}>
+                            {i + 1}
+                          </Type>
+                        </View>
+                        <Type role="body" color={C.ink} style={{ flex: 1 }}>
+                          {t(key)}
+                        </Type>
+                      </View>
+                    ))}
                   </View>
-                ))}
-              </GlassCard>
-              <Txt size={11} color={C.textFaint} style={{ marginTop: 10, lineHeight: 16 }}>
-                {t('emailInbox.otherApps')}
-              </Txt>
+                </Card>
+                <Type role="meta" color={C.inkDim} style={{ marginTop: 12 }}>
+                  {t('emailInbox.otherApps')}
+                </Type>
+              </View>
             </View>
           </>
         )}
       </ScrollView>
-    </ScreenBackground>
+    </Screen>
   );
 }

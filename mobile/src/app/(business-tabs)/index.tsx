@@ -1,217 +1,262 @@
-import { View, ScrollView, Pressable, ActivityIndicator } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
-import { CountUp, BreathingLight } from '@/components/motion';
-import {
-  TrendingDown, DollarSign, Briefcase, Clock,
-  Wrench, ChevronRight, AlertCircle,
-} from 'lucide-react-native';
-import { useSession } from '@/lib/auth/use-session';
+import { ActivityIndicator, ScrollView, View } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
+import { router } from 'expo-router';
+import { Briefcase, ClipboardCheck, PlusSquare, Receipt, Users, Wrench } from '@/components/icons';
+import { useSession } from '@/lib/auth/use-session';
 import { getExpenses } from '@/lib/expenseApi';
 import { getBusiness } from '@/lib/businessApi';
+import { getBudget } from '@/lib/budgetApi';
 import { roleOf } from '@/lib/group-members';
-import { router } from 'expo-router';
-import * as Haptics from 'expo-haptics';
-import Animated, { FadeInUp } from 'react-native-reanimated';
 import { detectSubscriptions } from '@/lib/business-subscription-detection';
-import { R, glow, useB } from '@/lib/design';
-import { Txt, GlassCard, IconBubble, Pill, BizBackground } from '@/components/ui';
-import { t } from '@/lib/i18n/core';
 import { expenseCategoryLabel } from '@/lib/expense-meta';
+import { pickBizInsight, type BizInsightAction } from '@/lib/biz-insight';
+import { formatCurrency } from '@/lib/calculations';
+import { BAR, S, useB } from '@/lib/design';
+import {
+  BalanceCard,
+  BudgetLine,
+  Card,
+  CircleAction,
+  Empty,
+  Header,
+  Insight,
+  QuickAction,
+  Row,
+  Screen,
+  SectionHeader,
+} from '@/components/kit';
+import { t } from '@/lib/i18n/core';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-function Label({ children }: { children: string }) {
-  const B = useB();
-  return <Txt weight="bold" size={11} color={B.textFaint} style={{ letterSpacing: 1.4, marginBottom: 12 }}>{children}</Txt>;
+function greetingWord(): string {
+  const hour = new Date().getHours();
+  if (hour < 12) return t('greeting.morning');
+  if (hour < 17) return t('greeting.afternoon');
+  if (hour < 21) return t('greeting.evening');
+  return t('greeting.night');
 }
 
-/** The screen prints "$0.00" everywhere; the hero must count to the same shape. */
-const bizCurrency = (n: number) => `$${n.toFixed(2)}`;
-
-export default function BusinessDashboardTab() {
-  const B = useB();
+/**
+ * Business home — DESIGN-PROMPT.md §32.
+ *
+ * The direct counterpart to personal home: the same skeleton, the same
+ * spacing, the same components, mint instead of violet. A user switching
+ * profiles should feel they changed rooms, not apps (§0), and the way to earn
+ * that is for these two files to differ only in what they are about.
+ *
+ * The approved total is the one dark object; the pending queue is the insight
+ * (see biz-insight for why it is folded in rather than given its own block).
+ */
+export default function BusinessHomeScreen() {
   const insets = useSafeAreaInsets();
+  const B = useB();
   const { data: session } = useSession();
-  const firstName = session?.user?.name?.split(' ')[0] ?? 'there';
 
-  const { data: allExpenses = [], isLoading } = useQuery({ queryKey: ['biz-expenses', undefined], queryFn: () => getExpenses() });
+  const { data: allExpenses = [], isLoading } = useQuery({
+    queryKey: ['biz-expenses', undefined],
+    queryFn: () => getExpenses(),
+  });
   const { data: business } = useQuery({ queryKey: ['my-business'], queryFn: getBusiness });
+  // The budget lives on the backend and may not be set; a failure here should
+  // cost the budget line, not the screen.
+  const { data: budgetData } = useQuery({
+    queryKey: ['biz-budget'],
+    queryFn: getBudget,
+    retry: false,
+  });
+
+  const firstName = session?.user?.name?.split(' ')[0];
+  const title = firstName
+    ? t('home.greetingName', { greeting: greetingWord(), name: firstName })
+    : greetingWord();
 
   const myRole = roleOf(business, session?.user?.id);
   const canReview = myRole === 'owner' || myRole === 'manager';
 
-  const totalExpenses = allExpenses.reduce((s, e) => s + e.amount, 0);
-  const approved = allExpenses.filter(e => e.status === 'approved');
-  const pending = allExpenses.filter(e => e.status === 'pending');
-  const rejected = allExpenses.filter(e => e.status === 'rejected');
+  const approved = allExpenses.filter((e) => e.status === 'approved');
+  const pending = allExpenses.filter((e) => e.status === 'pending');
+  const mine = pending.filter((e) => e.submitter.id === session?.user?.id);
   const approvedTotal = approved.reduce((s, e) => s + e.amount, 0);
-  const recentExpenses = allExpenses.slice(0, 5);
 
-  const subSummary = detectSubscriptions(allExpenses);
+  const monthlyBudget = budgetData?.budget.totalMonthly ?? 0;
+  const approvedSpend = budgetData?.spending.approved ?? approvedTotal;
+  const tools = detectSubscriptions(allExpenses);
 
-  const metrics = [
-    { label: t('bizStats.totalSubmitted'), value: `$${totalExpenses.toFixed(0)}`, sub: t('bizStats.expenseCount', { count: allExpenses.length }), accent: B.red },
-    { label: t('bizStats.approved'), value: `$${approvedTotal.toFixed(0)}`, sub: t('bizStats.approvedCount', { count: approved.length }), accent: B.teal },
-    { label: t('bizStats.pendingReview'), value: `${pending.length}`, sub: canReview ? t('bizStats.needsReview') : t('bizStats.awaitingReview'), accent: B.amber },
-    { label: t('bizStats.rejected'), value: `${rejected.length}`, sub: t('bizStats.rejectedCount', { count: rejected.length }), accent: B.textDim },
-  ];
+  const insight = pickBizInsight({
+    pendingCount: canReview ? pending.length : mine.length,
+    canReview,
+    monthlyBudget,
+    approvedSpend,
+    toolMonthly: tools.monthlyTotal,
+    money: formatCurrency,
+  });
 
-  const statusColor: Record<string, string> = { pending: B.amber, approved: B.teal, rejected: B.red };
+  const ROUTES: Record<BizInsightAction, string> = {
+    review: '/(business-tabs)/expenses',
+    tools: '/business-tools',
+    setBudget: '/(business-tabs)/insights',
+  };
+
+  const budgetSentence = () => {
+    if (monthlyBudget <= 0) return t('bizHome.budgetNone');
+    const remaining = monthlyBudget - approvedSpend;
+    return remaining >= 0
+      ? t('bizHome.budgetLeft', {
+          left: formatCurrency(remaining),
+          budget: formatCurrency(monthlyBudget),
+        })
+      : t('bizHome.budgetOver', {
+          amount: formatCurrency(-remaining),
+          budget: formatCurrency(monthlyBudget),
+        });
+  };
+
+  const recent = allExpenses.slice(0, 5);
 
   return (
-    <BizBackground style={{ paddingTop: insets.top }}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 110 }}>
-        {/* Header */}
-        <View style={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-          <View>
-            <Txt weight="bold" size={25} color={B.text}>{t('bizStats.greeting', { name: firstName })}</Txt>
-          </View>
-          <IconBubble color={B.accent} size={42} radius={14}><Briefcase size={19} color={B.accent} /></IconBubble>
-        </View>
+    <Screen pal={B}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingTop: 8, paddingBottom: BAR.clearance(insets.bottom) }}
+      >
+        {/* Same demotion as personal home, and for the same reason: the
+            approved total below is the subject, not the time of day. */}
+        <Header
+          pal={B}
+          title={title}
+          role="section"
+          subtitle={business?.name ?? undefined}
+          actions={
+            <CircleAction
+              pal={B}
+              label={t('business.businessTools')}
+              onPress={() => router.push('/business-tools')}
+            >
+              <Briefcase size={19} color={B.ink} strokeWidth={S.stroke} />
+            </CircleAction>
+          }
+        />
 
-        {/* Business balance banner */}
-        {/* Business mode's authored moment, matching the personal dashboard:
-            the figure counts, the light breathes, and the rest holds still. */}
-        <Animated.View entering={FadeInUp.delay(40).springify().damping(16)} style={{ marginHorizontal: 20, marginBottom: 20 }}>
-          <LinearGradient
-            colors={[B.heroFrom, B.heroTo]}
-            start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-            style={[{ borderRadius: R.lg, padding: 22, borderWidth: 1, borderColor: `${B.accent}33`, overflow: 'hidden' }, glow(B.accentDeep, 0.3, 22, B.glowScale)]}
-          >
-            <BreathingLight color={B.glassStrong} size={150} top={-46} right={-34} />
-            <Txt weight="semibold" size={12} color="rgba(255,255,255,0.5)" style={{ letterSpacing: 1, marginBottom: 6 }}>
-              {business?.name?.toUpperCase() ?? t('bizStats.yourBusiness')}
-            </Txt>
-            {isLoading ? (
-              <ActivityIndicator color={B.accent} size="small" style={{ alignSelf: 'flex-start', marginVertical: 6 }} />
-            ) : (
-              <CountUp
-                value={approvedTotal}
-                format={bizCurrency}
-                size={38}
-                color="#fff"
-                style={{ marginBottom: 4 }}
+        {isLoading ? (
+          <ActivityIndicator color={B.accent} style={{ marginTop: 80 }} />
+        ) : allExpenses.length === 0 ? (
+          <Empty
+            pal={B}
+            icon={<Receipt size={26} color={B.accent} strokeWidth={S.stroke} />}
+            title={t('bizHome.emptyTitle')}
+            body={t('bizHome.emptyBody')}
+            actionLabel={t('bizHome.emptyAction')}
+            onAction={() => router.push('/(business-tabs)/expenses')}
+            style={{ marginTop: 80 }}
+          />
+        ) : (
+          <>
+            {/* 1 — the approved total, as the one dark object */}
+            <View style={{ paddingHorizontal: S.screen, marginTop: 24 }}>
+              <BalanceCard
+                pal={B}
+                label={t('bizHome.approvedLabel')}
+                amount={approvedTotal}
+                caption={t('bizHome.approvedCaption', { count: approved.length })}
+                format={formatCurrency}
+                onPress={() => router.push('/(business-tabs)/expenses')}
               />
-            )}
-            <Txt weight="semibold" size={13} color={B.accentSoft}>
-              {pending.length > 0 && canReview
-                ? t('bizStats.expensesWaiting', { count: pending.length })
-                : approved.length > 0 ? t('bizStats.totalApprovedExpenses') : t('bizStats.noExpensesYet')}
-            </Txt>
-          </LinearGradient>
-        </Animated.View>
-
-        {/* Metrics */}
-        <Animated.View entering={FadeInUp.delay(80).springify().damping(16)} style={{ paddingHorizontal: 20, marginBottom: 20 }}>
-          <Label>{t('business.overview')}</Label>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
-            {metrics.map(m => (
-              <GlassCard key={m.label} style={{ width: '47.5%' }} padding={16} radius={R.md} tint={`${m.accent}12`} border={`${m.accent}26`}>
-                <Txt weight="bold" size={22} color={m.accent} style={{ marginBottom: 2 }}>{m.value}</Txt>
-                <Txt weight="semibold" size={12} color={B.textDim}>{m.label}</Txt>
-                <Txt size={11} color={B.textFaint} style={{ marginTop: 1 }}>{m.sub}</Txt>
-              </GlassCard>
-            ))}
-          </View>
-        </Animated.View>
-
-        {/* Quick actions */}
-        <Animated.View entering={FadeInUp.delay(120).springify().damping(16)} style={{ paddingHorizontal: 20, marginBottom: 20 }}>
-          <Label>{t('business.quickActions')}</Label>
-          <View style={{ flexDirection: 'row', gap: 10 }}>
-            <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push('/(business-tabs)/expenses'); }} style={({ pressed }) => ({ flex: 1, opacity: pressed ? 0.75 : 1 })}>
-              <GlassCard padding={14} radius={R.md} tint={`${B.accent}0e`} border={`${B.accent}24`} style={{ alignItems: 'center', gap: 8 }}>
-                <IconBubble color={B.red} size={40}><TrendingDown size={18} color={B.red} /></IconBubble>
-                <Txt weight="semibold" size={11} color={B.textDim}>{t('business.addExpense')}</Txt>
-              </GlassCard>
-            </Pressable>
-            {canReview && pending.length > 0 && (
-              <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push('/(business-tabs)/expenses'); }} style={({ pressed }) => ({ flex: 1, opacity: pressed ? 0.75 : 1 })}>
-                <GlassCard padding={14} radius={R.md} tint={`${B.amber}0e`} border={`${B.amber}2e`} style={{ alignItems: 'center', gap: 8 }}>
-                  <IconBubble color={B.amber} size={40}><Clock size={18} color={B.amber} /></IconBubble>
-                  <Txt weight="semibold" size={11} color={B.textDim}>{t('bizStats.reviewCount', { count: pending.length })}</Txt>
-                </GlassCard>
-              </Pressable>
-            )}
-          </View>
-        </Animated.View>
-
-        {/* Tools & subscriptions */}
-        <Animated.View entering={FadeInUp.delay(150).springify().damping(16)} style={{ paddingHorizontal: 20, marginBottom: 20 }}>
-          <Label>{t('business.tools')}</Label>
-          <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push('/business-tools'); }} style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}>
-            <GlassCard padding={20} radius={R.lg} tint={B.slate900} border={`${B.accent}22`}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 14 }}>
-                <IconBubble color={B.accent} size={40} radius={13} style={{ marginEnd: 12 }}><Wrench size={18} color={B.accent} /></IconBubble>
-                <View style={{ flex: 1 }}>
-                  <Txt weight="bold" size={15} color={B.text}>{t('business.businessTools')}</Txt>
-                  <Txt size={12} color={B.textFaint} style={{ marginTop: 1 }}>
-                    {subSummary.subscriptions.length > 0 ? t('bizStats.toolsDetected', { count: subSummary.subscriptions.length }) : t('bizStats.noToolsDetected')}
-                  </Txt>
-                </View>
-                <ChevronRight size={18} color={B.textFaint} />
-              </View>
-
-              {subSummary.subscriptions.length > 0 ? (
-                <View style={{ flexDirection: 'row', gap: 8 }}>
-                  <GlassCard style={{ flex: 1 }} padding={12} radius={R.sm} tint={`${B.red}10`} border={`${B.red}26`}>
-                    <Txt weight="bold" size={18} color={B.red}>${subSummary.monthlyTotal.toFixed(0)}</Txt>
-                    <Txt weight="bold" size={10} color={B.textFaint} style={{ letterSpacing: 0.5, marginTop: 2 }}>{t('business.perMonth')}</Txt>
-                  </GlassCard>
-                  {subSummary.upcoming.length > 0 && (
-                    <GlassCard style={{ flex: 1 }} padding={12} radius={R.sm} tint={`${B.amber}0e`} border={`${B.amber}2a`}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                        <AlertCircle size={12} color={B.amber} />
-                        <Txt weight="bold" size={18} color={B.amber}>{subSummary.upcoming.length}</Txt>
-                      </View>
-                      <Txt weight="bold" size={10} color={B.textFaint} style={{ letterSpacing: 0.5, marginTop: 2 }}>{t('business.dueSoon')}</Txt>
-                    </GlassCard>
-                  )}
-                  <GlassCard style={{ flex: 1 }} padding={12} radius={R.sm}>
-                    <Txt weight="bold" size={18} color={B.textDim}>${(subSummary.annualTotal / 1000).toFixed(1)}k</Txt>
-                    <Txt weight="bold" size={10} color={B.textFaint} style={{ letterSpacing: 0.5, marginTop: 2 }}>{t('business.perYear')}</Txt>
-                  </GlassCard>
-                </View>
-              ) : (
-                <GlassCard padding={12} radius={R.sm}>
-                  <Txt size={12} color={B.textFaint} style={{ textAlign: 'center' }}>{t('business.detectHint')}</Txt>
-                </GlassCard>
-              )}
-            </GlassCard>
-          </Pressable>
-        </Animated.View>
-
-        {/* Recent activity */}
-        <View style={{ paddingHorizontal: 20 }}>
-          <Label>{t('business.recent')}</Label>
-          {isLoading ? (
-            <View style={{ alignItems: 'center', paddingVertical: 32 }}><ActivityIndicator color={B.accent} /></View>
-          ) : recentExpenses.length === 0 ? (
-            <GlassCard padding={32} radius={R.lg} style={{ alignItems: 'center' }}>
-              <DollarSign size={32} color={B.slate700} />
-              <Txt weight="semibold" size={14} color={B.textDim} style={{ marginTop: 12, marginBottom: 4 }}>{t('business.noExpenses')}</Txt>
-              <Txt size={12} color={B.textFaint} style={{ textAlign: 'center' }}>{t('business.noExpensesHint')}</Txt>
-            </GlassCard>
-          ) : (
-            <View style={{ gap: 8 }}>
-              {recentExpenses.map(expense => (
-                <GlassCard key={expense.id} padding={13} radius={R.sm}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <View style={{ flex: 1 }}>
-                      <Txt weight="semibold" size={14} color={B.text} numberOfLines={1}>{expense.description}</Txt>
-                      <Txt size={11} color={B.textFaint} style={{ marginTop: 2 }}>{expense.submitter.name} · {expenseCategoryLabel(expense.category)}</Txt>
-                    </View>
-                    <View style={{ alignItems: 'flex-end', gap: 4 }}>
-                      <Txt weight="bold" size={14} color={B.text}>${expense.amount.toFixed(2)}</Txt>
-                      <Pill label={expense.status.toUpperCase()} color={statusColor[expense.status] ?? B.textDim} />
-                    </View>
-                  </View>
-                </GlassCard>
-              ))}
             </View>
-          )}
-        </View>
+
+            {/* The four places people go straight from here. Mirrors the
+                personal home — the two are a designed pair, so the rhythm and
+                the affordances match and only the accent differs. */}
+            <View
+              style={{ flexDirection: 'row', paddingHorizontal: S.screen, gap: 12, marginTop: S.group }}
+            >
+              <QuickAction
+                pal={B}
+                label={t('bizHome.quickAdd')}
+                Icon={PlusSquare}
+                onPress={() => router.push('/(business-tabs)/expenses')}
+              />
+              {/* A clipboard with a tick, not the double tick.
+                  `CheckCheck` is a utility mark and stays a hairline one — this
+                  row had two of them among two solid pictures, which is the
+                  same mismatch the personal row had once. */}
+              <QuickAction
+                pal={B}
+                label={t('bizHome.quickReview')}
+                Icon={ClipboardCheck}
+                onPress={() => router.push('/(business-tabs)/expenses')}
+              />
+              <QuickAction
+                pal={B}
+                label={t('bizHome.quickTools')}
+                Icon={Wrench}
+                onPress={() => router.push('/business-tools')}
+              />
+              <QuickAction
+                pal={B}
+                label={t('bizHome.quickTeam')}
+                Icon={Users}
+                onPress={() => router.push('/business-team')}
+              />
+            </View>
+
+            {/* 2 — one budget line */}
+            <BudgetLine
+              pal={B}
+              sentence={budgetSentence()}
+              spent={approvedSpend}
+              budget={monthlyBudget}
+              style={{ marginTop: S.section }}
+            />
+
+            {/* 3 — one insight, which is where the pending count lives */}
+            <Insight
+              pal={B}
+              text={t(`bizHome.${insight.key}`, insight.params)}
+              actions={insight.actions.map((a) => ({
+                label: t(a === 'review' ? 'bizHome.review' : a === 'tools' ? 'bizHome.tools' : 'home.action.setBudget'),
+                onPress: () => router.push(ROUTES[a] as never),
+              }))}
+              style={{ marginTop: S.group }}
+            />
+
+            {/* 4 — recent expenses */}
+            <View style={{ marginTop: S.section }}>
+              <SectionHeader
+                pal={B}
+                title={t('bizHome.recent')}
+                actionLabel={t('bizHome.seeAll')}
+                onAction={() => router.push('/(business-tabs)/expenses')}
+              />
+              <View style={{ paddingHorizontal: S.screen }}>
+                <Card pal={B} padding={0} contentStyle={{ paddingHorizontal: S.card }}>
+                  {recent.map((e, i) => (
+                    <View
+                      key={e.id}
+                      style={i > 0 ? { borderTopWidth: 1, borderTopColor: B.hairline } : undefined}
+                    >
+                      <Row
+                        pal={B}
+                        title={e.description}
+                        meta={`${e.submitter.name} · ${expenseCategoryLabel(e.category)}`}
+                        amount={-e.amount}
+                        format={formatCurrency}
+                        markColor={
+                          e.status === 'approved'
+                            ? B.positive
+                            : e.status === 'rejected'
+                              ? B.negative
+                              : B.warning
+                        }
+                        onPress={() => router.push('/(business-tabs)/expenses')}
+                      />
+                    </View>
+                  ))}
+                </Card>
+              </View>
+            </View>
+          </>
+        )}
       </ScrollView>
-    </BizBackground>
+    </Screen>
   );
 }

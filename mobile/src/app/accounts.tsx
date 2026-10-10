@@ -1,440 +1,406 @@
-import { View, Text, Pressable, ScrollView, TextInput, Modal } from 'react-native';
-import { useC } from '@/lib/design';
 import { useState } from 'react';
+import { Alert, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { LinearGradient } from 'expo-linear-gradient';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  ArrowLeft,
-  Plus,
-  Wallet,
   Building2,
-  PiggyBank,
-  CreditCard,
-  TrendingUp,
-  MoreHorizontal,
   Check,
-  Trash2,
-  X,
-} from 'lucide-react-native';
+  CreditCard,
+  MoreHorizontal,
+  PiggyBank,
+  Plus,
+  TrendingUp,
+  Wallet,
+} from '@/components/icons';
 import * as Haptics from 'expo-haptics';
-import { getAccounts, createAccount, updateAccount, deleteAccount, getSettings, type Account } from '@/lib/db';
+import {
+  createAccount,
+  deleteAccount,
+  getAccounts,
+  getSettings,
+  updateAccount,
+  type Account,
+} from '@/lib/db';
 import { formatCurrencyAmount } from '@/lib/currencies';
-import { t } from '@/lib/i18n/core';
 import { accountTypeLabel } from '@/lib/tx-display';
+import { categoryMarkIndex } from '@/lib/category-meta';
+import { S, useC } from '@/lib/design';
+import { C_LIGHT } from '@/lib/palettes';
+import { PressableScale } from '@/components/motion';
+import {
+  Amount,
+  BalanceCard,
+  Card,
+  CircleAction,
+  Empty,
+  Field,
+  FilterChip,
+  PrimaryButton,
+  Screen,
+  Sheet,
+  SubHeader,
+  Touchable,
+  Type,
+} from '@/components/kit';
+import { t } from '@/lib/i18n/core';
 
-// Built per call, not at module scope: t() at module scope resolves
-// once at import and freezes the startup language.
-function ACCOUNT_TYPES() {
+/**
+ * Accounts — DESIGN-PROMPT.md §13, the balance card's own detail screen.
+ *
+ * What was here: a saturated violet gradient header with 32px scalloped
+ * corners, a translucent white card floating on it, and a list of accounts
+ * each fronted by a hand-picked colour from a ten-swatch rainbow —
+ * `#22c55e`, `#3b82f6`, `#ef4444`. None of those colours are in the system,
+ * none were checked against a ground, and together they made one screen carry
+ * more hue than the rest of the app put together. §1 is explicit about where
+ * that comes from: if a decision traces back to "make it pop", reverse it.
+ *
+ * What is here now: the bone ground, one dark object — the total, which is
+ * the number people opened this screen for — and a white card of rows whose
+ * marks come from the category ramp (§2.5), which is muted on purpose and
+ * verified at 3:1 against its own ground in both schemes.
+ */
+
+/** The type choices. Built per call: `t()` at module scope freezes the
+ *  startup language. */
+function accountTypes() {
   return [
-  { id: 'cash', label: t('accountTypes.cash'), icon: Wallet, color: '#22c55e' },
-  { id: 'checking', label: t('accountTypes.checking'), icon: Building2, color: '#3b82f6' },
-  { id: 'savings', label: t('accountTypes.savings'), icon: PiggyBank, color: '#9333ea' },
-  { id: 'credit', label: t('accountTypes.creditCard'), icon: CreditCard, color: '#ef4444' },
-  { id: 'investment', label: t('accountTypes.investment'), icon: TrendingUp, color: '#f59e0b' },
-  { id: 'other', label: 'Other', icon: MoreHorizontal, color: '#6b7280' },
-];
+    { id: 'cash', label: t('accountTypes.cash'), Icon: Wallet },
+    { id: 'checking', label: t('accountTypes.checking'), Icon: Building2 },
+    { id: 'savings', label: t('accountTypes.savings'), Icon: PiggyBank },
+    { id: 'credit', label: t('accountTypes.creditCard'), Icon: CreditCard },
+    { id: 'investment', label: t('accountTypes.investment'), Icon: TrendingUp },
+    { id: 'other', label: t('accountTypes.other'), Icon: MoreHorizontal },
+  ] as const;
 }
 
-const ACCOUNT_COLORS = [
-  '#22c55e', '#3b82f6', '#9333ea', '#ef4444', '#f59e0b',
-  '#06b6d4', '#ec4899', '#84cc16', '#f97316', '#6366f1',
-];
+/**
+ * The stored form of an account's mark.
+ *
+ * A colour has to survive a scheme change, and the two ramps are different
+ * hexes for the same eight marks — the light ramp is 3.8–5.1:1 on bone, the
+ * dark one 7.3–9.6:1 on near-black, and neither is legible on the other's
+ * ground. So the light ramp is the canonical value written to the database,
+ * and `markColor` resolves it into whichever ramp is being rendered.
+ */
+const MARKS = C_LIGHT.cat;
+
+/**
+ * Resolve a stored mark into the active scheme's ramp.
+ *
+ * A colour saved before this screen existed belongs to neither ramp — the old
+ * form auto-assigned one of `#22c55e`, `#3b82f6`, `#9333ea`, `#ef4444`,
+ * `#f59e0b` by account *type*, or one of ten saturated picker swatches. Those
+ * pass through as-is only if you decide they were a user's choice worth
+ * preserving. They were not: nobody picked them, and one `#22c55e` disc on a
+ * bone screen is louder than everything else on it put together.
+ *
+ * So an unrecognised colour is derived from the account's own name instead.
+ * Deterministic, so a given account keeps one mark for good, and always from
+ * the ramp §2.5 verified at 3:1 against both grounds.
+ */
+function markColor(stored: string, name: string, cat: readonly string[]): string {
+  const i = MARKS.indexOf(stored);
+  return cat[i >= 0 ? i : categoryMarkIndex(name, cat.length)]!;
+}
 
 export default function AccountsScreen() {
   const C = useC();
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [editingAccount, setEditingAccount] = useState<Account | null>(null);
 
-  // Form state
+  const [editing, setEditing] = useState<Account | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
+
   const [name, setName] = useState('');
   const [type, setType] = useState<string>('cash');
   const [balance, setBalance] = useState('');
-  const [color, setColor] = useState('#22c55e');
+  const [color, setColor] = useState<string>(MARKS[0]!);
 
-  const { data: accounts = [] } = useQuery({
-    queryKey: ['accounts'],
-    queryFn: getAccounts,
-  });
-
-  const { data: settings } = useQuery({
-    queryKey: ['settings'],
-    queryFn: getSettings,
-  });
+  const { data: accounts = [] } = useQuery({ queryKey: ['accounts'], queryFn: getAccounts });
+  const { data: settings } = useQuery({ queryKey: ['settings'], queryFn: getSettings });
 
   const currencyCode = settings?.currency || 'USD';
+  const money = (n: number) => formatCurrencyAmount(n, currencyCode);
 
-  const totalBalance = accounts.reduce((sum, acc) => {
-    // Credit cards show as negative
-    const adjustedBalance = acc.type === 'credit' ? -acc.balance : acc.balance;
-    return sum + adjustedBalance;
-  }, 0);
+  // A credit account's balance is what you owe, so it subtracts from the
+  // total rather than adding to it.
+  const total = accounts.reduce(
+    (sum, a) => sum + (a.type === 'credit' ? -a.balance : a.balance),
+    0
+  );
 
-  const createMutation = useMutation({
-    mutationFn: async () => {
-      await createAccount({
-        name,
-        type,
-        balance: parseFloat(balance) || 0,
-        currency: currencyCode,
-        color,
-        icon: type,
-      });
-    },
-    onSuccess: () => {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      queryClient.invalidateQueries({ queryKey: ['accounts'] });
-      resetForm();
-      setShowAddModal(false);
-    },
-  });
+  const closeSheet = () => {
+    setSheetOpen(false);
+    setEditing(null);
+  };
 
-  const updateMutation = useMutation({
-    mutationFn: async () => {
-      if (!editingAccount) return;
-      await updateAccount(editingAccount.id, {
-        name,
-        type: type as Account['type'],
-        balance: parseFloat(balance) || 0,
-        color,
-      });
-    },
-    onSuccess: () => {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      queryClient.invalidateQueries({ queryKey: ['accounts'] });
-      resetForm();
-      setEditingAccount(null);
-      setShowAddModal(false);
-    },
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      await deleteAccount(id);
-    },
-    onSuccess: () => {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      queryClient.invalidateQueries({ queryKey: ['accounts'] });
-    },
-  });
-
-  const resetForm = () => {
+  const openAdd = () => {
+    setEditing(null);
     setName('');
     setType('cash');
     setBalance('');
-    setColor('#22c55e');
+    setColor(MARKS[0]!);
+    setSheetOpen(true);
   };
 
-  const openEditModal = (account: Account) => {
-    setEditingAccount(account);
+  const openEdit = (account: Account) => {
+    setEditing(account);
     setName(account.name);
     setType(account.type);
     setBalance(account.balance.toString());
     setColor(account.color);
-    setShowAddModal(true);
+    setSheetOpen(true);
   };
 
-  const handleSave = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    if (editingAccount) {
-      updateMutation.mutate();
-    } else {
-      createMutation.mutate();
-    }
-  };
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      const amount = parseFloat(balance) || 0;
+      if (editing) {
+        await updateAccount(editing.id, {
+          name,
+          type: type as Account['type'],
+          balance: amount,
+          color,
+        });
+      } else {
+        await createAccount({
+          name,
+          type,
+          balance: amount,
+          currency: currencyCode,
+          color,
+          icon: type,
+        });
+      }
+    },
+    onSuccess: () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      queryClient.invalidateQueries({ queryKey: ['accounts'] });
+      closeSheet();
+    },
+  });
 
-  const handleDelete = (id: string) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-    deleteMutation.mutate(id);
-  };
+  const deleteMutation = useMutation({
+    mutationFn: deleteAccount,
+    onSuccess: () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      queryClient.invalidateQueries({ queryKey: ['accounts'] });
+      closeSheet();
+    },
+  });
 
-  const getAccountIcon = (accountType: string) => {
-    const typeConfig = ACCOUNT_TYPES().find(t => t.id === accountType);
-    return typeConfig?.icon || Wallet;
+  // Deleting an account takes its history with it and there is no undo, which
+  // is the one case §16.2 reserves a dialog for. It had none before.
+  const confirmDelete = (account: Account) => {
+    Alert.alert(t('accounts.delete'), t('dialogs.areYouSure'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      {
+        text: t('dialogs.delete'),
+        style: 'destructive',
+        onPress: () => deleteMutation.mutate(account.id),
+      },
+    ]);
   };
 
   return (
-    <View className="flex-1" style={{ backgroundColor: C.bg }}>
-      {/* Header */}
-      <LinearGradient
-        colors={[C.p600, C.p500, C.p400, C.scheme === 'light' ? C.p300 : '#1e1b2e']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={{
-          paddingTop: insets.top + 12,
-          paddingBottom: 24,
-          paddingHorizontal: 20,
-          borderBottomLeftRadius: 32,
-          borderBottomRightRadius: 32,
-        }}
+    <Screen pal={C}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingTop: 8, paddingBottom: 60 }}
       >
-        <View className="flex-row items-center mb-4">
-          <Pressable
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              router.back();
-            }}
-            className="w-10 h-10 rounded-full bg-white/10 items-center justify-center me-3"
-          >
-            <ArrowLeft size={20} color="white" />
-          </Pressable>
-          <Text className="text-white text-xl font-bold flex-1">{t('accounts.title')}</Text>
-          <Pressable
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              resetForm();
-              setEditingAccount(null);
-              setShowAddModal(true);
-            }}
-            className="w-10 h-10 rounded-full bg-white/20 items-center justify-center"
-          >
-            <Plus size={20} color="white" />
-          </Pressable>
-        </View>
+        <SubHeader
+          pal={C}
+          title={t('accounts.title')}
+          onBack={() => router.back()}
+          action={
+            <CircleAction pal={C} label={t('accounts.addAccount')} onPress={openAdd}>
+              <Plus size={20} color={C.ink} strokeWidth={S.stroke} />
+            </CircleAction>
+          }
+        />
 
-        {/* Total Balance Card */}
-        <View
-          className="rounded-2xl p-4"
-          style={{ backgroundColor: 'rgba(255,255,255,0.15)' }}
-        >
-          <Text className="text-white/70 text-sm mb-1">{t('accounts.totalNetWorth')}</Text>
-          <Text className="text-white text-3xl font-bold">
-            {formatCurrencyAmount(totalBalance, currencyCode)}
-          </Text>
-          <Text className="text-white/60 text-sm mt-1">
-            Across {accounts.length} account{accounts.length !== 1 ? 's' : ''}
-          </Text>
-        </View>
-      </LinearGradient>
+        {/* The one dark object: the figure this screen exists to show. */}
+        <BalanceCard
+          pal={C}
+          label={t('accounts.totalNetWorth')}
+          amount={total}
+          format={money}
+          caption={t('home.balanceCaption', { count: accounts.length })}
+          style={{ paddingHorizontal: S.screen, marginTop: 24 }}
+        />
 
-      {/* Account List */}
-      <ScrollView className="flex-1 px-5 pt-6" showsVerticalScrollIndicator={false}>
         {accounts.length === 0 ? (
-          <View className="items-center py-12">
-            <Wallet size={48} color="#4b5563" />
-            <Text style={{ color: C.textFaint }} className="text-center mt-4">
-              {t('accounts.emptyBody')}
-            </Text>
-          </View>
+          <Empty
+            pal={C}
+            icon={<Wallet size={26} color={C.accent} strokeWidth={S.stroke} />}
+            title={t('common.nothingYet')}
+            body={t('accounts.emptyBody')}
+            actionLabel={t('accounts.addAccount')}
+            onAction={openAdd}
+            style={{ marginTop: 64 }}
+          />
         ) : (
-          accounts.map((account) => {
-            const Icon = getAccountIcon(account.type);
-            return (
-              <Pressable
-                key={account.id}
-                onPress={() => openEditModal(account)}
-                className="mb-3"
-              >
-                <View
-                  className="rounded-2xl p-4 flex-row items-center"
-                  style={{ backgroundColor: C.glass }}
-                >
+          <View style={{ paddingHorizontal: S.screen, marginTop: S.section }}>
+            <Card pal={C} padding={0} contentStyle={{ paddingHorizontal: S.card }}>
+              {accounts.map((account, i) => {
+                const spec = accountTypes().find((s) => s.id === account.type);
+                const Icon = spec?.Icon ?? Wallet;
+                const mark = markColor(account.color, account.name, C.cat);
+                return (
                   <View
-                    className="w-12 h-12 rounded-xl items-center justify-center me-4"
-                    style={{ backgroundColor: `${account.color}20` }}
+                    key={account.id}
+                    style={i > 0 ? { borderTopWidth: 1, borderTopColor: C.hairline } : undefined}
                   >
-                    <Icon size={24} color={account.color} />
-                  </View>
-                  <View className="flex-1">
-                    <Text style={{ color: C.text }} className="font-semibold text-lg">{account.name}</Text>
-                    <Text style={{ color: C.textFaint }} className="text-sm">{accountTypeLabel(account.type)}</Text>
-                  </View>
-                  <View className="items-end">
-                    <Text
-                      className={`text-lg font-bold ${
-                        account.type === 'credit' ? 'text-red-400' : ''
-                      }`}
-                    >
-                      {account.type === 'credit' ? '-' : ''}
-                      {formatCurrencyAmount(account.balance, currencyCode)}
-                    </Text>
-                    {account.isDefault === 1 && (
-                      <View className="bg-purple-500/20 px-2 py-0.5 rounded-full mt-1">
-                        <Text className="text-purple-400 text-xs">{t('accounts.default')}</Text>
-                      </View>
-                    )}
-                  </View>
-                </View>
-              </Pressable>
-            );
-          })
-        )}
-
-        <View style={{ height: 100 }} />
-      </ScrollView>
-
-      {/* Add/Edit Modal */}
-      <Modal
-        visible={showAddModal}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => {
-          setShowAddModal(false);
-          setEditingAccount(null);
-        }}
-      >
-        <View className="flex-1" style={{ backgroundColor: C.bg }}>
-          <View
-            className="flex-row items-center justify-between px-5 py-4 border-b border-gray-800"
-            style={{ paddingTop: 16 }}
-          >
-            <Pressable
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                setShowAddModal(false);
-                setEditingAccount(null);
-              }}
-            >
-              <X size={24} color="#9ca3af" />
-            </Pressable>
-            <Text style={{ color: C.text }} className="text-lg font-semibold">
-              {editingAccount ? t('accounts.editAccount') : t('accounts.addAccount')}
-            </Text>
-            <Pressable
-              onPress={handleSave}
-              disabled={!name.trim()}
-            >
-              <Text
-                className={`text-lg font-semibold ${
-                  name.trim() ? 'text-purple-400' : ''
-                }`}
-              >
-                {t('common.save')}
-              </Text>
-            </Pressable>
-          </View>
-
-          <ScrollView className="flex-1 px-5 py-6">
-            {/* Account Name */}
-            <View className="mb-6">
-              <Text style={{ color: C.textDim }} className="text-sm mb-2 ms-1">{t('accounts.accountName')}</Text>
-              <View
-                className="rounded-2xl px-4 py-4"
-                style={{ backgroundColor: C.glass }}
-              >
-                <TextInput
-                  value={name}
-                  onChangeText={setName}
-                  placeholder={t('accounts.namePlaceholder')}
-                  placeholderTextColor="#555"
-                  className="text-lg"
-                  selectionColor={C.p500}
-                />
-              </View>
-            </View>
-
-            {/* Account Type */}
-            <View className="mb-6">
-              <Text style={{ color: C.textDim }} className="text-sm mb-2 ms-1">{t('accounts.accountType')}</Text>
-              <View className="flex-row flex-wrap gap-2">
-                {ACCOUNT_TYPES().map((t) => {
-                  const Icon = t.icon;
-                  const isSelected = type === t.id;
-                  return (
-                    <Pressable
-                      key={t.id}
-                      onPress={() => {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        setType(t.id);
-                        setColor(t.color);
+                    <Touchable
+                      pal={C}
+                      onPress={() => openEdit(account)}
+                      accessibilityLabel={account.name}
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 12,
+                        minHeight: 64,
                       }}
-                      className="mb-2"
                     >
                       <View
-                        className="rounded-xl px-4 py-3 flex-row items-center"
                         style={{
-                          backgroundColor: isSelected
-                            ? 'rgba(168, 85, 247, 0.2)'
-                            : 'rgba(255,255,255,0.05)',
-                          borderWidth: isSelected ? 1 : 0,
-                          borderColor: 'rgba(168, 85, 247, 0.5)',
+                          width: 40,
+                          height: 40,
+                          borderRadius: 20,
+                          backgroundColor: mark,
+                          alignItems: 'center',
+                          justifyContent: 'center',
                         }}
                       >
-                        <Icon size={18} color={isSelected ? C.p500 : '#9ca3af'} />
-                        <Text
-                          className={`ms-2 ${isSelected ? 'text-purple-400' : ''}`}
-                        >
-                          {t.label}
-                        </Text>
+                        <Icon size={19} color={C.groundAlt} strokeWidth={S.stroke} />
                       </View>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            </View>
+                      <View style={{ flex: 1 }}>
+                        <Type role="cardTitle" color={C.ink} numberOfLines={1}>
+                          {account.name}
+                        </Type>
+                        <Type role="meta" color={C.inkDim} numberOfLines={1}>
+                          {account.isDefault === 1
+                            ? `${accountTypeLabel(account.type)} · ${t('accounts.default')}`
+                            : accountTypeLabel(account.type)}
+                        </Type>
+                      </View>
+                      <Amount
+                        value={account.type === 'credit' ? -account.balance : account.balance}
+                        format={money}
+                        size={17}
+                        weight="semibold"
+                        color={account.type === 'credit' ? C.negative : C.ink}
+                      />
+                    </Touchable>
+                  </View>
+                );
+              })}
+            </Card>
+          </View>
+        )}
+      </ScrollView>
 
-            {/* Current Balance */}
-            <View className="mb-6">
-              <Text style={{ color: C.textDim }} className="text-sm mb-2 ms-1">
-                {type === 'credit' ? t('accounts.balanceOwed') : t('accounts.balanceCurrent')}
-              </Text>
-              <View
-                className="flex-row items-center rounded-2xl px-4 py-4"
-                style={{ backgroundColor: C.glass }}
-              >
-                <Text style={{ color: C.text }} className="text-xl me-1">{settings?.currencySymbol || '$'}</Text>
-                <TextInput
-                  value={balance}
-                  onChangeText={setBalance}
-                  placeholder="0.00"
-                  placeholderTextColor="#555"
-                  keyboardType="decimal-pad"
-                  className="flex-1 text-xl font-semibold"
-                  selectionColor={C.p500}
-                />
-              </View>
-            </View>
+      <Sheet
+        pal={C}
+        visible={sheetOpen}
+        onClose={closeSheet}
+        title={editing ? t('accounts.editAccount') : t('accounts.addAccount')}
+      >
+        <View style={{ paddingHorizontal: S.card }}>
+          <Field
+            pal={C}
+            label={t('accounts.accountName')}
+            value={name}
+            onChangeText={setName}
+            placeholder={t('accounts.namePlaceholder')}
+          />
 
-            {/* Color */}
-            <View className="mb-6">
-              <Text style={{ color: C.textDim }} className="text-sm mb-2 ms-1">{t('accounts.color')}</Text>
-              <View className="flex-row flex-wrap gap-3">
-                {ACCOUNT_COLORS.map((c) => (
-                  <Pressable
-                    key={c}
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      setColor(c);
-                    }}
-                  >
-                    <View
-                      className="w-10 h-10 rounded-full items-center justify-center"
-                      style={{
-                        backgroundColor: c,
-                        borderWidth: color === c ? 3 : 0,
-                        borderColor: 'white',
-                      }}
-                    >
-                      {color === c && <Check size={18} color="white" />}
-                    </View>
-                  </Pressable>
-                ))}
-              </View>
-            </View>
+          <Type role="meta" color={C.inkDim} style={{ marginTop: 16, marginBottom: 8 }}>
+            {t('accounts.accountType')}
+          </Type>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+            {accountTypes().map((spec) => (
+              <FilterChip
+                key={spec.id}
+                pal={C}
+                label={spec.label}
+                active={type === spec.id}
+                onPress={() => setType(spec.id)}
+              />
+            ))}
+          </View>
 
-            {/* Delete Button */}
-            {editingAccount && (
-              <Pressable
-                onPress={() => {
-                  handleDelete(editingAccount.id);
-                  setShowAddModal(false);
-                  setEditingAccount(null);
-                }}
-                className="mt-6"
-              >
-                <View className="flex-row items-center justify-center py-4 rounded-2xl bg-red-500/10">
-                  <Trash2 size={20} color="#ef4444" />
-                  <Text className="text-red-400 font-semibold ms-2">{t('accounts.delete')}</Text>
-                </View>
-              </Pressable>
-            )}
-          </ScrollView>
+          <Field
+            pal={C}
+            label={type === 'credit' ? t('accounts.balanceOwed') : t('accounts.balanceCurrent')}
+            value={balance}
+            onChangeText={setBalance}
+            placeholder="0"
+            keyboardType="decimal-pad"
+            icon={
+              <Type role="cardTitle" color={C.inkDim}>
+                {settings?.currencySymbol || '$'}
+              </Type>
+            }
+            style={{ marginTop: 16 }}
+          />
+
+          <Type role="meta" color={C.inkDim} style={{ marginTop: 16, marginBottom: 12 }}>
+            {t('accounts.color')}
+          </Type>
+          <View style={{ flexDirection: 'row', gap: 12 }}>
+            {MARKS.map((stored, i) => {
+              const selected = color === stored;
+              return (
+                <PressableScale
+                  key={stored}
+                  onPress={() => setColor(stored)}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected }}
+                  accessibilityLabel={`${t('accounts.color')} ${i + 1}`}
+                  hitSlop={6}
+                  style={{
+                    width: 34,
+                    height: 34,
+                    borderRadius: 17,
+                    backgroundColor: C.cat[i],
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  {/* The check, not a white ring: a ring around a saturated
+                      circle reads as a second colour, and selection that is
+                      only a border is selection you have to look for. */}
+                  {selected ? <Check size={17} color={C.groundAlt} strokeWidth={2.4} /> : null}
+                </PressableScale>
+              );
+            })}
+          </View>
+
+          <PrimaryButton
+            pal={C}
+            label={t('common.save')}
+            onPress={() => saveMutation.mutate()}
+            disabled={!name.trim()}
+            style={{ marginTop: 24 }}
+          />
+
+          {editing ? (
+            <PressableScale
+              onPress={() => confirmDelete(editing)}
+              haptic="light"
+              accessibilityRole="button"
+              accessibilityLabel={t('accounts.delete')}
+              style={{ minHeight: 48, alignItems: 'center', justifyContent: 'center', marginTop: 6 }}
+            >
+              <Type role="cardTitle" color={C.negative}>
+                {t('accounts.delete')}
+              </Type>
+            </PressableScale>
+          ) : null}
         </View>
-      </Modal>
-    </View>
+      </Sheet>
+    </Screen>
   );
 }

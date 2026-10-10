@@ -1,63 +1,209 @@
-import { cloneElement, type ReactElement } from 'react';
-import { Text as RNText, useColorScheme } from 'react-native';
+import { useColorScheme, type TextStyle } from 'react-native';
 import { C_DARK, C_LIGHT, B_DARK, B_LIGHT, type Palette, type BizPalette } from './palettes';
+import { resolveScheme, useThemeStore } from './theme-store';
 
 export { mix } from './palettes';
 
 /**
- * Shared design language. Generous radii, frosted surfaces, Plus Jakarta Sans.
+ * Shared design language — DESIGN-PROMPT.md §3 and §4.
  *
- * Two product surfaces, each with a light and a dark palette:
- *   C — personal, purple-forward
- *   B — business, navy/steel, calmer and more structured
+ * One layout system, one type scale, one component set, one neutral ground.
+ * The two profiles differ only in a quiet accent hue:
+ *   C — personal, violet
+ *   B — business, mint
  *
- * Both palettes expose the SAME keys, so a component reads `C.text` without
- * caring which scheme is active. Get the live palette from useC()/useB();
- * the bare `C`/`B` exports are the dark palettes, kept for the handful of
- * module-scope constants that cannot call a hook.
+ * Both palettes expose the SAME keys, so a component reads `C.ink` without
+ * caring which profile or scheme is active. Get the live palette from
+ * useC()/useB(); the bare `C`/`B` exports are the *light* palettes, because
+ * light is the app and dark is a derivation of it.
  *
- * On the shade ramps: p200→p950 and slate700→slate900 stay ordered
- * light→dark in both schemes, so a gradient written [p600, p500, p400] reads
- * the same way either way. What changes is where the ramp sits — light mode
- * shifts the accents darker so they hold contrast against a white surface
- * rather than glowing off a black one.
+ * Light first. Dark is the same layouts and the same spacing with the ground
+ * swapped, and it inverts the one dark object into one light object.
  */
 
 export type { Palette, BizPalette };
 
-/** Dark palettes. Prefer useC()/useB() — these are for module-scope constants. */
-export const C = C_DARK;
-export const B = B_DARK;
+/**
+ * Light palettes. Prefer useC()/useB() — these exist for the handful of
+ * module-scope constants that cannot call a hook.
+ *
+ * These used to be the dark palettes. Light is now the app (§2), so a
+ * constant that never re-reads the scheme should default to light rather
+ * than to the derivation.
+ */
+export const C = C_LIGHT;
+export const B = B_LIGHT;
 
-/** The personal palette for the device's current colour scheme. */
+/**
+ * The scheme actually being rendered.
+ *
+ * The user's own preference wins over the OS; "system" defers to it. Every
+ * palette hook goes through here, so a change in Settings reaches the whole
+ * app without any screen knowing the setting exists.
+ */
+export function useScheme(): 'light' | 'dark' {
+  const preference = useThemeStore((s) => s.preference);
+  return resolveScheme(preference, useColorScheme());
+}
+
+/** The personal palette for the active scheme. */
 export function useC(): Palette {
-  return useColorScheme() === 'light' ? C_LIGHT : C_DARK;
+  return useScheme() === 'light' ? C_LIGHT : C_DARK;
 }
 
-/** The business palette for the device's current colour scheme. */
+/** The business palette for the active scheme. */
 export function useB(): BizPalette {
-  return useColorScheme() === 'light' ? B_LIGHT : B_DARK;
+  return useScheme() === 'light' ? B_LIGHT : B_DARK;
 }
 
-// ── Typography (Plus Jakarta Sans) ──────────────────────────────────────────────────
+// ── Typography (§3) ──────────────────────────────────────────────────────────
+/**
+ * The four weights, on the platform's own face.
+ *
+ * These were Plus Jakarta Sans, per §3. It is a good geometric-humanist sans,
+ * and it is also the reason the app did not read as native: its rounded
+ * terminals and wide bowls say *friendly startup*, and no amount of colour or
+ * shadow work argues with a typeface.
+ *
+ * No `fontFamily` at all, rather than the string `'System'` — omitting it is
+ * what gets SF on iOS and Roboto on Android, and it is SF that brings the
+ * things a webfont cannot: optical sizing that switches between Text and
+ * Display cuts by point size, per-size tracking tables, and Dynamic Type
+ * metrics. That is most of what "looks like an Apple app" is made of, and it
+ * arrives for free the moment you stop overriding it.
+ *
+ * Spread these rather than assigning one property — `...F.bold`, not
+ * `...F.bold` — because a weight is now two properties, not one.
+ */
 export const F = {
-  regular: 'PlusJakartaSans_400Regular',
-  medium: 'PlusJakartaSans_500Medium',
-  semibold: 'PlusJakartaSans_600SemiBold',
-  bold: 'PlusJakartaSans_700Bold',
-};
+  regular: { fontWeight: '400' },
+  medium: { fontWeight: '500' },
+  semibold: { fontWeight: '600' },
+  bold: { fontWeight: '700' },
+} as const satisfies Record<string, TextStyle>;
 
-// ── Radii ────────────────────────────────────────────────────────────────────
+// ── Radii (§4) ───────────────────────────────────────────────────────────────
+/**
+ * chip/pill 999 · icon squircle 14 · card 22 · big card 24 · sheet 28.
+ *
+ * The old names are kept because ~200 sites read them; they now point at the
+ * new values, so an un-migrated screen picks up the new shape for free.
+ */
 export const R = {
+  /** Icon squircle. */
   sm: 14,
-  md: 20,
-  lg: 26,
-  xl: 32,
+  /** Card. */
+  md: 22,
+  /** Big card — the balance card. */
+  lg: 24,
+  /** Bottom sheet. */
+  xl: 28,
   pill: 999,
 };
 
-/** Soft purple glow shadow for floating/bubbly elements. */
-export function glow(color: string = C.p500, opacity = 0.45, radius = 22, scale = 1) {
+// ── Layout (§4) ──────────────────────────────────────────────────────────────
+export const S = {
+  /** Screen padding, horizontal. */
+  screen: 20,
+  /** Between sections. Deliberately larger than feels necessary. */
+  section: 32,
+  /**
+   * Between things that belong to each other inside one section.
+   *
+   * The second level of rhythm. With a single gap value every block on a screen
+   * sits the same distance from every other, so a balance, a budget line and a
+   * list of transactions read as three unrelated items rather than as two
+   * groups — the eye gets no help at all. Proximity is the cheapest hierarchy
+   * there is: near means related, far means not, and you need both numbers for
+   * either to mean anything.
+   *
+   * 16 rather than 18 so the whole scale sits on the 8pt grid §4 asks for:
+   *
+   *     8  tight    inside a block — a label and the thing it labels
+   *     16 group    between related blocks
+   *     24          between blocks that are related but not tightly
+   *     32 section  between subjects
+   *
+   * Screens used to pick from 10, 12, 14, 16, 18, 20, 22, 24 and 28 by hand,
+   * which is why the rhythm read as arbitrary: gaps doing the same job came out
+   * three different sizes on the same screen.
+   */
+  group: 16,
+  /** Between related blocks that still want more air than `group`. */
+  wide: 24,
+  /** Inside a block — a label and the thing it labels. */
+  tight: 8,
+  /** Inside a card. */
+  card: 20,
+  /** Icon stroke. Thin and rounded, never filled. */
+  stroke: 1.75,
+};
+
+// ── Type scale (§3) ──────────────────────────────────────────────────────────
+/**
+ * Eight sizes, no more. There is deliberately no uppercase caption style —
+ * the references have none, and adding one makes the app look like a
+ * dashboard.
+ *
+ * The brief states tracking as a percentage; React Native's letterSpacing is
+ * in points, so each is converted against its own size (-2.0% of 40 = -0.8).
+ */
+export const T = {
+  display:  { fontSize: 40, lineHeight: 44, weight: 'bold', letterSpacing: -0.8 },
+  title:    { fontSize: 32, lineHeight: 38, weight: 'bold', letterSpacing: -0.48 },
+  headline: { fontSize: 28, lineHeight: 36, weight: 'bold', letterSpacing: -0.28 },
+  section:  { fontSize: 20, lineHeight: 26, weight: 'bold', letterSpacing: -0.1 },
+  cardTitle:{ fontSize: 17, lineHeight: 23, weight: 'semibold', letterSpacing: -0.05 },
+  body:     { fontSize: 16, lineHeight: 24, weight: 'regular', letterSpacing: 0 },
+  meta:     { fontSize: 13, lineHeight: 18, weight: 'medium', letterSpacing: 0 },
+  tab:      { fontSize: 11, lineHeight: 14, weight: 'medium', letterSpacing: 0.11 },
+} as const;
+
+// ── Shadow (§1.5, §7) ────────────────────────────────────────────────────────
+/**
+ * The only two shadows in the app. §7: do not invent per-component shadows.
+ *
+ * The brief specifies them as CSS (`y+2 blur 12` and `y+8 blur 28`). iOS
+ * shadowRadius is a blur sigma rather than a CSS blur length, so each radius
+ * is half the stated blur, which is the usual correspondence.
+ *
+ * Both are carrying roughly twice the opacity and a longer throw than the
+ * brief asked for. The brief's values were measured against a flat bone field;
+ * the ground now has an ambient wash over it, and a 4–5% shadow on a tinted
+ * ground is a shadow nobody can see — every card floated with no edge and the
+ * whole screen read as one soft wash. Depth is most of what "definition"
+ * means on a light theme, and it is the only separation these cards get,
+ * because §1.5 spends the border budget elsewhere.
+ *
+ * React Native paints one shadow per view, so a surface wanting both nests
+ * two — which is what <Card> does. Most things need only `near`.
+ */
+export { BAR, capsuleInset, tabAt, tabCentre, travelInset } from './tab-bar';
+
+export const SHADOW = {
+  near: {
+    shadowColor: '#12172B',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.09,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  far: {
+    shadowColor: '#12172B',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.08,
+    shadowRadius: 24,
+    elevation: 8,
+  },
+} as const;
+
+/**
+ * @deprecated The calm direction has no glows (§1, "what to leave behind").
+ *
+ * Kept only because ~18 sites still call it. `glowScale` is 0 in light, so
+ * this already returns an invisible shadow there; new code must not call it.
+ */
+export function glow(color: string = C.accent, opacity = 0.45, radius = 22, scale = 1) {
   return {
     shadowColor: color,
     shadowOffset: { width: 0, height: 8 },
@@ -67,53 +213,3 @@ export function glow(color: string = C.p500, opacity = 0.45, radius = 22, scale 
   } as const;
 }
 
-/**
- * Make every plain <Text> render in Plus Jakarta Sans by default so the whole
- * app — even screens we don't individually restyle — inherits the typography.
- * Screens needing specific weights use <Txt> or an explicit fontFamily.
- * Called once at startup after the fonts are loaded.
- *
- * This used to set Text.defaultProps, which does nothing here.
- *
- * React 19 did not remove defaultProps outright — createElement still applies
- * them. What changed is the path JSX takes: babel.config sets jsxImportSource,
- * so JSX compiles to jsx() from react/jsx-runtime, and jsx() ignores
- * defaultProps. Verified against this project's own React 19.0.0, both ways:
- * createElement applies them, jsx() does not. On the classic runtime the old
- * code would have worked. So the font rollout only ever reached components
- * setting fontFamily themselves — which is <Txt>, and roughly half the text in
- * the app is a plain <Text>.
- *
- * Wrapping the forwardRef's render is the path that actually runs, because
- * updateForwardRef reads `Component = Component.render` on every render rather
- * than capturing it when the component is defined — see
- * ReactNativeRenderer-prod.js, which is the bundle this app ships (Paper, since
- * app.json sets newArchEnabled: false; release builds use the prod bundle). The
- * same line is present in all six renderer bundles, so this does not depend on
- * which renderer or build type is in play.
- *
- * The default goes first in the style array so any caller-supplied style still
- * wins.
- *
- * The fragile assumption is that RN's Text stays a bare forwardRef. If a future
- * version wraps it in memo, T.render is undefined, the guard below turns this
- * into a silent no-op, and mixed typography returns with no error. Migrating
- * plain <Text> to <Txt> is the version of this that cannot rot that way.
- */
-export function patchDefaultFont() {
-  const T = RNText as unknown as {
-    render?: (...args: unknown[]) => ReactElement | null;
-    __defaultFontPatched?: boolean;
-  };
-  // Fast refresh can re-run this; patching a patch would nest it every time.
-  if (T.__defaultFontPatched || typeof T.render !== 'function') return;
-
-  const original = T.render;
-  T.render = function patchedRender(...args: unknown[]) {
-    const element = original.apply(this, args);
-    if (!element) return element;
-    const { style } = element.props as { style?: unknown };
-    return cloneElement(element, { style: [{ fontFamily: F.medium }, style] } as never);
-  };
-  T.__defaultFontPatched = true;
-}

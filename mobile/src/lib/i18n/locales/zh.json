@@ -47,7 +47,8 @@
       "language": "语言",
       "danger": "危险操作",
       "household": "家庭组",
-      "advisor": "顾问"
+      "advisor": "顾问",
+      "appearance": "外观"
     },
     "manageAccounts": "管理账户",
     "importTransactions": "导入交易",
@@ -207,7 +208,17 @@
     "impulse": "冲动消费",
     "markImpulse": "标记为冲动消费",
     "successBody": "已成功导入 %{count} 笔交易到你的账本。",
-    "iosOpenFailed": "iOS 无法打开所选文件。请重新从银行导出，或先保存到“文件”中。"
+    "iosOpenFailed": "iOS 无法打开所选文件。请重新从银行导出，或先保存到“文件”中。",
+    "columnN": "第 %{n} 列",
+    "importing": "正在导入 %{done} / %{total}…",
+    "transactionCount": {
+      "zero": "暂无交易",
+      "other": "%{count} 笔交易"
+    },
+    "importCta": {
+      "zero": "没有可导入的内容",
+      "other": "导入 %{count} 笔交易"
+    }
   },
   "advisor": {
     "issue": "抱歉，出现了问题：%{message}",
@@ -253,7 +264,12 @@
     "headerAdd": "添加银行",
     "subMain": "安全地连接你的账户",
     "subAdd": "选择你的银行",
-    "subDetail": "管理连接"
+    "subDetail": "管理连接",
+    "lastSynced": "%{date} 同步",
+    "accountCount": {
+      "zero": "没有账户",
+      "other": "%{count} 个账户"
+    }
   },
   "dashboard": {
     "totalBalance": "总余额",
@@ -282,23 +298,24 @@
     "doingGreat": "你做得很好"
   },
   "onboarding": {
-    "chooseCurrency": "选择你的货币",
-    "chooseCurrencyHint": "选择你最常使用的货币",
+    "chooseCurrency": "你使用哪种货币？",
+    "chooseCurrencyHint": "应用中的金额都以此货币显示，之后可在设置中更改。",
     "popular": "常用",
-    "allCurrencies": "所有货币",
-    "yourIncome": "你的月收入",
-    "incomeHint": "这有助于我们建议一个合理的预算",
-    "monthlyIncome": "月收入",
-    "savingsGoal": "每月储蓄目标（选填）",
-    "primaryGoal": "你的主要目标",
-    "primaryGoalHint": "我们会据此为你定制体验",
-    "spendingStyle": "你的消费风格",
-    "spendingStyleHint": "你如何描述自己的消费习惯？",
-    "failed": "出错了，请重试。",
+    "allCurrencies": "全部货币",
+    "yourIncome": "每月收入是多少？",
+    "incomeHint": "仅用于建议预算，可以跳过。",
+    "monthlyIncome": "每月收入",
+    "savingsGoal": "储蓄目标（可选）",
+    "primaryGoal": "你想用它做什么？",
+    "primaryGoalHint": "我们会优先呈现你最在意的部分。",
+    "spendingStyle": "你平时怎么花钱？",
+    "spendingStyleHint": "这会设定你的初始预算，之后随时可改。",
+    "failed": "保存失败，请重试。",
     "stepOf": "第 1 步，共 2 步",
     "settingUp": "正在设置…",
     "getStarted": "开始使用",
-    "stepCounter": "第 %{step} 步，共 %{total} 步"
+    "stepCounter": "第 %{step} 步，共 %{total} 步",
+    "changeCurrency": "更换货币"
   },
   "accounts": {
     "title": "我的账户",
@@ -333,7 +350,10 @@
     "latestBreakdown": "最新构成",
     "snapshotHistory": "快照历史",
     "assetsMinus": "资产 %{assets} − 负债 %{liabilities}",
-    "sinceLast": "相比上一次快照 %{delta}"
+    "sinceLast": "相比上一次快照 %{delta}",
+    "lastSnapshots": {
+      "other": "最近 %{count} 次记录"
+    }
   },
   "analytics": {
     "title": "智能分析",
@@ -375,7 +395,18 @@
     "tipSubscriptions": "检查订阅——取消 30 天没用过的",
     "tipTransport": "考虑拼车或公共交通来省钱",
     "tipImpulse": "%{category} 支出中有 %{pct}% 属于冲动消费——为该分类设个预算",
-    "tipTrack": "更仔细地追踪%{category}支出，找出可省的地方"
+    "tipTrack": "更仔细地追踪%{category}支出，找出可省的地方",
+    "alertsCaption": {
+      "zero": "没有需要处理的事项",
+      "other": "%{count} 项需要查看"
+    },
+    "recurringFound": {
+      "zero": "没有定期扣款",
+      "other": "%{count} 笔定期扣款"
+    },
+    "priorityLow": "低优先级",
+    "priorityMedium": "中优先级",
+    "priorityHigh": "高优先级"
   },
   "subscriptionDetail": {
     "title": "订阅详情",
@@ -406,7 +437,11 @@
     "genericCancelSteps": "打开该服务的账户或账单设置页面，选择“取消”“降级”或“结束订阅”。",
     "searchQuery": "如何取消 %{name} 订阅",
     "emailSubject": "取消我的 %{name} 订阅",
-    "emailBody": "你好，\n\n我希望立即取消我的 %{name} 订阅，并停止今后所有扣款。请以书面形式确认取消。\n\n谢谢。"
+    "emailBody": "你好，\n\n我希望立即取消我的 %{name} 订阅，并停止今后所有扣款。请以书面形式确认取消。\n\n谢谢。",
+    "occurrenceCount": {
+      "zero": "暂无扣款记录",
+      "other": "%{count} 笔扣款"
+    }
   },
   "business": {
     "label": "企业",
@@ -450,7 +485,13 @@
     "dueSoon": "即将到期",
     "upcomingCharges": "即将扣款（%{count}）",
     "allTools": "全部工具（%{count}）",
-    "cancelTipBody": "大多数 SaaS 工具都能在“设置 → 账单”中取消。请至少在下次续费日期前 24 小时取消，以免被扣款。记得索要取消确认邮件。"
+    "cancelTipBody": "大多数 SaaS 工具都能在“设置 → 账单”中取消。请至少在下次续费日期前 24 小时取消，以免被扣款。记得索要取消确认邮件。",
+    "toolsStat": "工具",
+    "perYear": "每年 %{amount}",
+    "toolCount": {
+      "zero": "暂无工具",
+      "other": "%{count} 个工具"
+    }
   },
   "businessExpenses": {
     "title": "支出",
@@ -478,7 +519,9 @@
     "expenseCount": "%{count} 笔报销",
     "approvedBy": "✓ 由 %{name} 批准",
     "rejectedBy": "✗ 由 %{name} 驳回",
-    "receiptUnavailable": "收据不可用——提交时收据尚未上传到服务器"
+    "receiptUnavailable": "收据不可用——提交时收据尚未上传到服务器",
+    "pendingReview": "%{count} 项待审核",
+    "nonePending": "没有待处理项"
   },
   "businessTeam": {
     "title": "团队",
@@ -498,7 +541,13 @@
     "canApprove": "可以批准/驳回报销",
     "canSubmit": "可以提交报销",
     "loading": "加载中…",
-    "noBusiness": "还未加入任何企业"
+    "noBusiness": "还未加入任何企业",
+    "you": "你",
+    "errCode": "请输入有效的邀请码。",
+    "memberCount": {
+      "zero": "暂无成员",
+      "other": "%{count} 位成员"
+    }
   },
   "businessInsights": {
     "budget": "预算",
@@ -558,7 +607,18 @@
     "password": "密码",
     "confirmPassword": "确认密码",
     "signInSubtitle": "登录你的 Budget 账户",
-    "codeSentTo": "我们已将 6 位验证码发送至"
+    "codeSentTo": "我们已将 6 位验证码发送至",
+    "signInAction": "登录",
+    "errorMissing": "请输入邮箱和密码以继续。",
+    "errorNetwork": "无法连接服务器。请检查网络后重试。",
+    "errorInvalid": "该邮箱和密码不匹配任何账户。",
+    "errorFailed": "登录未成功，请稍后再试。",
+    "createAction": "创建账户",
+    "errorAllFields": "请填写所有字段以继续。",
+    "errorShortPassword": "请至少使用 8 个字符。",
+    "errorMismatch": "两次输入的密码不一致。",
+    "errorCreateFailed": "无法创建账户，请稍后再试。",
+    "errorInvalidCode": "验证码不正确，请检查后重试。"
   },
   "addTransaction": {
     "title": "添加交易",
@@ -582,7 +642,8 @@
     "howToImprove": "如何提高你的分数",
     "chatWithAi": "和 AI 聊聊你的财务健康分",
     "trendUp": "↑ 比上周好 %{value}%",
-    "trendDown": "↓ 比上周低 %{value}%"
+    "trendDown": "↓ 比上周低 %{value}%",
+    "gradeLabel": "评级 %{grade}"
   },
   "receiptScan": {
     "title": "扫描小票",
@@ -612,7 +673,14 @@
     "savedBody": "你的收据已扫描并保存到交易记录中。",
     "scanAnother": "再扫一张收据",
     "saving": "保存中…",
-    "saveTransaction": "保存交易"
+    "saveTransaction": "保存交易",
+    "amountLabel": "金额",
+    "categoryLabel": "分类",
+    "typeLabel": "类型",
+    "dateLabel": "日期",
+    "analysing1": "识别商家",
+    "analysing2": "读取总额",
+    "analysing3": "选择分类"
   },
   "recurring": {
     "name": "名称",
@@ -631,7 +699,16 @@
     "loadFailed": "无法加载定期交易，请检查网络连接。",
     "emptyTitle": "还没有定期交易",
     "emptyBody": "点击 + 按钮添加按计划重复的订阅、账单或固定收入。",
-    "headerTitle": "定期"
+    "headerTitle": "定期",
+    "active": "进行中",
+    "paused": "已暂停",
+    "errName": "请填写名称。",
+    "errAmount": "请输入大于零的金额。",
+    "caption": {
+      "zero": "暂无进行中的项目",
+      "other": "%{count} 项进行中"
+    },
+    "noteRuns": "定期：%{frequency}"
   },
   "emailInbox": {
     "title": "邮件收件箱",
@@ -653,7 +730,17 @@
     "foundCount": "在你的邮箱中找到 %{count} 个订阅",
     "checking": "检查中…",
     "connected": "已连接——转发的收据会显示在这里",
-    "autoDetect": "从你的收据中自动识别订阅"
+    "autoDetect": "从你的收据中自动识别订阅",
+    "step1": "复制上方你的专属 Budget 地址。",
+    "step2": "在网页版 Gmail 中：设置 → 查看全部设置 → 转发和 POP/IMAP → 添加转发地址 → 粘贴地址 → 下一步。",
+    "step3": "Gmail 会发送一个确认码，它会显示在本页面上——把它填回 Gmail 完成确认。",
+    "step4": "创建过滤器：在 Gmail 搜索栏打开过滤选项，将“包含字词”设为 收据 OR 发票 OR 订阅 OR 续费，然后选择“转发到”你的 Budget 地址。",
+    "unrecognised": "无法识别的邮件",
+    "recent": "最近",
+    "newCount": {
+      "zero": "没有新内容",
+      "other": "%{count} 条新内容"
+    }
   },
   "bankExtra": {
     "connectBank": "连接银行",
@@ -723,7 +810,21 @@
     "daysOverdue": "逾期 %{count} 天",
     "dueToday": "今天到期",
     "dueTomorrow": "明天到期",
-    "daysLeft": "还剩 %{count} 天"
+    "daysLeft": "还剩 %{count} 天",
+    "upcoming": "即将到期",
+    "amountLabel": "金额",
+    "categoryLabel": "分类",
+    "errName": "请填写账单名称。",
+    "errAmount": "请输入大于零的金额。",
+    "errDueDay": "到期日需在 1 到 31 之间。",
+    "caption": {
+      "zero": "没有待付账单",
+      "other": "%{count} 笔待付账单"
+    },
+    "overdueNote": {
+      "zero": "没有逾期",
+      "other": "%{count} 笔逾期"
+    }
   },
   "subscriptionsScreen": {
     "title": "订阅",
@@ -731,7 +832,12 @@
     "scanning": "扫描中…",
     "scanFor": "扫描订阅",
     "rescan": "重新扫描交易",
-    "analyzesHint": "分析你的交易记录以发现重复扣款"
+    "analyzesHint": "分析你的交易记录以发现重复扣款",
+    "monthlyTotal": "每月总额",
+    "activeCaption": {
+      "zero": "暂无生效的订阅",
+      "other": "%{count} 个生效中的订阅"
+    }
   },
   "categories": {
     "Food": "餐饮",
@@ -781,7 +887,10 @@
     "team": "团队",
     "payroll": "薪酬",
     "budget": "预算",
-    "money": "资金"
+    "money": "资金",
+    "activity": "动态",
+    "insights": "洞察",
+    "add": "添加"
   },
   "settingsRows": {
     "billRemindersLabel": "账单提醒",
@@ -936,7 +1045,8 @@
     "weekly": "每周",
     "biweekly": "每两周",
     "monthly": "每月",
-    "yearly": "每年"
+    "yearly": "每年",
+    "unknown": "不定期"
   },
   "accountKind": {
     "personalLabel": "个人",
@@ -951,7 +1061,8 @@
   "analyticsTabs": {
     "overview": "概览",
     "insights": "洞察",
-    "alerts": "提醒"
+    "alerts": "提醒",
+    "subscriptions": "订阅"
   },
   "bizStats": {
     "totalSubmitted": "已提交总额",
@@ -1027,7 +1138,8 @@
   "settingsToggles": {
     "timeCost": "显示时间成本",
     "biometric": "生物识别锁",
-    "biometricSub": "打开时需要面容或指纹验证"
+    "biometricSub": "打开时需要面容或指纹验证",
+    "biometricUnavailableBody": "您的设备不支持生物识别，或尚未录入。请先在设备设置中设置面容 ID 或指纹。"
   },
   "dialogs": {
     "error": "错误",
@@ -1087,7 +1199,8 @@
     "dateLabel": "日期",
     "minutesOfWork": "%{count} 分钟的工作",
     "logging": "记录中…",
-    "logIt": "记一笔！"
+    "logIt": "记一笔！",
+    "timeCostLine": "相当于 %{time} 的工作"
   },
   "fields": {
     "namePlaceholder": "张三",
@@ -1234,5 +1347,139 @@
     "q1": "本月我们在预算之内吗？",
     "q2": "是什么在推高我们的支出？",
     "q3": "还有多少薪资未支付？"
+  },
+  "home": {
+    "greetingName": "%{greeting}，%{name}",
+    "balanceLabel": "总余额",
+    "balanceCaption": {
+      "zero": "尚未添加账户",
+      "other": "共 %{count} 个账户"
+    },
+    "budgetLeft": "本月预算 %{budget}，还剩 %{left}。",
+    "budgetOver": "本月已超出 %{budget} 的预算 %{amount}。",
+    "budgetNone": "还没有设置每月预算——设置后这里会开始跟踪。",
+    "setBudget": "设置预算",
+    "recent": "最近动态",
+    "seeAll": "查看全部",
+    "ask": "提个问题",
+    "emptyTitle": "还没有记录",
+    "emptyBody": "添加一笔交易或导入账单，余额、预算和洞察就会从这里开始生成。",
+    "emptyAction": "添加第一笔交易",
+    "insight": {
+      "over": "本月你比 %{budget} 的预算多花了 %{amount}。",
+      "close": "本月预算已用 %{percent}%，还剩 %{days} 天。",
+      "ahead": "本月预算已用 %{percent}%，比通常的节奏快。",
+      "impulse": "本月约 %{percent}% 的消费属于冲动购买。",
+      "down": "本周比上周少花了 %{percent}%。要设一个储蓄目标吗？",
+      "downWithGoal": "本周比上周少花了 %{percent}%。",
+      "saving": "照这样下去，本月可以存下 %{amount}。",
+      "streak": "你已经连续 %{days} 天记账了。",
+      "steady": "本周没有异常——你的支出很稳定。"
+    },
+    "action": {
+      "seeSpending": "看看花在哪了",
+      "setBudget": "调整预算",
+      "setGoal": "设定目标",
+      "ask": "提个问题",
+      "seeImpulse": "查看"
+    },
+    "quickAdd": "添加",
+    "quickScan": "扫描",
+    "quickInsights": "洞察",
+    "quickBudgets": "预算",
+    "recentEmpty": "暂无记录——你最近的五笔交易会显示在这里。"
+  },
+  "insightsHub": {
+    "title": "洞察",
+    "scoreTitle": "健康评分",
+    "scoreBody": "你的习惯保持得如何",
+    "reportTitle": "支出报告",
+    "reportBody": "钱花在了哪里，按类别",
+    "alertsTitle": "提醒",
+    "alertsBody": "重复扣款与异常支出",
+    "subsTitle": "订阅",
+    "subsBody": "什么会续费，什么时候",
+    "emptyTitle": "暂时没有内容",
+    "emptyBody": "记录几笔交易，这里就会出现趋势、提醒和评分。",
+    "emptyAction": "添加交易",
+    "last14": "最近 14 天",
+    "spentTotal": "过去两周共花费 %{amount}。",
+    "runway": "按最近的节奏，你的余额还能支撑约 %{days} 天。",
+    "streakTitle": "连续记账",
+    "streakDays": {
+      "zero": "还没有记账记录",
+      "other": "已连续 %{count} 天"
+    },
+    "noBadges": "获得徽章后会显示在这里。",
+    "more": "了解更多"
+  },
+  "bizHome": {
+    "approvedLabel": "本月已批准",
+    "approvedCaption": {
+      "zero": "尚未批准任何支出",
+      "other": "已批准 %{count} 笔支出"
+    },
+    "pending": {
+      "zero": "没有等待你审批的支出。",
+      "other": "有 %{count} 笔支出等待你审批。"
+    },
+    "pendingOwn": {
+      "zero": "你没有待审批的支出。",
+      "other": "你有 %{count} 笔支出正在等待审批。"
+    },
+    "review": "去审批",
+    "recent": "最近的支出",
+    "seeAll": "查看全部",
+    "tools": "查看工具支出",
+    "toolSpend": "你的团队每月在工具上花费 %{amount}。",
+    "emptyTitle": "还没有支出",
+    "emptyBody": "提交一笔，或让团队成员提交——审批、工具和薪酬都从这里开始。",
+    "emptyAction": "添加支出",
+    "steady": "目前没有需要你处理的事。",
+    "budgetLeft": "本月预算 %{budget}，还剩 %{left}。",
+    "budgetOver": "本月已超出 %{budget} 的预算 %{amount}。",
+    "budgetNone": "还没有设置每月预算——可在洞察中设置。",
+    "quickAdd": "添加",
+    "quickReview": "审核",
+    "quickTools": "工具",
+    "quickTeam": "团队"
+  },
+  "appearance": {
+    "system": "跟随系统",
+    "light": "浅色",
+    "dark": "深色",
+    "subtitle": "本应用以浅色为准设计，深色是同样的版面换成近黑底色。",
+    "systemHint": "跟随手机设置"
+  },
+  "personality": {
+    "saver": {
+      "title": "储蓄型",
+      "body": "你优先考虑储蓄，能够稳步积累财富。"
+    },
+    "balanced": {
+      "title": "平衡型",
+      "body": "你在消费与储蓄之间保持着健康的平衡。"
+    },
+    "spender": {
+      "title": "消费型",
+      "body": "你享受消费，储蓄方面还可以多花些心思。"
+    },
+    "impulsive": {
+      "title": "冲动型",
+      "body": "你决定得很快。购买前不妨先停一停。"
+    },
+    "disciplined": {
+      "title": "自律型",
+      "body": "你始终守住预算，这并不容易。"
+    },
+    "inconsistent": {
+      "title": "波动型",
+      "body": "你的支出起伏较大，更规律的习惯会有帮助。"
+    }
+  },
+  "roles": {
+    "owner": "所有者",
+    "manager": "主管",
+    "employee": "员工"
   }
 }

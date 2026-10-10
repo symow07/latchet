@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { View, ScrollView, Pressable, Switch, Linking, Alert } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Bell, Briefcase, Building2, Check, ChevronRight, FileText, Globe, HelpCircle, LogOut, Shield, Users } from 'lucide-react-native';
+import { View, ScrollView, Linking, Alert } from 'react-native';
+import {
+  Bell, Briefcase, Building2, FileText, Globe, HelpCircle, LogOut,
+  Moon, Shield, Smartphone, Sun, Users,
+} from '@/components/icons';
 import * as Haptics from 'expo-haptics';
 import { authClient } from '@/lib/auth/auth-client';
 import { useInvalidateSession, useSession } from '@/lib/auth/use-session';
@@ -12,37 +13,43 @@ import { useQuery } from '@tanstack/react-query';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getBusiness } from '@/lib/businessApi';
 import { getSettings } from '@/lib/db';
+import { useThemeStore, type ThemePreference } from '@/lib/theme-store';
 import { isBiometricAvailable } from '@/lib/biometric';
 import {
   scheduleStreakReminder, cancelStreakReminder, isStreakReminderScheduled,
 } from '@/lib/notifications';
-import { R, glow, useB } from '@/lib/design';
-import { Txt, GlassCard, IconBubble, Pill, BizBackground } from '@/components/ui';
+import { BAR, S, useB } from '@/lib/design';
+import {
+  Card, ChoiceRow, Group, Header, IconTile, LinkRow, Screen, SwitchRow, Touchable, Type,
+} from '@/components/kit';
 import { t, SUPPORTED_LOCALES, LOCALE_LABELS } from '@/lib/i18n/core';
 import { useLocaleStore } from '@/lib/i18n/locale-store';
 import { readMembers } from '@/lib/group-members';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-interface SettingsRow {
-  icon: React.ComponentType<{ size: number; color: string }>;
-  label: string;
-  sub: string;
-  color: string;
-  /** A row is either a link or a toggle. Never both, and never neither. */
-  onPress?: () => void;
-  toggle?: { value: boolean; onChange: (next: boolean) => void };
-}
+/** System first — it is the default, and an explicit choice should be a
+  * deliberate departure from it rather than the top of the list. */
+const THEME_OPTIONS: ThemePreference[] = ['system', 'light', 'dark'];
 
-interface Section {
-  title: string;
-  items: SettingsRow[];
-}
-
+/**
+ * Business settings — DESIGN-PROMPT.md §17, mint side.
+ *
+ * Two things changed beyond the surface. The section headings were being run
+ * through `.toUpperCase()` in code, which §3 rules out — there is no uppercase
+ * caption style, and a screen of tracked-out small caps is the single clearest
+ * tell of a dashboard. And every row carried its own hardcoded icon hue: seven
+ * unrelated colours down one screen, two of them the *personal* profile's
+ * violet. §6.9 gives feature rows one pale accent squircle, so that is what
+ * they have.
+ */
 export default function BusinessSettingsScreen() {
-  const B = useB();
   const insets = useSafeAreaInsets();
+  const B = useB();
   const { data: session } = useSession();
   const locale = useLocaleStore((s) => s.locale);
   const chooseLanguage = useLocaleStore((s) => s.choose);
+  const themePreference = useThemeStore((s) => s.preference);
+  const chooseTheme = useThemeStore((s) => s.choose);
   const router = useRouter();
 
   // Subtitles that state the current value rather than a guess. The row used
@@ -63,7 +70,6 @@ export default function BusinessSettingsScreen() {
   }, []);
 
   const toggleReminders = async (next: boolean) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setRemindersOn(next);
     if (next) {
       await scheduleStreakReminder();
@@ -76,7 +82,6 @@ export default function BusinessSettingsScreen() {
   };
 
   const toggleBiometric = async (next: boolean) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (next && !(await isBiometricAvailable())) {
       Alert.alert(t('dialogs.biometricsUnavailable'), t('bizSettings.biometricUnavailableBody'));
       return;
@@ -104,89 +109,9 @@ export default function BusinessSettingsScreen() {
     else Alert.alert(t('bizSettings.noMailTitle'), t('bizSettings.noMailBody'));
   };
 
-  /**
-   * Built per render, not at module scope: t() at module scope resolves once at
-   * import and freezes whatever language was active then, so these rows would
-   * survive a locale change that remounts everything else.
-   *
-   * Every row does something. They used to be chevrons over nothing.
-   */
   const memberCount = readMembers(business).length;
-
-  const SECTIONS: Section[] = [
-    {
-      title: t('bizSettings.sectionBusiness'),
-      items: [
-        {
-          icon: Building2, color: '#3b82f6',
-          label: t('bizSettings.companyLabel'),
-          // The name itself, when there is one — more use than a list of the
-          // fields the screen contains.
-          sub: business?.name ?? t('bizSettings.companySub'),
-          onPress: () => router.push('/business-profile'),
-        },
-        {
-          icon: FileText, color: '#14b8a6',
-          label: t('bizSettings.taxLabel'),
-          sub: business?.vatNumber || business?.taxId || t('bizSettings.taxSub'),
-          onPress: () => router.push('/business-tax'),
-        },
-        {
-          icon: Globe, color: '#f59e0b',
-          label: t('bizSettings.regionLabel'),
-          sub: settings?.currency
-            ? `${settings.currency} · ${settings.currencySymbol ?? ''}`.trim()
-            : t('bizSettings.regionSub'),
-          onPress: () => router.push('/currency'),
-        },
-      ],
-    },
-    {
-      // Team moved out of the tab bar. Six tabs was too many to scan, and a
-      // team is managed occasionally rather than daily — but it is its own
-      // section rather than a row under Preferences, because it is a place
-      // you go, not a setting you flip.
-      title: t('bizSettings.sectionTeam'),
-      items: [
-        {
-          icon: Users, color: '#8b5cf6',
-          label: t('tabs.team'),
-          sub: memberCount > 0
-            ? t('bizSettings.teamSub', { count: memberCount })
-            : t('bizSettings.teamSubEmpty'),
-          onPress: () => router.push('/business-team'),
-        },
-      ],
-    },
-    {
-      title: t('bizSettings.sectionPreferences'),
-      items: [
-        {
-          icon: Bell, color: '#a78bfa',
-          label: t('bizSettings.notifLabel'), sub: t('bizSettings.notifSub'),
-          toggle: { value: remindersOn, onChange: toggleReminders },
-        },
-        {
-          icon: Shield, color: '#ef4444',
-          label: t('bizSettings.securityLabel'), sub: t('bizSettings.securitySub'),
-          toggle: { value: biometricOn, onChange: toggleBiometric },
-        },
-      ],
-    },
-    {
-      title: t('bizSettings.sectionSupport'),
-      items: [
-        {
-          icon: HelpCircle, color: '#94a3b8',
-          label: t('bizSettings.helpLabel'), sub: t('bizSettings.helpSub'),
-          onPress: contactSupport,
-        },
-      ],
-    },
-  ];
-
   const invalidateSession = useInvalidateSession();
-  const reset = useAccountTypeStore(s => s.reset);
+  const reset = useAccountTypeStore((s) => s.reset);
 
   const handleLogout = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -195,137 +120,186 @@ export default function BusinessSettingsScreen() {
     await invalidateSession();
   };
 
-  return (
-    <BizBackground style={{ paddingTop: insets.top }}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 110 }}>
-        {/* Header */}
-        <View style={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 18 }}>
-          <Txt weight="bold" size={25} color={B.text}>{t('businessSettings.title')}</Txt>
-        </View>
+  const tile = (Icon: React.ComponentType<{ size: number; color: string; strokeWidth: number }>) => (
+    <IconTile pal={B}>
+      <Icon size={20} color={B.accent} strokeWidth={S.stroke} />
+    </IconTile>
+  );
 
-        {/* Profile card */}
-        <View style={{ marginHorizontal: 20, marginBottom: 22 }}>
-          <LinearGradient colors={[B.heroFrom, B.heroTo]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[{ borderRadius: R.lg, padding: 18, borderWidth: 1, borderColor: `${B.accent}30`, flexDirection: 'row', alignItems: 'center', gap: 14 }, glow(B.accentDeep, 0.25, 18, B.glowScale)]}>
-            <View style={{ width: 54, height: 54, borderRadius: 18, backgroundColor: `${B.accent}2e`, borderWidth: 1.5, borderColor: `${B.accent}55`, alignItems: 'center', justifyContent: 'center' }}>
-              <Briefcase size={24} color={B.accent} />
+  return (
+    <Screen pal={B}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingTop: 8, paddingBottom: BAR.clearance(insets.bottom) }}>
+        <Header pal={B} title={t('businessSettings.title')} />
+
+        {/* The one dark object: who you are signed in as. */}
+        <View style={{ paddingHorizontal: S.screen, marginTop: 24 }}>
+          <Card
+            pal={B}
+            radius={24}
+            contentStyle={{
+              backgroundColor: B.inkSoft,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 12,
+            }}
+          >
+            <View
+              style={{
+                width: 48, height: 48, borderRadius: 16,
+                backgroundColor: 'rgba(255,255,255,0.12)',
+                alignItems: 'center', justifyContent: 'center',
+              }}
+            >
+              <Briefcase size={22} color={B.onInk} strokeWidth={S.stroke} />
             </View>
             <View style={{ flex: 1 }}>
-              <Txt weight="bold" size={16} color="#fff">{session?.user?.name ?? t('bizSettings.businessAccount')}</Txt>
-              <Txt size={13} color={B.textFaint} style={{ marginTop: 2 }}>{session?.user?.email ?? ''}</Txt>
-              <View style={{ marginTop: 6, alignSelf: 'flex-start' }}>
-                <Pill label={t('business.label')} color={B.accent} />
-              </View>
+              <Type role="cardTitle" color={B.onInk} numberOfLines={1}>
+                {session?.user?.name ?? t('bizSettings.businessAccount')}
+              </Type>
+              <Type role="meta" color={B.onInk} numberOfLines={1} style={{ opacity: 0.7 }}>
+                {session?.user?.email ?? t('business.label')}
+              </Type>
             </View>
-          </LinearGradient>
+          </Card>
         </View>
 
-        {/* Sections */}
-        {SECTIONS.map((section) => (
-          <View key={section.title} style={{ paddingHorizontal: 20, marginBottom: 18 }}>
-            <Txt weight="bold" size={11} color={B.textFaint} style={{ letterSpacing: 1.4, marginBottom: 10 }}>{section.title.toUpperCase()}</Txt>
-            <View style={{ gap: 10 }}>
-              {section.items.map((item) => {
-                const Icon = item.icon;
-                const body = (
-                  <GlassCard padding={14} radius={R.md}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                      <IconBubble color={item.color} size={38} radius={12} style={{ marginEnd: 13 }}><Icon size={17} color={item.color} /></IconBubble>
-                      <View style={{ flex: 1 }}>
-                        <Txt weight="semibold" size={15} color={B.text}>{item.label}</Txt>
-                        <Txt size={12} color={B.textFaint} style={{ marginTop: 1 }} numberOfLines={1}>{item.sub}</Txt>
-                      </View>
-                      {item.toggle ? (
-                        <Switch
-                          value={item.toggle.value}
-                          onValueChange={item.toggle.onChange}
-                          trackColor={{ false: B.glassBorder, true: `${item.color}99` }}
-                          thumbColor="#fff"
-                        />
-                      ) : (
-                        <ChevronRight size={16} color={B.textFaint} />
-                      )}
-                    </View>
-                  </GlassCard>
-                );
+        <Group pal={B} title={t('bizSettings.sectionBusiness')} style={{ marginTop: S.section }}>
+          <LinkRow
+            pal={B}
+            icon={tile(Building2)}
+            title={t('bizSettings.companyLabel')}
+            body={business?.name ?? t('bizSettings.companySub')}
+            onPress={() => router.push('/business-profile')}
+          />
+          <LinkRow
+            pal={B}
+            icon={tile(FileText)}
+            title={t('bizSettings.taxLabel')}
+            body={business?.vatNumber || business?.taxId || t('bizSettings.taxSub')}
+            onPress={() => router.push('/business-tax')}
+          />
+          <LinkRow
+            pal={B}
+            icon={tile(Globe)}
+            title={t('bizSettings.regionLabel')}
+            body={settings?.currency
+              ? `${settings.currency} · ${settings.currencySymbol ?? ''}`.trim()
+              : t('bizSettings.regionSub')}
+            onPress={() => router.push('/currency')}
+          />
+        </Group>
 
-                // A toggle handles its own press; wrapping it in a Pressable
-                // would give the row a tap target that does nothing.
-                return item.toggle ? (
-                  <View key={item.label}>{body}</View>
-                ) : (
-                  <Pressable
-                    key={item.label}
-                    onPress={item.onPress}
-                    style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
-                  >
-                    {body}
-                  </Pressable>
-                );
-              })}
-            </View>
-          </View>
-        ))}
+        {/* Team moved out of the tab bar. Six tabs was too many to scan, and a
+            team is managed occasionally rather than daily — but it is its own
+            section rather than a row under Preferences, because it is a place
+            you go, not a setting you flip. */}
+        <Group pal={B} title={t('bizSettings.sectionTeam')} style={{ marginTop: S.section }}>
+          <LinkRow
+            pal={B}
+            icon={tile(Users)}
+            title={t('tabs.team')}
+            body={memberCount > 0
+              ? t('bizSettings.teamSub', { count: memberCount })
+              : t('bizSettings.teamSubEmpty')}
+            onPress={() => router.push('/business-team')}
+          />
+        </Group>
 
-        {/* Language — a real control, unlike the rows above, which are stubs.
-            Business accounts previously had no way to change the app language
-            at all: the picker lived only on the personal settings screen. */}
-        <View style={{ paddingHorizontal: 20, marginBottom: 18 }}>
-          <Txt weight="bold" size={11} color={B.textFaint} style={{ letterSpacing: 1.4, marginBottom: 10 }}>
-            {t('settings.sections.language')}
-          </Txt>
-          <GlassCard padding={6} radius={R.md}>
-            {SUPPORTED_LOCALES.map((code, i) => {
-              const active = locale === code;
-              return (
-                <Pressable
-                  key={code}
-                  onPress={async () => {
-                    if (active) return;
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    // The store persists the choice and bumps the key the root
-                    // navigator is mounted on. That remount is what re-renders
-                    // the rest of the app, including this screen's own rows,
-                    // which are built per render for exactly that reason.
-                    if (await chooseLanguage(code)) {
-                      // Direction is decided natively at launch, so nothing on
-                      // screen flips until the app is reopened. Saying so beats
-                      // leaving the layout facing the wrong way unexplained.
-                      Alert.alert(t('language.restartTitle'), t('language.restartBody'));
-                    }
-                  }}
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    paddingVertical: 12,
-                    paddingHorizontal: 10,
-                    borderBottomWidth: i < SUPPORTED_LOCALES.length - 1 ? 1 : 0,
-                    borderBottomColor: B.glassBorder,
-                  }}
-                >
-                  <Txt size={15} color={active ? B.text : B.textFaint}>{LOCALE_LABELS[code]}</Txt>
-                  {active && <Check size={18} color={B.teal} />}
-                </Pressable>
-              );
-            })}
-          </GlassCard>
-          <Txt size={11} color={B.textFaint} style={{ marginTop: 6, marginStart: 4 }}>
-            {t('language.subtitle')}
-          </Txt>
-        </View>
+        <Group pal={B} title={t('bizSettings.sectionPreferences')} style={{ marginTop: S.section }}>
+          <SwitchRow
+            pal={B}
+            icon={tile(Bell)}
+            title={t('bizSettings.notifLabel')}
+            body={t('bizSettings.notifSub')}
+            value={remindersOn}
+            onValueChange={toggleReminders}
+          />
+          <SwitchRow
+            pal={B}
+            icon={tile(Shield)}
+            title={t('bizSettings.securityLabel')}
+            body={t('bizSettings.securitySub')}
+            value={biometricOn}
+            onValueChange={toggleBiometric}
+          />
+        </Group>
 
-        {/* Logout */}
-        <View style={{ paddingHorizontal: 20, paddingTop: 4 }}>
-          <Pressable onPress={handleLogout} style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}>
-            <GlassCard padding={16} radius={R.md} tint={`${B.red}12`} border={`${B.red}28`}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                <LogOut size={17} color={B.red} />
-                <Txt weight="bold" size={15} color={B.red}>{t('businessSettings.signOut')}</Txt>
-              </View>
-            </GlassCard>
-          </Pressable>
-        </View>
+        <Group pal={B} title={t('bizSettings.sectionSupport')} style={{ marginTop: S.section }}>
+          <LinkRow
+            pal={B}
+            icon={tile(HelpCircle)}
+            title={t('bizSettings.helpLabel')}
+            body={t('bizSettings.helpSub')}
+            onPress={contactSupport}
+          />
+        </Group>
+
+        {/* Appearance and Language live here as well as on the personal screen
+            for the same reason: a business account that only ever sees this
+            screen would otherwise have no way to reach either. */}
+        <Group pal={B} title={t('settings.sections.appearance')} style={{ marginTop: S.section }}>
+          {THEME_OPTIONS.map((option) => (
+            <ChoiceRow
+              key={option}
+              pal={B}
+              title={t(`appearance.${option}`)}
+              selected={themePreference === option}
+              onPress={() => chooseTheme(option)}
+              icon={
+                option === 'light' ? <Sun size={20} color={B.inkDim} strokeWidth={S.stroke} />
+                  : option === 'dark' ? <Moon size={20} color={B.inkDim} strokeWidth={S.stroke} />
+                  : <Smartphone size={20} color={B.inkDim} strokeWidth={S.stroke} />
+              }
+            />
+          ))}
+        </Group>
+        <Type role="meta" color={B.inkDim} style={{ paddingHorizontal: S.screen + 4, marginTop: 12 }}>
+          {t('appearance.subtitle')}
+        </Type>
+
+        <Group pal={B} title={t('settings.sections.language')} style={{ marginTop: S.section }}>
+          {SUPPORTED_LOCALES.map((code) => (
+            <ChoiceRow
+              key={code}
+              pal={B}
+              title={LOCALE_LABELS[code]}
+              selected={locale === code}
+              onPress={async () => {
+                if (locale === code) return;
+                // The store persists the choice and bumps the key the root
+                // navigator is mounted on. That remount is what re-renders the
+                // rest of the app, including this screen.
+                if (await chooseLanguage(code)) {
+                  // Direction is decided natively at launch, so nothing on
+                  // screen flips until the app is reopened. Saying so beats
+                  // leaving the layout facing the wrong way unexplained.
+                  Alert.alert(t('language.restartTitle'), t('language.restartBody'));
+                }
+              }}
+            />
+          ))}
+        </Group>
+        <Type role="meta" color={B.inkDim} style={{ paddingHorizontal: S.screen + 4, marginTop: 12 }}>
+          {t('language.subtitle')}
+        </Type>
+
+        {/* Signing out is not a primary action, so it is not a filled pill.
+            Plain destructive text is the honest weight for it. */}
+        <Group pal={B} style={{ marginTop: S.section }}>
+          {/* No chevron: this row does not go anywhere, it does something. */}
+          <Touchable
+            pal={B}
+            onPress={handleLogout}
+            accessibilityLabel={t('businessSettings.signOut')}
+            style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, minHeight: 56 }}
+          >
+            <LogOut size={19} color={B.negative} strokeWidth={S.stroke} />
+            <Type role="cardTitle" color={B.negative}>
+              {t('businessSettings.signOut')}
+            </Type>
+          </Touchable>
+        </Group>
       </ScrollView>
-    </BizBackground>
+    </Screen>
   );
 }

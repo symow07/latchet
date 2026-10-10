@@ -2,7 +2,6 @@ import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native
 import { Stack, useRouter } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useColorScheme } from '@/lib/useColorScheme';
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
@@ -13,24 +12,17 @@ import { startCloudSync } from '@/lib/cloud-sync';
 import { loadRates } from '@/lib/rates';
 import { initLocale } from '@/lib/i18n/bootstrap';
 import { useLocaleStore } from '@/lib/i18n/locale-store';
+import { useThemeStore } from '@/lib/theme-store';
 import { useSession, SESSION_QUERY_KEY } from '@/lib/auth/use-session';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { isBiometricAvailable, authenticateWithBiometrics } from '@/lib/biometric';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets, SafeAreaProvider } from 'react-native-safe-area-context';
 import { useAccountTypeStore, type AccountTypeStore } from '@/lib/account-type-store';
 import { registerForPushNotifications, scheduleStreakReminder } from '@/lib/notifications';
 import { setUserId, logoutUser } from '@/lib/revenuecatClient';
-import {
-  useFonts,
-  PlusJakartaSans_400Regular,
-  PlusJakartaSans_500Medium,
-  PlusJakartaSans_600SemiBold,
-  PlusJakartaSans_700Bold,
-} from '@expo-google-fonts/plus-jakarta-sans';
-import { patchDefaultFont, useC } from '@/lib/design';
+import { F, R, S, useC, useScheme } from '@/lib/design';
 import { t } from '@/lib/i18n/core';
-import { Lock } from 'lucide-react-native';
+import { Lock } from '@/components/icons';
 import { drainPendingCaptures } from '@/lib/pending-drain';
 import { drainSharedItems } from '@/lib/share-drain';
 import { shouldRelock } from '@/lib/biometric-relock';
@@ -78,8 +70,8 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise
 function StartupScreen({ stage }: { stage: string }) {
   const C = useC();
   return (
-    <View style={{ flex: 1, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-      <ActivityIndicator size="large" color={C.amber} />
+    <View style={{ flex: 1, backgroundColor: C.ground, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+      <ActivityIndicator size="large" color={C.accent} />
       <Text style={{ color: C.text, fontSize: 18, fontWeight: '600', marginTop: 24 }}>
         {t('startup.starting')}
       </Text>
@@ -110,45 +102,56 @@ function LockScreen({ onUnlock }: { onUnlock: () => void }) {
     tryAuthenticate();
   }, []);
 
+  // The same bone ground as everything behind it. This used to be a brown
+  // gradient with an amber lock and amber outlined button — a colour scheme
+  // that appears nowhere else in the product, on the first screen a returning
+  // user sees. §1: one ground, and the accent is the profile's own.
   return (
-    <View style={{ flex: 1 }}>
-      <LinearGradient
-        colors={['#1a1410', '#2d1f0f', '#1a1410']}
-        style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: insets.top, paddingBottom: insets.bottom }}
-      >
-        <View style={{ alignItems: 'center', marginBottom: 48 }}>
-          <View style={{
-            width: 96, height: 96, borderRadius: 32,
-            backgroundColor: 'rgba(251,191,36,0.15)',
-            borderWidth: 1.5, borderColor: 'rgba(251,191,36,0.3)',
-            alignItems: 'center', justifyContent: 'center',
-            marginBottom: 24,
-          }}>
-            <Lock size={44} color={C.p500} />
-          </View>
-          <Text style={{ color: '#fff', fontSize: 26, fontWeight: '700', marginBottom: 8 }}>
-            Budget
-          </Text>
-          <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 15 }}>
-            {t('startup.authenticate')}
-          </Text>
+    <View
+      style={{
+        flex: 1,
+        backgroundColor: C.ground,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingTop: insets.top,
+        paddingBottom: insets.bottom,
+        paddingHorizontal: S.screen,
+      }}
+    >
+      <View style={{ alignItems: 'center', marginBottom: 44 }}>
+        <View style={{
+          width: 64, height: 64, borderRadius: 20,
+          backgroundColor: C.accentSoft,
+          alignItems: 'center', justifyContent: 'center',
+          marginBottom: 16,
+        }}>
+          <Lock size={26} color={C.accent} strokeWidth={S.stroke} />
         </View>
+        <Text style={{ ...F.bold, color: C.ink, fontSize: 28, lineHeight: 36, letterSpacing: -0.28, marginBottom: 6 }}>
+          Budget
+        </Text>
+        <Text style={{ ...F.regular, color: C.inkDim, fontSize: 16, lineHeight: 24, textAlign: 'center' }}>
+          {t('startup.authenticate')}
+        </Text>
+      </View>
 
-        <Pressable
-          onPress={tryAuthenticate}
-          style={({ pressed }: { pressed: boolean }) => ({
-            opacity: pressed ? 0.75 : 1,
-            paddingHorizontal: 40, paddingVertical: 16,
-            borderRadius: 20,
-            backgroundColor: 'rgba(251,191,36,0.2)',
-            borderWidth: 1.5, borderColor: 'rgba(251,191,36,0.5)',
-          })}
-        >
-          <Text style={{ color: C.amber, fontWeight: '700', fontSize: 17 }}>
-            {authenticating ? t('startup.authenticating') : t('startup.unlockBiometrics')}
-          </Text>
-        </Pressable>
-      </LinearGradient>
+      <Pressable
+        onPress={tryAuthenticate}
+        accessibilityRole="button"
+        style={({ pressed }: { pressed: boolean }) => ({
+          opacity: pressed ? 0.85 : 1,
+          alignSelf: 'stretch',
+          height: 56,
+          borderRadius: R.pill,
+          backgroundColor: C.ink,
+          alignItems: 'center',
+          justifyContent: 'center',
+        })}
+      >
+        <Text style={{ ...F.semibold, color: C.onInk, fontSize: 17 }}>
+          {authenticating ? t('startup.authenticating') : t('startup.unlockBiometrics')}
+        </Text>
+      </Pressable>
     </View>
   );
 }
@@ -277,8 +280,8 @@ function RootLayoutNav({ colorScheme }: { colorScheme: 'light' | 'dark' | null |
   // as the final escape hatch ("Continue offline" → fall through to public stack).
   if (!sessionLoading && sessionError && !sessionTimedOut) {
     return (
-      <View style={{ flex: 1, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-        <Text style={{ color: C.rose, fontSize: 20, fontWeight: '700', marginBottom: 8 }}>
+      <View style={{ flex: 1, backgroundColor: C.ground, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+        <Text style={{ ...F.bold, color: C.negative, fontSize: 20, marginBottom: 8 }}>
           {t('startup.serverUnreachable')}
         </Text>
         <Text style={{ color: C.textDim, fontSize: 14, textAlign: 'center', marginBottom: 24 }}>
@@ -286,9 +289,9 @@ function RootLayoutNav({ colorScheme }: { colorScheme: 'light' | 'dark' | null |
         </Text>
         <Pressable
           onPress={() => queryClient.invalidateQueries({ queryKey: SESSION_QUERY_KEY })}
-          style={{ paddingHorizontal: 32, paddingVertical: 14, borderRadius: 16, backgroundColor: C.p600 }}
+          style={{ paddingHorizontal: 32, height: 56, justifyContent: 'center', borderRadius: R.pill, backgroundColor: C.ink }}
         >
-          <Text style={{ color: '#fff', fontWeight: '600', fontSize: 16 }}>{t('startup.retry')}</Text>
+          <Text style={{ ...F.semibold, color: C.onInk, fontSize: 17 }}>{t('startup.retry')}</Text>
         </Pressable>
         <Pressable
           onPress={() => setSessionTimedOut(true)}
@@ -451,7 +454,9 @@ function usePendingCaptures(dbReady: boolean) {
 export default function RootLayout() {
   const C = useC();
   const localeVersion = useLocaleStore((s) => s.version);
-  const colorScheme = useColorScheme();
+  // The user's theme choice, not the raw OS value: otherwise React
+  // Navigation paints dark chrome underneath a light-themed app.
+  const colorScheme = useScheme();
   const [dbReady, setDbReady] = useState(false);
   const [dbError, setDbError] = useState<string | null>(null);
   const [locked, setLocked] = useState(false);
@@ -461,21 +466,23 @@ export default function RootLayout() {
   // useCallback so the listener is not torn down and rebuilt on every render.
   useBiometricRelock(useCallback(() => setLocked(true), []));
 
-  const [fontsLoaded] = useFonts({
-    PlusJakartaSans_400Regular,
-    PlusJakartaSans_500Medium,
-    PlusJakartaSans_600SemiBold,
-    PlusJakartaSans_700Bold,
-  });
-
-  // Once the font is available, make it the app-wide default font.
-  useEffect(() => {
-    if (fontsLoaded) patchDefaultFont();
-  }, [fontsLoaded]);
+  // No font loading. The app renders in the platform face now, which is
+  // already on the device — so startup no longer waits on four webfont files
+  // before it can paint anything, and there is no default-font patch to apply
+  // once they land.
 
   useEffect(() => {
     console.log('[startup] RootLayout mounted');
   }, []);
+
+  // Read the stored theme choice as early as possible. It is deliberately not
+  // inside initApp: that waits on the database, and the theme has nothing to
+  // do with the database — gating it there would paint one frame of the wrong
+  // scheme behind the startup screen.
+  const loadTheme = useThemeStore((s) => s.load);
+  useEffect(() => {
+    loadTheme();
+  }, [loadTheme]);
 
   const initApp = useCallback(async () => {
     setDbError(null);
@@ -537,8 +544,8 @@ export default function RootLayout() {
   if (dbError) {
     return (
       <SafeAreaProvider>
-        <View style={{ flex: 1, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-          <Text style={{ color: '#ef4444', fontSize: 20, fontWeight: '700', marginBottom: 12 }}>
+        <View style={{ flex: 1, backgroundColor: C.ground, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+          <Text style={{ ...F.bold, color: C.negative, fontSize: 20, marginBottom: 12 }}>
             {t('startup.errorTitle')}
           </Text>
           <Text style={{ color: C.textDim, fontSize: 14, textAlign: 'center', marginBottom: 24 }}>
@@ -546,16 +553,16 @@ export default function RootLayout() {
           </Text>
           <Pressable
             onPress={initApp}
-            style={{ paddingHorizontal: 32, paddingVertical: 14, borderRadius: 16, backgroundColor: C.p600 }}
+            style={{ paddingHorizontal: 32, height: 56, justifyContent: 'center', borderRadius: R.pill, backgroundColor: C.ink }}
           >
-            <Text style={{ color: '#fff', fontWeight: '600', fontSize: 16 }}>{t('startup.retry')}</Text>
+            <Text style={{ ...F.semibold, color: C.onInk, fontSize: 17 }}>{t('startup.retry')}</Text>
           </Pressable>
         </View>
       </SafeAreaProvider>
     );
   }
 
-  if (!dbReady || !fontsLoaded) {
+  if (!dbReady) {
     return (
       <SafeAreaProvider>
         <StartupScreen stage={stage} />

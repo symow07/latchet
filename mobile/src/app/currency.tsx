@@ -1,15 +1,14 @@
 import { useState } from 'react';
-import { View, ScrollView, Pressable, TextInput, ActivityIndicator } from 'react-native';
+import { ActivityIndicator, FlatList, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Check, Search, Globe } from 'lucide-react-native';
-import * as Haptics from 'expo-haptics';
+import { Search } from '@/components/icons';
 import { getSettings, updateSettings } from '@/lib/db';
 import { CURRENCIES, type Currency } from '@/lib/currencies';
 import { setActiveCurrency } from '@/lib/calculations';
-import { R, useB } from '@/lib/design';
-import { Txt, GlassCard, BizBackground, IconBubble, EmptyState } from '@/components/ui';
+import { S, useB } from '@/lib/design';
+import { ChoiceRow, Empty, Field, Screen, SubHeader, Type } from '@/components/kit';
 import { t } from '@/lib/i18n/core';
 
 /**
@@ -18,10 +17,16 @@ import { t } from '@/lib/i18n/core';
  * Stored on the user's settings, not the business: someone in one company and
  * one household has one set of eyes, and the app formats every amount the same
  * way. Changing it does not convert anything — it changes the symbol and the
- * decimal places, which is why the note at the top says so plainly.
+ * decimal places, which is why the note under the search field says so.
  *
  * Searchable because there are 168 of them and scrolling to TND is not a
- * design.
+ * design. The list is a FlatList rather than 168 rows inside a ScrollView:
+ * the old version mounted every currency in the app before the screen could
+ * paint, which is the kind of latency §1 is about.
+ *
+ * Rows are the same `ChoiceRow` onboarding picks a currency with, down to the
+ * `CODE · symbol` title — the same choice made in two places should not look
+ * like two different controls.
  */
 export default function CurrencyScreen() {
   const B = useB();
@@ -41,7 +46,6 @@ export default function CurrencyScreen() {
     : CURRENCIES;
 
   const choose = async (currency: Currency) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     // Applied before the write so every amount on screen updates immediately;
     // the write is what makes it survive a restart.
     setActiveCurrency(currency.code, currency.symbol);
@@ -51,86 +55,65 @@ export default function CurrencyScreen() {
   };
 
   return (
-    <BizBackground style={{ paddingTop: insets.top }}>
-      <View style={{ paddingHorizontal: 20, paddingTop: 12, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-        <Pressable
-          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.back(); }}
-          hitSlop={12}
-          style={{ width: 40, height: 40, borderRadius: 14, backgroundColor: B.glass, alignItems: 'center', justifyContent: 'center' }}
-        >
-          <ArrowLeft size={20} color={B.text} />
-        </Pressable>
-        <View style={{ flex: 1 }}>
-          <Txt weight="bold" size={22} color={B.text}>{t('bizSettings.regionLabel')}</Txt>
-        </View>
-        <IconBubble color={B.amber} size={38} radius={12}><Globe size={17} color={B.amber} /></IconBubble>
-      </View>
+    <Screen pal={B}>
+      <SubHeader
+        pal={B}
+        title={t('bizSettings.regionLabel')}
+        onBack={() => router.back()}
+        style={{ marginTop: 8 }}
+      />
 
-      <View style={{ paddingHorizontal: 20, paddingTop: 16 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: B.glass, borderRadius: R.md, paddingHorizontal: 14, borderWidth: 1, borderColor: B.glassBorder }}>
-          <Search size={16} color={B.textFaint} />
-          <TextInput
-            value={query}
-            onChangeText={setQuery}
-            placeholder={t('bizSettings.currencySearch')}
-            placeholderTextColor={B.textFaint}
-            autoCorrect={false}
-            // Not "characters": the field matches codes and names alike, and
-            // forcing caps mid-word rendered "dirham" as "DIrhAM".
-            autoCapitalize="none"
-            selectionColor={B.accent}
-            style={{ flex: 1, color: B.text, fontSize: 15, fontFamily: 'PlusJakartaSans_500Medium', paddingVertical: 13 }}
-          />
-        </View>
-        <Txt size={11} color={B.textFaint} style={{ marginTop: 8, marginStart: 4 }}>
+      <View style={{ paddingHorizontal: S.screen, marginTop: 16 }}>
+        <Field
+          pal={B}
+          value={query}
+          onChangeText={setQuery}
+          placeholder={t('bizSettings.currencySearch')}
+          autoCorrect={false}
+          // Not "characters": the field matches codes and names alike, and
+          // forcing caps mid-word rendered "dirham" as "DIrhAM".
+          autoCapitalize="none"
+          icon={<Search size={17} color={B.inkDim} strokeWidth={S.stroke} />}
+        />
+        <Type role="meta" color={B.inkDim} style={{ marginTop: 12 }}>
           {t('bizSettings.currencyNote')}
-        </Txt>
+        </Type>
       </View>
 
       {isLoading ? (
-        <View style={{ paddingTop: 60, alignItems: 'center' }}><ActivityIndicator color={B.accent} /></View>
+        <View style={{ paddingTop: 60, alignItems: 'center' }}>
+          <ActivityIndicator color={B.accent} />
+        </View>
       ) : matches.length === 0 ? (
-        <EmptyState compact icon={<Search size={24} color={B.textFaint} />} title={t('bizSettings.noCurrencyMatch')} />
+        <Empty
+          pal={B}
+          icon={<Search size={26} color={B.accent} strokeWidth={S.stroke} />}
+          title={t('bizSettings.noCurrencyMatch')}
+          style={{ marginTop: 64 }}
+        />
       ) : (
-        <ScrollView
-          style={{ marginTop: 14 }}
-          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: insets.bottom + 24 }}
-          showsVerticalScrollIndicator
+        <FlatList
+          data={matches}
+          keyExtractor={(c) => c.code}
+          style={{ marginTop: 16 }}
+          contentContainerStyle={{
+            paddingHorizontal: S.screen,
+            paddingBottom: insets.bottom + 24,
+            gap: 8,
+          }}
           keyboardShouldPersistTaps="handled"
-        >
-          <GlassCard padding={6} radius={R.md}>
-            {matches.map((c, i) => {
-              const selected = c.code === active;
-              return (
-                <Pressable
-                  key={c.code}
-                  onPress={() => void choose(c)}
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    gap: 12,
-                    paddingVertical: 12,
-                    paddingHorizontal: 10,
-                    borderBottomWidth: i < matches.length - 1 ? 1 : 0,
-                    borderBottomColor: B.glassBorder,
-                  }}
-                >
-                  {/* Fixed width so the codes line up; some symbols are three
-                      characters wide and would otherwise ragged the column. */}
-                  <Txt size={15} color={selected ? B.text : B.textDim} style={{ width: 44 }} numberOfLines={1}>
-                    {c.symbol}
-                  </Txt>
-                  <Txt weight="semibold" size={14} color={selected ? B.text : B.textDim} style={{ width: 48 }}>
-                    {c.code}
-                  </Txt>
-                  <Txt size={13} color={B.textFaint} style={{ flex: 1 }} numberOfLines={1}>{c.name}</Txt>
-                  {selected && <Check size={18} color={B.teal} />}
-                </Pressable>
-              );
-            })}
-          </GlassCard>
-        </ScrollView>
+          showsVerticalScrollIndicator={false}
+          renderItem={({ item }) => (
+            <ChoiceRow
+              pal={B}
+              title={`${item.code} · ${item.symbol}`}
+              body={item.name}
+              selected={item.code === active}
+              onPress={() => void choose(item)}
+            />
+          )}
+        />
       )}
-    </BizBackground>
+    </Screen>
   );
 }

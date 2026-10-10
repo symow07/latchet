@@ -1,176 +1,385 @@
-import {
-  View, ScrollView, Pressable, Modal, TextInput,
-  ActivityIndicator, Alert, RefreshControl,
-} from 'react-native';
 import { useState } from 'react';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
-import { ArrowLeft, Check, ChevronDown, Copy, Crown, LogIn, RefreshCw, Shield, User2, UserPlus, Users, X } from 'lucide-react-native';
+import { ActivityIndicator, Alert, RefreshControl, ScrollView, View } from 'react-native';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useRouter } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useRouter } from 'expo-router';
+import {
+  Check,
+  ChevronDown,
+  Copy,
+  Crown,
+  RefreshCw,
+  Shield,
+  User2,
+  UserPlus,
+} from '@/components/icons';
 import { useSession } from '@/lib/auth/use-session';
 import {
-  getBusiness, getMembers, getInviteCode, refreshInviteCode,
-  joinBusiness, updateMemberRole, removeMember, type GroupMember,
+  getBusiness,
+  getInviteCode,
+  getMembers,
+  joinBusiness,
+  refreshInviteCode,
+  removeMember,
+  updateMemberRole,
+  type GroupMember,
 } from '@/lib/businessApi';
-import { R, glow, useB } from '@/lib/design';
-import { Txt, GlassCard, Pill, BizBackground, BubbleButton } from '@/components/ui';
+import { R, S, useB, type BizPalette } from '@/lib/design';
+import { PressableScale } from '@/components/motion';
+import {
+  BalanceCard,
+  Card,
+  CircleAction,
+  Empty,
+  Field,
+  FormError,
+  PrimaryButton,
+  Screen,
+  SectionHeader,
+  Sheet,
+  SubHeader,
+  Type,
+} from '@/components/kit';
 import { t } from '@/lib/i18n/core';
 
-const ROLE_META: Record<string, { label: string; color: string; icon: React.ComponentType<{ size: number; color: string }> }> = {
-  owner: { label: 'Owner', color: '#f59e0b', icon: Crown },
-  manager: { label: 'Manager', color: '#3b82f6', icon: Shield },
-  employee: { label: 'Employee', color: '#14b8a6', icon: User2 },
+type Role = 'owner' | 'manager' | 'employee';
+
+/** Icon per role. The label comes from `roles.*`, which is where the three
+ *  hardcoded English words used to live — inside a `ROLE_META` table that
+ *  also assigned each role an off-system colour (amber, blue, teal). */
+const ROLE_ICON: Record<Role, React.ComponentType<{ size: number; color: string; strokeWidth?: number }>> = {
+  owner: Crown,
+  manager: Shield,
+  employee: User2,
 };
 
-function Label({ children }: { children: string }) {
-  const B = useB();
-  return <Txt weight="bold" size={11} color={B.textFaint} style={{ letterSpacing: 1.4, marginBottom: 10 }}>{children}</Txt>;
-}
+const roleLabel = (role: string) =>
+  t(`roles.${role in ROLE_ICON ? role : 'employee'}`);
 
-// ─── Invite Code Panel ───────────────────────────────────────────────────────────
-function InviteCodePanel() {
-  const B = useB();
+// ─── Invite code ─────────────────────────────────────────────────────────────
+
+function InviteCodePanel({ pal }: { pal: BizPalette }) {
   const qc = useQueryClient();
   const [copied, setCopied] = useState(false);
   const { data, isLoading } = useQuery({ queryKey: ['invite-code'], queryFn: getInviteCode });
-  const refreshMut = useMutation({ mutationFn: refreshInviteCode, onSuccess: () => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); qc.invalidateQueries({ queryKey: ['invite-code'] }); } });
+  const refreshMut = useMutation({
+    mutationFn: refreshInviteCode,
+    onSuccess: () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      qc.invalidateQueries({ queryKey: ['invite-code'] });
+    },
+  });
 
   async function handleCopy() {
     if (!data?.code) return;
     await Clipboard.setStringAsync(data.code);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }
 
   return (
-    <View style={{ marginHorizontal: 20, marginBottom: 20 }}>
-      <Label>{t('businessTeam.inviteCode')}</Label>
-      <GlassCard padding={18} radius={R.lg} tint={B.slate900} border={`${B.accent}2a`}>
-        <Txt size={12} color={B.textFaint} style={{ marginBottom: 12 }}>{t('businessTeam.shareCode')}</Txt>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-          <View style={{ flex: 1, backgroundColor: B.glass, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14, borderWidth: 1, borderColor: B.glassBorder }}>
-            {isLoading ? (
-              <ActivityIndicator color={B.accent} size="small" />
-            ) : (
-              <Txt weight="bold" size={24} color={B.accent} style={{ letterSpacing: 8, textAlign: 'center' }}>{data?.code ?? '------'}</Txt>
-            )}
+    <View style={{ marginTop: S.section }}>
+      <SectionHeader pal={pal} title={t('businessTeam.inviteCode')} />
+      <View style={{ paddingHorizontal: S.screen }}>
+        <Card pal={pal}>
+          <Type role="body" color={pal.inkDim}>
+            {t('businessTeam.shareCode')}
+          </Type>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 16 }}>
+            <View
+              style={{
+                flex: 1,
+                minHeight: 52,
+                justifyContent: 'center',
+                borderRadius: R.sm,
+                backgroundColor: pal.groundSunk,
+              }}
+            >
+              {isLoading ? (
+                <ActivityIndicator color={pal.accent} size="small" />
+              ) : (
+                <Type
+                  role="section"
+                  color={pal.ink}
+                  style={{ letterSpacing: 6, textAlign: 'center', fontVariant: ['tabular-nums'] }}
+                >
+                  {data?.code ?? '------'}
+                </Type>
+              )}
+            </View>
+            <CircleAction
+              pal={pal}
+              size={44}
+              label={t('businessTeam.inviteCode')}
+              onPress={handleCopy}
+            >
+              {copied ? (
+                <Check size={18} color={pal.accent} strokeWidth={2.4} />
+              ) : (
+                <Copy size={18} color={pal.ink} strokeWidth={S.stroke} />
+              )}
+            </CircleAction>
+            <CircleAction
+              pal={pal}
+              size={44}
+              label={t('businessTeam.inviteCode')}
+              onPress={refreshMut.isPending ? undefined : () => refreshMut.mutate()}
+            >
+              {refreshMut.isPending ? (
+                <ActivityIndicator color={pal.inkDim} size="small" />
+              ) : (
+                <RefreshCw size={17} color={pal.ink} strokeWidth={S.stroke} />
+              )}
+            </CircleAction>
           </View>
-          <Pressable onPress={handleCopy} style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1, width: 48, height: 48, borderRadius: 14, backgroundColor: copied ? `${B.teal}1f` : `${B.accent}1f`, borderWidth: 1.5, borderColor: copied ? `${B.teal}44` : `${B.accent}44`, alignItems: 'center', justifyContent: 'center' })}>
-            {copied ? <Check size={18} color={B.teal} /> : <Copy size={18} color={B.accent} />}
-          </Pressable>
-          <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); refreshMut.mutate(); }} disabled={refreshMut.isPending} style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1, width: 48, height: 48, borderRadius: 14, backgroundColor: B.glass, borderWidth: 1, borderColor: B.glassBorder, alignItems: 'center', justifyContent: 'center' })}>
-            {refreshMut.isPending ? <ActivityIndicator color={B.textDim} size="small" /> : <RefreshCw size={16} color={B.textFaint} />}
-          </Pressable>
-        </View>
-      </GlassCard>
+        </Card>
+      </View>
     </View>
   );
 }
 
-// ─── Join Modal ──────────────────────────────────────────────────────────────────
-function JoinModal({ visible, onClose, onJoined }: { visible: boolean; onClose: () => void; onJoined: () => void }) {
-  const B = useB();
+// ─── Join sheet ──────────────────────────────────────────────────────────────
+
+function JoinSheet({
+  pal,
+  visible,
+  onClose,
+  onJoined,
+}: {
+  pal: BizPalette;
+  visible: boolean;
+  onClose: () => void;
+  onJoined: () => void;
+}) {
   const [code, setCode] = useState('');
   const [err, setErr] = useState('');
 
   const joinMut = useMutation({
-    mutationFn: () => { if (code.trim().length < 4) throw new Error('Enter a valid invite code'); return joinBusiness(code.trim()); },
-    onSuccess: (data) => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); Alert.alert(t('businessTeam.joinedTitle'), t('businessTeam.joinedBody', { name: data.businessName })); setCode(''); setErr(''); onJoined(); onClose(); },
-    onError: (e: Error) => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error); setErr(e.message); },
+    mutationFn: () => {
+      if (code.trim().length < 4) throw new Error(t('businessTeam.errCode'));
+      return joinBusiness(code.trim());
+    },
+    onSuccess: (data) => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert(t('businessTeam.joinedTitle'), t('businessTeam.joinedBody', { name: data.businessName }));
+      close();
+      onJoined();
+    },
+    onError: (e: Error) => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      setErr(e.message);
+    },
   });
 
-  function handleClose() { setCode(''); setErr(''); onClose(); }
+  function close() {
+    setCode('');
+    setErr('');
+    onClose();
+  }
 
   return (
-    <Modal visible={visible} animationType="slide" transparent presentationStyle="overFullScreen">
-      <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' }} onPress={handleClose} />
-      <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: B.slate900, borderTopLeftRadius: 30, borderTopRightRadius: 30, borderWidth: 1, borderColor: `${B.accent}26`, padding: 22, paddingBottom: 44 }}>
-        <View style={{ width: 40, height: 4, backgroundColor: B.slate700, borderRadius: 2, alignSelf: 'center', marginBottom: 20 }} />
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-          <Txt weight="bold" size={20} color={B.text}>{t('businessTeam.joinBusiness')}</Txt>
-          <Pressable onPress={handleClose} hitSlop={10}><X size={22} color={B.textFaint} /></Pressable>
-        </View>
-        <Txt size={13} color={B.textFaint} style={{ marginBottom: 16 }}>{t('businessTeam.enterCodeLong')}</Txt>
-        {!!err && (
-          <GlassCard padding={12} radius={R.sm} tint={`${B.red}16`} border={`${B.red}33`} style={{ marginBottom: 14 }}>
-            <Txt size={13} color={B.red} style={{ textAlign: 'center' }}>{err}</Txt>
-          </GlassCard>
-        )}
-        <TextInput value={code} onChangeText={t => { setCode(t.toUpperCase()); setErr(''); }} placeholder="ABC123" placeholderTextColor={B.textFaint} autoCapitalize="characters" maxLength={6} style={{ backgroundColor: B.glass, borderRadius: R.md, paddingHorizontal: 16, paddingVertical: 16, color: B.accent, fontSize: 28, fontFamily: 'PlusJakartaSans_700Bold', letterSpacing: 10, textAlign: 'center', borderWidth: 1, borderColor: `${B.accent}33`, marginBottom: 20 }} selectionColor={B.accent} />
-        <BubbleButton label={joinMut.isPending ? t('businessTeam.joining') : t('businessTeam.joinButton')} onPress={() => joinMut.mutate()} disabled={joinMut.isPending} radius={R.md} colors={[B.accentDeep, B.accent]} glowColor={B.accent} />
+    <Sheet pal={pal} visible={visible} onClose={close} title={t('businessTeam.joinBusiness')}>
+      <View style={{ paddingHorizontal: S.card }}>
+        <Type role="body" color={pal.inkDim}>
+          {t('businessTeam.enterCodeLong')}
+        </Type>
+        <Field
+          pal={pal}
+          value={code}
+          onChangeText={(v) => {
+            setCode(v.toUpperCase());
+            setErr('');
+          }}
+          placeholder="ABC123"
+          autoCapitalize="characters"
+          autoCorrect={false}
+          maxLength={6}
+          style={{ marginTop: 16 }}
+        />
+        <FormError pal={pal} message={err} />
+        <PrimaryButton
+          pal={pal}
+          label={joinMut.isPending ? t('businessTeam.joining') : t('businessTeam.joinButton')}
+          onPress={() => joinMut.mutate()}
+          disabled={joinMut.isPending}
+          style={{ marginTop: 16 }}
+        />
       </View>
-    </Modal>
+    </Sheet>
   );
 }
 
-// ─── Member Row ──────────────────────────────────────────────────────────────────
-function MemberRow({ member, isMe, isOwner, onRemove, onChangeRole }: { member: GroupMember; isMe: boolean; isOwner: boolean; onRemove: (id: string) => void; onChangeRole: (id: string, role: 'manager' | 'employee') => void }) {
-  const B = useB();
+// ─── Member row (§6.19) ──────────────────────────────────────────────────────
+
+function MemberRow({
+  pal,
+  member,
+  isMe,
+  isOwner,
+  onRemove,
+  onChangeRole,
+}: {
+  pal: BizPalette;
+  member: GroupMember;
+  isMe: boolean;
+  isOwner: boolean;
+  onRemove: (id: string) => void;
+  onChangeRole: (id: string, role: 'manager' | 'employee') => void;
+}) {
   const [roleOpen, setRoleOpen] = useState(false);
-  const meta = ROLE_META[member.role] ?? ROLE_META.employee;
-  const RoleIcon = meta.icon;
-  const initials = (member.user?.name ?? '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+  const RoleIcon = ROLE_ICON[(member.role as Role) in ROLE_ICON ? (member.role as Role) : 'employee'];
+  const initials = (member.user?.name ?? '?')
+    .split(' ')
+    .map((w) => w[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+  const canEdit = isOwner && member.role !== 'owner';
 
   return (
-    <GlassCard padding={14} radius={R.md}>
-      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-        <View style={{ width: 44, height: 44, borderRadius: 14, backgroundColor: `${meta.color}1f`, borderWidth: 1, borderColor: `${meta.color}40`, alignItems: 'center', justifyContent: 'center', marginEnd: 12 }}>
-          <Txt weight="bold" size={15} color={meta.color}>{initials}</Txt>
+    <View style={{ paddingVertical: 10 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56 }}>
+        <View
+          style={{
+            width: 44,
+            height: 44,
+            borderRadius: 22,
+            backgroundColor: pal.groundSunk,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Type role="cardTitle" color={pal.inkDim}>
+            {initials}
+          </Type>
         </View>
+
         <View style={{ flex: 1 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Txt weight="semibold" size={15} color={B.text}>{member.user?.name ?? t('businessTeam.unknownMember')}</Txt>
-            {isMe && <Pill label="YOU" color={B.accent} />}
-          </View>
-          <Txt size={12} color={B.textFaint} style={{ marginTop: 2 }}>{member.user?.email ?? ''}</Txt>
+          <Type role="cardTitle" color={pal.ink} numberOfLines={1}>
+            {isMe
+              ? `${member.user?.name ?? t('businessTeam.unknownMember')} · ${t('businessTeam.you')}`
+              : (member.user?.name ?? t('businessTeam.unknownMember'))}
+          </Type>
+          {/* §6.19: role in inkDim. It was a coloured pill in one of three
+              hues, which asked the reader to learn a colour code to find out
+              who could approve an expense. */}
+          <Type role="meta" color={pal.inkDim} numberOfLines={1}>
+            {member.user?.email ? `${roleLabel(member.role)} · ${member.user.email}` : roleLabel(member.role)}
+          </Type>
         </View>
-        {isOwner && member.role !== 'owner' ? (
-          <Pressable onPress={() => setRoleOpen(v => !v)} style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1, flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 9, paddingVertical: 5, borderRadius: 8, backgroundColor: `${meta.color}16`, borderWidth: 1, borderColor: `${meta.color}30` })}>
-            <RoleIcon size={11} color={meta.color} />
-            <Txt weight="bold" size={11} color={meta.color}>{meta.label}</Txt>
-            <ChevronDown size={11} color={meta.color} />
-          </Pressable>
+
+        {canEdit ? (
+          <PressableScale
+            onPress={() => setRoleOpen((v) => !v)}
+            accessibilityRole="button"
+            accessibilityLabel={roleLabel(member.role)}
+            hitSlop={8}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 5,
+              minHeight: 34,
+              paddingHorizontal: 12,
+              borderRadius: R.pill,
+              backgroundColor: pal.groundSunk,
+            }}
+          >
+            <RoleIcon size={13} color={pal.inkDim} strokeWidth={S.stroke} />
+            <ChevronDown size={13} color={pal.inkDim} strokeWidth={S.stroke} />
+          </PressableScale>
         ) : (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 9, paddingVertical: 5, borderRadius: 8, backgroundColor: `${meta.color}16` }}>
-            <RoleIcon size={11} color={meta.color} />
-            <Txt weight="bold" size={11} color={meta.color}>{meta.label}</Txt>
-          </View>
+          <RoleIcon size={16} color={pal.inkFaint} strokeWidth={S.stroke} />
         )}
       </View>
 
-      {roleOpen && isOwner && member.role !== 'owner' && (
-        <View style={{ marginTop: 10, backgroundColor: B.bgDeep, borderRadius: 12, borderWidth: 1, borderColor: B.glassBorder, overflow: 'hidden' }}>
-          {(['manager', 'employee'] as const).map(r => {
-            const rm = ROLE_META[r]; const RI = rm.icon;
+      {roleOpen && canEdit ? (
+        <View
+          style={{
+            marginTop: 12,
+            borderRadius: R.sm,
+            backgroundColor: pal.groundSunk,
+            overflow: 'hidden',
+          }}
+        >
+          {(['manager', 'employee'] as const).map((r) => {
+            const RI = ROLE_ICON[r];
             return (
-              <Pressable key={r} onPress={() => { setRoleOpen(false); onChangeRole(member.id, r); }} style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 11, gap: 10, backgroundColor: member.role === r ? `${rm.color}12` : 'transparent' })}>
-                <RI size={14} color={rm.color} />
+              <PressableScale
+                key={r}
+                onPress={() => {
+                  setRoleOpen(false);
+                  onChangeRole(member.id, r);
+                }}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: member.role === r }}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 12,
+                  minHeight: 56,
+                  paddingHorizontal: 14,
+                }}
+              >
+                <RI size={17} color={pal.inkDim} strokeWidth={S.stroke} />
                 <View style={{ flex: 1 }}>
-                  <Txt weight="semibold" size={13} color={rm.color}>{rm.label}</Txt>
-                  <Txt size={11} color={B.textFaint}>{r === 'manager' ? t('businessTeam.canApprove') : t('businessTeam.canSubmit')}</Txt>
+                  <Type role="cardTitle" color={pal.ink}>
+                    {roleLabel(r)}
+                  </Type>
+                  <Type role="meta" color={pal.inkDim}>
+                    {r === 'manager' ? t('businessTeam.canApprove') : t('businessTeam.canSubmit')}
+                  </Type>
                 </View>
-                {member.role === r && <Check size={14} color={rm.color} />}
-              </Pressable>
+                {member.role === r ? (
+                  <Check size={16} color={pal.accent} strokeWidth={2.4} />
+                ) : null}
+              </PressableScale>
             );
           })}
-          <Pressable onPress={() => { setRoleOpen(false); onRemove(member.id); }} style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 11, gap: 10 })}>
-            <X size={14} color={B.red} />
-            <Txt weight="semibold" size={13} color={B.red}>{t('businessTeam.remove')}</Txt>
-          </Pressable>
+          <PressableScale
+            onPress={() => {
+              setRoleOpen(false);
+              onRemove(member.id);
+            }}
+            haptic="light"
+            accessibilityRole="button"
+            accessibilityLabel={t('businessTeam.remove')}
+            style={{
+              minHeight: 52,
+              justifyContent: 'center',
+              paddingHorizontal: 14,
+              borderTopWidth: 1,
+              borderTopColor: pal.hairline,
+            }}
+          >
+            <Type role="cardTitle" color={pal.negative}>
+              {t('businessTeam.remove')}
+            </Type>
+          </PressableScale>
         </View>
-      )}
-    </GlassCard>
+      ) : null}
+    </View>
   );
 }
 
-// ─── Main Screen ─────────────────────────────────────────────────────────────────
+// ─── Screen ──────────────────────────────────────────────────────────────────
+
+/**
+ * The team — DESIGN-PROMPT.md board §35.
+ *
+ * The hero was a mint gradient slab carrying a glow, and its caption was
+ * `rgba(255,255,255,0.5)`. In dark mode the "one dark object" inverts to a
+ * *bone* card, so that caption was white text on a bone surface — the label
+ * telling you what the big number counts, invisible.
+ *
+ * Roles were the other problem: `ROLE_META` held three hardcoded English
+ * words and three colours from no palette (`#f59e0b`, `#3b82f6`, `#14b8a6`),
+ * so a French user saw "Manager" in a blue pill they had to decode. §6.19
+ * asks for a member row to be an avatar, a name, and the role in `inkDim` —
+ * which is what it is now, in the reader's own language.
+ */
 export default function TeamScreen() {
   const B = useB();
-  const insets = useSafeAreaInsets();
   const qc = useQueryClient();
   const router = useRouter();
   const { data: session } = useSession();
@@ -178,15 +387,36 @@ export default function TeamScreen() {
 
   const [showJoin, setShowJoin] = useState(false);
 
-  const { data: business, isLoading: bizLoading } = useQuery({ queryKey: ['my-business'], queryFn: getBusiness });
-  const { data: members = [], isLoading: membersLoading, refetch, isRefetching } = useQuery({ queryKey: ['biz-members'], queryFn: getMembers });
+  const { data: business, isLoading: bizLoading } = useQuery({
+    queryKey: ['my-business'],
+    queryFn: getBusiness,
+  });
+  const { data: members = [], isLoading: membersLoading, refetch, isRefetching } = useQuery({
+    queryKey: ['biz-members'],
+    queryFn: getMembers,
+  });
 
-  const myMembership = members.find(m => m.userId === userId);
+  const myMembership = members.find((m) => m.userId === userId);
   const isOwner = myMembership?.role === 'owner';
   const isInBusiness = !!myMembership;
 
-  const changeRoleMut = useMutation({ mutationFn: ({ id, role }: { id: string; role: 'manager' | 'employee' }) => updateMemberRole(id, role), onSuccess: () => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); qc.invalidateQueries({ queryKey: ['biz-members'] }); }, onError: (e: Error) => Alert.alert(t('common.error'), e.message) });
-  const removeMut = useMutation({ mutationFn: removeMember, onSuccess: () => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning); qc.invalidateQueries({ queryKey: ['biz-members'] }); }, onError: (e: Error) => Alert.alert(t('common.error'), e.message) });
+  const changeRoleMut = useMutation({
+    mutationFn: ({ id, role }: { id: string; role: 'manager' | 'employee' }) =>
+      updateMemberRole(id, role),
+    onSuccess: () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      qc.invalidateQueries({ queryKey: ['biz-members'] });
+    },
+    onError: (e: Error) => Alert.alert(t('common.error'), e.message),
+  });
+  const removeMut = useMutation({
+    mutationFn: removeMember,
+    onSuccess: () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      qc.invalidateQueries({ queryKey: ['biz-members'] });
+    },
+    onError: (e: Error) => Alert.alert(t('common.error'), e.message),
+  });
 
   function handleRemove(memberId: string) {
     Alert.alert(t('dialogs.removeMember'), t('dialogs.removeMemberBody'), [
@@ -195,82 +425,96 @@ export default function TeamScreen() {
     ]);
   }
 
-  const invalidate = () => { qc.invalidateQueries({ queryKey: ['biz-members'] }); qc.invalidateQueries({ queryKey: ['my-business'] }); };
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ['biz-members'] });
+    qc.invalidateQueries({ queryKey: ['my-business'] });
+  };
 
   return (
-    <BizBackground style={{ paddingTop: insets.top }}>
-      <JoinModal visible={showJoin} onClose={() => setShowJoin(false)} onJoined={invalidate} />
+    <Screen pal={B}>
+      <JoinSheet pal={B} visible={showJoin} onClose={() => setShowJoin(false)} onJoined={invalidate} />
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 110 }} refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={B.accent} />}>
-        {/* Header */}
-        <View style={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-            {/* Team was a tab until it moved into Settings, and a tab needs no
-                way back. As a pushed screen it did — and shipped without one,
-                which left the only route out of it a swipe people had no
-                reason to guess at. */}
-            <Pressable
-              onPress={() => { Haptics.selectionAsync(); router.back(); }}
-              hitSlop={14}
-              style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
-            >
-              <ArrowLeft size={24} color={B.text} />
-            </Pressable>
-            {/* Spacing lives on the title, not as marginEnd on the Pressable —
-                measured at 4.3pt that way against the 14 it was given. */}
-            <Txt weight="bold" size={25} color={B.text} style={{ marginStart: 14 }}>
-              {t('businessTeam.title')}
-            </Txt>
-          </View>
-          {!isInBusiness && (
-            <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setShowJoin(true); }} style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 9, borderRadius: 13, backgroundColor: `${B.accent}22`, borderWidth: 1.5, borderColor: `${B.accent}44` })}>
-              <LogIn size={15} color={B.accent} />
-              <Txt weight="bold" size={13} color={B.accent}>{t('businessTeam.join')}</Txt>
-            </Pressable>
-          )}
-        </View>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingTop: 8, paddingBottom: 90 }}
+        refreshControl={
+          <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={B.accent} />
+        }
+      >
+        {/* Team was a tab until it moved into Settings, and a tab needs no way
+            back. As a pushed screen it did — and shipped without one, which
+            left the only route out of it a swipe people had no reason to
+            guess at. */}
+        <SubHeader
+          pal={B}
+          title={t('businessTeam.title')}
+          onBack={() => router.back()}
+          action={
+            !isInBusiness ? (
+              <CircleAction pal={B} label={t('businessTeam.join')} onPress={() => setShowJoin(true)}>
+                <UserPlus size={19} color={B.ink} strokeWidth={S.stroke} />
+              </CircleAction>
+            ) : undefined
+          }
+        />
 
-        {/* Team summary */}
-        <View style={{ marginHorizontal: 20, marginBottom: 20 }}>
-          <LinearGradient colors={[B.heroFrom, B.heroTo]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[{ borderRadius: R.lg, padding: 20, borderWidth: 1, borderColor: `${B.accent}2a`, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, glow(B.accentDeep, 0.25, 18, B.glowScale)]}>
-            <View>
-              <Txt size={13} color="rgba(255,255,255,0.5)" style={{ marginBottom: 4 }}>{t('businessTeam.members')}</Txt>
-              <Txt weight="bold" size={36} color="#fff">{membersLoading ? '—' : members.length}</Txt>
-              <Txt weight="semibold" size={13} color={B.accentSoft} style={{ marginTop: 2 }}>{business?.name ?? (bizLoading ? t('businessTeam.loading') : t('businessTeam.noBusiness'))}</Txt>
+        <BalanceCard
+          pal={B}
+          label={t('businessTeam.members')}
+          amount={members.length}
+          format={(n) => String(Math.round(n))}
+          caption={
+            business?.name ?? (bizLoading ? t('businessTeam.loading') : t('businessTeam.noBusiness'))
+          }
+          style={{ paddingHorizontal: S.screen, marginTop: 24 }}
+        />
+
+        {isOwner && business ? <InviteCodePanel pal={B} /> : null}
+
+        {!isInBusiness && !bizLoading ? (
+          <Empty
+            pal={B}
+            icon={<UserPlus size={26} color={B.accent} strokeWidth={S.stroke} />}
+            title={t('businessTeam.joinBusiness')}
+            body={t('businessTeam.enterCode')}
+            actionLabel={t('businessTeam.joinButton')}
+            onAction={() => setShowJoin(true)}
+            style={{ marginTop: S.section }}
+          />
+        ) : null}
+
+        {members.length > 0 ? (
+          <View style={{ marginTop: S.section }}>
+            <SectionHeader
+              pal={B}
+              title={t('businessTeam.memberCount', { count: members.length })}
+            />
+            <View style={{ paddingHorizontal: S.screen }}>
+              {membersLoading ? (
+                <ActivityIndicator color={B.accent} />
+              ) : (
+                <Card pal={B} padding={0} contentStyle={{ paddingHorizontal: S.card }}>
+                  {members.map((member, i) => (
+                    <View
+                      key={member.id}
+                      style={i > 0 ? { borderTopWidth: 1, borderTopColor: B.hairline } : undefined}
+                    >
+                      <MemberRow
+                        pal={B}
+                        member={member}
+                        isMe={member.userId === userId}
+                        isOwner={isOwner}
+                        onRemove={handleRemove}
+                        onChangeRole={(id, role) => changeRoleMut.mutate({ id, role })}
+                      />
+                    </View>
+                  ))}
+                </Card>
+              )}
             </View>
-            <View style={{ width: 56, height: 56, borderRadius: 20, backgroundColor: `${B.accent}26`, borderWidth: 1.5, borderColor: `${B.accent}44`, alignItems: 'center', justifyContent: 'center' }}>
-              <Users size={26} color={B.accent} />
-            </View>
-          </LinearGradient>
-        </View>
-
-        {isOwner && business && <InviteCodePanel />}
-
-        {!isInBusiness && !bizLoading && (
-          <View style={{ marginHorizontal: 20, marginBottom: 20 }}>
-            <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setShowJoin(true); }} style={({ pressed }) => ({ opacity: pressed ? 0.8 : 1, backgroundColor: `${B.accent}0e`, borderRadius: R.lg, padding: 28, alignItems: 'center', borderWidth: 1.5, borderColor: `${B.accent}2a`, borderStyle: 'dashed' })}>
-              <UserPlus size={28} color={B.slate700} style={{ marginBottom: 10 }} />
-              <Txt weight="bold" size={15} color={B.textDim} style={{ marginBottom: 4 }}>{t('businessTeam.joinBusiness')}</Txt>
-              <Txt size={12} color={B.textFaint} style={{ textAlign: 'center' }}>{t('businessTeam.enterCode')}</Txt>
-            </Pressable>
           </View>
-        )}
-
-        {members.length > 0 && (
-          <View style={{ paddingHorizontal: 20 }}>
-            <Label>{`MEMBERS (${members.length})`}</Label>
-            {membersLoading ? (
-              <ActivityIndicator color={B.accent} />
-            ) : (
-              <View style={{ gap: 8 }}>
-                {members.map(member => (
-                  <MemberRow key={member.id} member={member} isMe={member.userId === userId} isOwner={isOwner} onRemove={handleRemove} onChangeRole={(id, role) => changeRoleMut.mutate({ id, role })} />
-                ))}
-              </View>
-            )}
-          </View>
-        )}
+        ) : null}
       </ScrollView>
-    </BizBackground>
+    </Screen>
   );
 }

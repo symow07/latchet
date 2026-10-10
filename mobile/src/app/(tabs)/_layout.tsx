@@ -2,71 +2,28 @@ import React from 'react';
 import { useLocaleStore } from '@/lib/i18n/locale-store';
 import { t } from '@/lib/i18n/core';
 import { Tabs } from 'expo-router';
-import { View, Platform } from 'react-native';
 import { useClientOnlyValue } from '@/lib/useClientOnlyValue';
-import { BarChart3, PlusCircle, List, Settings, Bot } from 'lucide-react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
-import { glow, useC } from '@/lib/design';
+import { TabIcons } from '@/components/icons';
+import { LiquidTabBar, type LiquidTab } from '@/components/LiquidTabBar';
+import { useC } from '@/lib/design';
 
-function TabBarIcon({ name, color, focused }: { name: string; color: string; focused: boolean }) {
-  const C = useC();
-  const iconProps = { size: 23, color, strokeWidth: focused ? 2.6 : 2.1 };
-
-  if (name === 'add') {
-    return (
-      <LinearGradient
-        colors={focused ? [C.p500, C.p400] : [C.p700, C.p600]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={[
-          {
-            width: 58,
-            height: 58,
-            borderRadius: 22,
-            alignItems: 'center',
-            justifyContent: 'center',
-            marginTop: -22,
-            borderWidth: 4,
-            // Matches the tab bar's own fill so the ring punches the button out
-            // of the bar. C.bgDeep is darker than the bar and read as a black
-            // square sitting behind it.
-            borderColor: C.scheme === 'light' ? '#ffffff' : '#120a20',
-          },
-          glow(C.p500, focused ? 0.7 : 0.45, 14, C.glowScale),
-        ]}
-      >
-        <PlusCircle size={28} color="#fff" strokeWidth={2.4} />
-      </LinearGradient>
-    );
-  }
-
-  const icon = (() => {
-    switch (name) {
-      case 'dashboard': return <BarChart3 {...iconProps} />;
-      case 'transactions': return <List {...iconProps} />;
-      case 'advisor': return <Bot {...iconProps} />;
-      case 'settings': return <Settings {...iconProps} />;
-      default: return <BarChart3 {...iconProps} />;
-    }
-  })();
-
-  // Soft glowing pill behind the focused icon
-  return (
-    <View
-      style={{
-        width: 46,
-        height: 34,
-        borderRadius: 999,
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: focused ? `${C.p500}26` : 'transparent',
-      }}
-    >
-      {icon}
-    </View>
-  );
-}
+/**
+ * The tab bar.
+ *
+ * Drawn by LiquidTabBar rather than by React Navigation — see that file for the
+ * mechanics and lib/tab-bar.ts for the geometry.
+ *
+ * This supersedes four earlier bars, and the reasons each was replaced were
+ * different every time:
+ *
+ *   flat full-width   §1.11's original — a strip of the page, not an object
+ *   ink pill          right geometry, neutral fill, thin glyphs, floating high
+ *   gradient pill     right colour and weight, but the state change was inert
+ *   liquid meniscus   alive, and a great deal of machinery for a bead that
+ *                     protruded further than anyone wanted
+ *
+ * `Add` keeps its route and sits on the bar as a plain destination.
+ */
 
 export default function TabLayout() {
   // React Navigation caches a screen's `options`, so the remount the locale
@@ -74,88 +31,50 @@ export default function TabLayout() {
   // the language the app started in. Keying the navigator forces it.
   const localeVersion = useLocaleStore((s) => s.version);
   const C = useC();
+
+  // Built here, not at module scope. `t()` resolves against whatever locale is
+  // loaded when it runs, so a table built at import time freezes the labels in
+  // the language the app launched in — which is the whole reason the navigator
+  // is keyed on `localeVersion` below.
+  const tabs: Record<string, LiquidTab> = React.useMemo(
+    () => ({
+      index: { label: t('tabs.home'), Fill: TabIcons.home.fill, Line: TabIcons.home.line },
+      transactions: {
+        label: t('tabs.activity'),
+        Fill: TabIcons.records.fill,
+        Line: TabIcons.records.line,
+      },
+      add: { label: t('tabs.add'), Fill: TabIcons.add.fill, Line: TabIcons.add.line },
+      insights: {
+        label: t('tabs.insights'),
+        Fill: TabIcons.insights.fill,
+        Line: TabIcons.insights.line,
+      },
+      settings: {
+        label: t('tabs.settings'),
+        Fill: TabIcons.settings.fill,
+        Line: TabIcons.settings.line,
+      },
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [localeVersion]
+  );
+
   return (
     <Tabs
       key={localeVersion}
-      screenOptions={{
-        tabBarActiveTintColor: C.p400,
-        tabBarInactiveTintColor: C.textFaint,
-        headerShown: useClientOnlyValue(false, true),
-        tabBarBackground: () => (
-          // The bar is pinned over the scroll view, so iOS re-blurs whatever
-          // passes behind it on every frame — and the fill on top is ~85%
-          // opaque, so only a sixth of that blur was ever visible. Intensity
-          // drops and the fill rises slightly to compensate: near-identical
-          // composite, a much smaller blur radius to sample each frame.
-          <BlurView
-            intensity={Platform.OS === 'ios' ? 18 : 12}
-            tint={C.scheme === 'light' ? 'light' : 'dark'}
-            style={{
-              flex: 1,
-              borderTopLeftRadius: 28,
-              borderTopRightRadius: 28,
-              overflow: 'hidden',
-              backgroundColor: C.scheme === 'light' ? 'rgba(255,255,255,0.88)' : 'rgba(18,10,32,0.85)',
-              borderTopWidth: 1,
-              borderColor: C.glassBorder,
-            }}
-          />
-        ),
-        tabBarStyle: {
-          position: 'absolute',
-          backgroundColor: 'transparent',
-          borderTopWidth: 0,
-          height: 88,
-          paddingTop: 10,
-          paddingBottom: 26,
-          elevation: 0,
-        },
-        tabBarLabelStyle: {
-          fontSize: 11,
-          fontFamily: 'PlusJakartaSans_600SemiBold',
-          marginTop: 2,
-        },
-      }}>
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: t('tabs.home'),
-          tabBarIcon: ({ color, focused }) => <TabBarIcon name="dashboard" color={color} focused={focused} />,
-          headerShown: false,
-        }}
-      />
-      <Tabs.Screen
-        name="add"
-        options={{
-          title: '',
-          tabBarIcon: ({ color, focused }) => <TabBarIcon name="add" color={color} focused={focused} />,
-          headerShown: false,
-        }}
-      />
-      <Tabs.Screen
-        name="transactions"
-        options={{
-          title: t('tabs.history'),
-          tabBarIcon: ({ color, focused }) => <TabBarIcon name="transactions" color={color} focused={focused} />,
-          headerShown: false,
-        }}
-      />
-      <Tabs.Screen
-        name="advisor"
-        options={{
-          title: t('tabs.advisor'),
-          tabBarIcon: ({ color, focused }) => <TabBarIcon name="advisor" color={color} focused={focused} />,
-          headerShown: false,
-        }}
-      />
-      <Tabs.Screen
-        name="settings"
-        options={{
-          title: t('tabs.settings'),
-          tabBarIcon: ({ color, focused }) => <TabBarIcon name="settings" color={color} focused={focused} />,
-          headerShown: false,
-        }}
-      />
+      tabBar={(props) => <LiquidTabBar {...props} pal={C} tabs={tabs} />}
+      screenOptions={{ headerShown: useClientOnlyValue(false, true) }}>
+      <Tabs.Screen name="index" options={{ headerShown: false }} />
+      <Tabs.Screen name="transactions" options={{ headerShown: false }} />
+      <Tabs.Screen name="add" options={{ headerShown: false }} />
+      <Tabs.Screen name="insights" options={{ headerShown: false }} />
+      <Tabs.Screen name="settings" options={{ headerShown: false }} />
+
+      {/* Ask keeps its route — §8 still lists it as a core screen (#16) — but
+          it stays off the bar. Home reaches it from the insight card, which is
+          where a question about your money actually occurs to you. */}
+      <Tabs.Screen name="advisor" options={{ href: null }} />
     </Tabs>
   );
 }

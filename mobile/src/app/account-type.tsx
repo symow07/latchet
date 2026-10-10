@@ -1,83 +1,69 @@
-import { ScreenBackground } from '@/components/ui';
-import { t } from '@/lib/i18n/core';
-import { useC } from '@/lib/design';
-import { View, Text, Pressable, ActivityIndicator, ScrollView } from 'react-native';
 import { useState } from 'react';
+import { ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { User, Briefcase, ArrowRight, Check } from 'lucide-react-native';
+import { Briefcase, Check, User } from '@/components/icons';
 import * as Haptics from 'expo-haptics';
-import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import { useSession } from '@/lib/auth/use-session';
 import { useAccountTypeStore, type AccountType } from '@/lib/account-type-store';
 import { createBusiness } from '@/lib/businessApi';
+import { S, useB, useC } from '@/lib/design';
+import { PressableScale } from '@/components/motion';
+import { Card, PrimaryButton, Screen, Type } from '@/components/kit';
+import { t } from '@/lib/i18n/core';
 
-// Built per call, not at module scope: t() at module scope resolves
-// once at import and freezes the startup language.
-function ACCOUNT_TYPES(): {
-  id: AccountType;
-  label: string;
-  subtitle: string;
-  description: string;
-  icon: React.ComponentType<{ size: number; color: string }>;
-  colors: readonly [string, string];
-  colorsLight: readonly [string, string];
-  accent: string;
-}[] {
-  return [
-  {
-    id: 'personal',
-    label: t('accountKind.personalLabel'),
-    subtitle: t('accountKind.personalSub'),
-    description: t('misc2.accountKindPersonalDesc'),
-    icon: User,
-    colors: ['#1a0840', '#2d1260'] as const,
-    colorsLight: ['#f6f0ff', '#ece0ff'] as const,
-    accent: '#9333ea',
-  },
-  {
-    id: 'business',
-    label: t('accountKind.businessLabel'),
-    subtitle: t('accountKind.businessSub'),
-    description: t('accountKind.businessDesc'),
-    icon: Briefcase,
-    colors: ['#031526', '#05283f'] as const,
-    colorsLight: ['#eef5fd', '#dfebfb'] as const,
-    accent: '#3b82f6',
-  },
-];
-}
-
+/**
+ * The profile picker — DESIGN-PROMPT.md §6.22 and board §7.
+ *
+ * This is the one screen in the app where both accents appear together, and
+ * the brief is specific about how: two large white cards, violet for Personal
+ * and mint for Business, the current one checked.
+ *
+ * It was two gradient slabs instead — `#1a0840 → #2d1260` and `#031526 →
+ * #05283f` in dark, two pale washes in light — with a violet icon well on one
+ * and a **blue** one on the other. Blue is not a colour in this system; the
+ * business profile is mint (§2.3), and the whole point of the profile switcher
+ * is that it teaches the two hues before the user meets them. Teaching the
+ * wrong one is worse than teaching none.
+ *
+ * The one dark object is the CTA at the bottom, which is what the Evoo consent
+ * reference does: a screen of white on bone, with a single black button.
+ */
 export default function AccountTypeScreen() {
   const C = useC();
+  const B = useB();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { data: session } = useSession();
-  const save = useAccountTypeStore(s => s.save);
+  const save = useAccountTypeStore((s) => s.save);
   const [selected, setSelected] = useState<AccountType | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
-  const personalScale = useSharedValue(1);
-  const businessScale = useSharedValue(1);
-
-  const personalStyle = useAnimatedStyle(() => ({ transform: [{ scale: personalScale.value }] }));
-  const businessStyle = useAnimatedStyle(() => ({ transform: [{ scale: businessScale.value }] }));
-
-  function handleSelect(type: AccountType) {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    if (type === 'personal') {
-      personalScale.value = withSpring(0.97, {}, () => { personalScale.value = withSpring(1); });
-    } else {
-      businessScale.value = withSpring(0.97, {}, () => { businessScale.value = withSpring(1); });
-    }
-    setSelected(type);
-  }
+  const options = [
+    {
+      id: 'personal' as const,
+      label: t('accountKind.personalLabel'),
+      subtitle: t('accountKind.personalSub'),
+      description: t('misc2.accountKindPersonalDesc'),
+      Icon: User,
+      accent: C.accent,
+      accentSoft: C.accentSoft,
+    },
+    {
+      id: 'business' as const,
+      label: t('accountKind.businessLabel'),
+      subtitle: t('accountKind.businessSub'),
+      description: t('accountKind.businessDesc'),
+      Icon: Briefcase,
+      accent: B.accent,
+      accentSoft: B.accentSoft,
+    },
+  ];
 
   async function handleContinue() {
     if (!selected || !session?.user?.id) return;
     setIsSaving(true);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
     await save(session.user.id, selected);
 
@@ -95,135 +81,117 @@ export default function AccountTypeScreen() {
   }
 
   return (
-    <ScreenBackground style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}>
-      {/* Header */}
-      <View className="px-6 pt-8 pb-6">
-        <Text style={{ color: C.p500, fontSize: 13, fontWeight: '700', letterSpacing: 2, marginBottom: 10 }}>
-          {t('onboarding.stepOf')}
-        </Text>
-        <Text className="font-bold" style={{ color: C.text, fontSize: 32, lineHeight: 40, marginBottom: 8 }}>
-          {t('accountKind.question')}
-        </Text>
-        <Text style={{ color: C.textDim }} className="text-base leading-6">
-          {t('accountKind.questionSub')}
-        </Text>
-      </View>
-
-      {/* Cards */}
+    <Screen pal={C}>
       <ScrollView
-        className="flex-1"
-        contentContainerStyle={{ paddingHorizontal: 20, gap: 16, paddingBottom: 12 }}
         showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingTop: 24, paddingBottom: 24 }}
       >
-        {ACCOUNT_TYPES().map((type) => {
-          const isSelected = selected === type.id;
-          const animStyle = type.id === 'personal' ? personalStyle : businessStyle;
-          const Icon = type.icon;
+        <View style={{ paddingHorizontal: S.screen }}>
+          <Type role="meta" color={C.inkDim}>
+            {t('onboarding.stepOf')}
+          </Type>
+          {/* Sentence case, sitting directly on the ground with no card
+              around it — §1.2. It used to sit under a 13px uppercase label
+              tracked out to 2pt, which is the one type style §3 leaves out
+              on purpose. */}
+          <Type role="title" color={C.ink} style={{ marginTop: 12 }}>
+            {t('accountKind.question')}
+          </Type>
+          <Type role="body" color={C.inkDim} style={{ marginTop: 12 }}>
+            {t('accountKind.questionSub')}
+          </Type>
+        </View>
 
-          return (
-            <Animated.View key={type.id} style={animStyle}>
-              <Pressable
-                onPress={() => handleSelect(type.id)}
-                style={({ pressed }) => ({ opacity: pressed ? 0.92 : 1 })}
+        <View style={{ paddingHorizontal: S.screen, gap: 12, marginTop: S.section }}>
+          {options.map((option) => {
+            const isSelected = selected === option.id;
+            return (
+              <PressableScale
+                key={option.id}
+                onPress={() => setSelected(option.id)}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: isSelected }}
+                accessibilityLabel={option.label}
               >
-                <LinearGradient
-                  colors={C.scheme === 'light' ? type.colorsLight : type.colors}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={{
-                    borderRadius: 24,
+                <Card
+                  pal={C}
+                  radius={24}
+                  contentStyle={{
                     padding: 24,
-                    borderWidth: isSelected ? 2 : 1.5,
-                    borderColor: isSelected ? type.accent : C.glassBorder,
+                    // Selection is a wash in that profile's own accent, so the
+                    // card shows you the hue you are choosing.
+                    backgroundColor: isSelected ? option.accentSoft : C.groundAlt,
                   }}
                 >
-                  <View className="flex-row items-start justify-between mb-4">
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'flex-start',
+                      justifyContent: 'space-between',
+                      marginBottom: 16,
+                    }}
+                  >
                     <View
                       style={{
-                        width: 56, height: 56, borderRadius: 18,
-                        backgroundColor: `${type.accent}22`,
-                        borderWidth: 1.5, borderColor: `${type.accent}40`,
-                        alignItems: 'center', justifyContent: 'center',
+                        width: 56,
+                        height: 56,
+                        borderRadius: 18,
+                        backgroundColor: isSelected ? C.groundAlt : option.accentSoft,
+                        alignItems: 'center',
+                        justifyContent: 'center',
                       }}
                     >
-                      <Icon size={26} color={type.accent} />
+                      <option.Icon size={25} color={option.accent} strokeWidth={S.stroke} />
                     </View>
 
-                    {/* Selection indicator */}
                     <View
                       style={{
-                        width: 28, height: 28, borderRadius: 14,
-                        backgroundColor: isSelected ? type.accent : C.glass,
+                        width: 28,
+                        height: 28,
+                        borderRadius: 14,
+                        backgroundColor: isSelected ? option.accent : 'transparent',
                         borderWidth: isSelected ? 0 : 1.5,
-                        borderColor: C.glassBorder,
-                        alignItems: 'center', justifyContent: 'center',
+                        borderColor: C.hairline,
+                        alignItems: 'center',
+                        justifyContent: 'center',
                       }}
                     >
-                      {isSelected && <Check size={15} color="white" strokeWidth={3} />}
+                      {isSelected ? (
+                        <Check size={15} color={C.groundAlt} strokeWidth={2.8} />
+                      ) : null}
                     </View>
                   </View>
 
-                  <Text className="font-bold mb-1" style={{ color: C.text, fontSize: 22 }}>
-                    {type.label}
-                  </Text>
-                  <Text style={{ color: type.accent, fontWeight: '600', fontSize: 13, marginBottom: 10 }}>
-                    {type.subtitle}
-                  </Text>
-                  <Text className="text-sm leading-5" style={{ color: C.textDim }}>
-                    {type.description}
-                  </Text>
-                </LinearGradient>
-              </Pressable>
-            </Animated.View>
-          );
-        })}
+                  <Type role="section" color={C.ink}>
+                    {option.label}
+                  </Type>
+                  <Type role="meta" color={option.accent} style={{ marginTop: 3 }}>
+                    {option.subtitle}
+                  </Type>
+                  <Type role="body" color={C.inkDim} style={{ marginTop: 12 }}>
+                    {option.description}
+                  </Type>
+                </Card>
+              </PressableScale>
+            );
+          })}
+        </View>
       </ScrollView>
 
-      {/* Continue Button */}
-      <View className="px-6 pt-4 pb-2">
-        <Pressable
+      <View
+        style={{
+          paddingHorizontal: S.screen,
+          paddingTop: 8,
+          paddingBottom: insets.bottom + 12,
+        }}
+      >
+        <PrimaryButton
+          pal={C}
+          label={selected ? t('common.continue') : t('accountKind.selectPrompt')}
           onPress={handleContinue}
           disabled={!selected || isSaving}
-          style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}
-        >
-          <LinearGradient
-            colors={
-              !selected
-                ? ([C.glassStrong, C.glassStrong] as const)
-                : selected === 'personal'
-                  ? [C.p600, C.p500]
-                  : ['#1d4ed8', '#3b82f6']
-            }
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={{
-              borderRadius: 20,
-              paddingVertical: 18,
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            {isSaving ? (
-              <ActivityIndicator color="white" size="small" />
-            ) : (
-              <>
-                <Text
-                  style={{
-                    color: selected ? 'white' : '#4b5563',
-                    fontWeight: '700',
-                    fontSize: 17,
-                    marginEnd: 8,
-                  }}
-                >
-                  {selected ? t('common.continue') : t('accountKind.selectPrompt')}
-                </Text>
-                {selected && <ArrowRight size={20} color="white" />}
-              </>
-            )}
-          </LinearGradient>
-        </Pressable>
+        />
       </View>
-    </ScreenBackground>
+    </Screen>
   );
 }

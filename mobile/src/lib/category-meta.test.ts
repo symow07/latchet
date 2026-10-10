@@ -1,10 +1,11 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { test, expect, afterEach } from 'bun:test';
+import { test, expect, afterEach, describe, it } from 'bun:test';
 import {
   categoryLabel,
   isBuiltInCategory,
   categoryMeta,
+  categoryMarkIndex,
   DEFAULT_CATEGORIES,
   type CategoryMeta,
 } from './category-meta';
@@ -189,4 +190,53 @@ test('the parameterised budget title exists in every language, with the placehol
 
     expect(json.categoryBudgets?.titleFor).toContain('%{category}');
   }
+});
+
+describe('categoryMarkIndex', () => {
+  it('stays inside the ramp', () => {
+    for (const name of ['Food', 'Gym', 'Transport', 'Épicerie', '', 'مطعم', '外卖']) {
+      const i = categoryMarkIndex(name, 8);
+      expect(i).toBeGreaterThanOrEqual(0);
+      expect(i).toBeLessThan(8);
+    }
+  });
+
+  it('gives the same category the same mark every time', () => {
+    expect(categoryMarkIndex('Food', 8)).toBe(categoryMarkIndex('Food', 8));
+  });
+
+  it('gives every built-in category its own mark', () => {
+    // Not "mostly distinct". This assertion used to accept four colours across
+    // six categories, and four is what it got: Shopping, Subscriptions and
+    // Other were one orange, which is exactly what a category-budgets screen
+    // showing all six looked like. Six known names over eight slots have no
+    // reason to share, so the test asks for none.
+    const used = DEFAULT_CATEGORIES.map((c) => categoryMarkIndex(c.name, 8));
+    expect(new Set(used).size).toBe(DEFAULT_CATEGORIES.length);
+  });
+
+  it('keeps each built-in on the hue it has always had', () => {
+    // The ramp is violet, blue, teal, green, amber, orange, red, pink. A
+    // category's hue is part of what it means — Food has been orange and
+    // Transport blue since the first palette — so a later reshuffle of the
+    // ramp should not silently repaint them.
+    expect(categoryMarkIndex('Food', 8)).toBe(5); // orange
+    expect(categoryMarkIndex('Transport', 8)).toBe(1); // blue
+    expect(categoryMarkIndex('Shopping', 8)).toBe(7); // pink
+    expect(categoryMarkIndex('Gym', 8)).toBe(3); // green
+    expect(categoryMarkIndex('Subscriptions', 8)).toBe(0); // violet
+  });
+
+  it('still hashes a name it does not know', () => {
+    // Custom categories and the merchant names that `subscriptions` and
+    // `accounts` pass through here have no assigned slot, and must not all
+    // collapse onto one.
+    const names = ['Épicerie', 'Netflix', 'Spotify', 'Carrefour', 'AWS'];
+    const used = new Set(names.map((n) => categoryMarkIndex(n, 8)));
+    expect(used.size).toBeGreaterThanOrEqual(3);
+  });
+
+  it('does not divide by zero on an empty ramp', () => {
+    expect(categoryMarkIndex('Food', 0)).toBe(0);
+  });
 });

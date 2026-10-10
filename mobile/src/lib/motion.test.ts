@@ -1,7 +1,8 @@
-import { test, expect } from 'bun:test';
+import { test, expect, describe, it } from 'bun:test';
 import {
   easeOutExpo, countAt, countDuration, BREATH_MIN, BREATH_MAX,
-  currencyParts, formatWithParts,
+  currencyParts, formatWithParts, splitAmount,
+  amountScale,
 } from './motion';
 
 test('the curve starts at zero and lands on one', () => {
@@ -131,4 +132,94 @@ test('grouping and decimals are told apart in currencies that have no decimals',
       expect(formatWithParts(amount, parts)).toBe(f(amount));
     }
   }
+});
+
+describe('splitAmount — the §3 number rules', () => {
+  const usd = (n: number) =>
+    new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n);
+  const eur = (n: number) =>
+    new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(n);
+  const jpy = (n: number) =>
+    new Intl.NumberFormat('ja-JP', { style: 'currency', currency: 'JPY' }).format(n);
+
+  it('splits a dollar amount into symbol, whole and fraction', () => {
+    const out = splitAmount(4230, currencyParts(usd), false);
+    expect(out).toEqual({ sign: '', prefix: '$', whole: '4,230', fraction: '.00', suffix: '' });
+  });
+
+  it('keeps the symbol trailing where the locale puts it there', () => {
+    const out = splitAmount(1234.56, currencyParts(eur), false);
+    expect(out.prefix).toBe('');
+    expect(out.suffix).toBe('€');
+    // French groups with a narrow no-break space and decimals with a comma.
+    expect(out.fraction.startsWith(',')).toBe(true);
+  });
+
+  it('renders a zero-decimal currency with no fraction at all', () => {
+    const out = splitAmount(1234, currencyParts(jpy), false);
+    expect(out.fraction).toBe('');
+    expect(out.whole).toBe('1,234');
+  });
+
+  it('always signs a signed amount, and uses a real minus sign', () => {
+    const parts = currencyParts(usd);
+    expect(splitAmount(-23.12, parts, true).sign).toBe('−');
+    expect(splitAmount(1200, parts, true).sign).toBe('+');
+    // A hyphen sits short and high against tabular digits.
+    expect(splitAmount(-23.12, parts, true).sign).not.toBe('-');
+  });
+
+  it('signs a negative even when the caller did not ask for signs', () => {
+    // Losing the minus would turn a debt into a credit.
+    expect(splitAmount(-5, currencyParts(usd), false).sign).toBe('−');
+  });
+
+  it('does not sign a positive unless asked', () => {
+    expect(splitAmount(5, currencyParts(usd), false).sign).toBe('');
+  });
+
+  it('groups only above a thousand, and never inside the fraction', () => {
+    const parts = currencyParts(usd);
+    expect(splitAmount(999.99, parts, false).whole).toBe('999');
+    expect(splitAmount(1000, parts, false).whole).toBe('1,000');
+    expect(splitAmount(1234567.89, parts, false)).toMatchObject({
+      whole: '1,234,567',
+      fraction: '.89',
+    });
+  });
+
+  it('survives the seven significant digits §7 requires of the balance card', () => {
+    expect(splitAmount(9999999.99, currencyParts(usd), false).whole).toBe('9,999,999');
+  });
+
+  it('renders zero without a sign or a stray separator', () => {
+    expect(splitAmount(0, currencyParts(usd), false)).toEqual({
+      sign: '', prefix: '$', whole: '0', fraction: '.00', suffix: '',
+    });
+  });
+});
+
+// ── Fitting a long amount ───────────────────────────────────────────────────
+
+describe('amountScale', () => {
+  it('leaves an amount that already fits alone', () => {
+    expect(amountScale(8, 11)).toBe(1);
+    expect(amountScale(11, 11)).toBe(1);
+  });
+
+  it('shrinks in proportion to the overflow', () => {
+    // The case from the screenshot: "−CN¥77,777,884.00" is 17 glyphs in a
+    // budget of 11, and rendered with its decimals clipped by the card.
+    expect(amountScale(17, 11)).toBeCloseTo(11 / 17, 5);
+    expect(amountScale(22, 11)).toBeCloseTo(0.55, 5);
+  });
+
+  it('never shrinks past the floor', () => {
+    // A hero number at 0.4 of its size is no longer the hero.
+    expect(amountScale(400, 11)).toBe(0.55);
+  });
+
+  it('does not divide by zero on an absent budget', () => {
+    expect(amountScale(20, 0)).toBe(1);
+  });
 });

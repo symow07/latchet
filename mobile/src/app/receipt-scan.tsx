@@ -1,40 +1,34 @@
-import {
-  View,
-  Text,
-  ScrollView,
-  Pressable,
-  ActivityIndicator,
-  TextInput,
-  Switch,
-} from 'react-native';
+import { ActivityIndicator, ScrollView, View } from 'react-native';
 import { Image } from 'expo-image';
-import { useC } from '@/lib/design';
+import { R, S, useC } from '@/lib/design';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { LinearGradient } from 'expo-linear-gradient';
-import {
-  ArrowLeft,
-  Camera,
-  ImageIcon,
-  Sparkles,
-  Check,
-  AlertCircle,
-  DollarSign,
-  Tag,
-  FileText,
-  Calendar,
-  Zap,
-  RefreshCw,
-} from 'lucide-react-native';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { AlertCircle, Check, RefreshCw, Sparkles, Zap } from '@/components/icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
 import * as Haptics from 'expo-haptics';
-import Animated, { FadeInUp, FadeInDown, ZoomIn } from 'react-native-reanimated';
-import { addTransaction } from '@/lib/db';
+import { addTransaction, getSettings } from '@/lib/db';
 import { api } from '@/lib/api/api';
 import { t } from '@/lib/i18n/core';
+import { categoryLabel } from '@/lib/category-meta';
+import { txTypeLabel } from '@/lib/tx-display';
+import { PressableScale } from '@/components/motion';
+import {
+  Card,
+  CircleAction,
+  Empty,
+  Field,
+  FilterChip,
+  IconTile,
+  PrimaryButton,
+  Screen,
+  Segmented,
+  SubHeader,
+  SwitchRow,
+  Type,
+} from '@/components/kit';
 
 type Category = 'Food' | 'Transport' | 'Shopping' | 'Gym' | 'Subscriptions' | 'Other';
 type TransactionType = 'Expense' | 'Income';
@@ -48,15 +42,6 @@ interface ExtractedData {
 
 const CATEGORIES: Category[] = ['Food', 'Transport', 'Shopping', 'Gym', 'Subscriptions', 'Other'];
 
-const CATEGORY_COLORS: Record<Category, { color: string; bg: string }> = {
-  Food: { color: '#f97316', bg: 'rgba(249,115,22,0.15)' },
-  Transport: { color: '#3b82f6', bg: 'rgba(59,130,246,0.15)' },
-  Shopping: { color: '#ec4899', bg: 'rgba(236,72,153,0.15)' },
-  Gym: { color: '#22c55e', bg: 'rgba(34,197,94,0.15)' },
-  Subscriptions: { color: '#f59e0b', bg: 'rgba(245,158,11,0.15)' },
-  Other: { color: '#6b7280', bg: 'rgba(107,114,128,0.15)' },
-};
-
 // Routes receipt OCR through the backend AI proxy (POST /api/ai/analyze-receipt)
 // so the OpenAI Vision key stays server-side. The endpoint returns the same
 // ExtractedData shape the review form expects.
@@ -68,6 +53,8 @@ export default function ReceiptScanScreen() {
   const C = useC();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { data: settings } = useQuery({ queryKey: ['settings'], queryFn: getSettings });
+  const currencySymbol = settings?.currencySymbol || '$';
   const queryClient = useQueryClient();
 
   const [step, setStep] = useState<Step>('pick');
@@ -219,743 +206,307 @@ export default function ReceiptScanScreen() {
   });
 
   return (
-    <View style={{ flex: 1, backgroundColor: C.bg }}>
-      {/* Header */}
-      <LinearGradient
-        colors={[C.p700, C.p600, C.p500]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={{
-          paddingTop: insets.top + 8,
-          paddingBottom: 20,
-          paddingHorizontal: 16,
-        }}
-      >
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Pressable
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              router.back();
-            }}
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: 20,
-              backgroundColor: 'rgba(255,255,255,0.2)',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <ArrowLeft size={20} color="white" />
-          </Pressable>
-
-          <View style={{ flex: 1, alignItems: 'center' }}>
-            <Text style={{ color: 'white', fontSize: 18, fontWeight: 'bold' }}>{t('receiptScan.title')}</Text>
-            <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, marginTop: 2 }}>
-              {step === 'pick' && t('receiptScan.stepPick')}
-              {step === 'analyzing' && t('receiptScan.stepAnalyzing')}
-              {step === 'review' && t('receiptScan.stepReview')}
-              {step === 'success' && t('receiptScan.stepSuccess')}
-            </Text>
-          </View>
-
-          {(step === 'review' || step === 'analyzing') ? (
-            <Pressable
-              onPress={resetScan}
-              style={{
-                width: 40,
-                height: 40,
-                borderRadius: 20,
-                backgroundColor: 'rgba(255,255,255,0.2)',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <RefreshCw size={18} color="white" />
-            </Pressable>
-          ) : (
-            <View style={{ width: 40 }} />
-          )}
-        </View>
-      </LinearGradient>
-
+    <Screen pal={C}>
       <ScrollView
-        style={{ flex: 1 }}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 120 }}
+        contentContainerStyle={{ paddingTop: 8, paddingBottom: step === 'review' ? 130 : 60 }}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Error Banner */}
-        {errorMsg && (
-          <Animated.View entering={FadeInDown.duration(300)} style={{ paddingHorizontal: 16, paddingTop: 16 }}>
-            <View
-              style={{
-                borderRadius: 16,
-                padding: 14,
-                flexDirection: 'row',
-                alignItems: 'center',
-                backgroundColor: 'rgba(239,68,68,0.1)',
-                borderWidth: 1,
-                borderColor: 'rgba(239,68,68,0.25)',
-              }}
-            >
-              <AlertCircle size={18} color="#ef4444" />
-              <Text style={{ color: '#f87171', marginStart: 10, flex: 1, fontSize: 13 }}>{errorMsg}</Text>
-              <Pressable onPress={() => setErrorMsg(null)}>
-                <Text style={{ color: '#f87171', fontWeight: '600', fontSize: 13 }}>{t('receiptScan.dismiss')}</Text>
-              </Pressable>
-            </View>
-          </Animated.View>
-        )}
+        <SubHeader
+          pal={C}
+          title={t('receiptScan.title')}
+          onBack={() => router.back()}
+          action={
+            step === 'review' || step === 'analyzing' ? (
+              <CircleAction pal={C} label={t('receiptScan.scanAnother')} onPress={resetScan}>
+                <RefreshCw size={18} color={C.ink} strokeWidth={S.stroke} />
+              </CircleAction>
+            ) : undefined
+          }
+        />
 
-        {/* STEP: PICK */}
-        {step === 'pick' && (
-          <Animated.View entering={FadeInUp.duration(400)} style={{ paddingHorizontal: 16, paddingTop: 28 }}>
-            {/* Hero prompt */}
-            <View style={{ alignItems: 'center', marginBottom: 32 }}>
-              <View
-                style={{
-                  width: 80,
-                  height: 80,
-                  borderRadius: 24,
-                  backgroundColor: 'rgba(168,85,247,0.15)',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  marginBottom: 16,
-                  borderWidth: 1,
-                  borderColor: 'rgba(168,85,247,0.3)',
-                }}
+        <Type role="meta" color={C.inkDim} style={{ paddingHorizontal: S.screen, marginTop: 16 }}>
+          {step === 'pick'
+            ? t('receiptScan.stepPick')
+            : step === 'analyzing'
+              ? t('receiptScan.stepAnalyzing')
+              : step === 'review'
+                ? t('receiptScan.stepReview')
+                : t('receiptScan.stepSuccess')}
+        </Type>
+
+        {errorMsg ? (
+          <View style={{ paddingHorizontal: S.screen, marginTop: 16 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <AlertCircle size={17} color={C.negative} strokeWidth={S.stroke} />
+              <Type role="body" color={C.negative} style={{ flex: 1 }}>
+                {errorMsg}
+              </Type>
+              <PressableScale
+                onPress={() => setErrorMsg(null)}
+                accessibilityRole="button"
+                accessibilityLabel={t('receiptScan.dismiss')}
+                hitSlop={10}
               >
-                <Sparkles size={36} color={C.p500} />
-              </View>
-              <Text style={{ color: 'white', fontSize: 22, fontWeight: 'bold', marginBottom: 8 }}>
-                {t('receiptScan.heroTitle')}
-              </Text>
-              <Text style={{ color: C.textDim, fontSize: 14, textAlign: 'center', lineHeight: 20 }}>
-                {t('receiptScan.heroBody')}
-              </Text>
+                <Type role="meta" color={C.inkDim}>{t('receiptScan.dismiss')}</Type>
+              </PressableScale>
             </View>
+          </View>
+        ) : null}
 
-            {/* Camera Button */}
-            <Pressable
+        {/* ── Pick ───────────────────────────────────────────────────────── */}
+        {step === 'pick' ? (
+          <View style={{ paddingHorizontal: S.screen, marginTop: S.section }}>
+            <IconTile pal={C} size={64} style={{ borderRadius: 20 }}>
+              <Sparkles size={28} color={C.accent} strokeWidth={S.stroke} />
+            </IconTile>
+            <Type role="headline" color={C.ink} style={{ marginTop: 16 }}>
+              {t('receiptScan.heroTitle')}
+            </Type>
+            <Type role="body" color={C.inkDim} style={{ marginTop: 12 }}>
+              {t('receiptScan.heroBody')}
+            </Type>
+
+            <PrimaryButton
+              pal={C}
+              label={t('receiptScan.takePhoto')}
               onPress={() => pickImage('camera')}
-              style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1, marginBottom: 14 })}
-            >
-              <LinearGradient
-                colors={[C.p600, C.p500]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={{
-                  borderRadius: 20,
-                  padding: 20,
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                }}
-              >
-                <View
-                  style={{
-                    width: 52,
-                    height: 52,
-                    borderRadius: 16,
-                    backgroundColor: 'rgba(255,255,255,0.2)',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    marginEnd: 16,
-                  }}
-                >
-                  <Camera size={26} color="white" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 17, marginBottom: 2 }}>
-                    {t('receiptScan.takePhoto')}
-                  </Text>
-                  <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13 }}>
-                    {t('receiptScan.takePhotoSub')}
-                  </Text>
-                </View>
-              </LinearGradient>
-            </Pressable>
-
-            {/* Gallery Button */}
-            <Pressable
+              style={{ marginTop: S.section }}
+            />
+            <PrimaryButton
+              pal={C}
+              label={t('receiptScan.choosePhoto')}
               onPress={() => pickImage('library')}
-              style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}
-            >
-              <View
-                style={{
-                  borderRadius: 20,
-                  padding: 20,
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  backgroundColor: C.glass,
-                  borderWidth: 1,
-                  borderColor: C.glassBorder,
-                }}
-              >
-                <View
-                  style={{
-                    width: 52,
-                    height: 52,
-                    borderRadius: 16,
-                    backgroundColor: 'rgba(168,85,247,0.15)',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    marginEnd: 16,
-                  }}
-                >
-                  <ImageIcon size={26} color={C.p500} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 17, marginBottom: 2 }}>
-                    {t('receiptScan.choosePhoto')}
-                  </Text>
-                  <Text style={{ color: C.textDim, fontSize: 13 }}>
-                    {t('receiptScan.choosePhotoSub')}
-                  </Text>
-                </View>
-              </View>
-            </Pressable>
+              variant="secondary"
+              style={{ marginTop: 12 }}
+            />
 
-            {/* Tips */}
-            <View style={{ marginTop: 32 }}>
-              <Text style={{ color: C.textFaint, fontSize: 11, fontWeight: '600', marginBottom: 12, marginStart: 4 }}>
+            <View style={{ marginTop: S.section }}>
+              <Type role="cardTitle" color={C.ink} style={{ marginBottom: 12 }}>
                 {t('receiptScan.tipsTitle')}
-              </Text>
-              {[
-                t('receiptScan.tip1'),
-                t('receiptScan.tip2'),
-                t('receiptScan.tip3'),
-              ].map((tip, i) => (
-                <View
-                  key={i}
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    backgroundColor: C.glass,
-                    borderRadius: 12,
-                    padding: 12,
-                    marginBottom: 8,
-                  }}
-                >
-                  <View
-                    style={{
-                      width: 22,
-                      height: 22,
-                      borderRadius: 11,
-                      backgroundColor: 'rgba(168,85,247,0.15)',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      marginEnd: 12,
-                    }}
-                  >
-                    <Text style={{ color: C.p500, fontSize: 11, fontWeight: 'bold' }}>{i + 1}</Text>
-                  </View>
-                  <Text style={{ color: C.textDim, fontSize: 13, flex: 1 }}>{tip}</Text>
-                </View>
-              ))}
-            </View>
-          </Animated.View>
-        )}
-
-        {/* STEP: ANALYZING */}
-        {step === 'analyzing' && (
-          <Animated.View
-            entering={FadeInUp.duration(400)}
-            style={{ paddingHorizontal: 16, paddingTop: 28, alignItems: 'center' }}
-          >
-            {/* Image preview */}
-            {imageUri && (
-              <View
-                style={{
-                  width: '100%',
-                  borderRadius: 20,
-                  overflow: 'hidden',
-                  marginBottom: 28,
-                  borderWidth: 1,
-                  borderColor: 'rgba(168,85,247,0.3)',
-                }}
-              >
-                <Image
-                  source={{ uri: imageUri }}
-                  style={{ width: '100%', height: 240 }}
-                  contentFit="cover"
-                />
-                <LinearGradient
-                  colors={['transparent', 'rgba(13,13,15,0.9)']}
-                  style={{
-                    position: 'absolute',
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    height: 80,
-                  }}
-                />
-              </View>
-            )}
-
-            {/* Spinner + text */}
-            <View
-              style={{
-                width: 80,
-                height: 80,
-                borderRadius: 24,
-                backgroundColor: 'rgba(168,85,247,0.12)',
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginBottom: 20,
-                borderWidth: 1,
-                borderColor: 'rgba(168,85,247,0.25)',
-              }}
-            >
-              <ActivityIndicator size="large" color={C.p500} />
-            </View>
-            <Text style={{ color: 'white', fontSize: 20, fontWeight: 'bold', marginBottom: 8 }}>
-              {t('receiptScan.analyzingTitle')}
-            </Text>
-            <Text style={{ color: C.textDim, fontSize: 14, textAlign: 'center', lineHeight: 20 }}>
-              {t('receiptScan.analyzingBody')}
-            </Text>
-
-            <View
-              style={{
-                marginTop: 28,
-                backgroundColor: 'rgba(168,85,247,0.08)',
-                borderRadius: 16,
-                padding: 16,
-                width: '100%',
-                borderWidth: 1,
-                borderColor: 'rgba(168,85,247,0.15)',
-              }}
-            >
-              {['Detecting merchant name...', 'Reading total amount...', 'Categorizing purchase...'].map(
-                (line, i) => (
-                  <View
-                    key={i}
-                    style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      marginBottom: i < 2 ? 10 : 0,
-                    }}
-                  >
-                    <ActivityIndicator size="small" color={C.p500} style={{ marginEnd: 10 }} />
-                    <Text style={{ color: C.p400, fontSize: 13 }}>{line}</Text>
-                  </View>
-                )
-              )}
-            </View>
-          </Animated.View>
-        )}
-
-        {/* STEP: REVIEW */}
-        {step === 'review' && (
-          <Animated.View entering={FadeInUp.duration(400)} style={{ paddingHorizontal: 16, paddingTop: 20 }}>
-            {/* Image thumbnail */}
-            {imageUri && (
-              <View
-                style={{
-                  borderRadius: 20,
-                  overflow: 'hidden',
-                  marginBottom: 20,
-                  borderWidth: 1,
-                  borderColor: 'rgba(168,85,247,0.25)',
-                }}
-              >
-                <Image
-                  source={{ uri: imageUri }}
-                  style={{ width: '100%', height: 160 }}
-                  contentFit="cover"
-                />
-                <LinearGradient
-                  colors={['transparent', 'rgba(13,13,15,0.85)']}
-                  style={{
-                    position: 'absolute',
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    height: 60,
-                  }}
-                />
-                <View
-                  style={{
-                    position: 'absolute',
-                    bottom: 10,
-                    left: 14,
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                  }}
-                >
-                  <Sparkles size={14} color={C.p500} />
-                  <Text style={{ color: C.p400, fontSize: 12, marginStart: 5, fontWeight: '600' }}>
-                    {t('receiptScan.aiExtracted')}
-                  </Text>
-                </View>
-              </View>
-            )}
-
-            {/* Amount */}
-            <View style={{ marginBottom: 14 }}>
-              <Text style={{ color: C.textDim, fontSize: 11, fontWeight: '600', marginBottom: 8, marginStart: 4 }}>
-                AMOUNT
-              </Text>
-              <View
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  backgroundColor: C.glass,
-                  borderRadius: 16,
-                  paddingHorizontal: 16,
-                  paddingVertical: 14,
-                  borderWidth: 1,
-                  borderColor: 'rgba(168,85,247,0.2)',
-                }}
-              >
-                <DollarSign size={20} color={C.p500} style={{ marginEnd: 10 }} />
-                <TextInput
-                  value={amount}
-                  onChangeText={setAmount}
-                  keyboardType="decimal-pad"
-                  placeholder="0.00"
-                  placeholderTextColor="#555"
-                  selectionColor={C.p500}
-                  style={{ flex: 1, color: 'white', fontSize: 22, fontWeight: 'bold' }}
-                />
-              </View>
-            </View>
-
-            {/* Category */}
-            <View style={{ marginBottom: 14 }}>
-              <Text style={{ color: C.textDim, fontSize: 11, fontWeight: '600', marginBottom: 8, marginStart: 4 }}>
-                CATEGORY
-              </Text>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={{ flexGrow: 0 }}
-                contentContainerStyle={{ paddingHorizontal: 0, gap: 8 }}
-              >
-                {CATEGORIES.map((cat) => {
-                  const active = category === cat;
-                  const colors = CATEGORY_COLORS[cat];
-                  return (
-                    <Pressable
-                      key={cat}
-                      onPress={() => {
-                        setCategory(cat);
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      }}
-                    >
-                      <View
-                        style={{
-                          borderRadius: 12,
-                          paddingHorizontal: 14,
-                          paddingVertical: 9,
-                          backgroundColor: active ? colors.bg : 'rgba(255,255,255,0.05)',
-                          borderWidth: 1,
-                          borderColor: active ? colors.color + '55' : 'rgba(255,255,255,0.06)',
-                          flexDirection: 'row',
-                          alignItems: 'center',
-                        }}
-                      >
-                        <Tag size={13} color={active ? colors.color : '#6b7280'} style={{ marginEnd: 5 }} />
-                        <Text
+              </Type>
+              <Card pal={C}>
+                <View style={{ gap: 12 }}>
+                  {[t('receiptScan.tip1'), t('receiptScan.tip2'), t('receiptScan.tip3')].map(
+                    (tip, i) => (
+                      <View key={tip} style={{ flexDirection: 'row', gap: 12 }}>
+                        <View
                           style={{
-                            color: active ? colors.color : '#9ca3af',
-                            fontWeight: active ? '700' : '500',
-                            fontSize: 13,
+                            width: 24,
+                            height: 24,
+                            borderRadius: 12,
+                            backgroundColor: C.groundSunk,
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            marginTop: 1,
                           }}
                         >
-                          {cat}
-                        </Text>
+                          <Type role="meta" color={C.inkDim}>{i + 1}</Type>
+                        </View>
+                        <Type role="body" color={C.ink} style={{ flex: 1 }}>{tip}</Type>
                       </View>
-                    </Pressable>
-                  );
-                })}
-              </ScrollView>
+                    )
+                  )}
+                </View>
+              </Card>
+            </View>
+          </View>
+        ) : null}
+
+        {/* ── Analysing ──────────────────────────────────────────────────── */}
+        {step === 'analyzing' ? (
+          <View style={{ paddingHorizontal: S.screen, marginTop: S.section }}>
+            {imageUri ? (
+              <Image
+                source={{ uri: imageUri }}
+                style={{ width: '100%', height: 220, borderRadius: R.md }}
+                contentFit="cover"
+              />
+            ) : null}
+
+            <View style={{ alignItems: 'center', marginTop: 24 }}>
+              <ActivityIndicator size="large" color={C.accent} />
+              <Type role="section" color={C.ink} style={{ marginTop: 16, textAlign: 'center' }}>
+                {t('receiptScan.analyzingTitle')}
+              </Type>
+              <Type role="body" color={C.inkDim} style={{ marginTop: 8, textAlign: 'center' }}>
+                {t('receiptScan.analyzingBody')}
+              </Type>
             </View>
 
-            {/* Note */}
-            <View style={{ marginBottom: 14 }}>
-              <Text style={{ color: C.textDim, fontSize: 11, fontWeight: '600', marginBottom: 8, marginStart: 4 }}>
-                {t('receiptScan.noteMerchant')}
-              </Text>
-              <View
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  backgroundColor: C.glass,
-                  borderRadius: 16,
-                  paddingHorizontal: 16,
-                  paddingVertical: 14,
-                  borderWidth: 1,
-                  borderColor: C.glassBorder,
-                }}
-              >
-                <FileText size={18} color="#6b7280" style={{ marginEnd: 10 }} />
-                <TextInput
-                  value={note}
-                  onChangeText={(t) => setNote(t.slice(0, 50))}
-                  placeholder={t('fields.merchantOrDesc')}
-                  placeholderTextColor="#555"
-                  selectionColor={C.p500}
-                  style={{ flex: 1, color: 'white', fontSize: 15 }}
-                  returnKeyType="done"
+            {/* Three lines of English used to sit here — "Detecting merchant
+                name...", and two more — in an app that ships four languages. */}
+            <View style={{ gap: 8, marginTop: 24 }}>
+              {[
+                t('receiptScan.analysing1'),
+                t('receiptScan.analysing2'),
+                t('receiptScan.analysing3'),
+              ].map((line) => (
+                <Type key={line} role="body" color={C.inkDim}>
+                  {line}
+                </Type>
+              ))}
+            </View>
+          </View>
+        ) : null}
+
+        {/* ── Review ─────────────────────────────────────────────────────── */}
+        {step === 'review' ? (
+          <View style={{ paddingHorizontal: S.screen, marginTop: 24 }}>
+            {imageUri ? (
+              <>
+                <Image
+                  source={{ uri: imageUri }}
+                  style={{ width: '100%', height: 150, borderRadius: R.md }}
+                  contentFit="cover"
                 />
-              </View>
-            </View>
-
-            {/* Type toggle */}
-            <View style={{ marginBottom: 14 }}>
-              <Text style={{ color: C.textDim, fontSize: 11, fontWeight: '600', marginBottom: 8, marginStart: 4 }}>
-                TYPE
-              </Text>
-              <View style={{ flexDirection: 'row', gap: 10 }}>
-                {(['Expense', 'Income'] as TransactionType[]).map((t) => (
-                  <Pressable
-                    key={t}
-                    onPress={() => {
-                      setType(t);
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    }}
-                    style={{ flex: 1 }}
-                  >
-                    <View
-                      style={{
-                        borderRadius: 14,
-                        paddingVertical: 13,
-                        alignItems: 'center',
-                        backgroundColor:
-                          type === t
-                            ? t === 'Expense'
-                              ? 'rgba(239,68,68,0.18)'
-                              : 'rgba(34,197,94,0.18)'
-                            : 'rgba(255,255,255,0.05)',
-                        borderWidth: 1,
-                        borderColor:
-                          type === t
-                            ? t === 'Expense'
-                              ? 'rgba(239,68,68,0.4)'
-                              : 'rgba(34,197,94,0.4)'
-                            : 'rgba(255,255,255,0.07)',
-                      }}
-                    >
-                      <Text
-                        style={{
-                          fontWeight: '700',
-                          fontSize: 14,
-                          color:
-                            type === t ? (t === 'Expense' ? '#f87171' : '#4ade80') : '#6b7280',
-                        }}
-                      >
-                        {t}
-                      </Text>
-                    </View>
-                  </Pressable>
-                ))}
-              </View>
-            </View>
-
-            {/* Date */}
-            <View style={{ marginBottom: 14 }}>
-              <Text style={{ color: C.textDim, fontSize: 11, fontWeight: '600', marginBottom: 8, marginStart: 4 }}>
-                DATE
-              </Text>
-              <View
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  backgroundColor: C.glass,
-                  borderRadius: 16,
-                  paddingHorizontal: 16,
-                  paddingVertical: 14,
-                  borderWidth: 1,
-                  borderColor: C.glassBorder,
-                }}
-              >
-                <Calendar size={18} color="#6b7280" style={{ marginEnd: 10 }} />
-                <TextInput
-                  value={dateISO}
-                  onChangeText={setDateISO}
-                  placeholder="YYYY-MM-DD"
-                  placeholderTextColor="#555"
-                  selectionColor={C.p500}
-                  style={{ flex: 1, color: 'white', fontSize: 15 }}
-                  returnKeyType="done"
-                />
-              </View>
-            </View>
-
-            {/* Impulse toggle */}
-            <View
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                backgroundColor: isImpulse ? 'rgba(236,72,153,0.1)' : 'rgba(255,255,255,0.05)',
-                borderRadius: 16,
-                padding: 16,
-                borderWidth: 1,
-                borderColor: isImpulse ? 'rgba(236,72,153,0.3)' : 'rgba(255,255,255,0.07)',
-                marginBottom: 28,
-              }}
-            >
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <View
-                  style={{
-                    width: 38,
-                    height: 38,
-                    borderRadius: 12,
-                    backgroundColor: isImpulse ? 'rgba(236,72,153,0.2)' : 'rgba(255,255,255,0.06)',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    marginEnd: 12,
-                  }}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 12 }}
                 >
-                  <Zap size={18} color={isImpulse ? '#ec4899' : '#6b7280'} />
+                  <Sparkles size={14} color={C.accent} strokeWidth={S.stroke} />
+                  <Type role="meta" color={C.inkDim}>{t('receiptScan.aiExtracted')}</Type>
                 </View>
-                <View>
-                  <Text style={{ color: 'white', fontWeight: '600', fontSize: 15 }}>{t('receiptScan.impulseBuy')}</Text>
-                  <Text style={{ color: C.textFaint, fontSize: 12, marginTop: 1 }}>
-                    {t('receiptScan.impulseHint')}
-                  </Text>
-                </View>
-              </View>
-              <Switch
+              </>
+            ) : null}
+
+            <Field
+              pal={C}
+              label={t('receiptScan.amountLabel')}
+              value={amount}
+              onChangeText={setAmount}
+              keyboardType="decimal-pad"
+              placeholder="0"
+              icon={
+                <Type role="cardTitle" color={C.inkDim}>
+                  {currencySymbol}
+                </Type>
+              }
+              style={{ marginTop: 24 }}
+            />
+
+            <Type role="meta" color={C.inkDim} style={{ marginTop: 16, marginBottom: 8 }}>
+              {t('receiptScan.categoryLabel')}
+            </Type>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={{ flexGrow: 0 }}
+              contentContainerStyle={{ gap: 8 }}
+            >
+              {CATEGORIES.map((cat) => (
+                <FilterChip
+                  key={cat}
+                  pal={C}
+                  // The stored value is canonical English and is not meant to
+                  // be read; it used to be printed raw.
+                  label={categoryLabel(cat)}
+                  active={category === cat}
+                  onPress={() => setCategory(cat)}
+                />
+              ))}
+            </ScrollView>
+
+            <Field
+              pal={C}
+              label={t('receiptScan.noteMerchant')}
+              value={note}
+              onChangeText={(v) => setNote(v.slice(0, 50))}
+              placeholder={t('fields.merchantOrDesc')}
+              returnKeyType="done"
+              style={{ marginTop: 16 }}
+            />
+
+            <Type role="meta" color={C.inkDim} style={{ marginTop: 16, marginBottom: 8 }}>
+              {t('receiptScan.typeLabel')}
+            </Type>
+            <Segmented
+              pal={C}
+              options={[
+                { key: 'Expense' as const, label: txTypeLabel('Expense') },
+                { key: 'Income' as const, label: txTypeLabel('Income') },
+              ]}
+              value={type}
+              onChange={setType}
+            />
+
+            <Field
+              pal={C}
+              label={t('receiptScan.dateLabel')}
+              value={dateISO}
+              onChangeText={setDateISO}
+              placeholder="YYYY-MM-DD"
+              returnKeyType="done"
+              style={{ marginTop: 16 }}
+            />
+
+            <Card pal={C} style={{ marginTop: 16 }}>
+              <SwitchRow
+                pal={C}
+                icon={
+                  <IconTile pal={C}>
+                    <Zap size={19} color={C.accent} strokeWidth={S.stroke} />
+                  </IconTile>
+                }
+                title={t('receiptScan.impulseBuy')}
+                body={t('receiptScan.impulseHint')}
                 value={isImpulse}
-                onValueChange={(v) => {
-                  setIsImpulse(v);
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                }}
-                trackColor={{ false: '#374151', true: '#ec4899' }}
-                thumbColor={isImpulse ? '#fff' : '#9ca3af'}
+                onValueChange={setIsImpulse}
+              />
+            </Card>
+          </View>
+        ) : null}
+
+        {/* ── Saved ──────────────────────────────────────────────────────── */}
+        {step === 'success' ? (
+          <>
+            <Empty
+              pal={C}
+              icon={<Check size={26} color={C.accent} strokeWidth={2.4} />}
+              title={t('receiptScan.savedTitle')}
+              body={t('receiptScan.savedBody')}
+              actionLabel={t('receiptScan.goToDashboard')}
+              onAction={() => router.replace('/(tabs)')}
+              style={{ marginTop: S.section }}
+            />
+            <View style={{ paddingHorizontal: S.screen, marginTop: 12 }}>
+              <PrimaryButton
+                pal={C}
+                label={t('receiptScan.scanAnother')}
+                onPress={resetScan}
+                variant="secondary"
               />
             </View>
-          </Animated.View>
-        )}
-
-        {/* STEP: SUCCESS */}
-        {step === 'success' && (
-          <Animated.View
-            entering={ZoomIn.duration(400)}
-            style={{ paddingHorizontal: 16, paddingTop: 48, alignItems: 'center' }}
-          >
-            <View
-              style={{
-                width: 96,
-                height: 96,
-                borderRadius: 48,
-                backgroundColor: 'rgba(34,197,94,0.15)',
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginBottom: 24,
-                borderWidth: 2,
-                borderColor: 'rgba(34,197,94,0.35)',
-              }}
-            >
-              <Check size={48} color="#22c55e" />
-            </View>
-            <Text style={{ color: 'white', fontSize: 26, fontWeight: 'bold', marginBottom: 10 }}>
-              {t('receiptScan.savedTitle')}
-            </Text>
-            <Text style={{ color: C.textDim, fontSize: 15, textAlign: 'center', lineHeight: 22, marginBottom: 36 }}>
-              {t('receiptScan.savedBody')}
-            </Text>
-
-            <View style={{ width: '100%', gap: 12 }}>
-              <Pressable
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                  router.replace('/(tabs)');
-                }}
-                style={{ width: '100%' }}
-              >
-                <LinearGradient
-                  colors={['#22c55e', '#16a34a']}
-                  style={{ borderRadius: 16, paddingVertical: 16, alignItems: 'center' }}
-                >
-                  <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 17 }}>{t('receiptScan.goToDashboard')}</Text>
-                </LinearGradient>
-              </Pressable>
-
-              <Pressable
-                onPress={resetScan}
-                style={{ width: '100%' }}
-              >
-                <View
-                  style={{
-                    borderRadius: 16,
-                    paddingVertical: 16,
-                    alignItems: 'center',
-                    backgroundColor: 'rgba(168,85,247,0.12)',
-                    borderWidth: 1,
-                    borderColor: 'rgba(168,85,247,0.3)',
-                    flexDirection: 'row',
-                    justifyContent: 'center',
-                    gap: 8,
-                  }}
-                >
-                  <Camera size={18} color={C.p500} />
-                  <Text style={{ color: C.p500, fontWeight: '700', fontSize: 16 }}>
-                    {t('receiptScan.scanAnother')}
-                  </Text>
-                </View>
-              </Pressable>
-            </View>
-          </Animated.View>
-        )}
+          </>
+        ) : null}
       </ScrollView>
 
-      {/* Save button — fixed at bottom during review */}
-      {step === 'review' && (
+      {step === 'review' ? (
         <View
           style={{
             position: 'absolute',
             bottom: 0,
             left: 0,
             right: 0,
-            paddingHorizontal: 16,
+            paddingHorizontal: S.screen,
             paddingTop: 14,
-            paddingBottom: Math.max(insets.bottom, 18),
-            backgroundColor: C.bg,
+            paddingBottom: Math.max(insets.bottom, 16),
+            backgroundColor: C.ground,
             borderTopWidth: 1,
-            borderTopColor: C.glassBorder,
+            borderTopColor: C.hairline,
           }}
         >
-          <Pressable
+          <PrimaryButton
+            pal={C}
+            label={
+              saveMutation.isPending
+                ? t('receiptScan.saving')
+                : t('receiptScan.saveTransaction')
+            }
             onPress={() => saveMutation.mutate()}
             disabled={saveMutation.isPending}
-            style={({ pressed }) => ({ opacity: pressed ? 0.88 : 1 })}
-          >
-            <LinearGradient
-              colors={saveMutation.isPending ? ['#374151', '#374151'] : [C.p600, C.p500]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={{
-                borderRadius: 18,
-                paddingVertical: 17,
-                alignItems: 'center',
-                flexDirection: 'row',
-                justifyContent: 'center',
-              }}
-            >
-              {saveMutation.isPending ? (
-                <>
-                  <ActivityIndicator size="small" color="white" />
-                  <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 17, marginStart: 10 }}>
-                    {t('receiptScan.saving')}
-                  </Text>
-                </>
-              ) : (
-                <>
-                  <Check size={20} color="white" />
-                  <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 17, marginStart: 8 }}>
-                    {t('receiptScan.saveTransaction')}
-                  </Text>
-                </>
-              )}
-            </LinearGradient>
-          </Pressable>
+          />
         </View>
-      )}
-    </View>
+      ) : null}
+    </Screen>
   );
 }
