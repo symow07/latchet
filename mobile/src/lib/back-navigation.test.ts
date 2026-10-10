@@ -16,7 +16,7 @@ import { join } from 'node:path';
 
 /** Screens that are deliberately terminal: the flow forward IS the way out. */
 const NO_BACK_BY_DESIGN = new Set([
-  'login.tsx', 'signup.tsx', 'verify-otp.tsx',   // auth: forward or nothing
+  'login.tsx', 'signup.tsx',                     // auth: forward or nothing
   'onboarding.tsx', 'account-type.tsx',           // first run, one-way
   'index.tsx',                                    // the root
   '+not-found.tsx', '+html.tsx',

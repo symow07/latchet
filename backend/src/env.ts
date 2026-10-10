@@ -6,21 +6,21 @@ const envSchema = z.object({
   BACKEND_URL: z.url("BACKEND_URL must be a valid URL").default("http://localhost:3000"),
   DATABASE_URL: z.string().default("file:./prisma/dev.db"),
   // lib/crypto.ts derives the AES-256-GCM key protecting every Plaid access
-  // token and Gmail refresh token from this value, so a short secret is a weak
-  // key for data at rest — not just a weak session secret.
+  // token from this value, so a short secret is a weak key for data at rest —
+  // not just a weak session secret.
   BETTER_AUTH_SECRET: z
     .string()
     .min(
       32,
       "BETTER_AUTH_SECRET must be at least 32 characters. " +
-        "Note: rotating it makes every stored Plaid access token and Gmail " +
-        "refresh token undecryptable (lib/crypto.ts derives the AES key from " +
-        "it), so affected users must relink. Lengthen it before deploying if " +
+        "Note: rotating it makes every stored Plaid access token " +
+        "undecryptable (lib/crypto.ts derives the AES key from it), so " +
+        "affected users must relink. Lengthen it before deploying if " +
         "the current value is shorter."
     ),
-  // OTP email delivery (lib/email-otp.ts). Set RESEND_API_KEY (recommended) or
-  // point SMTP_SERVICE_URL at your own relay. In dev, with neither set, the OTP
-  // is logged to the console so signup still works.
+  // Outgoing email (lib/email.ts). Set RESEND_API_KEY (recommended) or point
+  // SMTP_SERVICE_URL at your own relay. Sign-in does not depend on either — it is
+  // email and password. In dev, with neither set, outgoing mail is logged.
   RESEND_API_KEY: z.string().optional(),
   EMAIL_FROM: z.string().optional(), // e.g. "Budget <noreply@yourdomain.com>"
   SMTP_SERVICE_URL: z.url("SMTP_SERVICE_URL must be a valid URL").optional(),
@@ -31,11 +31,10 @@ const envSchema = z.object({
   // Optional at boot so a missing key degrades only the AI features (503) instead of
   // crashing the whole backend, including auth.
   OPENAI_API_KEY: z.string().optional(),
-  // Encrypts Plaid access tokens and Gmail refresh tokens at rest
-  // (lib/crypto.ts). Deliberately separate from BETTER_AUTH_SECRET: coupling
-  // them meant the auth secret could never be rotated, because changing it
-  // silently made every stored token undecryptable and forced every user to
-  // relink their bank and inbox.
+  // Encrypts Plaid access tokens at rest (lib/crypto.ts). Deliberately separate
+  // from BETTER_AUTH_SECRET: coupling them meant the auth secret could never be
+  // rotated, because changing it silently made every stored token undecryptable
+  // and forced every user to relink their bank.
   //
   // Optional. When unset, the key is derived from BETTER_AUTH_SECRET exactly as
   // before, so existing deployments keep working untouched.
@@ -70,12 +69,6 @@ const envSchema = z.object({
     .url("EXCHANGE_RATES_URL must be a valid URL")
     .optional()
     .default("https://open.er-api.com/v6/latest/USD"),
-  // Google OAuth credentials for the Gmail-based subscription scanner
-  // (routes/email.ts). Optional so the backend boots without them; the email
-  // routes return 503 until they are set.
-  GOOGLE_CLIENT_ID: z.string().optional(),
-  GOOGLE_CLIENT_SECRET: z.string().optional(),
-  GOOGLE_REDIRECT_URI: z.string().optional(),
   // Forward-to-inbox subscription detection (routes/email.ts inbound webhook).
   // INBOUND_EMAIL_DOMAIN is the domain that receives forwarded mail (e.g.
   // "in.realbudget.app"); per-user addresses are u_<token>@<domain>.

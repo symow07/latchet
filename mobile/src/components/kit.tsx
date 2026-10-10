@@ -7,10 +7,8 @@
  * accent they are handed, so a screen reads `useC()` or `useB()` and passes
  * the palette down without any component knowing which profile is active.
  *
- * ui.tsx is the previous set (GlassCard, BubbleButton, …). It is deprecated
- * and still imported by the screens that have not been redesigned yet; those
- * now render on the new ground because the tokens beneath them changed. New
- * screens import from here.
+ * Every screen imports from here. The previous set, ui.tsx, was deleted once
+ * the last screen moved off it.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {

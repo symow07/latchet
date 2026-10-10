@@ -8,8 +8,7 @@ import {
 import { env } from "../env";
 
 /**
- * AES-256-GCM encryption for secrets at rest — Plaid access tokens and Gmail
- * refresh tokens.
+ * AES-256-GCM encryption for secrets at rest — Plaid access tokens.
  *
  * The key used to come straight from BETTER_AUTH_SECRET via a bare SHA-256,
  * which made one value responsible for two unrelated things: signing sessions

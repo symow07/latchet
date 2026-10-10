@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { env } from "./env";
 import { logger } from "hono/logger";
-import { auth, loginRateLimiter, otpRateLimiter, generalAuthRateLimiter,
+import { auth, loginRateLimiter, generalAuthRateLimiter,
   signupBurstRateLimiter,
   signupDailyRateLimiter,
 } from "./auth";
@@ -138,12 +138,10 @@ app.use("*", async (c, next) => {
 // stabilization measure from the signup-hang investigation that was never
 // reverted. The hang's actual cause was body-cloning inside extractIdentifier
 // (see auth.ts) and is long gone — these limiters read headers only, so the
-// exemption bought nothing and left account creation, and the Resend OTP send
-// it triggers, completely unmetered.
+// exemption bought nothing and left account creation completely unmetered.
 app.use("/api/auth/sign-up/*", signupBurstRateLimiter);
 app.use("/api/auth/sign-up/*", signupDailyRateLimiter);
 app.use("/api/auth/sign-in/*", loginRateLimiter);
-app.use("/api/auth/email-otp/*", otpRateLimiter);
 app.use("/api/auth/*", generalAuthRateLimiter);
 app.on(["GET", "POST"], "/api/auth/*", async (c) => {
   const t0 = Date.now();

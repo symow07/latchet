@@ -43,7 +43,7 @@ config.transformer = {
   }),
 };
 
-// Configure resolver with SVG support, shared folder resolution, and web platform mocking
+// Configure resolver with SVG support and shared folder resolution
 config.resolver = {
   ...config.resolver,
   assetExts: assetExts.filter((ext) => ext !== "svg"),
@@ -114,21 +114,6 @@ config.resolver = {
       !moduleName.includes("async-require")
     ) {
       return { type: "empty" };
-    }
-
-    // Mock native-only modules on web
-    if (platform === "web") {
-      const nativeOnlyModules = [
-        "react-native-pager-view",
-        "reanimated-tab-view",
-        "@bottom-tabs/react-navigation",
-      ];
-
-      if (nativeOnlyModules.some((mod) => moduleName.includes(mod))) {
-        return {
-          type: "empty",
-        };
-      }
     }
 
     // Fallback to default resolution

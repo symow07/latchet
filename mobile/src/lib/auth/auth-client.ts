@@ -1,6 +1,5 @@
 import { createAuthClient } from "better-auth/react";
 import { expoClient } from "@better-auth/expo/client";
-import { emailOTPClient } from "better-auth/client/plugins";
 import * as SecureStore from "expo-secure-store";
 
 export const authClient = createAuthClient({
@@ -27,6 +26,5 @@ export const authClient = createAuthClient({
       storagePrefix: "realbudget",
       storage: SecureStore,
     }),
-    emailOTPClient(),
   ],
 });

@@ -8,9 +8,9 @@ Chinese and Arabic. What remains is almost entirely things only you can do — a
 purchases and a build.
 
 ⚠️ **The production backend today has only `BETTER_AUTH_SECRET` and `DATABASE_URL` set.** It is
-live and its database is reachable, but with no email provider **nobody can sign in at all**
-(`lib/email-otp.ts:67` throws), and with no `OPENAI_API_KEY` every AI route returns 503
-(`routes/ai.ts:42`). Step 3 below is not a polish item — it is what makes the deployment usable.
+live and its database is reachable, but with no `OPENAI_API_KEY` every AI route returns 503
+(`routes/ai.ts:42`). (This line used to say nobody could sign in without an email provider. Sign-in
+is email and password and sends no mail, and the OTP flow was removed on 11 October 2026.) Step 3 below is not a polish item — it is what makes the deployment usable.
 
 ---
 
@@ -28,10 +28,11 @@ moves until this does.
 ### 3. Set the Railway variables · 10 min — one update, one restart
 - `OPENAI_API_KEY` — without it the advisor, receipt scan, email detection and PDF import all
   return 503. That is the entire tier RevenueCat was built to sell.
-- `RESEND_API_KEY` — without it nobody can sign in to production, including you.
+- `RESEND_API_KEY` — not needed to sign in. It is for the verification and password-reset mail
+  that is not built yet.
 - Confirm `BETTER_AUTH_SECRET` is ≥ 32 chars, and set `TOKEN_ENCRYPTION_KEY`
-  (`openssl rand -base64 48`) while you're in there. Check `PLAID_CLIENT_ID` and `GOOGLE_CLIENT_ID`
-  first — if both are unset, there is no ciphertext and rotation is free.
+  (`openssl rand -base64 48`) while you're in there. Check `PLAID_CLIENT_ID`
+  first — if it is unset, there is no ciphertext and rotation is free.
 
 Then: `DEBUG_LOGS=true`, one signup, read `[hash:done] op=hash ms=` from the logs to confirm PBKDF2
 at 600k is sane on Railway's CPU, and turn the flag straight back off (it also puts email addresses
@@ -158,11 +159,9 @@ Known gaps, recorded rather than scheduled:
   A test now reads both files and fails if the lists disagree.
 - **The OPENAI_API_KEY in backend/.env is a placeholder**, not a real credential — it is shaped like
   one and ends in "r3al", and every request with it returns 401.
-- **The Gmail OAuth half of email subscriptions is dead code.** `getEmailAuthUrl`,
-  `scanEmailSubscriptions`, `disconnectEmail` and `saveEmailSubscriptions` have no caller — the app
-  uses email *forwarding* instead, which is a different and working path. Wiring the OAuth route up
-  needs `GOOGLE_CLIENT_ID`/`SECRET`, which are unset. Left in place rather than deleted, since the
-  backend and the deletion-revocation flow both still reference it.
+- **The Gmail OAuth half of email subscriptions was removed on 11 October 2026.** It had no caller —
+  the app uses email *forwarding*, a separate path that works. (`saveEmailSubscriptions` was wrongly
+  listed here as dead; `email-inbox.tsx` calls it, and it stays.)
 - **Phase 7 remains deliberate.** The model upgrade in particular has an acceptance criterion —
   benchmark receipt accuracy before and after — that needs an API key and a corpus.
 

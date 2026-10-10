@@ -5,7 +5,6 @@ import { prisma } from "../prisma";
 import { auth } from "../auth";
 import { env } from "../env";
 import { decryptSecret } from "../lib/crypto";
-import { fetchWithTimeout } from "../lib/fetch-timeout";
 import { isPro } from "../lib/entitlement";
 import {
   loadEntitlement,
@@ -18,8 +17,6 @@ import {
   confirmationMatches,
   type DeletionDeps,
 } from "../lib/account-deletion";
-
-const GOOGLE_REVOKE_URL = "https://oauth2.googleapis.com/revoke";
 
 const router = new Hono<{
   Variables: {
@@ -152,17 +149,11 @@ const deleteSchema = z.object({
 
 const prismaDeps: DeletionDeps = {
   async loadTargets(userId) {
-    const [plaidItems, emailConnections] = await Promise.all([
-      prisma.plaidItem.findMany({
-        where: { userId },
-        select: { id: true, accessTokenEnc: true, institutionName: true },
-      }),
-      prisma.emailConnection.findMany({
-        where: { userId },
-        select: { id: true, email: true, refreshTokenEnc: true },
-      }),
-    ]);
-    return { plaidItems, emailConnections };
+    const plaidItems = await prisma.plaidItem.findMany({
+      where: { userId },
+      select: { id: true, accessTokenEnc: true, institutionName: true },
+    });
+    return { plaidItems };
   },
 
   async revokePlaidItem(accessTokenEnc) {
@@ -171,18 +162,6 @@ const prismaDeps: DeletionDeps = {
       throw new Error("bank provider not configured — cannot revoke");
     }
     await provider.removeConnection(decryptSecret(accessTokenEnc));
-  },
-
-  async revokeGoogleToken(refreshTokenEnc) {
-    const res = await fetchWithTimeout(
-      `${GOOGLE_REVOKE_URL}?token=${encodeURIComponent(decryptSecret(refreshTokenEnc))}`,
-      { method: "POST" }
-    );
-    // Google answers 400 for an already-revoked token, which is the state we
-    // wanted anyway.
-    if (!res.ok && res.status !== 400) {
-      throw new Error(`Google revoke HTTP ${res.status}`);
-    }
   },
 
   async deleteUser(userId) {

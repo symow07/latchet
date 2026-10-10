@@ -1,7 +1,7 @@
 /**
  * A Map whose entries expire.
  *
- * The Plaid and Google OAuth flows both parked pending state in a plain Map
+ * The Plaid link flow (and the Gmail OAuth flow, since removed) parked pending state in a plain Map
  * keyed by a random token, deleted only on a successful callback. Every
  * abandoned link attempt — user closes the browser, bank login fails — left an
  * entry behind for the lifetime of the process.

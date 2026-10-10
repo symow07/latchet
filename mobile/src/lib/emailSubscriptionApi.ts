@@ -6,8 +6,9 @@ import { getSubscriptions, upsertSubscription, type Subscription } from './db';
 import type { DetectedSubscription } from './business-subscription-detection';
 
 /**
- * Client for the Gmail-based subscription scanner (backend routes/email.ts) plus
- * a helper that merges detected subscriptions into the local SQLite store so
+ * Client for email forwarding (backend routes/email.ts): the user forwards
+ * billing emails to a private address, the server parses them, and
+ * importInboxSubscriptions merges the results into the local SQLite store so
  * they flow through the existing subscriptions UI.
  */
 
@@ -20,9 +21,6 @@ export interface EmailSubscription {
 }
 
 export interface EmailStatus {
-  connected: boolean;
-  email: string | null;
-  lastScanAt: string | null;
   forwarding: { address: string; verified: boolean } | null;
   inboxConfigured: boolean;
   inboxCount: number;
@@ -44,34 +42,8 @@ export interface InboxItem {
   receivedAt: string;
 }
 
-// Deep link the OAuth browser returns to; the backend redirects here when the
-// Google consent flow finishes (mirrors link-bank.tsx's realbudget:// scheme).
-export const EMAIL_RETURN_URL = 'realbudget://email-connected';
-
 export async function getEmailStatus(): Promise<EmailStatus> {
   return api.get<EmailStatus>('/api/email/status');
-}
-
-export async function getEmailAuthUrl(
-  returnUrl: string = EMAIL_RETURN_URL,
-): Promise<{ authUrl: string }> {
-  return api.get<{ authUrl: string }>(
-    `/api/email/auth-url?returnUrl=${encodeURIComponent(returnUrl)}`,
-  );
-}
-
-export async function scanEmailSubscriptions(): Promise<{
-  subscriptions: EmailSubscription[];
-  scanned: number;
-}> {
-  return api.post<{ subscriptions: EmailSubscription[]; scanned: number }>(
-    '/api/email/scan',
-    {},
-  );
-}
-
-export async function disconnectEmail(): Promise<{ success: boolean }> {
-  return api.delete<{ success: boolean }>('/api/email/disconnect');
 }
 
 // ── Forward-to-inbox ("inbox inside Budget") ─────────────────────────────────

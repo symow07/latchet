@@ -290,25 +290,25 @@ model PlaidAccount {
   updatedAt      DateTime  @updatedAt
 }
 
-// A connected email inbox (Gmail today; provider-agnostic for Outlook/IMAP
-// later). The OAuth refresh token is stored encrypted at rest (AES-256-GCM via
-// lib/crypto.ts, key derived from BETTER_AUTH_SECRET) — same pattern as PlaidItem.
+// The user's email-forwarding inbox. One per user: `email` holds a synthetic
+// `forwarding:<userId>` value, so the [userId, email] unique key stops two racing
+// first requests from creating a second inbox. `inboundToken` forms the private
+// address u_<inboundToken>@<INBOUND_EMAIL_DOMAIN>; `forwardingVerified` flips
+// true when the first real forwarded email arrives (Gmail's own confirmation
+// email does not count — it is stored separately so the app can show its code).
+//
+// This table used to hold Gmail OAuth connections too, with encrypted refresh
+// tokens. That path was removed; the migration drops its columns and any rows.
 model EmailConnection {
-  id                 String    @id @default(cuid())
+  id                 String   @id @default(cuid())
   userId             String
-  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  provider           String    @default("gmail") // "gmail" (OAuth) | "forwarding" | future "outlook"
-  email              String // the connected/owning inbox address
-  refreshTokenEnc    String? // OAuth refresh token (gmail); null for forwarding connections
-  // Forwarding ("inbox inside Budget"): a unique token forms the user's private
-  // inbound address  u_<inboundToken>@<INBOUND_EMAIL_DOMAIN>.  forwardingVerified
-  // flips true once we receive Gmail's forwarding-confirmation email.
-  inboundToken       String?   @unique
-  forwardingVerified Boolean   @default(false)
-  status             String    @default("active") // active | revoked
-  lastScanAt         DateTime?
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider           String   @default("forwarding")
+  email              String
+  inboundToken       String?  @unique
+  forwardingVerified Boolean  @default(false)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
   @@unique([userId, email])
 }

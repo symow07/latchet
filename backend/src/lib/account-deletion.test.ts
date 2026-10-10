@@ -8,23 +8,20 @@ import {
 
 function deps(
   targets: Partial<DeletionTargets> = {},
-  failures: { plaid?: boolean; google?: boolean } = {}
+  failures: { plaid?: boolean; plaidTokens?: string[] } = {}
 ) {
   const order: string[] = [];
   const impl: DeletionDeps = {
     async loadTargets() {
       return {
         plaidItems: targets.plaidItems ?? [],
-        emailConnections: targets.emailConnections ?? [],
       };
     },
-    async revokePlaidItem() {
+    async revokePlaidItem(accessTokenEnc) {
       order.push("revoke-plaid");
-      if (failures.plaid) throw new Error("Plaid is down");
-    },
-    async revokeGoogleToken() {
-      order.push("revoke-google");
-      if (failures.google) throw new Error("Google is down");
+      if (failures.plaid || failures.plaidTokens?.includes(accessTokenEnc)) {
+        throw new Error("Plaid is down");
+      }
     },
     async deleteUser() {
       order.push("delete-user");
@@ -34,25 +31,24 @@ function deps(
 }
 
 const plaidItem = { id: "item_1", accessTokenEnc: "enc", institutionName: "Monzo" };
-const inbox = { id: "conn_1", email: "a@example.com", refreshTokenEnc: "enc" };
 
 test("grants are revoked before the user is deleted", () => {
   // The tokens live on rows that cascade away with the user. Delete first and
   // the third-party grants stay live forever with nothing left to revoke them.
-  const { impl, order } = deps({ plaidItems: [plaidItem], emailConnections: [inbox] });
+  const { impl, order } = deps({ plaidItems: [plaidItem] });
 
   return deleteAccount("u1", impl).then(() => {
-    expect(order).toEqual(["revoke-plaid", "revoke-google", "delete-user"]);
+    expect(order).toEqual(["revoke-plaid", "delete-user"]);
   });
 });
 
 test("a clean deletion reports what it revoked", async () => {
-  const { impl } = deps({ plaidItems: [plaidItem], emailConnections: [inbox] });
+  const { impl } = deps({ plaidItems: [plaidItem] });
   const result = await deleteAccount("u1", impl);
 
   expect(result).toEqual({
     deleted: true,
-    revoked: { banks: 1, inboxes: 1 },
+    revoked: { banks: 1 },
     unrevoked: [],
   });
 });
@@ -75,34 +71,16 @@ test("a surviving grant is reported with somewhere to revoke it by hand", async 
   expect(grant!.manualRevokeUrl).toContain("plaid.com");
 });
 
-test("a failed inbox revoke is reported the same way", async () => {
-  const { impl } = deps({ emailConnections: [inbox] }, { google: true });
-  const [grant] = (await deleteAccount("u1", impl)).unrevoked;
-
-  expect(grant).toMatchObject({ kind: "email", label: "a@example.com" });
-  expect(grant!.manualRevokeUrl).toContain("google.com");
-});
-
 test("one failure does not stop the other revocations", async () => {
-  const { impl, order } = deps(
-    { plaidItems: [plaidItem], emailConnections: [inbox] },
-    { plaid: true }
-  );
+  const failing = { ...plaidItem, id: "item_down", accessTokenEnc: "enc-down", institutionName: "Barclays" };
+  const { impl, order } = deps({ plaidItems: [failing, plaidItem] }, { plaidTokens: ["enc-down"] });
   const result = await deleteAccount("u1", impl);
 
-  expect(order).toEqual(["revoke-plaid", "revoke-google", "delete-user"]);
-  expect(result.revoked.inboxes).toBe(1);
-  expect(result.unrevoked).toHaveLength(1);
-});
-
-test("an inbox with no stored token needs no revoking", async () => {
-  const { impl, order } = deps({
-    emailConnections: [{ id: "c", email: "a@example.com", refreshTokenEnc: null }],
-  });
-  const result = await deleteAccount("u1", impl);
-
-  expect(order).toEqual(["delete-user"]);
-  expect(result.revoked.inboxes).toBe(0);
+  expect(order).toEqual(["revoke-plaid", "revoke-plaid", "delete-user"]);
+  expect(result.revoked.banks).toBe(1);
+  expect(result.unrevoked).toEqual([
+    { kind: "bank", label: "Barclays", manualRevokeUrl: "https://my.plaid.com" },
+  ]);
 });
 
 test("an account with nothing linked still deletes", async () => {
@@ -110,7 +88,7 @@ test("an account with nothing linked still deletes", async () => {
   const result = await deleteAccount("u1", impl);
 
   expect(order).toEqual(["delete-user"]);
-  expect(result).toEqual({ deleted: true, revoked: { banks: 0, inboxes: 0 }, unrevoked: [] });
+  expect(result).toEqual({ deleted: true, revoked: { banks: 0 }, unrevoked: [] });
 });
 
 test("every linked bank is revoked, not just the first", async () => {

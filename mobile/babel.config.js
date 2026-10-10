@@ -13,8 +13,6 @@ module.exports = function (api) {
             "@": "./src",
             "@/shared": "./shared",
             "better-auth/react": "./node_modules/better-auth/dist/client/react/index.cjs",
-            "better-auth/client/plugins":
-              "./node_modules/better-auth/dist/client/plugins/index.cjs",
           },
         },
       ],

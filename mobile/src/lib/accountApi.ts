@@ -31,14 +31,14 @@ export interface DeletionPreview {
 }
 
 export interface UnrevokedGrant {
-  kind: 'bank' | 'email';
+  kind: 'bank';
   label: string;
   manualRevokeUrl: string;
 }
 
 export interface DeletionResult {
   deleted: true;
-  revoked: { banks: number; inboxes: number };
+  revoked: { banks: number };
   unrevoked: UnrevokedGrant[];
 }
 

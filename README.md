@@ -39,8 +39,8 @@ exactly which, and nothing leaves your device for a feature you haven't turned o
 | AI advisor *(optional)* | A summary of your spending — no raw ledger | Our API → OpenAI |
 | Email subscription scan *(optional)* | Only emails you forward yourself | Our API → OpenAI |
 
-We never see or store bank credentials. Plaid access tokens and Gmail refresh tokens are
-encrypted at rest (AES-256-GCM). Full details in [PRIVACY.md](./PRIVACY.md) — and if the
+We never see or store bank credentials. Plaid access tokens are encrypted at rest
+(AES-256-GCM). Full details in [PRIVACY.md](./PRIVACY.md) — and if the
 two documents ever disagree, PRIVACY.md is the one that governs.
 
 ---
@@ -133,10 +133,10 @@ bun run dev
 
 Required: `BETTER_AUTH_SECRET` (32+ chars) and `DATABASE_URL`. Strongly recommended:
 `TOKEN_ENCRYPTION_KEY` (32+ chars) — it decouples token encryption from the auth secret so
-the latter can be rotated. For a working sign-in you also need `RESEND_API_KEY` or
-`SMTP_SERVICE_URL`; without either, non-production builds log the OTP to the console.
-Everything else (`OPENAI_API_KEY`, `PLAID_*`, `GOOGLE_*`) is optional — those features
-return 503 until configured. See [DEPLOYMENT.md](./DEPLOYMENT.md).
+the latter can be rotated. Sign-in is email and password and sends no mail. Outgoing email
+(`RESEND_API_KEY` or `SMTP_SERVICE_URL`) is wired but has no sender yet; without either,
+non-production builds log messages to the console. Everything else (`OPENAI_API_KEY`,
+`PLAID_*`) is optional — those features return 503 until configured. See [DEPLOYMENT.md](./DEPLOYMENT.md).
 
 **Mobile**
 

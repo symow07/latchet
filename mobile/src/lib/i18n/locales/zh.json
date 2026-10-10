@@ -112,7 +112,7 @@
     "members": {
       "other": "%{count} 位其他成员"
     },
-    "revokeNote": "我们会先撤销你已连接的银行和邮箱授权，让它们停止向我们共享数据。",
+    "revokeNote": "我们会先撤销你已连接的银行授权，让它们停止向我们共享数据。",
     "confirmPrompt": "输入 %{email} 以确认。",
     "confirmPlaceholder": "你的邮箱地址",
     "confirmButton": "永久删除我的账户",
@@ -122,7 +122,6 @@
     "deletedTitle": "账户已删除",
     "deletedBody": "你的账户和数据已删除。但我们未能自动撤销全部授权——请手动断开以下连接：",
     "bankConnection": "银行连接",
-    "inboxConnection": "邮箱连接",
     "ownedBusinessBody": "你是这家企业的所有者，删除账户会将其完全移除——包括 %{expenses} 笔报销以及 %{members} 位其他成员的访问权限。他们的记录也会一并删除。",
     "typeToConfirm": "请输入 %{email} 以确认。",
     "manualRevoke": "你的账户和数据已删除。但有些内容我们无法自动撤销——请你自行断开这些连接：",
@@ -597,17 +596,11 @@
     "createAccount": "创建账户",
     "startJourney": "开启你的理财之旅",
     "haveAccount": "已有账户？",
-    "checkEmail": "查看你的邮箱",
-    "verifying": "验证中…",
-    "didntGet": "没有收到？",
-    "resend": "重新发送",
-    "codeSent": "已重新发送！",
     "fullName": "姓名",
     "email": "邮箱",
     "password": "密码",
     "confirmPassword": "确认密码",
     "signInSubtitle": "登录你的 Budget 账户",
-    "codeSentTo": "我们已将 6 位验证码发送至",
     "signInAction": "登录",
     "errorMissing": "请输入邮箱和密码以继续。",
     "errorNetwork": "无法连接服务器。请检查网络后重试。",
@@ -617,8 +610,7 @@
     "errorAllFields": "请填写所有字段以继续。",
     "errorShortPassword": "请至少使用 8 个字符。",
     "errorMismatch": "两次输入的密码不一致。",
-    "errorCreateFailed": "无法创建账户，请稍后再试。",
-    "errorInvalidCode": "验证码不正确，请检查后重试。"
+    "errorCreateFailed": "无法创建账户，请稍后再试。"
   },
   "addTransaction": {
     "title": "添加交易",

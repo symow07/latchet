@@ -4,7 +4,6 @@
  * Bun's fetch has no default timeout, so a hung upstream — OpenAI, Plaid,
  * Google, Expo — held the request open indefinitely. On a single-instance
  * deployment with one SQLite writer, a handful of those exhausts the server.
- * lib/email-otp.ts already did this correctly; nothing else did.
  */
 
 /** Generous enough for a slow model call, short enough to fail visibly. */

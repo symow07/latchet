@@ -1,11 +1,10 @@
 import { betterAuth } from "better-auth";
 import { expo } from "@better-auth/expo";
 import { prismaAdapter } from "better-auth/adapters/prisma";
-import { emailOTP, bearer } from "better-auth/plugins";
+import { bearer } from "better-auth/plugins";
 import { prisma } from "./prisma";
 import { env } from "./env";
 import { debugLog } from "./lib/log";
-import { sendOtpEmail } from "./lib/email-otp";
 import type { Context, Next } from "hono";
 
 // ── Rate limiter (per-IP + per-identifier, with lockout) ────────
@@ -138,15 +137,6 @@ export const loginRateLimiter = createRateLimiter({
   lockoutThreshold: 5,
 });
 
-export const otpRateLimiter = createRateLimiter({
-  scope: "otp",
-  ipMax: 10,
-  ipWindowMs: 5 * 60 * 1000,      // 5 min
-  identifierMax: 3,
-  identifierWindowMs: 5 * 60 * 1000,
-  lockoutThreshold: 3,
-});
-
 export const generalAuthRateLimiter = createRateLimiter({
   scope: "general",
   ipMax: 30,
@@ -156,10 +146,10 @@ export const generalAuthRateLimiter = createRateLimiter({
   lockoutThreshold: 20,
 });
 
-// Sign-up is the expensive one: each attempt creates an account *and* sends an
-// OTP through Resend, so unlimited sign-ups are unlimited outbound mail on our
-// bill and our domain's reputation. Two windows, applied together — a short
-// burst limit and a daily ceiling.
+// Sign-up is the expensive one: each attempt creates an account and runs a
+// 600,000-iteration password hash, and once email verification is wired it will
+// also send mail through Resend — on our bill and our domain's reputation. Two
+// windows, applied together — a short burst limit and a daily ceiling.
 export const signupBurstRateLimiter = createRateLimiter({
   scope: "signup-burst",
   ipMax: 5,
@@ -346,23 +336,6 @@ export const auth = betterAuth({
   plugins: [
     expo(),
     bearer(),
-    emailOTP({
-      otpLength: 6,
-      expiresIn: 300, // 5 minutes
-      async sendVerificationOTP({ email, otp, type }) {
-        debugLog(`[otp:start] type=${type} email=${email}`);
-        try {
-          // Provider-agnostic sender (Resend / generic webhook / dev console).
-          // Enforces its own 5s timeout and non-2xx handling — never hangs.
-          await sendOtpEmail({ email, otp, type });
-          debugLog(`[otp:success] OTP sent for ${email} type=${type}`);
-        } catch (err) {
-          const reason = err instanceof Error ? err.message : String(err);
-          console.error(`[otp:error] OTP send failed for ${email} (type=${type}): ${reason}`);
-          throw new Error("Failed to send verification code");
-        }
-      },
-    }),
   ],
   advanced: {
     trustedProxyHeaders: true,

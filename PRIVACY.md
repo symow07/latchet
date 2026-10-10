@@ -68,7 +68,7 @@ or clinical advice. It uses this information to explain costs.
 ## Security
 
 - All traffic is encrypted in transit (HTTPS).
-- OAuth tokens are encrypted at rest (AES-256-GCM).
+- Bank-connection tokens are encrypted at rest (AES-256-GCM).
 - Passwords are hashed (PBKDF2-SHA256, 600k iterations — OWASP's current
   guidance); we never store them in plaintext.
 

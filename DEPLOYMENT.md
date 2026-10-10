@@ -24,14 +24,13 @@ user data.**
 | Variable | Required | Notes |
 |---|---|---|
 | `BETTER_AUTH_SECRET` | ✅ | Min 32 chars. Signs sessions. **Safe to rotate** once `TOKEN_ENCRYPTION_KEY` is set — costs only a forced re-login. See "Key rotation" below. |
-| `TOKEN_ENCRYPTION_KEY` | Strongly recommended | Min 32 chars. Encrypts Plaid access tokens and Gmail refresh tokens at rest. **Not safe to rotate** without re-encrypting stored tokens. Back it up. |
+| `TOKEN_ENCRYPTION_KEY` | Strongly recommended | Min 32 chars. Encrypts Plaid access tokens at rest. **Not safe to rotate** without re-encrypting stored tokens. Back it up. |
 | `BACKEND_URL` | ✅ | Public HTTPS URL of the backend. |
 | `DATABASE_URL` | ✅ | Point at the persistent volume (see §1). |
 | `NODE_ENV=production` | ✅ | Disables `/api/debug` routes and verbose PII logging. |
 | `OPENAI_API_KEY` | For AI features | Advisor chat, receipt OCR, email parsing (503 without it). |
 | `INBOUND_EMAIL_DOMAIN` / `INBOUND_EMAIL_SECRET` | For email feature | See `backend/docs/inbound-email-setup.md`. |
 | `PLAID_CLIENT_ID` / `PLAID_SECRET` / `PLAID_ENV` | For bank linking | `PLAID_ENV=production` requires Plaid production approval (apply early — takes days/weeks). Sandbox works immediately. |
-| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `GOOGLE_REDIRECT_URI` | Optional | Legacy Gmail OAuth scan path. Works in Google "Testing" mode for ≤100 test users; public launch would need Google's restricted-scope verification + CASA. The forward-to-inbox path avoids this entirely. |
 | `DEBUG_ROUTES` / `DEBUG_LOGS` | Leave unset | Emergency-only overrides to re-enable diagnostics in production. |
 
 Mobile: `EXPO_PUBLIC_BACKEND_URL` must point at the production backend.
@@ -43,8 +42,8 @@ distinction matters when a secret leaks or a collaborator leaves.
 
 | | `BETTER_AUTH_SECRET` | `TOKEN_ENCRYPTION_KEY` |
 |---|---|---|
-| Protects | Session signing | Plaid + Gmail tokens at rest |
-| Rotating it | **Safe.** Every user is logged out and signs in again. | **Destructive.** Stored tokens become unreadable; every affected user must relink their bank and inbox. |
+| Protects | Session signing | Plaid tokens at rest |
+| Rotating it | **Safe.** Every user is logged out and signs in again. | **Destructive.** Stored tokens become unreadable; every affected user must relink their bank. |
 | If lost | Set a new one. | Stored tokens are unrecoverable. |
 
 They used to be the same value: `crypto.ts` derived the AES-256-GCM key from
@@ -70,8 +69,7 @@ Existing v1 rows are only rewritten as v2 when a user relinks. To rotate
 first — or check that there are none:
 
 ```sql
-SELECT (SELECT COUNT(*) FROM PlaidItem) AS plaid,
-       (SELECT COUNT(*) FROM EmailConnection WHERE refreshTokenEnc IS NOT NULL) AS gmail;
+SELECT COUNT(*) AS plaid FROM PlaidItem;
 ```
 
 ## 3. Third-party sign-offs 🔑
@@ -88,14 +86,14 @@ SELECT (SELECT COUNT(*) FROM PlaidItem) AS plaid,
 Keep the backend at **one instance**. These use in-process memory and would
 misbehave across replicas:
 
-- OAuth pending-session maps (`routes/plaid.ts`, `routes/email.ts`)
+- The pending bank-link session map (`routes/plaid.ts`)
 - Rate limiters (`auth.ts`) and usage caps (`lib/usage-limit.ts`)
 
 Move these to DB/Redis before scaling horizontally.
 
 ## 5. Pre-launch smoke test
 
-1. Sign up with a fresh email → OTP arrives → session persists after app restart.
+1. Sign up with a fresh email and password → session persists after app restart.
 2. Add a transaction; check dashboard totals, streak, health score.
 3. Link a Plaid sandbox bank → transactions sync.
 4. Email inbox: provision address, send a test receipt, see it parsed in-app,
@@ -108,6 +106,6 @@ Move these to DB/Redis before scaling horizontally.
 ## 6. Post-launch monitoring
 
 - Railway logs: `console.error`/`console.warn` still emit in production
-  (`[otp:*]`, `[email:*]`, `[plaid:*]` prefixes are searchable).
-- Watch OpenAI usage dashboard the first weeks; caps are 200 AI calls/user/day,
-  60 inbound email parses/user/day, 12 email scans/user/day.
+  (`[mail]`, `[email:*]`, `[plaid:*]` prefixes are searchable).
+- Watch OpenAI usage dashboard the first weeks; caps are 200 AI calls/user/day and
+  60 inbound email parses/user/day.

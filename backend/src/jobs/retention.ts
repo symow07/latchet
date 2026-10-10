@@ -16,7 +16,7 @@ import { prisma } from "../prisma";
  *   Confirmation codes 24 hours. A Gmail forwarding code is useful for minutes.
  *   Expired sessions   7 days past expiry, so a support question about a
  *                      recent sign-in is still answerable.
- *   Spent OTP records  24 hours past expiry.
+ *   Expired verification tokens  24 hours past expiry.
  *
  * A user's own ledger is never expired — it is theirs until they delete it.
  */

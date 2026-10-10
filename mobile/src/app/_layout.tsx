@@ -336,7 +336,6 @@ function RootLayoutNav({ colorScheme }: { colorScheme: 'light' | 'dark' | null |
         {/* Public: only accessible when NOT signed in */}
         <Stack.Protected guard={!session?.user}>
           <Stack.Screen name="login" options={{ headerShown: false }} />
-          <Stack.Screen name="verify-otp" options={{ headerShown: false }} />
           <Stack.Screen name="signup" options={{ headerShown: false }} />
         </Stack.Protected>
       </Stack>

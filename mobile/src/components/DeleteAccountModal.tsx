@@ -203,7 +203,7 @@ export function DeleteAccountModal({
                 </Card>
               ))}
 
-              {preview.linkedBanks > 0 || preview.connectedInboxes > 0 ? (
+              {preview.linkedBanks > 0 ? (
                 <Type role="meta" color={C.inkDim} style={{ marginTop: 16 }}>
                   {t('deleteAccount.revokeNote')}
                 </Type>
@@ -287,11 +287,7 @@ export function UnrevokedGrantsNotice({
               <InfoRow
                 pal={C}
                 title={g.label}
-                meta={
-                  g.kind === 'bank'
-                    ? t('deleteAccount.bankConnection')
-                    : t('deleteAccount.inboxConnection')
-                }
+                meta={t('deleteAccount.bankConnection')}
                 onPress={() => Linking.openURL(g.manualRevokeUrl).catch(() => {})}
                 trailing={<ExternalLink size={17} color={C.inkFaint} strokeWidth={S.stroke} />}
               />
