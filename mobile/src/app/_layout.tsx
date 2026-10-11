@@ -1,5 +1,5 @@
 import { DarkTheme, DefaultTheme, ThemeProvider, type Theme } from '@react-navigation/native';
-import { Stack, useRouter } from 'expo-router';
+import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
@@ -18,6 +18,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { isBiometricAvailable, authenticateWithBiometrics } from '@/lib/biometric';
 import { useSafeAreaInsets, SafeAreaProvider } from 'react-native-safe-area-context';
 import { useAccountTypeStore, type AccountTypeStore } from '@/lib/account-type-store';
+import { profileRedirect } from '@/lib/profile-route';
 import { registerForPushNotifications, scheduleStreakReminder } from '@/lib/notifications';
 import { setUserId, logoutUser } from '@/lib/revenuecatClient';
 import { S, useC, useScheme, type Palette } from '@/lib/design';
@@ -222,22 +223,24 @@ function RootLayoutNav({ colorScheme }: { colorScheme: 'light' | 'dark' | null |
     };
   }, [sessionLoading, session?.user?.id, loadAccountType]);
 
-  // Redirect based on accountType when user is authenticated
+  // Keep each account on its own profile's screens. Both tab groups have an
+  // index, so "/" is ambiguous, and on a cold start it resolved to the
+  // business tabs for a personal account; this used to redirect business
+  // accounts only, assuming "/" meant personal. profileRedirect decides from
+  // the route the app is actually on (profile-route.ts, tested), so it also
+  // runs when the route changes, and does nothing once the account is home.
+  const segments = useSegments();
   useEffect(() => {
     if (sessionLoading || !session?.user) return;
     if (!accountTypeLoaded) return;
 
-    if (!accountType) {
-      console.log('[mobile:gate:redirect] target=/account-type reason=accountType-missing');
-      router.replace('/account-type');
-    } else if (accountType === 'business') {
-      console.log('[mobile:gate:redirect] target=/(business-tabs) reason=accountType-business');
-      router.replace('/(business-tabs)');
-    } else {
-      // personal: default (tabs) route is correct, no redirect needed
-      console.log('[mobile:gate:redirect] target=/(tabs) reason=accountType-personal-default');
-    }
-  }, [sessionLoading, session?.user, accountType, accountTypeLoaded, router]);
+    const target = profileRedirect(accountType, segments);
+    if (!target) return;
+    console.log(
+      `[mobile:gate:redirect] target=${target} accountType=${accountType ?? 'null'} from=/${segments.join('/')}`,
+    );
+    router.replace(target);
+  }, [sessionLoading, session?.user, accountType, accountTypeLoaded, router, segments]);
 
   // Open a receipt shared in from another app, once the auth gate has settled.
   // Any earlier and the redirect below replaces the route out from under it.
