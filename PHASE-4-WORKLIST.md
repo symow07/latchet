@@ -39,6 +39,13 @@ Move them to the locale files in all four languages. The hard-coded-English conv
 A recurring item has no account field (the form in `mobile/src/app/recurring.tsx` never asks for one), so every booking — run-now and the server job alike — is written with `accountId` null. Home's total counts it while the account card does not: on the simulator in Phase 3, a €25 run-now left "Total balance −€37.34" above a Cash account at −€12.34. This predates Phase 3 (the old run-now posted without an account too); Phase 3 only made it visible, because the booking now comes from the server (`backend/src/jobs/recurring-booking.ts`, which books onto `rec.accountId` when it is set).
 **Fix:** let a recurring item choose its account, defaulting to the user's default account, and book onto it. Test that a booking moves that account's balance.
 
+### 5. Found while mapping Phase 4
+- [ ] The net-worth breakdown never shows: the server stores it as a JSON string and the screen reads it as an object (`mobile/src/app/net-worth.tsx:502-507`). Its "today" is the UTC date (`:108-110`).
+- [ ] The New Recurring form keeps the last name and amount after a create (`recurring.tsx:169-177`, `:327-331`).
+- [ ] `behavior-detection.ts` reads weekdays from `new Date(dateISO)` (a day off west of UTC, `:192`, `:197`), hard-codes `$` (`:252`) and English month names (`:245`).
+- [ ] The health-score suggestions (`health-score.ts:293-333`) and the advisor's quick insights (`ai-analysis.ts:586-620`) are hard-coded English shown on screen.
+- [ ] Business Home counts your own pending expenses as awaiting your review (`(business-tabs)/index.tsx:93-103`).
+
 ### Smaller notes, same rule: fix or consciously drop
 - `mobile/src/app/business-tools.tsx` labels business categories with the personal `categoryLabel`, so "Software", "Travel", "Meals" and "Office" are not translated there; `expense-meta.ts` has `expenseCategoryLabel` for this (noted by the Step 2b business agent).
 - The Advisor disclaimer reads "Budget guidance only — not medical, nutritional or financial advice." Medical and nutritional look like leftovers from another app.

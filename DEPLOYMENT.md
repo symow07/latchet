@@ -67,6 +67,8 @@ redeploying Postgres code (revert or disconnect) before the next push.
 | `NODE_ENV=production` | ✅ | Disables `/api/debug` routes and verbose PII logging. |
 | `OPENAI_API_KEY` | For AI features | Advisor chat, receipt OCR, email parsing (503 without it). |
 | `INBOUND_EMAIL_DOMAIN` / `INBOUND_EMAIL_SECRET` | For email feature | See `backend/docs/inbound-email-setup.md`. |
+| `RESEND_API_KEY` (or `SMTP_SERVICE_URL`) | For password reset and email verification | Without one, production cannot send the reset or verification email: the request still answers normally (no account enumeration) and sign-up still works, but no mail goes out. `EMAIL_FROM` sets the sender (default `Budget <onboarding@resend.dev>`, which only delivers to your own Resend address until you verify a domain). |
+| `REVENUECAT_WEBHOOK_SECRET` / `REVENUECAT_API_KEY` | For Pro | The webhook's Authorization value (16+ chars) and the secret API key the entitlement refresh uses. See §3 "Pro store products". |
 | `PLAID_CLIENT_ID` / `PLAID_SECRET` / `PLAID_ENV` | For bank linking | `PLAID_ENV=production` requires Plaid production approval (apply early — takes days/weeks). Sandbox works immediately. |
 | `DEBUG_ROUTES` / `DEBUG_LOGS` | Leave unset | Emergency-only overrides to re-enable diagnostics in production. |
 
@@ -117,6 +119,28 @@ SELECT COUNT(*) AS plaid FROM "PlaidItem";
   content, contact info) in App Store Connect; host `PRIVACY.md` at a public
   URL and link it. Build & submit with EAS: `eas build --platform ios` then
   `eas submit` (see `EJECT.md` for the standalone build setup).
+
+- **Pro store products** (not done yet; the app needs no product ids). Pro is the
+  RevenueCat entitlement **`pro`**: the server reads it (`backend/src/lib/entitlement.ts`)
+  and the paywall shows the dashboard's **current offering**
+  (`RevenueCatUI.presentPaywall`). To sell it:
+  1. App Store Connect → the app (`com.realbudget.app`) → Subscriptions: create a
+     subscription group and the products (e.g. monthly and yearly), with prices and
+     review screenshots. Play Console → Monetize → Subscriptions: the same, if Android ships.
+  2. RevenueCat → Products: import those products (and add **Test Store** products, so
+     the development build's test key has something to show).
+  3. RevenueCat → Entitlements: attach every product to the entitlement **`pro`**
+     (the identifier must be exactly `pro`).
+  4. RevenueCat → Offerings: create an offering with the packages, mark it **Current**,
+     and attach a paywall to it.
+  5. RevenueCat → Integrations → Webhooks: `<BACKEND_URL>/api/v1/revenuecat/webhook`,
+     Authorization header = `REVENUECAT_WEBHOOK_SECRET`; set `REVENUECAT_API_KEY` (secret
+     key) on the Budget service too.
+  6. Check: Settings → Upgrade to Pro shows the paywall with prices; a sandbox purchase
+     makes bank sync and the advisor available.
+- **Production mail** — set `RESEND_API_KEY` (and a verified `EMAIL_FROM` domain) on the
+  Budget service, then use "Forgot password?" on a real account and the verification
+  resend in Settings to confirm both emails arrive.
 
 ## 4. More than one instance
 
