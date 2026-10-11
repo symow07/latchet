@@ -158,6 +158,8 @@ export default function SubscriptionsScreen() {
         ) : filtered.length === 0 ? (
           <Empty
             pal={C}
+            // The anchor above is already this screen's espresso block.
+            actionVariant="secondary"
             icon={<RefreshCw size={26} color={C.accent} strokeWidth={S.stroke} />}
             title={emptyCopy[segment].title}
             body={emptyCopy[segment].body}

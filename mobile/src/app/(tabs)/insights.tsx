@@ -92,6 +92,8 @@ export default function InsightsScreen() {
         {!ready ? (
           <Empty
             pal={C}
+            // Shown instead of the anchor, so its action is the espresso block.
+            actionVariant="ink"
             icon={<Sparkles size={26} color={C.accent} strokeWidth={S.stroke} />}
             title={t('insightsHub.emptyTitle')}
             body={t('insightsHub.emptyBody')}

@@ -101,6 +101,39 @@ describe('identity conventions', () => {
     expect(violations(stripComments("// the old hero was a 'white' gradient, '#7C3AED'\n/* withSpring( */"))).toEqual([]);
   });
 
+  it('keeps BalanceCard\'s style off its filled shadow layer', () => {
+    // A caller's gutter passed as padding on the filled layer drew the anchor
+    // twice, a full-width espresso slab behind the real card, on five screens.
+    const kit = readFileSync(join(ROOT, 'components', 'kit.tsx'), 'utf8');
+    const start = kit.indexOf('export function BalanceCard(');
+    const body = kit.slice(start, kit.indexOf('\nexport function', start + 1));
+    expect(start).toBeGreaterThan(-1);
+    expect(body).not.toMatch(/\[\s*outer\s*,\s*style\s*\]/);
+    expect(body).toMatch(/<View style=\{style\}>/);
+  });
+
+  it('makes every anchored screen choose its empty-state action deliberately', () => {
+    // One espresso block per screen. An Empty's action is espresso by default,
+    // which is right when the empty state replaces the anchor and a second
+    // anchor when it sits under one. Static analysis cannot tell which, so a
+    // screen with an anchor has to say: actionVariant "secondary" or "ink".
+    const offenders: string[] = [];
+    for (const file of files.filter((f) => f.endsWith('.tsx'))) {
+      const src = readFileSync(file, 'utf8');
+      if (!/<BalanceCard\b|<Card\b[^>]*\banchor\b/.test(src)) continue;
+      for (const m of src.matchAll(/<Empty\b/g)) {
+        const lineStart = src.lastIndexOf('\n', m.index!) + 1;
+        const indent = m.index! - lineStart;
+        const close = new RegExp(`\\n {${indent}}/>`).exec(src.slice(m.index!));
+        const props = src.slice(m.index!, close ? m.index! + close.index : m.index! + 600);
+        if (props.includes('actionLabel') && !props.includes('actionVariant')) {
+          offenders.push(`${relative(ROOT, file)}:${src.slice(0, m.index!).split('\n').length}`);
+        }
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
   it('holds every screen and component to the identity', () => {
     const offenders: string[] = [];
     for (const file of files) {

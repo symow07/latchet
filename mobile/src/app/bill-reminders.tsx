@@ -492,6 +492,8 @@ export default function BillRemindersScreen() {
         ) : sorted.length === 0 ? (
           <Empty
             pal={C}
+            // The anchor above is already this screen's espresso block.
+            actionVariant="secondary"
             icon={<Bell size={26} color={C.accent} strokeWidth={S.stroke} />}
             title={t('billReminders.emptyTitle')}
             body={t('billReminders.emptyBody')}

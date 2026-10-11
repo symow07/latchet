@@ -255,6 +255,8 @@ export default function AccountsScreen() {
         {accounts.length === 0 ? (
           <Empty
             pal={C}
+            // The anchor above is already this screen's espresso block.
+            actionVariant="secondary"
             icon={<Wallet size={26} color={C.accent} strokeWidth={S.stroke} />}
             title={t('common.nothingYet')}
             body={t('accounts.emptyBody')}

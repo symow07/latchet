@@ -620,6 +620,8 @@ export default function NetWorthScreen() {
           ) : entries.length === 0 ? (
             <Empty
               pal={C}
+              // The anchor above is already this screen's espresso block.
+              actionVariant="secondary"
               icon={<PiggyBank size={26} color={C.accent} strokeWidth={S.stroke} />}
               title={t('netWorth.noSnapshots')}
               body={t('common.netWorthEmptyBody')}

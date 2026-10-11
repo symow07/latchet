@@ -213,6 +213,8 @@ export default function HomeScreen() {
         {firstRun ? (
           <Empty
             pal={C}
+            // Shown instead of the anchor, so its action is the espresso block.
+            actionVariant="ink"
             icon={<Wallet size={26} color={C.accent} strokeWidth={S.stroke} />}
             title={t('home.emptyTitle')}
             body={t('home.emptyBody')}

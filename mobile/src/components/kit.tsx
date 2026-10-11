@@ -825,6 +825,11 @@ export function BalanceCard({
   plain?: boolean;
   /** Extra content inside the card, under the caption. */
   children?: React.ReactNode;
+  /**
+   * Layout only: margins, padding, width. It goes on a plain wrapper, never on
+   * the filled shadow layer, so `paddingHorizontal: S.screen` insets the card
+   * rather than stretching an espresso slab to both screen edges behind it.
+   */
   style?: StyleProp<ViewStyle>;
 }) {
   const { outer, inner } = lift(pal, ELEVATION.anchor, pal.espresso, R.lg, withAlpha(pal.silver, 0.5));
@@ -855,7 +860,16 @@ export function BalanceCard({
     </View>
   );
 
-  if (!onPress) return <View style={[outer, style]}>{body}</View>;
+  // Without an action it used to put `style` on `outer`, and five screens
+  // passing their gutter as padding drew the anchor twice: a full-width
+  // espresso slab with the real card inset inside it.
+  if (!onPress) {
+    return (
+      <View style={style}>
+        <View style={outer}>{body}</View>
+      </View>
+    );
+  }
   return (
     <View style={style}>
       <PressableScale onPress={onPress} accessibilityRole="button" style={outer}>

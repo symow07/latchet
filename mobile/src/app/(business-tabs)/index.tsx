@@ -159,6 +159,8 @@ export default function BusinessHomeScreen() {
         ) : allExpenses.length === 0 ? (
           <Empty
             pal={B}
+            // Shown instead of the anchor, so its action is the espresso block.
+            actionVariant="ink"
             icon={<Receipt size={26} color={B.accent} strokeWidth={S.stroke} />}
             title={t('bizHome.emptyTitle')}
             body={t('bizHome.emptyBody')}

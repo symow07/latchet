@@ -549,6 +549,8 @@ export default function RecurringScreen() {
         ) : items.length === 0 ? (
           <Empty
             pal={C}
+            // The anchor above is already this screen's espresso block.
+            actionVariant="secondary"
             icon={<RefreshCw size={26} color={C.accent} strokeWidth={S.stroke} />}
             title={t('recurring.emptyTitle')}
             body={t('recurring.emptyBody')}
