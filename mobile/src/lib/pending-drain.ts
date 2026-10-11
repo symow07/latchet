@@ -15,7 +15,7 @@ import * as FileSystem from 'expo-file-system';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { activeUserId, addTransaction } from './db';
 import { parsePendingQueue, selectDrainable } from './pending-capture';
-import { categoriseNote, loadMerchantMemory } from './categorise';
+import { categoriseNote, loadNoteContext } from './categorise';
 
 /** Must match PendingCaptureQueue.fileName in the Swift. */
 const QUEUE_FILE = 'pending-captures.ndjson';
@@ -99,8 +99,9 @@ export async function drainPendingCaptures(ownerUserId: string): Promise<number>
 
   // Siri never asks for a category — that would turn a two-second capture into
   // a menu. The note decides, via the same ladder the importer uses, so
-  // "coffee at Blue Bottle" lands where this user's own past coffees did.
-  const memory = await loadMerchantMemory();
+  // "coffee at Blue Bottle" lands where this user's own past coffees did, and
+  // "Marjane" lands in Food for someone whose currency is the dirham.
+  const { memory, currency } = await loadNoteContext();
 
   for (const capture of captures) seen.add(capture.id);
   await writeSeen(seen);
@@ -111,7 +112,7 @@ export async function drainPendingCaptures(ownerUserId: string): Promise<number>
     try {
       await addTransaction({
         amount: capture.amount,
-        category: categoriseNote(capture.note, memory),
+        category: categoriseNote(capture.note, memory, currency),
         type: capture.type,
         // Not inferred. detectImpulse reads keywords from a typed description,
         // and a Siri phrase is not that — guessing would skew the one metric

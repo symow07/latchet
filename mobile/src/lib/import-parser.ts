@@ -1,4 +1,6 @@
 import { suggestCategory, type MerchantMemory } from './merchant-memory';
+import { fallbackCategory, mentionsAny } from './category-keywords';
+import { convertCurrency } from './currencies';
 
 // Transaction categories matching the app's existing categories
 export const CATEGORIES = [
@@ -11,42 +13,6 @@ export const CATEGORIES = [
 ] as const;
 
 export type Category = typeof CATEGORIES[number];
-
-// Keywords for auto-categorization
-
-const CATEGORY_KEYWORDS: Record<Category, string[]> = {
-  Food: [
-    'restaurant', 'cafe', 'coffee', 'starbucks', 'mcdonald', 'burger', 'pizza',
-    'doordash', 'uber eats', 'grubhub', 'grocery', 'supermarket', 'walmart',
-    'whole foods', 'trader joe', 'kroger', 'safeway', 'food', 'meal', 'lunch',
-    'dinner', 'breakfast', 'bakery', 'deli', 'chipotle', 'subway', 'wendy',
-    'taco', 'sushi', 'chinese', 'thai', 'indian', 'italian', 'mexican',
-  ],
-  Gym: [
-    'gym', 'fitness', 'planet fitness', 'la fitness', 'equinox', 'crossfit',
-    'yoga', 'pilates', 'workout', 'training', 'personal trainer', 'peloton',
-    'orange theory', 'anytime fitness', 'gold gym', '24 hour fitness',
-  ],
-  Transport: [
-    'uber', 'lyft', 'taxi', 'gas', 'fuel', 'shell', 'chevron', 'exxon', 'bp',
-    'parking', 'transit', 'metro', 'bus', 'train', 'airline', 'flight',
-    'delta', 'united', 'american airlines', 'southwest', 'car wash', 'toll',
-    'dmv', 'registration', 'insurance', 'auto', 'vehicle',
-  ],
-  Shopping: [
-    'amazon', 'target', 'walmart', 'costco', 'best buy', 'apple store',
-    'clothing', 'shoes', 'nike', 'adidas', 'zara', 'h&m', 'nordstrom',
-    'macys', 'kohls', 'ross', 'tjmaxx', 'marshalls', 'ebay', 'etsy',
-    'ikea', 'home depot', 'lowes', 'furniture', 'electronics', 'retail',
-  ],
-  Subscriptions: [
-    'netflix', 'spotify', 'hulu', 'disney', 'hbo', 'apple music', 'youtube',
-    'amazon prime', 'subscription', 'membership', 'recurring', 'monthly',
-    'annual', 'adobe', 'microsoft', 'dropbox', 'icloud', 'google one',
-    'gym membership', 'software', 'saas', 'cloud',
-  ],
-  Other: [], // Fallback category
-};
 
 export interface ParsedTransaction {
   id: string;
@@ -73,39 +39,96 @@ export interface ImportPreview {
   duplicatesFound: number;
 }
 
-// Auto-categorize based on description
-export function autoCategorize(description: string): Category {
-  const lowerDesc = description.toLowerCase();
-
-  for (const [category, keywords] of Object.entries(CATEGORY_KEYWORDS)) {
-    if (category === 'Other') continue;
-
-    for (const keyword of keywords) {
-      if (lowerDesc.includes(keyword.toLowerCase())) {
-        return category as Category;
-      }
-    }
-  }
-
-  return 'Other';
+/**
+ * What can help categorise a row the file does not categorise itself.
+ *
+ *  - `memory`: what this user has filed before (lib/merchant-memory). Their
+ *    own history beats any keyword table.
+ *  - `currency`: the user's currency. It chooses which regional brand list the
+ *    keyword fallback consults (lib/category-keywords), and the scale of the
+ *    impulse guess. A row that states its own currency uses that instead.
+ */
+export interface CategoryContext {
+  memory?: MerchantMemory | null;
+  currency?: string | null;
 }
 
-// Detect if a purchase might be an impulse buy based on description
-export function detectImpulse(description: string, amount: number): boolean {
-  const lowerDesc = description.toLowerCase();
+/**
+ * The keyword fallback for a description, as a built-in category.
+ *
+ * Plain words in English, French, Arabic and Chinese, global brands, and the
+ * brands of the region `currency` selects — see lib/category-keywords for the
+ * table and its matching rules. "Other" when nothing is recognised.
+ */
+export function autoCategorize(description: string, currency?: string | null): Category {
+  return fallbackCategory(description, currency) ?? 'Other';
+}
 
-  // High-value shopping or entertainment
-  if (amount > 100 && CATEGORY_KEYWORDS.Shopping.some(k => lowerDesc.includes(k))) {
+/**
+ * The shopping spend above which a purchase counts as large: $100, expressed
+ * in the user's currency. A flat 100 would make every 15-dollar shirt bought
+ * in dirhams or yuan an "impulse" and no purchase in yen ever one.
+ */
+function impulseThreshold(currency?: string | null): number {
+  const code = String(currency ?? '').trim().toUpperCase();
+  return code ? convertCurrency(100, 'USD', code) : 100;
+}
+
+/** Words that suggest a purchase was not planned: delivery apps, sales, flash deals. */
+const IMPULSE_WORDS: readonly string[] = [
+  'impulse', 'sale', 'flash sale', 'clearance', 'delivery', 'amazon',
+  'doordash', 'uber eats', 'ubereats', 'grubhub', 'postmates', 'deliveroo', 'just eat',
+  'glovo', 'jumia food',
+  'soldes', 'promo', 'livraison',
+  'تخفيضات', 'تخفيض', 'توصيل',
+  '外卖', '饿了么', '秒杀', '特价', '促销', '冲动',
+];
+
+/** Phrases that contain an impulse word and say nothing about impulse. */
+const NOT_IMPULSE: readonly string[] = [
+  'point of sale', 'pos sale', 'bill of sale', 'non delivery',
+];
+
+/**
+ * Whether a purchase looks unplanned, from its description and size.
+ *
+ * `currency` is the user's (it picks the regional brands, as for the
+ * category); `amountCurrency` is the one `amount` is written in, when that
+ * differs — an Alipay bill is in yuan whatever the user's own currency is.
+ */
+export function detectImpulse(
+  description: string,
+  amount: number,
+  currency?: string | null,
+  amountCurrency: string | null | undefined = currency,
+): boolean {
+  // A large shopping purchase.
+  if (
+    amount > impulseThreshold(amountCurrency) &&
+    fallbackCategory(description, currency) === 'Shopping'
+  ) {
     return true;
   }
 
-  // Late-night food delivery indicators
-  const impulseKeywords = [
-    'doordash', 'uber eats', 'grubhub', 'postmates', 'delivery',
-    'amazon', 'impulse', 'sale', 'clearance', 'flash sale',
-  ];
+  // Food delivery and sales.
+  return mentionsAny(description, IMPULSE_WORDS, NOT_IMPULSE);
+}
 
-  return impulseKeywords.some(k => lowerDesc.includes(k));
+/**
+ * The category ladder for one row: what the file says, then what this user
+ * has done before, then the keyword fallback, then "Other".
+ */
+function suggestFor(
+  description: string,
+  declared: string,
+  context: CategoryContext,
+  currency: string | null | undefined,
+): string {
+  return (
+    declared ||
+    (context.memory ? suggestCategory(description, context.memory) : null) ||
+    autoCategorize(description, currency)
+  );
 }
 
 // ── Per-file format detection ────────────────────────────────────────────────
@@ -269,11 +292,18 @@ function locateColumns(lines: string[]) {
   const headers = parseCSVLine(lines[0]!).map((h) => deaccent(h.toLowerCase()).trim());
 
   const dateIdx = headers.findIndex((h) => h.includes('date') || h.includes('posted'));
-  const descIdx = headers.findIndex(
-    (h) =>
-      h.includes('description') || h.includes('memo') || h.includes('merchant') ||
-      h.includes('payee') || h.includes('libelle') || h.includes('motif') || h.includes('operation')
-  );
+  // "Opération" names the description column only when nothing better does:
+  // French and Moroccan banks also write "Date opération" for the date, and
+  // taking that as the description files every row under its own date.
+  const isDescription = (h: string, i: number) =>
+    i !== dateIdx &&
+    (h.includes('description') || h.includes('memo') || h.includes('merchant') ||
+      h.includes('payee') || h.includes('libelle') || h.includes('motif'));
+  const strongDescIdx = headers.findIndex(isDescription);
+  const descIdx =
+    strongDescIdx >= 0
+      ? strongDescIdx
+      : headers.findIndex((h, i) => i !== dateIdx && h.includes('operation'));
   const amountIdx = headers.findIndex(
     (h) => h.includes('amount') || h.includes('debit') || h.includes('credit') || h.includes('montant')
   );
@@ -472,10 +502,11 @@ export function parseCSV(
    */
   mappingOverride?: Partial<ColumnMapping>,
   /**
-   * What the user has categorised before. Their own history beats the keyword
-   * table, which only knows US brands — see lib/merchant-memory.
+   * What the user has categorised before, and their currency. Their own
+   * history beats the keyword fallback; the currency picks the fallback's
+   * regional brands — see CategoryContext.
    */
-  memory?: MerchantMemory
+  context: CategoryContext = {}
 ): ParsedTransaction[] {
   const lines = csvContent.trim().split('\n');
   if (lines.length < 2) return [];
@@ -593,6 +624,9 @@ export function parseCSV(
     // which cannot be recovered from the text at all.
     const declaredCategory = categoryIdx >= 0 ? (values[categoryIdx] ?? '').trim() : '';
     const declaredCurrency = currencyIdx >= 0 ? (values[currencyIdx] ?? '').trim() : '';
+    // A row that names its currency says where it was spent better than the
+    // user's settings do. Only an ISO code counts; a stray symbol does not.
+    const currency = /^[a-z]{3}$/i.test(declaredCurrency) ? declaredCurrency : context.currency;
 
     transactions.push({
       id: `import_${Date.now()}_${i}`,
@@ -600,15 +634,12 @@ export function parseCSV(
       description: description.trim(),
       amount,
       type,
-      suggestedCategory:
-        declaredCategory ||
-        (memory ? suggestCategory(description, memory) : null) ||
-        autoCategorize(description),
+      suggestedCategory: suggestFor(description, declaredCategory, context, currency),
       originalData,
       isImpulse:
         impulseIdx >= 0
           ? parseBooleanCell(values[impulseIdx])
-          : detectImpulse(description, amount),
+          : detectImpulse(description, amount, currency),
       ...(declaredCurrency ? { currency: declaredCurrency } : {}),
     });
   }
@@ -629,14 +660,19 @@ export type ImportSource = 'bank' | 'alipay' | 'wechat';
 export function parseStatement(
   content: string,
   source: ImportSource,
-  overrides: Partial<CsvFormat> = {}
+  overrides: Partial<CsvFormat> = {},
+  context: CategoryContext = {}
 ): ParsedTransaction[] {
-  if (source === 'alipay') return parseChineseBill(content, 'alipay');
-  if (source === 'wechat') return parseChineseBill(content, 'wechat');
-  return parseCSV(content, overrides);
+  if (source === 'alipay') return parseChineseBill(content, 'alipay', context);
+  if (source === 'wechat') return parseChineseBill(content, 'wechat', context);
+  return parseCSV(content, overrides, undefined, context);
 }
 
-function parseChineseBill(content: string, kind: 'alipay' | 'wechat', memory?: MerchantMemory): ParsedTransaction[] {
+function parseChineseBill(
+  content: string,
+  kind: 'alipay' | 'wechat',
+  context: CategoryContext,
+): ParsedTransaction[] {
   const lines = content.split(/\r?\n/);
 
   // The header row is the first line that names both a time and an amount column.
@@ -682,11 +718,13 @@ function parseChineseBill(content: string, kind: 'alipay' | 'wechat', memory?: M
       description,
       amount,
       type,
-      suggestedCategory:
-        (memory ? suggestCategory(description, memory) : null) ||
-        autoCategorize(description),
+      // The user's currency, not the bill's: Chinese brands are recognised
+      // from the Chinese text whatever the currency, and the user's own
+      // region still applies to a merchant abroad written in Latin letters.
+      suggestedCategory: suggestFor(description, '', context, context.currency),
       originalData: {},
-      isImpulse: detectImpulse(description, amount),
+      // Both apps bill in yuan, so that is the scale of "a large purchase".
+      isImpulse: detectImpulse(description, amount, context.currency, 'CNY'),
     });
   }
   return out;

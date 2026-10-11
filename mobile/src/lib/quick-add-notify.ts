@@ -12,7 +12,7 @@
 import * as Notifications from 'expo-notifications';
 import { addTransaction } from './db';
 import { parseQuickAdd } from './quick-add';
-import { categoriseNote, loadMerchantMemory } from './categorise';
+import { categoriseNote, loadNoteContext } from './categorise';
 import { todayISO } from './dates';
 import { QUICK_ADD_ACTION, registerQuickAddCategory } from './notifications';
 
@@ -40,10 +40,10 @@ export async function handleQuickAddResponse(
   const parsed = parseQuickAdd(text);
   if (!parsed) return false;
 
-  const memory = await loadMerchantMemory();
+  const { memory, currency } = await loadNoteContext();
   await addTransaction({
     amount: parsed.amount,
-    category: categoriseNote(parsed.note, memory),
+    category: categoriseNote(parsed.note, memory, currency),
     type: parsed.type,
     // Not inferred. detectImpulse reads keywords from a typed description, and
     // four words tapped out on a lock screen are not that.

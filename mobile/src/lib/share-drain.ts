@@ -13,7 +13,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { activeUserId, addTransaction } from './db';
 import { appGroupPath } from '../../modules/app-group';
 import { parseSharedQueue, selectDrainableShares, planShares } from './pending-share';
-import { categoriseNote, loadMerchantMemory } from './categorise';
+import { categoriseNote, loadNoteContext } from './categorise';
 import { todayISO } from './dates';
 
 /** Must match the constants in plugins/ios/ShareExtension/ShareViewController.swift. */
@@ -106,14 +106,15 @@ export async function drainSharedItems(ownerUserId: string): Promise<ShareDrainR
   for (const id of plan.seen) seen.add(id);
   await AsyncStorage.setItem(SEEN_KEY, JSON.stringify([...seen].slice(-SEEN_CAP)));
 
-  const memory = plan.transactions.length > 0 ? await loadMerchantMemory() : null;
+  const { memory, currency } =
+    plan.transactions.length > 0 ? await loadNoteContext() : { memory: null, currency: null };
   let inserted = 0;
   for (const tx of plan.transactions) {
     if (!stillOwner()) break;
     try {
       await addTransaction({
         amount: tx.amount,
-        category: categoriseNote(tx.note, memory),
+        category: categoriseNote(tx.note, memory, currency),
         type: tx.type,
         // Not inferred. detectImpulse reads keywords from a typed description,
         // and a forwarded payment confirmation is not that.

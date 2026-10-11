@@ -175,6 +175,9 @@ export default function ImportScreen() {
   const [activeMapping, setActiveMapping] = useState<ColumnMapping | null>(null);
   const [rememberedBank, setRememberedBank] = useState(false);
   const [analyzingPdf, setAnalyzingPdf] = useState(false);
+  // The user's currency, which picks the regional brands the keyword fallback
+  // recognises (Marjane in dirhams, Tesco in pounds). Kept for the re-parses.
+  const [userCurrency, setUserCurrency] = useState<string | null>(null);
 
   /**
    * Read a PDF statement via the vision model.
@@ -354,6 +357,8 @@ export default function ImportScreen() {
       const settings = await getSettings().catch(() => null);
       const fallbackDate: DateConvention =
         settings?.currency === 'USD' ? 'mdy' : 'dmy';
+      const currency = settings?.currency ?? null;
+      setUserCurrency(currency);
 
       let detected: CsvFormat | null = null;
       let usedMapping: ColumnMapping | null = null;
@@ -370,7 +375,9 @@ export default function ImportScreen() {
         if (remembered) {
           detected = remembered.format;
           usedMapping = remembered.mapping;
-          parsedTransactions = parseCSV(content, remembered.format, remembered.mapping);
+          parsedTransactions = parseCSV(content, remembered.format, remembered.mapping, {
+            currency,
+          });
           setRememberedBank(true);
         } else if (found.missing.length > 0) {
           // A header we cannot read is a question, not a dead end.
@@ -384,12 +391,12 @@ export default function ImportScreen() {
         } else {
           detected = detectCsvFormat(content, fallbackDate);
           usedMapping = found.mapping;
-          parsedTransactions = parseCSV(content, detected);
+          parsedTransactions = parseCSV(content, detected, undefined, { currency });
           setRememberedBank(false);
         }
       } else {
         // Alipay / WeChat bills have a fixed, known shape.
-        parsedTransactions = parseStatement(content, source);
+        parsedTransactions = parseStatement(content, source, {}, { currency });
       }
 
       if (parsedTransactions.length === 0) {
@@ -439,7 +446,7 @@ export default function ImportScreen() {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
       const next = { ...format, ...patch };
-      const reparsed = parseStatement(rawContent, rawSource, next);
+      const reparsed = parseStatement(rawContent, rawSource, next, { currency: userCurrency });
 
       const existingTxs = await getTransactions();
       const existingKeys = new Set(
@@ -451,7 +458,7 @@ export default function ImportScreen() {
       setPreview(importPreview);
       setTransactions(importPreview.transactions);
     },
-    [rawContent, rawSource, format]
+    [rawContent, rawSource, format, userCurrency]
   );
 
   /** Parse with the user's column mapping and move on to the preview. */
@@ -460,7 +467,7 @@ export default function ImportScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     const merged = { ...inspection.mapping, ...mapping };
-    const parsed = parseCSV(rawContent, {}, merged);
+    const parsed = parseCSV(rawContent, {}, merged, { currency: userCurrency });
 
     if (parsed.length === 0) {
       Alert.alert(
@@ -482,7 +489,7 @@ export default function ImportScreen() {
     setActiveMapping(merged);
     setStep('preview');
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-  }, [rawContent, inspection, mapping]);
+  }, [rawContent, inspection, mapping, userCurrency]);
 
   const updateTransactionCategory = (txId: string, category: Category) => {
     setTransactions(prev =>

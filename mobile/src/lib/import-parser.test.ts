@@ -1,4 +1,4 @@
-import { test, expect } from 'bun:test';
+import { describe, test, expect } from 'bun:test';
 import {
   parseCSV,
   parseStatement,
@@ -305,11 +305,12 @@ test('an empty file is reported as missing everything, not crashed on', () => {
   expect(found.headers).toEqual([]);
 });
 
-// ── The user's own history beats the keyword table ───────────────────────────
+// ── The user's own history beats the keyword fallback ────────────────────────
 
 test('an import uses what the user categorised before', () => {
-  // The keyword table is US-centric and answers "Other" for Marjane. Once the
-  // user has filed one Marjane row under Food, the next import should know.
+  // Marjane is a Moroccan grocer, and without the user's currency the keyword
+  // fallback has no reason to know it. Once the user has filed one Marjane row
+  // under Food, the next import should know.
   const memory = buildMerchantMemory([
     { note: 'MARJANE CASABLANCA', category: 'Food', dateISO: '2026-08-01' },
   ]);
@@ -319,7 +320,7 @@ test('an import uses what the user categorised before', () => {
   ].join('\n');
 
   const withoutMemory = parseCSV(csv);
-  const withMemory = parseCSV(csv, {}, undefined, memory);
+  const withMemory = parseCSV(csv, {}, undefined, { memory });
 
   expect(withoutMemory[0]!.suggestedCategory).toBe('Other');
   expect(withMemory[0]!.suggestedCategory).toBe('Food');
@@ -335,10 +336,155 @@ test('a category declared in the file still wins over the memory', () => {
     'Date,Description,Amount,Category',
     '2026-08-20,MARJANE RABAT,-240.50,Shopping',
   ].join('\n');
-  expect(parseCSV(csv, {}, undefined, memory)[0]!.suggestedCategory).toBe('Shopping');
+  expect(parseCSV(csv, {}, undefined, { memory })[0]!.suggestedCategory).toBe('Shopping');
+});
+
+test('the memory beats the keyword fallback even where the fallback knows the merchant', () => {
+  // Someone who files Carrefour under Shopping (they buy their electronics
+  // there) keeps getting Shopping, not the table's Food.
+  const memory = buildMerchantMemory([
+    { note: 'CARREFOUR', category: 'Shopping', dateISO: '2026-08-01' },
+  ]);
+  const csv = ['Date,Description,Amount', '2026-08-20,CARREFOUR LYON,-89.00'].join('\n');
+  expect(parseCSV(csv, {}, undefined, { currency: 'EUR' })[0]!.suggestedCategory).toBe('Food');
+  expect(parseCSV(csv, {}, undefined, { memory, currency: 'EUR' })[0]!.suggestedCategory).toBe(
+    'Shopping',
+  );
 });
 
 test('without a memory the parser behaves exactly as before', () => {
   const csv = ['Date,Description,Amount', '2026-08-20,STARBUCKS,-4.50'].join('\n');
   expect(parseCSV(csv)[0]!.suggestedCategory).toBe('Food');
+});
+
+// ── The keyword fallback, through the importer ───────────────────────────────
+
+describe('categorises by region', () => {
+  const FRENCH_CARD_STATEMENT = `Date,Libellé,Débit,Crédit
+02/09/2026,PAIEMENT CB CARREFOUR MARKET LYON,"84,30",
+03/09/2026,PAIEMENT CB SNCF CONNECT,"45,00",
+04/09/2026,PAIEMENT CB BOULANGERIE PAUL,"6,40",
+05/09/2026,PRLV SEPA BASIC FIT,"29,99",
+06/09/2026,PAIEMENT CB LEROY MERLIN,"112,00",
+07/09/2026,PRLV SEPA FREE MOBILE,"19,99",
+08/09/2026,PAIEMENT CB GASTON LAGAFFE SARL,"12,00",
+30/09/2026,VIREMENT SALAIRE,,"2.500,00"`;
+
+  test('a CSV import in euros recognises French chains and French words', () => {
+    // The importer's own path: detect the format, then parse with the user's
+    // currency, exactly as the import screen does.
+    const format = detectCsvFormat(FRENCH_CARD_STATEMENT, 'dmy');
+    const rows = parseCSV(FRENCH_CARD_STATEMENT, format, undefined, { currency: 'EUR' });
+    expect(rows.map((r) => [r.description, r.suggestedCategory])).toEqual([
+      ['PAIEMENT CB CARREFOUR MARKET LYON', 'Food'],
+      ['PAIEMENT CB SNCF CONNECT', 'Transport'],
+      ['PAIEMENT CB BOULANGERIE PAUL', 'Food'],
+      ['PRLV SEPA BASIC FIT', 'Gym'],
+      ['PAIEMENT CB LEROY MERLIN', 'Shopping'],
+      ['PRLV SEPA FREE MOBILE', 'Subscriptions'],
+      // "gas" is not inside Gaston, and nothing else here names a category.
+      ['PAIEMENT CB GASTON LAGAFFE SARL', 'Other'],
+      ['VIREMENT SALAIRE', 'Other'],
+    ]);
+    // The statement is the same through parseStatement, which the screen
+    // uses when the user picks "bank".
+    expect(
+      parseStatement(FRENCH_CARD_STATEMENT, 'bank', format, { currency: 'EUR' }).map(
+        (r) => r.suggestedCategory,
+      ),
+    ).toEqual(rows.map((r) => r.suggestedCategory));
+  });
+
+  test('the same CSV in dollars knows only the words and the global brands', () => {
+    // The euro chains are a regional list: in dollars SNCF, Basic-Fit, Leroy
+    // Merlin and Free are unknown, while Carrefour (global) and the French
+    // word "boulangerie" still work.
+    const rows = parseCSV(FRENCH_CARD_STATEMENT, { date: 'dmy', decimal: 'european' }, undefined, {
+      currency: 'USD',
+    });
+    expect(rows.map((r) => r.suggestedCategory)).toEqual([
+      'Food', 'Other', 'Food', 'Other', 'Other', 'Other', 'Other', 'Other',
+    ]);
+  });
+
+  test('a Moroccan statement in dirhams', () => {
+    // "Date operation" is the date; the description is "Libellé". Taking the
+    // first header that mentions "operation" filed every row under its date.
+    expect(inspectCsv(MOROCCAN_BANK).mapping).toMatchObject({ dateIdx: 0, descIdx: 1 });
+    expect(inspectCsv('Date,Opération,Montant\n05/01/2026,MARJANE,-1').mapping.descIdx).toBe(1);
+    const rows = parseStatement(MOROCCAN_BANK, 'bank', {}, { currency: 'MAD' });
+    expect(rows.map((r) => [r.description, r.suggestedCategory])).toEqual([
+      ['MARJANE CASABLANCA', 'Food'],
+      ['RETRAIT GAB', 'Other'],
+      ['VIREMENT RECU', 'Other'],
+    ]);
+  });
+
+  test('a row that names its own currency is categorised in that currency', () => {
+    // A multi-currency export: the user's settings say euros, but the second
+    // row was spent in Morocco and says so.
+    const csv = [
+      'Date,Description,Amount,Currency',
+      '2026-08-20,TESCO EXPRESS,-12.40,GBP',
+      '2026-08-21,MARJANE AGADIR,-310.00,MAD',
+      '2026-08-22,SNCF,-45.00,EUR',
+      '2026-08-23,SNCF,-45.00,€',
+    ].join('\n');
+    const rows = parseCSV(csv, {}, undefined, { currency: 'EUR' });
+    expect(rows.map((r) => r.suggestedCategory)).toEqual([
+      'Food', 'Food', 'Transport',
+      // A symbol is not a code; the user's own currency applies.
+      'Transport',
+    ]);
+  });
+
+  test('an Alipay bill is categorised from its Chinese descriptions', () => {
+    // The counterparty (交易对方) is what the parser reads: 盒马鲜生 is Freshippo,
+    // a supermarket; 滴滴出行 is DiDi.
+    for (const currency of ['CNY', 'MAD', 'EUR', null]) {
+      const rows = parseStatement(ALIPAY, 'alipay', {}, { currency });
+      expect(rows.map((r) => [r.description, r.suggestedCategory])).toEqual([
+        ['盒马鲜生', 'Food'],
+        ['滴滴出行', 'Transport'],
+        ['公司', 'Other'],
+      ]);
+    }
+  });
+
+  test('a WeChat bill is categorised from its Chinese descriptions', () => {
+    const rows = parseStatement(WECHAT, 'wechat', {}, { currency: 'CNY' });
+    expect(rows.map((r) => [r.description, r.suggestedCategory])).toEqual([
+      ['瑞幸咖啡', 'Food'],
+      ['朋友', 'Other'],
+      ['美团', 'Food'],
+    ]);
+  });
+
+  test('a Chinese bill weighs a large purchase in yuan, whatever the user uses', () => {
+    // ¥500 is about $70: a big 淘宝 order in yuan is not an impulse buy, and
+    // reading "500" as dollars (or as dirhams) would get that wrong both ways.
+    const bill = (amount: string) => `交易时间,交易类型,交易对方,商品,收/支,金额(元),支付方式,当前状态,交易单号,商户单号,备注
+2026-03-05 08:15:00,商户消费,淘宝,衣服,支出,¥${amount},零钱,支付成功,42000,DD001,`;
+    for (const currency of ['CNY', 'USD', 'MAD']) {
+      expect(parseStatement(bill('500.00'), 'wechat', {}, { currency })[0]!.isImpulse).toBe(false);
+      expect(parseStatement(bill('1500.00'), 'wechat', {}, { currency })[0]!.isImpulse).toBe(true);
+    }
+  });
+
+  test('the impulse guess reads sales and delivery in every language, as whole words', () => {
+    const csv = [
+      'Date,Description,Amount',
+      '2026-08-20,FLASH SALE SHOES,-20.00',
+      '2026-08-21,WHOLESALE CLUB,-20.00',
+      '2026-08-22,DELIVEROO,-20.00',
+      '2026-08-23,SOLDES ZARA,-20.00',
+      '2026-08-24,美团外卖,-20.00',
+      '2026-08-25,توصيل البيتزا,-20.00',
+      // How the card was used, not what was bought.
+      '2026-08-26,POINT OF SALE PURCHASE WALGREENS,-20.00',
+    ].join('\n');
+    expect(parseCSV(csv, {}, undefined, { currency: 'EUR' }).map((r) => r.isImpulse)).toEqual([
+      true, false, true, true, true, true, false,
+    ]);
+  });
 });

@@ -1,15 +1,13 @@
 /**
  * Learning a category from what the user has already done.
  *
- * autoCategorize matches a description against a fixed keyword table. That
- * table is written around US brands — Starbucks, Kroger, Trader Joe, Chevron —
- * so it answers "Other" for most of the world. A Moroccan statement full of
- * Marjane and Afriquia, or a Chinese one full of 美团, gets no help from it at
- * all, and those are the markets this app is aimed at.
- *
- * The user's own history is a better table than any list we could ship, and it
- * is already sitting in the database. Categorise Carrefour once and every
- * future Carrefour row can fill itself in.
+ * When a transaction arrives uncategorised, the user's own history is asked
+ * first and the keyword fallback (category-keywords.ts) only after it. No
+ * list we ship can know every corner shop in Casablanca or every stall on a
+ * WeChat bill, and it cannot know that this user files Starbucks under
+ * "Treats" — but the user's own history can, and it is already sitting in the
+ * database. Categorise Carrefour once and every future Carrefour row fills
+ * itself in, whatever the keyword table would have said.
  *
  * Three rules keep it from being annoying:
  *
@@ -25,11 +23,18 @@
  * Dependency-free so the matching can be tested without a database.
  */
 
-/** Bank statements bury the merchant in reference numbers and card fragments. */
+/**
+ * Bank statements bury the merchant in reference numbers and card fragments,
+ * and French and Moroccan ones open most lines with the same boilerplate
+ * ("PAIEMENT CB", "ACHAT TPE", "PRLV SEPA"). Left in, that prefix would be the
+ * key every card payment shares, and the memory would file them all alike.
+ */
 const NOISE = new Set([
   'the', 'and', 'ltd', 'llc', 'inc', 'sarl', 'sa', 'co', 'company',
   'card', 'visa', 'mastercard', 'pos', 'purchase', 'payment', 'debit',
-  'credit', 'transaction', 'ref', 'no', 'nr', 'txn', 'auth',
+  'credit', 'transaction', 'ref', 'no', 'nr', 'txn', 'auth', 'contactless',
+  'cb', 'carte', 'paiement', 'par', 'achat', 'tpe', 'prlv', 'sepa', 'facture',
+  'fact', 'sans', 'contact',
 ]);
 
 /** How many leading tokens form the longest key we will remember. */
