@@ -8,6 +8,7 @@ import { getExpenses } from '@/lib/expenseApi';
 import { getBusiness } from '@/lib/businessApi';
 import { getBudget } from '@/lib/budgetApi';
 import { roleOf } from '@/lib/group-members';
+import { pendingForViewer } from '@/lib/expense-review';
 import { detectSubscriptions } from '@/lib/business-subscription-detection';
 import { expenseCategoryLabel, expenseStatusLabel } from '@/lib/expense-meta';
 import { pickBizInsight, type BizInsightAction } from '@/lib/biz-insight';
@@ -87,12 +88,13 @@ export default function BusinessHomeScreen() {
     ? t('home.greetingName', { greeting: greetingWord(), name: firstName })
     : greetingWord();
 
-  const myRole = roleOf(business, session?.user?.id);
-  const canReview = myRole === 'owner' || myRole === 'manager';
+  const viewerId = session?.user?.id;
+  const myRole = roleOf(business, viewerId);
 
   const approved = allExpenses.filter((e) => e.status === 'approved');
-  const pending = allExpenses.filter((e) => e.status === 'pending');
-  const mine = pending.filter((e) => e.submitter.id === session?.user?.id);
+  // What is waiting for *this* viewer: an owner's own expense waits for a
+  // manager, not for them, so it is counted as theirs rather than as a review.
+  const { toReview, mine } = pendingForViewer(allExpenses, viewerId, myRole);
   const approvedTotal = approved.reduce((s, e) => s + e.amount, 0);
 
   const monthlyBudget = budgetData?.budget.totalMonthly ?? 0;
@@ -100,8 +102,8 @@ export default function BusinessHomeScreen() {
   const tools = detectSubscriptions(allExpenses);
 
   const insight = pickBizInsight({
-    pendingCount: canReview ? pending.length : mine.length,
-    canReview,
+    pendingCount: toReview > 0 ? toReview : mine,
+    canReview: toReview > 0,
     monthlyBudget,
     approvedSpend,
     toolMonthly: tools.monthlyTotal,

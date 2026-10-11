@@ -12,10 +12,12 @@
     "loading": "加载中…",
     "notEnoughData": "数据还不够",
     "days": {
+      "one": "%{count} 天",
       "other": "%{count} 天"
     },
     "transactions": {
       "zero": "暂无交易",
+      "one": "%{count} 笔交易",
       "other": "%{count} 笔交易"
     },
     "reset": "重置所有记录",
@@ -64,8 +66,12 @@
     "version": "Budget v1.0.0 — 用心打造",
     "makeItYours": "随心设置——我们不会评判！",
     "hourlyRateInputHint": "用于计算购物花掉的时间成本",
-    "timeCostExample": "50 美元的消费 = %{minutes} 的工作",
-    "minutesCount": "%{count} 分钟",
+    "timeCostExample": "%{amount} 的消费 = %{minutes} 的工作",
+    "minutesCount": {
+      "zero": "不到 1 分钟",
+      "one": "%{count} 分钟",
+      "other": "%{count} 分钟"
+    },
     "savingLabel": "保存中…",
     "saveLabel": "保存！",
     "savedLabel": "已保存！",
@@ -86,7 +92,8 @@
     "bankProTitle": "银行同步是 Pro 功能",
     "bankProBody": "在设置中升级到 Pro 即可连接银行。你也可以导入对账单——所有方案都支持。",
     "aiLimitReached": "你今天的免费 AI 次数已用完。在设置中升级到 Pro 可获得更多。",
-    "pdfProBody": "读取 PDF 对账单需要使用 AI。请在设置中升级到 Pro，或改为导入 CSV——CSV 在你的设备上解析，结果也更准确。"
+    "pdfProBody": "读取 PDF 对账单需要使用 AI。请在设置中升级到 Pro，或改为导入 CSV——CSV 在你的设备上解析，结果也更准确。",
+    "proBadge": "Pro"
   },
   "language": {
     "title": "语言",
@@ -108,9 +115,11 @@
     "plusRest": "以及你的设置、预算、账单提醒、周期交易和成就。",
     "businessWarningBody": "你是这个企业的所有者，删除账户会将其完全移除——包括 %{expenses} 以及 %{members} 的访问权限。他们的记录也会一并删除。",
     "expenses": {
+      "one": "%{count} 笔支出",
       "other": "%{count} 笔支出"
     },
     "members": {
+      "one": "%{count} 位其他成员",
       "other": "%{count} 位其他成员"
     },
     "revokeNote": "我们会先撤销你已连接的银行授权，让它们停止向我们共享数据。",
@@ -207,16 +216,22 @@
     "detectedSettings": "根据你的文件自动识别。如有不对可以修改。",
     "impulse": "冲动消费",
     "markImpulse": "标记为冲动消费",
-    "successBody": "已成功导入 %{count} 笔交易到你的账本。",
+    "successBody": {
+      "zero": "没有导入任何交易。",
+      "one": "已成功导入 %{count} 笔交易到你的账本。",
+      "other": "已成功导入 %{count} 笔交易到你的账本。"
+    },
     "iosOpenFailed": "iOS 无法打开所选文件。请重新从银行导出，或先保存到“文件”中。",
     "columnN": "第 %{n} 列",
     "importing": "正在导入 %{done} / %{total}…",
     "transactionCount": {
       "zero": "暂无交易",
+      "one": "%{count} 笔交易",
       "other": "%{count} 笔交易"
     },
     "importCta": {
       "zero": "没有可导入的内容",
+      "one": "导入 %{count} 笔交易",
       "other": "导入 %{count} 笔交易"
     }
   },
@@ -232,13 +247,25 @@
     "quickInsights": "快速洞察",
     "tryAsking": "试着问问",
     "disclaimer": "仅为预算建议——非医疗、营养或理财建议。",
-    "error": "连接顾问时出错。请稍后再试。"
+    "error": "连接顾问时出错。请稍后再试。",
+    "insight": {
+      "overBudget": "你已超出月度预算 %{amount}",
+      "budgetLeft": "预算还剩 %{pct}%——请谨慎消费",
+      "impulse": "%{pct}% 的支出是冲动消费——试试 24 小时冷静期",
+      "spendingUpIn": "这些类别支出增加：%{categories}",
+      "savedIn": "这些类别省下不少：%{categories}",
+      "savingsRate": "储蓄率达 %{pct}%，非常出色！",
+      "spendingOverIncome": "本月支出超过了收入",
+      "weekUp": "支出比上周增加了 %{pct}%",
+      "weekDown": "支出比上周减少了 %{pct}%！"
+    }
   },
   "bank": {
     "connectSection": "连接银行",
     "findYourBank": "查找你的银行",
     "findYourBankHint": "搜索你所在国家的数千家银行",
     "alreadyConnected": {
+      "one": "已连接 %{count} 家银行。",
       "other": "已连接 %{count} 家银行。"
     },
     "consentTitle": "连接你的银行",
@@ -268,6 +295,7 @@
     "lastSynced": "%{date} 同步",
     "accountCount": {
       "zero": "没有账户",
+      "one": "%{count} 个账户",
       "other": "%{count} 个账户"
     }
   },
@@ -352,8 +380,10 @@
     "assetsMinus": "资产 %{assets} − 负债 %{liabilities}",
     "sinceLast": "相比上一次快照 %{delta}",
     "lastSnapshots": {
+      "one": "最近 %{count} 次记录",
       "other": "最近 %{count} 次记录"
-    }
+    },
+    "firstSnapshot": "这是你的第一个快照——之后再添加一个即可看到变化"
   },
   "analytics": {
     "title": "智能分析",
@@ -380,7 +410,10 @@
     "savingsPerMonth": "可节省：%{amount}/月",
     "weekendSpending": "周末消费",
     "seasonalTrend": "季节性趋势",
-    "chargesOf": "%{date} 有 %{count} 笔 %{amount} 的扣款",
+    "chargesOf": {
+      "one": "%{date} 有 %{count} 笔 %{amount} 的扣款",
+      "other": "%{date} 有 %{count} 笔 %{amount} 的扣款"
+    },
     "refundLine": "可能的退款：%{amount}",
     "weekendSpike": "周末高峰",
     "seasonalChange": "季节性变化",
@@ -398,10 +431,12 @@
     "tipTrack": "更仔细地追踪%{category}支出，找出可省的地方",
     "alertsCaption": {
       "zero": "没有需要处理的事项",
+      "one": "%{count} 项需要查看",
       "other": "%{count} 项需要查看"
     },
     "recurringFound": {
       "zero": "没有定期扣款",
+      "one": "%{count} 笔定期扣款",
       "other": "%{count} 笔定期扣款"
     },
     "priorityLow": "低优先级",
@@ -429,8 +464,10 @@
     "draftEmail": "起草取消邮件",
     "opensApple": "直接打开 iPhone 的“订阅”设置",
     "opensPage": "直接打开 %{name} 的取消页面",
-    "basedOn": "依据在你的交易记录中发现的 %{count} 笔重复扣款。",
-    "basedOnOne": "依据在你的交易记录中发现的 %{count} 笔重复扣款。",
+    "basedOn": {
+      "one": "依据在你的交易记录中发现的 %{count} 笔重复扣款。",
+      "other": "依据在你的交易记录中发现的 %{count} 笔重复扣款。"
+    },
     "stepsTo": "取消 %{name} 的步骤",
     "noSteps": "我们还没有 %{name} 的具体步骤。可以试试在网上搜索。",
     "searchHow": "搜索如何取消 %{name}",
@@ -440,6 +477,7 @@
     "emailBody": "你好，\n\n我希望立即取消我的 %{name} 订阅，并停止今后所有扣款。请以书面形式确认取消。\n\n谢谢。",
     "occurrenceCount": {
       "zero": "暂无扣款记录",
+      "one": "%{count} 笔扣款",
       "other": "%{count} 笔扣款"
     }
   },
@@ -483,13 +521,20 @@
     "searchFor": "搜索“%{name} cancel subscription”",
     "perMonth": "每月",
     "dueSoon": "即将到期",
-    "upcomingCharges": "即将扣款（%{count}）",
-    "allTools": "全部工具（%{count}）",
+    "upcomingCharges": {
+      "one": "即将扣款（%{count}）",
+      "other": "即将扣款（%{count}）"
+    },
+    "allTools": {
+      "one": "全部工具（%{count}）",
+      "other": "全部工具（%{count}）"
+    },
     "cancelTipBody": "大多数 SaaS 工具都能在“设置 → 账单”中取消。请至少在下次续费日期前 24 小时取消，以免被扣款。记得索要取消确认邮件。",
     "toolsStat": "工具",
     "perYear": "每年 %{amount}",
     "toolCount": {
       "zero": "暂无工具",
+      "one": "%{count} 个工具",
       "other": "%{count} 个工具"
     }
   },
@@ -516,12 +561,23 @@
     "noneYet": "还没有报销记录",
     "allCaughtUp": "全部处理完毕！",
     "tapAddFirst": "点击“添加”提交第一笔报销",
-    "expenseCount": "%{count} 笔报销",
+    "expenseCount": {
+      "zero": "暂无报销",
+      "one": "%{count} 笔报销",
+      "other": "%{count} 笔报销"
+    },
     "approvedBy": "✓ 由 %{name} 批准",
     "rejectedBy": "✗ 由 %{name} 驳回",
     "receiptUnavailable": "收据不可用——提交时收据尚未上传到服务器",
-    "pendingReview": "%{count} 项待审核",
-    "nonePending": "没有待处理项"
+    "pendingReview": {
+      "one": "%{count} 项待审核",
+      "other": "%{count} 项待审核"
+    },
+    "nonePending": "没有待处理项",
+    "errAmount": "请输入大于零的金额。",
+    "errDescription": "请填写说明。",
+    "waitingForOther": "等待其他审批人审批",
+    "waitingForApprover": "等待所有者或主管审核"
   },
   "businessTeam": {
     "title": "团队",
@@ -546,6 +602,7 @@
     "errCode": "请输入有效的邀请码。",
     "memberCount": {
       "zero": "暂无成员",
+      "one": "%{count} 位成员",
       "other": "%{count} 位成员"
     }
   },
@@ -586,8 +643,10 @@
     "currentMonth": "本月",
     "tapAdd": "点击“添加”为你的团队设置工资",
     "notConfigured": "工资单尚未配置",
-    "dueCount": "待发放（%{count}）",
-    "paidCount": "已发放（%{count}）"
+    "paidCount": {
+      "one": "已发放（%{count}）",
+      "other": "已发放（%{count}）"
+    }
   },
   "auth": {
     "welcomeBack": "欢迎回来",
@@ -637,12 +696,29 @@
     "breakdownHint": "你的完整评分明细",
     "getAdvice": "获取个性化建议",
     "stableThisWeek": "本周稳定",
-    "estimateNote": "这只是一个估算——你目前有 %{count} 笔交易。再记录几周的收支，分数才能真正反映你的习惯。",
+    "estimateNote": {
+      "zero": "这只是一个估算——你还没有任何交易。再记录几周的收支，分数才能真正反映你的习惯。",
+      "one": "这只是一个估算——你目前有 %{count} 笔交易。再记录几周的收支，分数才能真正反映你的习惯。",
+      "other": "这只是一个估算——你目前有 %{count} 笔交易。再记录几周的收支，分数才能真正反映你的习惯。"
+    },
     "howToImprove": "如何提高你的分数",
     "chatWithAi": "和 AI 聊聊你的财务健康分",
     "trendUp": "↑ 比上周好 %{value}%",
     "trendDown": "↓ 比上周低 %{value}%",
-    "gradeLabel": "评级 %{grade}"
+    "gradeLabel": "评级 %{grade}",
+    "tips": {
+      "saveTenPercent": "每月至少存下收入的 10%",
+      "raiseSavings": "减少非必要开支，提高储蓄率",
+      "setBudget": "设置月度预算，更好地掌握支出",
+      "stayInBudget": "检查支出，把花销控制在月度预算内",
+      "wait24h": "购买非必需品前先等 24 小时",
+      "wantVsNeed": "购物前先列一份“想要还是需要”清单",
+      "spreadSpending": "尽量把支出均匀分布在整个月",
+      "automateSavings": "设置自动转入储蓄，按时达成目标",
+      "spendingJournal": "记一本消费日记，留意冲动消费的念头",
+      "rule503020": "试试 50/30/20 法则：50% 必需、30% 想要、20% 储蓄",
+      "weeklyAllowance": "设定每周消费额度，让支出更有规律"
+    }
   },
   "receiptScan": {
     "title": "扫描小票",
@@ -679,7 +755,9 @@
     "dateLabel": "日期",
     "analysing1": "识别商家",
     "analysing2": "读取总额",
-    "analysing3": "选择分类"
+    "analysing3": "选择分类",
+    "readFailed": "无法读取这张图片，请重试。",
+    "errAmount": "请输入大于零的金额。"
   },
   "recurring": {
     "name": "名称",
@@ -705,6 +783,7 @@
     "errAmount": "请输入大于零的金额。",
     "caption": {
       "zero": "暂无进行中的项目",
+      "one": "%{count} 项进行中",
       "other": "%{count} 项进行中"
     },
     "noteRuns": "定期：%{frequency}",
@@ -728,9 +807,16 @@
     "notEnabled": "该应用尚未启用邮件转发。启用后，你的专属收件地址会显示在这里。",
     "forwardHint": "把收据邮件转发到上面的地址——它就会出现在这里。",
     "adding": "添加中…",
-    "addCount": "将 %{count} 项加入订阅",
+    "addCount": {
+      "zero": "没有可添加的订阅",
+      "one": "添加 %{count} 个订阅",
+      "other": "添加 %{count} 个订阅"
+    },
     "otherApps": "其他邮箱应用（Outlook、iCloud）也有类似的“转发”或“规则”设置。设置完成后就全自动了——新收据会被自动识别。",
-    "foundCount": "在你的邮箱中找到 %{count} 个订阅",
+    "foundCount": {
+      "one": "在你的邮箱中找到 %{count} 个订阅",
+      "other": "在你的邮箱中找到 %{count} 个订阅"
+    },
     "checking": "检查中…",
     "connected": "已连接——转发的收据会显示在这里",
     "autoDetect": "从你的收据中自动识别订阅",
@@ -742,6 +828,7 @@
     "recent": "最近",
     "newCount": {
       "zero": "没有新内容",
+      "one": "%{count} 条新内容",
       "other": "%{count} 条新内容"
     }
   },
@@ -777,7 +864,12 @@
     "authenticating": "正在验证…",
     "unlockBiometrics": "使用生物识别解锁",
     "serverUnreachable": "无法连接服务器",
-    "errorTitle": "启动错误"
+    "errorTitle": "启动错误",
+    "stageStarting": "正在启动…",
+    "stageBiometrics": "正在检查生物识别…",
+    "stageReady": "就绪",
+    "stageSession": "正在检查登录状态…",
+    "stageData": "正在打开你的数据…"
   },
   "businessSettings": {
     "title": "设置",
@@ -790,7 +882,10 @@
     "showingImpulse": "仅显示冲动消费",
     "showImpulse": "只看冲动消费",
     "impulsePill": "冲动",
-    "recordsFound": "找到 %{count} 条记录",
+    "recordsFound": {
+      "one": "找到 %{count} 条记录",
+      "other": "找到 %{count} 条记录"
+    },
     "noRecords": "还没有记录——开始记账吧！"
   },
   "billReminders": {
@@ -810,10 +905,16 @@
     "emptyBody": "点击 + 按钮添加第一个账单提醒，再也不会错过到期日。",
     "paidThisCycle": "本周期已支付",
     "dueOn": "每月 %{day} 到期",
-    "daysOverdue": "逾期 %{count} 天",
+    "daysOverdue": {
+      "one": "逾期 %{count} 天",
+      "other": "逾期 %{count} 天"
+    },
     "dueToday": "今天到期",
     "dueTomorrow": "明天到期",
-    "daysLeft": "还剩 %{count} 天",
+    "daysLeft": {
+      "one": "还剩 %{count} 天",
+      "other": "还剩 %{count} 天"
+    },
     "upcoming": "即将到期",
     "amountLabel": "金额",
     "categoryLabel": "分类",
@@ -822,10 +923,12 @@
     "errDueDay": "到期日需在 1 到 31 之间。",
     "caption": {
       "zero": "没有待付账单",
+      "one": "%{count} 笔待付账单",
       "other": "%{count} 笔待付账单"
     },
     "overdueNote": {
       "zero": "没有逾期",
+      "one": "%{count} 笔逾期",
       "other": "%{count} 笔逾期"
     }
   },
@@ -839,6 +942,7 @@
     "monthlyTotal": "每月总额",
     "activeCaption": {
       "zero": "暂无生效的订阅",
+      "one": "%{count} 个生效中的订阅",
       "other": "%{count} 个生效中的订阅"
     }
   },
@@ -969,6 +1073,7 @@
     "teamSubEmpty": "邀请成员加入公司",
     "teamSub": {
       "zero": "暂无成员",
+      "one": "%{count} 位成员",
       "other": "%{count} 位成员"
     }
   },
@@ -1027,7 +1132,10 @@
     "overdue": "已逾期",
     "today": "今天",
     "tomorrow": "明天",
-    "inDays": "%{count} 天后"
+    "inDays": {
+      "one": "%{count} 天后",
+      "other": "%{count} 天后"
+    }
   },
   "healthBreakdown": {
     "savingsRate": "储蓄率",
@@ -1075,17 +1183,11 @@
     "remaining": "剩余",
     "approved": "已批准",
     "rejected": "已驳回",
-    "approvedCount": "%{count} 笔已批准",
-    "rejectedCount": "%{count} 笔已驳回",
     "needsReview": "需要审核",
     "awaitingReview": "等待审核",
     "yourBusiness": "你的企业",
-    "reviewCount": "审核（%{count}）",
-    "toolsDetected": "检测到 %{count} 个工具",
     "noToolsDetected": "尚未检测到订阅",
-    "expensesWaiting": "%{count} 笔报销等待你审核",
     "greeting": "你好，%{name}",
-    "expenseCount": "%{count} 笔报销",
     "totalApprovedExpenses": "已批准报销总额",
     "noExpensesYet": "还没有报销——提交第一笔吧"
   },
@@ -1105,6 +1207,7 @@
     "subtitle": "按你的喜好设置，我们不评判。",
     "importDesc": "上传银行 CSV 文件",
     "accountsLinked": {
+      "one": "已关联 {{count}} 个账户",
       "other": "已关联 {{count}} 个账户"
     }
   },
@@ -1120,16 +1223,17 @@
   "dashboard2": {
     "trackCta": "记一笔",
     "streakDays": {
+      "one": "{{count}} 天",
       "other": "{{count}} 天"
     },
     "badgeCount": {
+      "one": "{{count}} 个徽章",
       "other": "{{count}} 个徽章"
     },
     "survival": "可撑天数",
     "survivalNeedWeek": "可撑天数（需一周数据）",
     "ofPurchases": "的消费",
-    "stable": "稳定",
-    "daysCount": "%{count} 天"
+    "stable": "稳定"
   },
   "advisor2": {
     "welcomeBody": "关于你的财务，尽管问我。我可以帮你了解消费习惯、找出可以省钱的地方，并根据你的真实数据给出建议。",
@@ -1179,7 +1283,8 @@
     "restoreNoneBody": "未找到该账号的有效订阅。如果你是用其他 Apple ID 或 Google 账号订阅的，请改用那个账号登录后重试。",
     "done": "完成",
     "removePayrollBody": "将 %{name} 从工资单中移除？这会删除所有发放记录。",
-    "exportFailedBody": "无法将交易导出为 %{format}"
+    "exportFailedBody": "无法将交易导出为 %{format}",
+    "libraryNeeded": "选择照片需要访问相册。"
   },
   "netWorthCats": {
     "cashSavings": "现金与储蓄",
@@ -1201,7 +1306,6 @@
     "notePlaceholder": "例如：咖啡、房租、旅行…",
     "newAccount": "新建",
     "dateLabel": "日期",
-    "minutesOfWork": "%{count} 分钟的工作",
     "logging": "记录中…",
     "logIt": "记一笔！",
     "timeCostLine": "相当于 %{time} 的工作"
@@ -1246,9 +1350,11 @@
     "failed": "无法识别这段录音。",
     "selectedCount": {
       "zero": "未选择",
+      "one": "已选 {{count}} 笔",
       "other": "已选 {{count}} 笔"
     },
     "saveCount": {
+      "one": "保存 {{count}} 笔交易",
       "other": "保存 {{count}} 笔交易"
     }
   },
@@ -1300,10 +1406,12 @@
     "field_accountBalances": "你的账户余额",
     "memberCount": {
       "zero": "暂无成员",
+      "one": "%{count} 位成员",
       "other": "%{count} 位成员"
     },
     "sharedAccountCount": {
       "zero": "无共享账户",
+      "one": "%{count} 个共享账户",
       "other": "%{count} 个共享账户"
     },
     "deleteTitle": "删除这个家庭组",
@@ -1350,13 +1458,15 @@
     "placeholder": "询问公司的财务",
     "q1": "本月我们在预算之内吗？",
     "q2": "是什么在推高我们的支出？",
-    "q3": "还有多少薪资未支付？"
+    "q3": "还有多少薪资未支付？",
+    "disclaimer": "仅为经营建议——非法律、税务或财务建议。"
   },
   "home": {
     "greetingName": "%{greeting}，%{name}",
     "balanceLabel": "总余额",
     "balanceCaption": {
       "zero": "尚未添加账户",
+      "one": "共 %{count} 个账户",
       "other": "共 %{count} 个账户"
     },
     "budgetLeft": "本月预算 %{budget}，还剩 %{left}。",
@@ -1412,6 +1522,7 @@
     "streakTitle": "连续记账",
     "streakDays": {
       "zero": "还没有记账记录",
+      "one": "已连续 %{count} 天",
       "other": "已连续 %{count} 天"
     },
     "noBadges": "获得徽章后会显示在这里。",
@@ -1421,14 +1532,17 @@
     "approvedLabel": "本月已批准",
     "approvedCaption": {
       "zero": "尚未批准任何支出",
+      "one": "已批准 %{count} 笔支出",
       "other": "已批准 %{count} 笔支出"
     },
     "pending": {
       "zero": "没有等待你审批的支出。",
+      "one": "有 %{count} 笔支出等待你审批。",
       "other": "有 %{count} 笔支出等待你审批。"
     },
     "pendingOwn": {
       "zero": "你没有待审批的支出。",
+      "one": "你有 %{count} 笔支出正在等待审批。",
       "other": "你有 %{count} 笔支出正在等待审批。"
     },
     "review": "去审批",
@@ -1443,8 +1557,6 @@
     "budgetLeft": "本月预算 %{budget}，还剩 %{left}。",
     "budgetOver": "本月已超出 %{budget} 的预算 %{amount}。",
     "budgetNone": "还没有设置每月预算——可在洞察中设置。",
-    "quickAdd": "添加",
-    "quickReview": "审核",
     "quickTools": "工具",
     "quickTeam": "团队"
   },
@@ -1489,6 +1601,7 @@
   "signOutFlow": {
     "unsyncedTitle": "有更改尚未备份",
     "unsyncedBody": {
+      "one": "此手机上有 %{count} 项更改尚未同步到你的账户。退出登录会将其从此手机删除。",
       "other": "此手机上有 %{count} 项更改尚未同步到你的账户。退出登录会将其从此手机删除。"
     },
     "flushFailedBody": "暂时无法备份你的更改。退出登录会从此手机删除所有尚未同步到你账户的内容。",

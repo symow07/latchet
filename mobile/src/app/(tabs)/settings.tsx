@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router';
 import { getSettings, updateSettings, getAccounts, resetAllData } from '@/lib/db';
 import { exportTransactionsCSV, exportTransactionsJSON } from '@/lib/export-data';
 import {
-  Award, Bell, Cloud, CreditCard, Download, Eye, Fingerprint, Flame,
+  Award, Bell, Building2, ChevronRight, Cloud, CreditCard, Download, Eye, Fingerprint, Flame,
   HeartPulse, Home, LogOut, Mail, Moon, PieChart, Repeat, RotateCcw, ShieldCheck, Smartphone,
   Sparkles, Sun, Trash2, TrendingUp, Upload,
 } from '@/components/icons';
@@ -15,11 +15,12 @@ import { signOutAndClear } from '@/lib/user-session';
 import { useSignOutDeps } from '@/lib/use-sign-out';
 import { flushBeforeSignOut, resumeCloudSync } from '@/lib/cloud-sync';
 import { isBiometricAvailable } from '@/lib/biometric';
+import { formatCurrency } from '@/lib/calculations';
 import { BAR, S, useC } from '@/lib/design';
 import { DeleteAccountModal, UnrevokedGrantsNotice } from '@/components/DeleteAccountModal';
 import {
-  ChoiceRow, Field, FormError, Group, Header, IconTile, LinkRow, PrimaryButton, Screen,
-  SwitchRow, Touchable, Type,
+  BadgePill, ChoiceRow, Field, FormError, Group, Header, IconTile, LinkRow, PrimaryButton, Screen,
+  SwitchRow, Touchable, Type, mirror,
 } from '@/components/kit';
 import { useEmailVerification } from '@/lib/auth/use-email-verification';
 import { useEntitlement } from '@/lib/useEntitlement';
@@ -332,6 +333,25 @@ export default function SettingsScreen() {
             body={t('settingsHeader.accountsLinked', { count: accounts.length })}
             onPress={() => router.push('/accounts')}
           />
+          {/* Bank linking lost its only way in when Home was redesigned. It
+              is laid out as a LinkRow, with room for the Pro mark: a free
+              user can still open it, and the screen explains the upgrade. */}
+          <Touchable
+            pal={C}
+            onPress={() => router.push('/link-bank')}
+            accessibilityLabel={isPro
+              ? t('dashboard.linkBank')
+              : `${t('dashboard.linkBank')}, ${t('subscription.proBadge')}`}
+            style={{ flexDirection: 'row', alignItems: 'center', minHeight: 56, gap: 14 }}
+          >
+            {tile(Building2)}
+            <View style={{ flex: 1 }}>
+              <Type role="body" color={C.ink}>{t('dashboard.linkBank')}</Type>
+              <Type role="meta" color={C.inkDim}>{t('dashboard.linkBankHint')}</Type>
+            </View>
+            {isPro ? null : <BadgePill pal={C} label={t('subscription.proBadge')} />}
+            <ChevronRight size={18} color={C.inkFaint} strokeWidth={S.stroke} style={mirror} />
+          </Touchable>
           <LinkRow
             pal={C}
             icon={tile(Home)}
@@ -399,6 +419,8 @@ export default function SettingsScreen() {
         {showTimeCost && parseFloat(hourlyValue) > 0 ? (
           <Type role="meta" color={C.inkDim} style={{ paddingHorizontal: S.screen + 4, marginTop: 12 }}>
             {t('settings.timeCostExample', {
+              // In the user's currency: the copy used to say "$50" to everyone.
+              amount: formatCurrency(50),
               minutes: t('settings.minutesCount', {
                 count: Math.round((50 / parseFloat(hourlyValue)) * 60),
               }),

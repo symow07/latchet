@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { format, parseISO } from 'date-fns';
 import { ScrollView, View } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -26,7 +27,12 @@ import {
   SubHeader,
   Type,
 } from '@/components/kit';
-import { t } from '@/lib/i18n/core';
+import { t, getDateFnsLocale } from '@/lib/i18n/core';
+
+/** A stored YYYY-MM-DD as "12 Oct" in the reader's language, read as a calendar date. */
+function shortDate(iso: string): string {
+  return format(parseISO(`${iso.slice(0, 10)}T00:00:00`), 'd MMM', { locale: getDateFnsLocale() });
+}
 
 type TabType = 'overview' | 'subscriptions' | 'insights' | 'alerts';
 
@@ -276,7 +282,7 @@ export default function AnalyticsScreen() {
                       title={sub.description}
                       meta={[
                         t(`frequency.${sub.frequency}`),
-                        `${t('analytics.nextDue')} ${sub.nextExpected}`,
+                        `${t('analytics.nextDue')} ${shortDate(sub.nextExpected)}`,
                         `${t('analytics.totalSpent')} ${formatCurrency(sub.totalSpent)}`,
                       ].join(' · ')}
                       amount={sub.amount}
@@ -350,7 +356,7 @@ export default function AnalyticsScreen() {
                           meta={`${t('analytics.chargesOf', {
                             count: dup.transactions.length,
                             amount: formatCurrency(dup.amount),
-                            date: dup.date,
+                            date: shortDate(dup.date),
                           })} · ${t('analytics.refundLine', {
                             amount: formatCurrency(dup.potentialRefund),
                           })}`}

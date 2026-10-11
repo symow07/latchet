@@ -19,6 +19,7 @@ import {
 } from '@/lib/expenseApi';
 import { getBusiness } from '@/lib/businessApi';
 import { roleOf } from '@/lib/group-members';
+import { canReviewExpense, reviewNote } from '@/lib/expense-review';
 import { useSession } from '@/lib/auth/use-session';
 import { formatCurrency } from '@/lib/calculations';
 import { BAR, R, S, useC, type Palette } from '@/lib/design';
@@ -100,8 +101,8 @@ function SubmitSheet({
           })
         : null;
       const value = parseFloat(amount);
-      if (isNaN(value) || value <= 0) throw new Error(t('businessExpenses.amount'));
-      if (!description.trim()) throw new Error(t('businessExpenses.description'));
+      if (isNaN(value) || value <= 0) throw new Error(t('businessExpenses.errAmount'));
+      if (!description.trim()) throw new Error(t('businessExpenses.errDescription'));
       return submitExpense({
         amount: value, category, description: description.trim(), image: base64,
       });
@@ -229,16 +230,19 @@ function SubmitSheet({
 // ── One expense ──────────────────────────────────────────────────────────────
 
 function ExpenseCard({
-  pal, expense, canReview, onApprove, onReject,
+  pal, expense, viewerId, role, onApprove, onReject,
 }: {
   pal: Palette;
   expense: Expense;
-  canReview: boolean;
+  /** The signed-in user and their role in the business, which decide whether review is offered. */
+  viewerId: string | undefined;
+  role: string | undefined;
   onApprove: (id: string) => void;
   onReject: (id: string) => void;
 }) {
   const [showImage, setShowImage] = useState(false);
   const date = format(new Date(expense.submittedAt), 'd MMM', { locale: getDateFnsLocale() });
+  const note = reviewNote(expense, viewerId, role);
   const Glyph = categoryIcon(expense.category);
 
   return (
@@ -311,8 +315,10 @@ function ExpenseCard({
           tint on its own wash, as a selected chip is drawn. Reject is
           available without being equally inviting: red words on a quiet sunk
           pill. Neither is espresso, which belongs to the summary above — a
-          screen of pending expenses would otherwise be a stack of anchors. */}
-      {canReview && expense.status === 'pending' ? (
+          screen of pending expenses would otherwise be a stack of anchors.
+          Offered only where the server would accept it: never on your own
+          expense, which used to end in "Something went wrong". */}
+      {canReviewExpense(expense, viewerId, role) ? (
         <View style={{ flexDirection: 'row', gap: 12, marginTop: 16 }}>
           <Touchable
             pal={pal}
@@ -343,6 +349,14 @@ function ExpenseCard({
             <Type role="meta" color={pal.negative}>{t('businessExpenses.reject')}</Type>
           </Touchable>
         </View>
+      ) : note ? (
+        // Pending, but not yours to review: say who it is waiting for rather
+        // than leaving a pending expense with no way forward on screen.
+        <Type role="meta" color={pal.inkDim} style={{ marginTop: 12 }}>
+          {t(note === 'waitingForOther'
+            ? 'businessExpenses.waitingForOther'
+            : 'businessExpenses.waitingForApprover')}
+        </Type>
       ) : null}
     </Card>
   );
@@ -375,8 +389,8 @@ export default function ExpensesScreen() {
   });
   const { data: business } = useQuery({ queryKey: ['my-business'], queryFn: getBusiness });
 
-  const myRole = roleOf(business, session?.user?.id);
-  const canReview = myRole === 'owner' || myRole === 'manager';
+  const viewerId = session?.user?.id;
+  const myRole = roleOf(business, viewerId);
   const invalidate = () => qc.invalidateQueries({ queryKey: ['biz-expenses'] });
 
   const approveMut = useMutation({
@@ -501,7 +515,8 @@ export default function ExpensesScreen() {
                 key={expense.id}
                 pal={B}
                 expense={expense}
-                canReview={canReview}
+                viewerId={viewerId}
+                role={myRole}
                 onApprove={(id) => approveMut.mutate(id)}
                 onReject={(id) => rejectMut.mutate(id)}
               />

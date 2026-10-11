@@ -348,12 +348,7 @@ export default function SubscriptionDetailScreen() {
                 label={t('subscriptionDetail.confidence')}
               />
               <Type role="meta" color={C.inkDim} style={{ marginTop: 12 }}>
-                {t(
-                  occurrences.length === 1
-                    ? 'subscriptionDetail.basedOnOne'
-                    : 'subscriptionDetail.basedOn',
-                  { count: occurrences.length }
-                )}
+                {t('subscriptionDetail.basedOn', { count: occurrences.length })}
               </Type>
             </Card>
           </View>

@@ -1,9 +1,9 @@
 import { format, subMonths, startOfMonth, endOfMonth, subDays, addMonths } from 'date-fns';
 import { calculateHealthScore, getPersonalityDescription, type HealthScoreResult } from './health-score';
 import { api } from './api/api';
-import { hasEnoughHistory, projectMonthlyExpenses } from './calculations';
+import { formatCurrency, hasEnoughHistory, projectMonthlyExpenses } from './calculations';
 import { categoryLabel, DEFAULT_CATEGORIES } from './category-meta';
-import type { AppLocale } from './i18n/core';
+import { t, type AppLocale } from './i18n/core';
 import { fitConversationHistory, fitConversationTurns, historyBudget, omissionNote, localeInstruction } from './prompt-budget';
 import type { Transaction } from './transaction';
 
@@ -582,41 +582,55 @@ export async function sendAdvisorMessage(
   return response;
 }
 
-// Quick insights that don't require API call
+/**
+ * Up to four one-line insights for the advisor's welcome card, worked out on
+ * the phone with no request.
+ *
+ * Shown as they are, so built from the locale files: they used to be English
+ * sentences with a hard-coded currency symbol and the stored (English)
+ * category names. Money is in the user's currency and format, categories in
+ * the reader's language.
+ */
 export function getQuickInsights(analysis: SpendingAnalysis, settings: Settings): string[] {
   const insights: string[] = [];
-  const currencySymbol = settings.currencySymbol || '$';
   const monthlyBudgetSafe = Number(settings.monthlyBudget) || 0;
+  const pct = (n: number) => Math.round(n);
+  const categories = (names: string[]) => names.map((c) => categoryLabel(c)).join(', ');
 
   if (analysis.budgetUsagePercentage >= 100) {
-insights.push(` You've exceeded your monthly budget by ${currencySymbol}${(analysis.budgetUsagePercentage / 100 * monthlyBudgetSafe - monthlyBudgetSafe).toFixed(2)}`);
+    const over = (analysis.budgetUsagePercentage / 100) * monthlyBudgetSafe - monthlyBudgetSafe;
+    insights.push(t('advisor.insight.overBudget', { amount: formatCurrency(over) }));
   } else if (analysis.budgetUsagePercentage >= 80) {
-insights.push(` ${(100 - analysis.budgetUsagePercentage).toFixed(0)}% budget remaining - spend carefully!`);
+    insights.push(t('advisor.insight.budgetLeft', { pct: pct(100 - analysis.budgetUsagePercentage) }));
   }
 
   if (analysis.impulsePercentage > 30) {
-insights.push(` ${analysis.impulsePercentage.toFixed(0)}% impulse purchases - consider a 24hr wait rule`);
+    insights.push(t('advisor.insight.impulse', { pct: pct(analysis.impulsePercentage) }));
   }
 
   if (analysis.overspendingCategories.length > 0) {
-insights.push(` Spending up in: ${analysis.overspendingCategories.join(', ')}`);
+    insights.push(
+      t('advisor.insight.spendingUpIn', { categories: categories(analysis.overspendingCategories) })
+    );
   }
 
   if (analysis.underspendingCategories.length > 0) {
-insights.push(` Great savings in: ${analysis.underspendingCategories.join(', ')}`);
+    insights.push(
+      t('advisor.insight.savedIn', { categories: categories(analysis.underspendingCategories) })
+    );
   }
 
   if (analysis.savingsRate > 20) {
-insights.push(` Excellent ${analysis.savingsRate.toFixed(0)}% savings rate!`);
+    insights.push(t('advisor.insight.savingsRate', { pct: pct(analysis.savingsRate) }));
   } else if (analysis.savingsRate < 0) {
-insights.push(` Spending more than earning this month`);
+    insights.push(t('advisor.insight.spendingOverIncome'));
   }
 
   if (analysis.weekOverWeekChange > 20) {
-insights.push(` Spending up ${analysis.weekOverWeekChange.toFixed(0)}% vs last week`);
+    insights.push(t('advisor.insight.weekUp', { pct: pct(analysis.weekOverWeekChange) }));
   } else if (analysis.weekOverWeekChange < -20) {
-insights.push(` Spending down ${Math.abs(analysis.weekOverWeekChange).toFixed(0)}% vs last week!`);
+    insights.push(t('advisor.insight.weekDown', { pct: pct(Math.abs(analysis.weekOverWeekChange)) }));
   }
 
-  return insights.slice(0, 4); // Max 4 quick insights
+  return insights.slice(0, 4);
 }

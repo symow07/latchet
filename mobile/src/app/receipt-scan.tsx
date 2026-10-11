@@ -10,6 +10,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
 import * as Haptics from 'expo-haptics';
 import { addTransaction, getSettings } from '@/lib/db';
+import { todayISO } from '@/lib/dates';
 import { api } from '@/lib/api/api';
 import { t } from '@/lib/i18n/core';
 import { categoryLabel } from '@/lib/category-meta';
@@ -78,7 +79,9 @@ export default function ReceiptScanScreen() {
   const [category, setCategory] = useState<Category>('Other');
   const [note, setNote] = useState<string>('');
   const [type, setType] = useState<TransactionType>('Expense');
-  const [dateISO, setDateISO] = useState<string>(new Date().toISOString().split('T')[0]);
+  // The local calendar date. toISOString() is the UTC one, a day out in the
+  // early morning east of Greenwich and in the evening west of it.
+  const [dateISO, setDateISO] = useState<string>(() => todayISO());
   const [isImpulse, setIsImpulse] = useState<boolean>(false);
 
   /**
@@ -118,7 +121,7 @@ export default function ReceiptScanScreen() {
     if (source === 'camera') {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== 'granted') {
-        setErrorMsg('Camera permission is required to take photos.');
+        setErrorMsg(t('dialogs.cameraNeeded'));
         return;
       }
       result = await ImagePicker.launchCameraAsync({
@@ -131,7 +134,7 @@ export default function ReceiptScanScreen() {
     } else {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        setErrorMsg('Photo library permission is required to choose photos.');
+        setErrorMsg(t('dialogs.libraryNeeded'));
         return;
       }
       result = await ImagePicker.launchImageLibraryAsync({
@@ -147,7 +150,7 @@ export default function ReceiptScanScreen() {
 
     const asset = result.assets[0];
     if (!asset.base64) {
-      setErrorMsg('Could not read image data. Please try again.');
+      setErrorMsg(t('receiptScan.readFailed'));
       return;
     }
 
@@ -187,7 +190,7 @@ export default function ReceiptScanScreen() {
     setCategory('Other');
     setNote('');
     setType('Expense');
-    setDateISO(new Date().toISOString().split('T')[0]);
+    setDateISO(todayISO());
     setIsImpulse(false);
     setErrorMsg(null);
     setStep('pick');
@@ -196,7 +199,7 @@ export default function ReceiptScanScreen() {
   const saveMutation = useMutation({
     mutationFn: async () => {
       const parsed = parseFloat(amount);
-      if (isNaN(parsed) || parsed <= 0) throw new Error('Enter a valid amount greater than 0.');
+      if (isNaN(parsed) || parsed <= 0) throw new Error(t('receiptScan.errAmount'));
       await addTransaction({
         amount: parsed,
         category,

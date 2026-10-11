@@ -157,6 +157,15 @@ function navigationTheme(C: Palette, dark: boolean): Theme {
   };
 }
 
+/** What the boot sequence is doing, shown under the spinner. */
+type BootStage = 'starting' | 'biometrics' | 'ready';
+
+function bootStageLabel(stage: BootStage): string {
+  if (stage === 'biometrics') return t('startup.stageBiometrics');
+  if (stage === 'ready') return t('startup.stageReady');
+  return t('startup.stageStarting');
+}
+
 /** The first thing painted after the splash: the page, a tint spinner, ink. */
 function StartupScreen({ stage }: { stage: string }) {
   const C = useC();
@@ -179,6 +188,15 @@ function LockScreen({ onUnlock }: { onUnlock: () => void }) {
   const [authenticating, setAuthenticating] = useState(false);
   const authenticatingRef = useRef(false);
 
+  // The latest onUnlock, read when a prompt succeeds. Held in a ref so that
+  // tryAuthenticate never changes identity: a parent passing a new arrow on
+  // each render would otherwise re-run the effect below and raise Face ID
+  // again on every render while the lock is up.
+  const onUnlockRef = useRef(onUnlock);
+  useEffect(() => {
+    onUnlockRef.current = onUnlock;
+  }, [onUnlock]);
+
   const tryAuthenticate = useCallback(async () => {
     if (authenticatingRef.current) return;
     authenticatingRef.current = true;
@@ -186,12 +204,14 @@ function LockScreen({ onUnlock }: { onUnlock: () => void }) {
     const success = await authenticateWithBiometrics();
     authenticatingRef.current = false;
     setAuthenticating(false);
-    if (success) onUnlock();
-  }, [onUnlock]);
+    if (success) onUnlockRef.current();
+  }, []);
 
+  // Prompt once, when the lock appears. tryAuthenticate is stable, so this
+  // runs on mount only — with its dependencies complete rather than waived.
   useEffect(() => {
     tryAuthenticate();
-  }, []);
+  }, [tryAuthenticate]);
 
   // The same off-white ground as everything behind it. This used to be a
   // brown gradient with an amber lock and amber outlined button — a colour
@@ -331,8 +351,9 @@ function RootLayoutNav({ colorScheme }: { colorScheme: 'light' | 'dark' | null |
       } catch (e) {
         // Superseded: a sign-out or another user overtook this activation.
         if (cancelled || e instanceof UserDatabaseSupersededError) return;
+        // The detail is for the log; the screen says it in the user's language.
         console.error('[mobile:gate:db] activation failed', e);
-        setDbError(e instanceof Error ? e.message : t('errors.dbInit'));
+        setDbError(t('errors.dbInit'));
       }
     })();
     return () => {
@@ -500,7 +521,7 @@ function RootLayoutNav({ colorScheme }: { colorScheme: 'light' | 'dark' | null |
     );
   }
 
-  if (sessionLoading && !sessionTimedOut) return <StartupScreen stage="Checking session…" />;
+  if (sessionLoading && !sessionTimedOut) return <StartupScreen stage={t('startup.stageSession')} />;
 
   // Signed in, but this user's database is not open yet, or failed to open.
   const activationGate = dbError ? (
@@ -519,7 +540,7 @@ function RootLayoutNav({ colorScheme }: { colorScheme: 'light' | 'dark' | null |
       />
     </View>
   ) : (
-    <StartupScreen stage="Opening your data…" />
+    <StartupScreen stage={t('startup.stageData')} />
   );
 
   if (!showNavigator) return activationGate;
@@ -717,7 +738,9 @@ export default function RootLayout() {
   // RootLayoutNav once the session says who is signed in.
   const [booted, setBooted] = useState(false);
   const [locked, setLocked] = useState(false);
-  const [stage, setStage] = useState<string>('Booting…');
+  // A step, not its words: the words are read at render, so once the
+  // device's language is applied the next step shows in it.
+  const [stage, setStage] = useState<BootStage>('starting');
 
   // useCallback so the listener is not torn down and rebuilt on every render.
   useBiometricRelock(useCallback(() => setLocked(true), []));
@@ -741,7 +764,7 @@ export default function RootLayout() {
   }, [loadTheme]);
 
   const initApp = useCallback(async () => {
-    setStage('Starting…');
+    setStage('starting');
     try {
       // Language before any screen renders, so nothing flashes in English
       // first: the phone's own until a user is known (the login screen), then
@@ -759,7 +782,7 @@ export default function RootLayout() {
     }
 
     // Biometric check — must never hang the app. Bound to 2s.
-    setStage('Checking biometrics…');
+    setStage('biometrics');
     console.log('[startup] biometric check start');
     try {
       const val = await withTimeout(AsyncStorage.getItem('@biometric_lock'), 2000, 'AsyncStorage.getItem(@biometric_lock)');
@@ -772,7 +795,7 @@ export default function RootLayout() {
       console.warn('[startup] biometric check error (continuing)', e);
     }
 
-    setStage('Ready');
+    setStage('ready');
     setBooted(true);
     console.log('[startup] booted');
   }, []);
@@ -791,7 +814,7 @@ export default function RootLayout() {
   if (!booted) {
     return (
       <SafeAreaProvider>
-        <StartupScreen stage={stage} />
+        <StartupScreen stage={bootStageLabel(stage)} />
       </SafeAreaProvider>
     );
   }

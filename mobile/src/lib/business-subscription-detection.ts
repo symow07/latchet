@@ -50,39 +50,95 @@ export function cancelGuidanceFor(merchant: string): { instructions: string; url
   };
 }
 
+type Detection = ReturnType<typeof detectFromEngine>[number];
+
+function toDetected(s: Detection): DetectedSubscription {
+  const cancel = cancelGuidanceFor(s.merchantNormalized);
+  return {
+    key: s.id,
+    name: s.merchantDisplay,
+    amount: s.typicalAmount,
+    category: s.category,
+    lastChargeDate: s.lastChargedAt,
+    nextChargeDate: s.nextExpectedAt,
+    isRecurring: s.cadence !== 'unknown',
+    monthlyCount: s.occurrences.length,
+    cancelInstructions: cancel.instructions,
+    cancelUrl: cancel.url,
+  };
+}
+
+/** Next charge from today to 30 days ahead, soonest first. Compared as calendar dates. */
+function dueWithin30Days(subs: DetectedSubscription[], now: Date): DetectedSubscription[] {
+  const today = todayISO(now);
+  const horizon = daysAheadISO(30, now);
+  return subs
+    .filter((s) => isBetween(s.nextChargeDate.slice(0, 10), today, horizon))
+    .sort((a, b) => a.nextChargeDate.localeCompare(b.nextChargeDate));
+}
+
 export function detectSubscriptions(
   expenses: Expense[],
   now: Date = new Date()
 ): SubscriptionSummary {
   const detections = detectFromEngine(chargesFromExpenses(expenses));
-
-  const subscriptions: DetectedSubscription[] = detections.map((s) => {
-    const cancel = cancelGuidanceFor(s.merchantNormalized);
-    return {
-      key: s.id,
-      name: s.merchantDisplay,
-      amount: s.typicalAmount,
-      category: s.category,
-      lastChargeDate: s.lastChargedAt,
-      nextChargeDate: s.nextExpectedAt,
-      isRecurring: s.cadence !== 'unknown',
-      monthlyCount: s.occurrences.length,
-      cancelInstructions: cancel.instructions,
-      cancelUrl: cancel.url,
-    };
-  });
-
+  const subscriptions = detections.map(toDetected);
   const monthlyTotal = monthlyCost(detections);
-  const horizon = daysAheadISO(30, now);
-  const upcoming = subscriptions
-    .filter((s) => isBetween(s.nextChargeDate, todayISO(now), horizon))
-    .sort((a, b) => a.nextChargeDate.localeCompare(b.nextChargeDate));
 
   return {
     monthlyTotal,
     annualTotal: monthlyTotal * 12,
     subscriptions,
-    upcoming,
+    upcoming: dueWithin30Days(subscriptions, now),
+  };
+}
+
+/** Business Tools: everything it lists, and what each costs a month. */
+export interface ToolsOverview {
+  /** Expense-detected tools and those found only in email, largest charge first (as the list shows them). */
+  tools: DetectedSubscription[];
+  /**
+   * Each tool's cost per month, by key. A tool's `amount` is one charge, so a
+   * yearly charge is a twelfth of it here and a weekly one 365/12/7 times it;
+   * a tool with no regular cadence costs nothing a month.
+   */
+  monthlyByKey: Record<string, number>;
+  monthlyTotal: number;
+  /** Next charge from today to 30 days ahead, soonest first. */
+  upcoming: DetectedSubscription[];
+}
+
+/**
+ * The Business Tools screen's figures, from the expenses and the tools the
+ * email scan found.
+ *
+ * The screen used to add up every tool's `amount`, which is one charge, so a
+ * tool billed 120 a year counted as 120 a month in the monthly spend. Email
+ * tools arrive already per month (emailSubToDetected normalises them), so
+ * their amount is their monthly cost. A tool found both ways is counted once,
+ * as the expense-detected one.
+ */
+export function toolsOverview(
+  expenses: Expense[],
+  fromEmail: DetectedSubscription[],
+  now: Date = new Date()
+): ToolsOverview {
+  const detections = detectFromEngine(chargesFromExpenses(expenses));
+  const fromExpenses = detections.map(toDetected);
+  const monthlyByKey: Record<string, number> = {};
+  for (const d of detections) monthlyByKey[d.id] = monthlyCost([d]);
+
+  const known = new Set(fromExpenses.map((s) => s.name.toLowerCase()));
+  const emailOnly = fromEmail.filter((s) => !known.has(s.name.toLowerCase()));
+  for (const s of emailOnly) monthlyByKey[s.key] = s.amount;
+
+  const tools = [...fromExpenses, ...emailOnly].sort((a, b) => b.amount - a.amount);
+
+  return {
+    tools,
+    monthlyByKey,
+    monthlyTotal: tools.reduce((sum, s) => sum + (monthlyByKey[s.key] ?? 0), 0),
+    upcoming: dueWithin30Days(tools, now),
   };
 }
 

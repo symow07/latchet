@@ -2,7 +2,9 @@ import { useState } from 'react';
 import { Alert, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Building2, CreditCard, MoreHorizontal, PiggyBank, Plus, Tick, TrendingUp, Wallet } from '@/components/icons';
+import {
+  Building2, ChevronRight, CreditCard, MoreHorizontal, PiggyBank, Plus, Tick, TrendingUp, Wallet,
+} from '@/components/icons';
 import * as Haptics from 'expo-haptics';
 import {
   createAccount,
@@ -20,6 +22,7 @@ import { P_DARK, P_LIGHT } from '@/lib/palettes';
 import { PressableScale } from '@/components/motion';
 import {
   Amount,
+  BadgePill,
   BalanceCard,
   Card,
   CircleAction,
@@ -32,7 +35,9 @@ import {
   SubHeader,
   Touchable,
   Type,
+  mirror,
 } from '@/components/kit';
+import { useEntitlement } from '@/lib/useEntitlement';
 import { t } from '@/lib/i18n/core';
 
 /**
@@ -129,6 +134,7 @@ export default function AccountsScreen() {
   const C = useC();
   const router = useRouter();
   const queryClient = useQueryClient();
+  const { isPro } = useEntitlement();
 
   const [editing, setEditing] = useState<Account | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -327,6 +333,46 @@ export default function AccountsScreen() {
             </Card>
           </View>
         )}
+
+        {/* Linking a bank, beside the accounts it would fill. Nothing in the
+            app led here after Home lost its card. Free users can open it —
+            the screen offers the upgrade — so it is marked Pro, not hidden. */}
+        <View style={{ paddingHorizontal: S.screen, marginTop: S.group }}>
+          <Card pal={C} padding={0} contentStyle={{ paddingHorizontal: S.card }}>
+            <Touchable
+              pal={C}
+              onPress={() => router.push('/link-bank')}
+              accessibilityLabel={isPro
+                ? t('dashboard.linkBank')
+                : `${t('dashboard.linkBank')}, ${t('subscription.proBadge')}`}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 64 }}
+            >
+              <View
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: R.sm,
+                  borderCurve: 'continuous',
+                  backgroundColor: C.groundSunk,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Building2 size={22} color={C.ink} strokeWidth={S.stroke} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Type role="cardTitle" color={C.ink} numberOfLines={1}>
+                  {t('dashboard.linkBank')}
+                </Type>
+                <Type role="meta" color={C.inkDim} numberOfLines={1}>
+                  {t('dashboard.linkBankHint')}
+                </Type>
+              </View>
+              {isPro ? null : <BadgePill pal={C} label={t('subscription.proBadge')} />}
+              <ChevronRight size={18} color={C.inkFaint} strokeWidth={S.stroke} style={mirror} />
+            </Touchable>
+          </Card>
+        </View>
       </ScrollView>
 
       <Sheet

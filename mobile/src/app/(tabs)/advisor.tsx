@@ -313,7 +313,9 @@ export default function AdvisorTab() {
         {/* ── Disclaimer ──
             Persistent and on-screen, not a modal nobody reads. It sits directly
             above the input because that is where someone is looking when they
-            decide what to ask, which is the moment it has to be true. */}
+            decide what to ask, which is the moment it has to be true. It names
+            medical and nutritional advice on purpose: the advisor profile
+            collects health and diet details, and answers can lean on them. */}
         <Type
           role="meta"
           color={C.inkDim}

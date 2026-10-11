@@ -18,6 +18,7 @@ import {
 import { todayISO } from '@/lib/dates';
 import { billFromForm, daysUntil } from '@/lib/offline/bills';
 import { formatCurrency } from '@/lib/calculations';
+import { overdueBillCount } from '@/lib/behavior-detection';
 import { categoryLabel } from '@/lib/category-meta';
 import { R, S, useC, type Palette } from '@/lib/design';
 import { PressableScale } from '@/components/motion';
@@ -363,7 +364,8 @@ export default function BillRemindersScreen() {
   const upcoming = sorted.filter((b) => !b.isPaid);
   const paid = sorted.filter((b) => b.isPaid);
   const totalMonthly = bills.reduce((sum, b) => sum + (b.isRecurring ? b.amount : 0), 0);
-  const overdueCount = upcoming.filter((b) => daysUntilDue(b.nextDueDate) <= 0).length;
+  // Past due only: a bill due today is "Due today", not overdue.
+  const overdueCount = overdueBillCount(upcoming, todayISO());
 
   const renderGroup = (group: BillReminder[]) => (
     <View style={{ paddingHorizontal: S.screen }}>

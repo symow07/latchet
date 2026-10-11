@@ -8,6 +8,7 @@ import {
   todayISO,
 } from './dates';
 import type { Transaction } from './transaction';
+import { t } from './i18n/core';
 /**
  * Financial Health Score System
  * Calculates a dynamic score (0-100) based on multiple financial factors
@@ -295,62 +296,61 @@ export function getGrade(score: number): { grade: HealthScoreResult['grade']; co
   return { grade: 'F', color: '#dc2626' };
 }
 
-// Generate improvement suggestions (at most four)
+/**
+ * Improvement suggestions, at most four, in the reader's language.
+ *
+ * The Health Score screen prints these as they are, so they are translated
+ * here, when the score is worked out; they used to be English in every
+ * language. A language change remounts the screens, which recomputes the
+ * score in it. Each key is written out in full so the key-coverage test
+ * sees it.
+ */
 export function generateSuggestions(
   breakdown: HealthScoreBreakdown,
   personality: SpendingPersonality,
   settings: Settings
 ): string[] {
-  const suggestions: string[] = [];
+  const tips: string[] = [];
 
-  // Savings suggestions
+  // Savings
   if (breakdown.savingsRate.score < 15) {
-    if (breakdown.savingsRate.value < 10) {
-      suggestions.push('Try to save at least 10% of your income each month');
-    } else {
-      suggestions.push('Increase your savings rate by reducing discretionary spending');
-    }
+    tips.push(
+      breakdown.savingsRate.value < 10
+        ? t('healthScore.tips.saveTenPercent')
+        : t('healthScore.tips.raiseSavings')
+    );
   }
 
-  // Budget discipline suggestions
+  // Budget discipline: a missing (or negative) budget asks for one first.
   if (breakdown.budgetDiscipline.score < 15) {
-    if (!(settings.monthlyBudget > 0)) {
-      suggestions.push('Set a monthly budget to better track your spending');
-    } else {
-      suggestions.push('Review your spending to stay within your monthly budget');
-    }
+    tips.push(
+      settings.monthlyBudget > 0
+        ? t('healthScore.tips.stayInBudget')
+        : t('healthScore.tips.setBudget')
+    );
   }
 
-  // Impulse control suggestions
+  // Impulse control: two habits.
   if (breakdown.impulseControl.score < 9) {
-    suggestions.push('Wait 24 hours before making non-essential purchases');
-    suggestions.push('Create a "want vs need" list before shopping');
+    tips.push(t('healthScore.tips.wait24h'), t('healthScore.tips.wantVsNeed'));
   }
 
-  // Consistency suggestions
+  // Consistency
   if (breakdown.spendingConsistency.score < 12) {
-    suggestions.push('Try to spread your spending more evenly throughout the month');
+    tips.push(t('healthScore.tips.spreadSpending'));
   }
 
-  // Goal suggestions
+  // Goal, only when there is one.
   if (breakdown.goalProgress.score < 9 && settings.savingsGoal > 0) {
-    suggestions.push('Automate transfers to savings to hit your goal');
+    tips.push(t('healthScore.tips.automateSavings'));
   }
 
-  // Personality-based suggestions
-  switch (personality) {
-    case 'impulsive':
-      suggestions.push('Consider using a spending journal to track impulse urges');
-      break;
-    case 'spender':
-      suggestions.push('Try the 50/30/20 rule: 50% needs, 30% wants, 20% savings');
-      break;
-    case 'inconsistent':
-      suggestions.push('Create a weekly spending allowance to improve consistency');
-      break;
-  }
+  // One more for three of the personalities.
+  if (personality === 'impulsive') tips.push(t('healthScore.tips.spendingJournal'));
+  else if (personality === 'spender') tips.push(t('healthScore.tips.rule503020'));
+  else if (personality === 'inconsistent') tips.push(t('healthScore.tips.weeklyAllowance'));
 
-  return suggestions.slice(0, 4); // Return top 4 suggestions
+  return tips.slice(0, 4);
 }
 
 /**

@@ -8,14 +8,14 @@ import { categoryIcon } from '@/components/category-icon';
 
 import { getExpenses } from '@/lib/expenseApi';
 import {
-  detectSubscriptions,
   formatNextCharge,
+  toolsOverview,
   type DetectedSubscription,
 } from '@/lib/business-subscription-detection';
 import { getEmailDetectedForBusiness } from '@/lib/emailSubscriptionApi';
 import { EmailScanCard } from '@/components/EmailScanCard';
 import { formatCurrency } from '@/lib/calculations';
-import { categoryLabel } from '@/lib/category-meta';
+import { expenseCategoryLabel } from '@/lib/expense-meta';
 import { R, S, useC, type Palette } from '@/lib/design';
 import {
   BalanceCard,
@@ -41,10 +41,13 @@ const longDate = (iso: string) => format(readDate(iso), 'd MMM yyyy', { locale: 
 function CancelGuideSheet({
   pal,
   sub,
+  monthly,
   onClose,
 }: {
   pal: Palette;
   sub: DetectedSubscription | null;
+  /** The tool's cost per month: its charge, normalised by how often it falls. */
+  monthly: number;
   onClose: () => void;
 }) {
   if (!sub) return null;
@@ -62,13 +65,17 @@ function CancelGuideSheet({
         showsVerticalScrollIndicator={false}
       >
         <View style={{ flexDirection: 'row', gap: 24 }}>
-          <Stat
-            pal={pal}
-            label={t('businessTools.monthlyCost')}
-            value={sub.amount}
-            format={formatCurrency}
-            size={22}
-          />
+          {/* A rate needs a cadence: an irregular tool has no monthly cost
+              to show, rather than a misleading zero. */}
+          {sub.isRecurring ? (
+            <Stat
+              pal={pal}
+              label={t('businessTools.monthlyCost')}
+              value={monthly}
+              format={formatCurrency}
+              size={22}
+            />
+          ) : null}
           <Stat
             pal={pal}
             label={t('businessTools.nextCharge')}
@@ -76,9 +83,11 @@ function CancelGuideSheet({
             size={22}
           />
         </View>
-        <Type role="meta" color={pal.inkDim} style={{ marginTop: 8 }}>
-          {t('businessTools.perYear', { amount: formatCurrency(sub.amount * 12) })}
-        </Type>
+        {sub.isRecurring ? (
+          <Type role="meta" color={pal.inkDim} style={{ marginTop: 8 }}>
+            {t('businessTools.perYear', { amount: formatCurrency(monthly * 12) })}
+          </Type>
+        ) : null}
 
         <Type role="cardTitle" color={pal.ink} style={{ marginTop: 24, marginBottom: 12 }}>
           {t('businessTools.cancelSteps')}
@@ -143,10 +152,13 @@ function CancelGuideSheet({
 function ToolRow({
   pal,
   sub,
+  monthly,
   onCancelGuide,
 }: {
   pal: Palette;
   sub: DetectedSubscription;
+  /** Per month, so a yearly tool's annual cost is its price, not twelve of them. */
+  monthly: number;
   onCancelGuide: (sub: DetectedSubscription) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -156,8 +168,10 @@ function ToolRow({
   // "In 3 days").
   const Glyph = categoryIcon(sub.category);
 
+  // Business categories (Software, Travel, Meals, Office) are their own
+  // vocabulary; the personal categoryLabel left them in English.
   const meta = [
-    categoryLabel(sub.category),
+    expenseCategoryLabel(sub.category),
     sub.isRecurring ? t('businessTools.recurring') : null,
     formatNextCharge(sub.nextChargeDate),
   ]
@@ -190,14 +204,18 @@ function ToolRow({
       {expanded ? (
         <View style={{ paddingBottom: 16 }}>
           <View style={{ flexDirection: 'row', gap: 16 }}>
-            <Stat
-              pal={pal}
-              label={t('businessTools.annualCost')}
-              value={sub.amount * 12}
-              format={formatCurrency}
-              size={17}
-              style={{ flex: 1 }}
-            />
+            {/* Only a tool with a cadence has a yearly cost; an irregular
+                one has its charges, not a rate. */}
+            {sub.isRecurring ? (
+              <Stat
+                pal={pal}
+                label={t('businessTools.annualCost')}
+                value={monthly * 12}
+                format={formatCurrency}
+                size={17}
+                style={{ flex: 1 }}
+              />
+            ) : null}
             <Stat
               pal={pal}
               label={t('businessTools.lastCharged')}
@@ -265,22 +283,24 @@ export default function BusinessToolsScreen() {
     }, [refetch, refetchEmail])
   );
 
-  const summary = detectSubscriptions(allExpenses);
-  const expenseNames = new Set(summary.subscriptions.map((s) => s.name.toLowerCase()));
-  const emailOnly = emailDetected.filter((s) => !expenseNames.has(s.name.toLowerCase()));
-  const subscriptions = [...summary.subscriptions, ...emailOnly].sort((a, b) => b.amount - a.amount);
-  const monthlyTotal = subscriptions.reduce((sum, s) => sum + s.amount, 0);
-
-  const now = new Date();
-  const in30Days = new Date(now.getTime() + 30 * 86_400_000);
-  const upcoming = subscriptions.filter((s) => {
-    const next = readDate(s.nextChargeDate);
-    return next >= now && next <= in30Days;
-  });
+  // Each tool's cost per month, so a yearly charge adds a twelfth of itself
+  // to the monthly spend rather than all of it.
+  const {
+    tools: subscriptions,
+    monthlyByKey,
+    monthlyTotal,
+    upcoming,
+  } = toolsOverview(allExpenses, emailDetected);
+  const monthlyOf = (sub: DetectedSubscription) => monthlyByKey[sub.key] ?? 0;
 
   return (
     <Screen pal={B}>
-      <CancelGuideSheet pal={B} sub={cancelSub} onClose={() => setCancelSub(null)} />
+      <CancelGuideSheet
+        pal={B}
+        sub={cancelSub}
+        monthly={cancelSub ? monthlyOf(cancelSub) : 0}
+        onClose={() => setCancelSub(null)}
+      />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -386,7 +406,12 @@ export default function BusinessToolsScreen() {
                       key={sub.key}
                       style={i > 0 ? { borderTopWidth: 1, borderTopColor: B.hairline } : undefined}
                     >
-                      <ToolRow pal={B} sub={sub} onCancelGuide={setCancelSub} />
+                      <ToolRow
+                        pal={B}
+                        sub={sub}
+                        monthly={monthlyOf(sub)}
+                        onCancelGuide={setCancelSub}
+                      />
                     </View>
                   ))}
                 </Card>

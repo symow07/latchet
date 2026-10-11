@@ -464,12 +464,16 @@ export default function NetWorthScreen() {
   // were an object, so this section never appeared.
   const lines = breakdownLines(latest?.breakdown ?? null);
 
+  // The change since the previous snapshot once there are two. With one,
+  // "add your first snapshot" was wrong the moment it was taken.
   const caption =
     delta !== null
       ? t('netWorth.sinceLast', {
           delta: `${delta >= 0 ? '+' : '−'}${formatCurrency(Math.abs(delta))}`,
         })
-      : t('netWorth.addFirstSnapshot');
+      : latest
+        ? t('netWorth.firstSnapshot')
+        : t('netWorth.addFirstSnapshot');
 
   return (
     <Screen pal={C}>

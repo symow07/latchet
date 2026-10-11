@@ -1,9 +1,9 @@
 import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns';
 import { detectSubscriptions as detectFromEngine, monthlyCost } from './subscriptions/engine';
 import { chargesFromTransactions } from './subscriptions/sources';
-import { t } from './i18n/core';
+import { t, getDateFnsLocale } from './i18n/core';
 import { categoryLabel } from './category-meta';
-import { projectMonthlyExpenses } from './calculations';
+import { formatCurrency, projectMonthlyExpenses } from './calculations';
 import {
   dayOfMonth,
   daysAgoISO,
@@ -318,7 +318,8 @@ export function analyzeSpendingPatterns(
 
     patterns.push({
       type: 'seasonal',
-      period: format(today, 'MMMM yyyy'),
+      // The month in the reader's language ('LLLL' is the standalone name).
+      period: format(today, 'LLLL yyyy', { locale: getDateFnsLocale() }),
       totalSpent: thisMonthTotal,
       averageTransaction: thisMonthTotal / (thisMonthTxs.length || 1),
       transactionCount: thisMonthTxs.length,
@@ -326,7 +327,8 @@ export function analyzeSpendingPatterns(
       projectedTotal,
       insight: t('analytics.seasonalInsight', {
         pct: Math.round((thisMonthTotal / lastMonthTotal - 1) * 100),
-        projected: `$${projectedTotal.toFixed(0)}`,
+        // In the user's currency and number format; this was a hard-coded $.
+        projected: formatCurrency(projectedTotal),
       }),
     });
   }
@@ -424,6 +426,21 @@ function getTopCategories(transactions: Transaction[], limit: number): { categor
     .map(([category, amount]) => ({ category, amount }))
     .sort((a, b) => b.amount - a.amount)
     .slice(0, limit);
+}
+
+// Overdue bills
+/**
+ * How many unpaid bills are past due on `todayISO` — Bill Reminders' "· N
+ * overdue". A bill due today is due, not overdue: counting it (days ≤ 0) put
+ * "1 bill to pay · 1 overdue" over a bill that was simply due that day, while
+ * its own row said "Due today". Compared as calendar dates, so it is the same
+ * in every timezone.
+ */
+export function overdueBillCount(
+  bills: readonly { isPaid: boolean; nextDueDate: string }[],
+  todayISO: string
+): number {
+  return bills.filter((b) => !b.isPaid && b.nextDueDate.slice(0, 10) < todayISO).length;
 }
 
 // Full Analytics Summary

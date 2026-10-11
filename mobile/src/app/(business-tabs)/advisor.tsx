@@ -263,14 +263,17 @@ export default function BusinessAdvisorScreen() {
           ) : null}
         </ScrollView>
 
-        {/* Same disclaimer as the personal advisor, and for the same reason:
-            it belongs where someone is looking when they decide what to ask. */}
+        {/* Placed as the personal advisor's is, and for the same reason: it
+            belongs where someone is looking when they decide what to ask. Its
+            own words, though — the personal one rules out medical and
+            nutritional advice because that advisor reads a health profile;
+            this one is about a company, so it rules out legal and tax. */}
         <Type
           role="meta"
           color={B.inkDim}
           style={{ paddingHorizontal: S.screen, textAlign: 'center' }}
         >
-          {t('advisor.disclaimer')}
+          {t('businessAdvisor.disclaimer')}
         </Type>
 
         {/* The tab bar is position:absolute, so it floats over this row and

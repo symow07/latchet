@@ -66,8 +66,12 @@
     "version": "Budget v1.0.0 — fait avec soin",
     "makeItYours": "Personnalisez — on ne juge pas!",
     "hourlyRateInputHint": "Sert à calculer le coût en temps de vos achats",
-    "timeCostExample": "Achat de 50 $ = %{minutes} de travail",
-    "minutesCount": "%{count} minutes",
+    "timeCostExample": "Achat de %{amount} = %{minutes} de travail",
+    "minutesCount": {
+      "zero": "moins d'une minute",
+      "one": "%{count} minute",
+      "other": "%{count} minutes"
+    },
     "savingLabel": "Enregistrement…",
     "saveLabel": "Enregistrer !",
     "savedLabel": "Enregistré !",
@@ -88,7 +92,8 @@
     "bankProTitle": "La synchro bancaire est une fonction Pro",
     "bankProBody": "Passez à Pro dans les réglages pour connecter votre banque. Vous pouvez toujours importer un relevé — cela fonctionne avec tous les forfaits.",
     "aiLimitReached": "Vous avez utilisé vos requêtes IA gratuites du jour. Passez à Pro dans les réglages pour en avoir plus.",
-    "pdfProBody": "La lecture des relevés PDF utilise l'IA. Passez à Pro dans les réglages, ou importez un CSV — le CSV est analysé sur votre appareil et reste plus fiable."
+    "pdfProBody": "La lecture des relevés PDF utilise l'IA. Passez à Pro dans les réglages, ou importez un CSV — le CSV est analysé sur votre appareil et reste plus fiable.",
+    "proBadge": "Pro"
   },
   "language": {
     "title": "Langue",
@@ -211,7 +216,11 @@
     "detectedSettings": "Détecté à partir de votre fichier. Modifiez si quelque chose semble incorrect.",
     "impulse": "Impulsif",
     "markImpulse": "Marquer impulsif",
-    "successBody": "%{count} transactions ont été importées dans votre suivi budgétaire.",
+    "successBody": {
+      "zero": "Aucune transaction n'a été importée.",
+      "one": "%{count} transaction a été importée dans votre suivi budgétaire.",
+      "other": "%{count} transactions ont été importées dans votre suivi budgétaire."
+    },
     "iosOpenFailed": "iOS n'a pas pu ouvrir le fichier sélectionné. Réexportez-le depuis votre banque, ou enregistrez-le d'abord dans Fichiers.",
     "columnN": "Colonne %{n}",
     "importing": "Importation %{done} sur %{total}…",
@@ -238,7 +247,18 @@
     "quickInsights": "Aperçus rapides",
     "tryAsking": "Essayez de demander",
     "disclaimer": "Conseils budgétaires uniquement — ni médicaux, ni nutritionnels, ni financiers.",
-    "error": "Impossible de joindre le conseiller. Réessayez dans un instant."
+    "error": "Impossible de joindre le conseiller. Réessayez dans un instant.",
+    "insight": {
+      "overBudget": "Vous avez dépassé votre budget mensuel de %{amount}",
+      "budgetLeft": "Il reste %{pct} % de votre budget — dépensez prudemment",
+      "impulse": "%{pct} % de vos dépenses sont impulsives — essayez la règle des 24 heures",
+      "spendingUpIn": "Dépenses en hausse : %{categories}",
+      "savedIn": "Belles économies : %{categories}",
+      "savingsRate": "Excellent taux d'épargne : %{pct} % !",
+      "spendingOverIncome": "Vous dépensez plus que vous ne gagnez ce mois-ci",
+      "weekUp": "Dépenses en hausse de %{pct} % par rapport à la semaine dernière",
+      "weekDown": "Dépenses en baisse de %{pct} % par rapport à la semaine dernière !"
+    }
   },
   "bank": {
     "connectSection": "Connecter une banque",
@@ -362,7 +382,8 @@
     "lastSnapshots": {
       "one": "%{count} dernier relevé",
       "other": "%{count} derniers relevés"
-    }
+    },
+    "firstSnapshot": "Votre premier instantané — ajoutez-en un autre plus tard pour voir l'évolution"
   },
   "analytics": {
     "title": "Analyses intelligentes",
@@ -389,7 +410,10 @@
     "savingsPerMonth": "Économies possibles : %{amount}/mois",
     "weekendSpending": "Dépenses du week-end",
     "seasonalTrend": "Tendance saisonnière",
-    "chargesOf": "%{count} prélèvements de %{amount} le %{date}",
+    "chargesOf": {
+      "one": "%{count} prélèvement de %{amount} le %{date}",
+      "other": "%{count} prélèvements de %{amount} le %{date}"
+    },
     "refundLine": "Remboursement possible : %{amount}",
     "weekendSpike": "Pic du week-end",
     "seasonalChange": "Changement saisonnier",
@@ -440,8 +464,10 @@
     "draftEmail": "Rédiger un e-mail de résiliation",
     "opensApple": "Ouvre directement les réglages Abonnements de votre iPhone",
     "opensPage": "Ouvre directement la page de résiliation de %{name}",
-    "basedOn": "D'après %{count} prélèvements récurrents détectés dans votre historique de transactions.",
-    "basedOnOne": "D'après %{count} prélèvement récurrent détecté dans votre historique de transactions.",
+    "basedOn": {
+      "one": "D'après %{count} prélèvement récurrent détecté dans votre historique de transactions.",
+      "other": "D'après %{count} prélèvements récurrents détectés dans votre historique de transactions."
+    },
     "stepsTo": "Étapes pour résilier %{name}",
     "noSteps": "Nous n'avons pas encore d'étapes précises pour %{name}. Essayez de chercher en ligne.",
     "searchHow": "Chercher comment résilier %{name}",
@@ -495,8 +521,14 @@
     "searchFor": "Cherchez « %{name} cancel subscription »",
     "perMonth": "par mois",
     "dueSoon": "Bientôt dû",
-    "upcomingCharges": "Prélèvements à venir (%{count})",
-    "allTools": "Tous les outils (%{count})",
+    "upcomingCharges": {
+      "one": "Prélèvements à venir (%{count})",
+      "other": "Prélèvements à venir (%{count})"
+    },
+    "allTools": {
+      "one": "Tous les outils (%{count})",
+      "other": "Tous les outils (%{count})"
+    },
     "cancelTipBody": "La plupart des outils SaaS se résilient depuis Réglages → Facturation. Résiliez au moins 24 heures avant la date de renouvellement pour éviter d'être prélevé. Demandez toujours un e-mail de confirmation.",
     "toolsStat": "Outils",
     "perYear": "%{amount} par an",
@@ -529,12 +561,23 @@
     "noneYet": "Aucune dépense pour l'instant",
     "allCaughtUp": "Tout est à jour !",
     "tapAddFirst": "Touchez Ajouter pour soumettre votre première dépense",
-    "expenseCount": "%{count} dépenses",
+    "expenseCount": {
+      "zero": "Aucune dépense",
+      "one": "%{count} dépense",
+      "other": "%{count} dépenses"
+    },
     "approvedBy": "✓ Approuvé par %{name}",
     "rejectedBy": "✗ Refusé par %{name}",
     "receiptUnavailable": "Reçu indisponible — soumis avant l'envoi des reçus au serveur",
-    "pendingReview": "%{count} en attente de validation",
-    "nonePending": "Rien en attente"
+    "pendingReview": {
+      "one": "%{count} en attente de validation",
+      "other": "%{count} en attente de validation"
+    },
+    "nonePending": "Rien en attente",
+    "errAmount": "Saisissez un montant supérieur à zéro.",
+    "errDescription": "Ajoutez une description.",
+    "waitingForOther": "En attente de la validation d'une autre personne",
+    "waitingForApprover": "En attente de validation par le propriétaire ou un responsable"
   },
   "businessTeam": {
     "title": "Équipe",
@@ -600,8 +643,10 @@
     "currentMonth": "Mois en cours",
     "tapAdd": "Touchez Ajouter pour définir les salaires de votre équipe",
     "notConfigured": "La paie n'a pas encore été configurée",
-    "dueCount": "DÛ (%{count})",
-    "paidCount": "Payé (%{count})"
+    "paidCount": {
+      "one": "Payé (%{count})",
+      "other": "Payé (%{count})"
+    }
   },
   "auth": {
     "welcomeBack": "Bon retour",
@@ -651,12 +696,29 @@
     "breakdownHint": "Le détail complet de votre score",
     "getAdvice": "Obtenir des conseils personnalisés",
     "stableThisWeek": "Stable cette semaine",
-    "estimateNote": "Ceci est une estimation — vous avez %{count} transactions pour l'instant. Enregistrez quelques semaines de dépenses et de revenus pour obtenir un score qui reflète vraiment vos habitudes.",
+    "estimateNote": {
+      "zero": "Ceci est une estimation — vous n'avez encore aucune transaction. Enregistrez quelques semaines de dépenses et de revenus pour obtenir un score qui reflète vraiment vos habitudes.",
+      "one": "Ceci est une estimation — vous avez %{count} transaction pour l'instant. Enregistrez quelques semaines de dépenses et de revenus pour obtenir un score qui reflète vraiment vos habitudes.",
+      "other": "Ceci est une estimation — vous avez %{count} transactions pour l'instant. Enregistrez quelques semaines de dépenses et de revenus pour obtenir un score qui reflète vraiment vos habitudes."
+    },
     "howToImprove": "Comment améliorer votre score",
     "chatWithAi": "Discuter de votre score avec l'IA",
     "trendUp": "↑ %{value}% de mieux que la semaine dernière",
     "trendDown": "↓ %{value}% par rapport à la semaine dernière",
-    "gradeLabel": "Note %{grade}"
+    "gradeLabel": "Note %{grade}",
+    "tips": {
+      "saveTenPercent": "Essayez d'épargner au moins 10 % de vos revenus chaque mois",
+      "raiseSavings": "Augmentez votre taux d'épargne en réduisant les dépenses non essentielles",
+      "setBudget": "Fixez un budget mensuel pour mieux suivre vos dépenses",
+      "stayInBudget": "Revoyez vos dépenses pour rester dans votre budget mensuel",
+      "wait24h": "Attendez 24 heures avant tout achat non essentiel",
+      "wantVsNeed": "Faites une liste « envie ou besoin » avant vos achats",
+      "spreadSpending": "Essayez de répartir vos dépenses plus régulièrement sur le mois",
+      "automateSavings": "Automatisez des virements vers votre épargne pour atteindre votre objectif",
+      "spendingJournal": "Tenez un journal de dépenses pour repérer vos envies d'achat impulsif",
+      "rule503020": "Essayez la règle 50/30/20 : 50 % besoins, 30 % envies, 20 % épargne",
+      "weeklyAllowance": "Fixez-vous une enveloppe hebdomadaire pour lisser vos dépenses"
+    }
   },
   "receiptScan": {
     "title": "Scanner un reçu",
@@ -693,7 +755,9 @@
     "dateLabel": "Date",
     "analysing1": "Recherche du commerçant",
     "analysing2": "Lecture du total",
-    "analysing3": "Choix d’une catégorie"
+    "analysing3": "Choix d’une catégorie",
+    "readFailed": "Impossible de lire l'image. Veuillez réessayer.",
+    "errAmount": "Saisissez un montant supérieur à zéro."
   },
   "recurring": {
     "name": "Nom",
@@ -743,9 +807,16 @@
     "notEnabled": "Le transfert d'e-mails n'est pas encore activé pour cette application. Une fois activé, votre adresse privée apparaîtra ici.",
     "forwardHint": "Transférez un e-mail de reçu à l'adresse ci-dessus — il apparaîtra ici.",
     "adding": "Ajout…",
-    "addCount": "Ajouter %{count} aux abonnements",
+    "addCount": {
+      "zero": "Rien à ajouter",
+      "one": "Ajouter %{count} abonnement",
+      "other": "Ajouter %{count} abonnements"
+    },
     "otherApps": "Les autres messageries (Outlook, iCloud) ont des réglages « transfert » ou « règles » similaires. Une fois configuré, tout est automatique — les nouveaux reçus sont détectés tout seuls.",
-    "foundCount": "%{count} abonnements trouvés dans vos e-mails",
+    "foundCount": {
+      "one": "%{count} abonnement trouvé dans vos e-mails",
+      "other": "%{count} abonnements trouvés dans vos e-mails"
+    },
     "checking": "Vérification…",
     "connected": "Connecté — les reçus transférés apparaissent ici",
     "autoDetect": "Détectez automatiquement les abonnements depuis vos reçus",
@@ -793,7 +864,12 @@
     "authenticating": "Authentification…",
     "unlockBiometrics": "Déverrouiller par biométrie",
     "serverUnreachable": "Impossible de joindre le serveur",
-    "errorTitle": "Erreur de démarrage"
+    "errorTitle": "Erreur de démarrage",
+    "stageStarting": "Démarrage…",
+    "stageBiometrics": "Vérification biométrique…",
+    "stageReady": "Prêt",
+    "stageSession": "Vérification de la session…",
+    "stageData": "Ouverture de vos données…"
   },
   "businessSettings": {
     "title": "Réglages",
@@ -806,7 +882,10 @@
     "showingImpulse": "Impulsifs uniquement",
     "showImpulse": "Voir les impulsifs",
     "impulsePill": "Impulsif",
-    "recordsFound": "%{count} enregistrements trouvés",
+    "recordsFound": {
+      "one": "%{count} enregistrement trouvé",
+      "other": "%{count} enregistrements trouvés"
+    },
     "noRecords": "Aucun enregistrement — commencez à suivre vos dépenses !"
   },
   "billReminders": {
@@ -826,10 +905,16 @@
     "emptyBody": "Touchez le bouton + pour créer votre premier rappel et ne plus jamais manquer une échéance.",
     "paidThisCycle": "Payé ce cycle",
     "dueOn": "Échéance le %{day} du mois",
-    "daysOverdue": "%{count} j de retard",
+    "daysOverdue": {
+      "one": "%{count} j de retard",
+      "other": "%{count} j de retard"
+    },
     "dueToday": "Échéance aujourd'hui",
     "dueTomorrow": "Échéance demain",
-    "daysLeft": "%{count} j restants",
+    "daysLeft": {
+      "one": "%{count} j restant",
+      "other": "%{count} j restants"
+    },
     "upcoming": "À venir",
     "amountLabel": "Montant",
     "categoryLabel": "Catégorie",
@@ -1047,7 +1132,10 @@
     "overdue": "En retard",
     "today": "Aujourd'hui",
     "tomorrow": "Demain",
-    "inDays": "Dans %{count} jours"
+    "inDays": {
+      "one": "Dans %{count} jour",
+      "other": "Dans %{count} jours"
+    }
   },
   "healthBreakdown": {
     "savingsRate": "Taux d’épargne",
@@ -1095,17 +1183,11 @@
     "remaining": "Restant",
     "approved": "Approuvé",
     "rejected": "Refusé",
-    "approvedCount": "%{count} approuvées",
-    "rejectedCount": "%{count} refusées",
     "needsReview": "À examiner",
     "awaitingReview": "En attente d'examen",
     "yourBusiness": "Votre entreprise",
-    "reviewCount": "Examiner (%{count})",
-    "toolsDetected": "%{count} outils détectés",
     "noToolsDetected": "Aucun abonnement détecté pour l'instant",
-    "expensesWaiting": "%{count} dépenses en attente de votre examen",
     "greeting": "Bonjour, %{name}",
-    "expenseCount": "%{count} dépenses",
     "totalApprovedExpenses": "Total des dépenses approuvées",
     "noExpensesYet": "Aucune dépense pour l'instant — soumettez la première"
   },
@@ -1151,8 +1233,7 @@
     "survival": "Survie",
     "survivalNeedWeek": "Survie (une semaine requise)",
     "ofPurchases": "des achats",
-    "stable": "Stable",
-    "daysCount": "%{count} jours"
+    "stable": "Stable"
   },
   "advisor2": {
     "welcomeBody": "Posez-moi n’importe quelle question sur vos finances. Je peux vous aider à comprendre vos habitudes de dépense, repérer des économies possibles et vous conseiller à partir de vos données réelles.",
@@ -1202,7 +1283,8 @@
     "restoreNoneBody": "Nous n'avons trouvé aucun abonnement actif pour ce compte. Si vous vous êtes abonné avec un autre identifiant Apple ou compte Google, connectez-vous avec celui-ci et réessayez.",
     "done": "Terminé",
     "removePayrollBody": "Retirer %{name} de la paie ? Tout l'historique des paiements sera supprimé.",
-    "exportFailedBody": "Impossible d'exporter les transactions en %{format}"
+    "exportFailedBody": "Impossible d'exporter les transactions en %{format}",
+    "libraryNeeded": "L’accès à la photothèque est nécessaire pour choisir des photos."
   },
   "netWorthCats": {
     "cashSavings": "Liquidités et épargne",
@@ -1224,7 +1306,6 @@
     "notePlaceholder": "ex. café, loyer, voyage…",
     "newAccount": "Nouveau",
     "dateLabel": "Date",
-    "minutesOfWork": "%{count} minutes de travail",
     "logging": "Enregistrement…",
     "logIt": "Enregistrer !",
     "timeCostLine": "Soit %{time} de travail"
@@ -1377,7 +1458,8 @@
     "placeholder": "Posez une question sur les finances",
     "q1": "Sommes-nous dans le budget ce mois-ci ?",
     "q2": "Qu'est-ce qui tire nos dépenses ?",
-    "q3": "Quelle part des salaires reste à payer ?"
+    "q3": "Quelle part des salaires reste à payer ?",
+    "disclaimer": "Conseils de gestion uniquement — ni juridiques, ni fiscaux, ni financiers."
   },
   "home": {
     "greetingName": "%{greeting}, %{name}",
@@ -1475,8 +1557,6 @@
     "budgetLeft": "Il reste %{left} sur %{budget} ce mois-ci.",
     "budgetOver": "%{amount} de plus que votre budget de %{budget} ce mois-ci.",
     "budgetNone": "Pas encore de budget mensuel — définissez-en un dans Analyses.",
-    "quickAdd": "Ajouter",
-    "quickReview": "Vérifier",
     "quickTools": "Outils",
     "quickTeam": "Équipe"
   },
