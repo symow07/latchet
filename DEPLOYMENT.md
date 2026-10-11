@@ -33,23 +33,28 @@ The URL must name the user: Prisma, unlike `psql`, sends an empty user name othe
 `bun test` never touches that database: the suite uses `budget_test` (or
 `TEST_DATABASE_URL`, whose name must contain "test"), creating and migrating it as needed.
 
-### Cutover (not done yet)
+### Cutover (done 11 October 2026)
 
-Production still runs the previous SQLite build on the `budget-data` volume. Phase 3 is
-committed locally and **must not reach `main` before these steps**, because Railway deploys
-`main` automatically and the new code refuses a `file:` database URL.
+Production moved from the SQLite build to Postgres on 11 October 2026:
 
-1. Railway → **Budget** service → Variables → set `DATABASE_URL` to the reference
-   `${{Postgres.DATABASE_URL}}` (the Postgres service's private-network URL).
-2. Push `main`. The deploy runs `prisma migrate deploy` against the empty Postgres database.
-3. Check `/health`, sign up, add a transaction on one device and see it arrive on a second.
-4. The production SQLite data is test data and is **not migrated**: every account signs up
+1. The Budget service's `DATABASE_URL` was set to the reference `${{Postgres.DATABASE_URL}}`
+   (the Postgres service's private-network URL) **without redeploying**, so the running SQLite
+   build never restarted against it.
+2. `main` was pushed (`29c488c`). Deployment `c23defec` ran `prisma migrate deploy`, which applied
+   `20261011120000_postgres_init` to the empty database, and passed its `/health` check.
+3. Checked against production: `/health` ok; the sync and run-now routes answer 401 without a
+   session; a new account signed up, its settings and a transaction were pushed, and a run-now
+   booking reached the phone's ledger once.
+4. The production SQLite data was test data and was **not migrated**: every account signs up
    again.
-5. Once satisfied, detach and delete the Budget service's `budget-data` volume (the old
-   SQLite file and receipt folder).
 
-**Rollback:** redeploy the last SQLite commit (`25432f6`) and set `DATABASE_URL` back to the
-old `file:` value; the volume is untouched until step 5.
+Still to do, when nothing needs the old build: detach and delete the Budget service's
+`budget-data` volume (the old SQLite file and receipt folder). Until then a rollback can use it.
+
+**Rollback:** in Railway, roll the Budget service back to deployment `dce10784` (commit
+`25432f6`, the last SQLite build). A Railway rollback restores that deployment's image *and* its
+variables, so `DATABASE_URL` returns to the old `file:` value with it. Then stop `main` from
+redeploying Postgres code (revert or disconnect) before the next push.
 
 ## 2. Environment variables (backend) 🔑
 
