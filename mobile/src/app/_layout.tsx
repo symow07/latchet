@@ -571,7 +571,20 @@ function RootLayoutNav({ colorScheme }: { colorScheme: 'light' | 'dark' | null |
         <Stack.Protected guard={!signedIn || !dbReady}>
           <Stack.Screen name="login" options={{ headerShown: false }} />
           <Stack.Screen name="signup" options={{ headerShown: false }} />
+          {/* Signed-out only, like sign-in: signing in closes this group, so
+              a forgot-password screen still in the stack goes with it rather
+              than being left on top of the app. */}
+          <Stack.Screen name="forgot-password" options={{ headerShown: false }} />
         </Stack.Protected>
+
+        {/* Where the emailed links land: outside both guards. A reset or
+            verification link opens whether or not anyone is signed in on this
+            phone — even when someone else is. Neither reads the user's
+            database. Declared after the public group so that login stays the
+            first screen a signed-out launch can show; profile-route.ts leaves
+            both alone (AUTH_LANDINGS). */}
+        <Stack.Screen name="reset-password" options={{ headerShown: false }} />
+        <Stack.Screen name="verify-email" options={{ headerShown: false }} />
       </Stack>
 
       {/* The navigator is up but this user's database is not: cover it, rather

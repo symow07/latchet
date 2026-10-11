@@ -1,4 +1,4 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { authClient } from "./auth-client";
 
 export const SESSION_QUERY_KEY = ["auth-session"] as const;
@@ -62,3 +62,39 @@ export const useInvalidateSession = () => {
   const queryClient = useQueryClient();
   return () => queryClient.invalidateQueries({ queryKey: SESSION_QUERY_KEY });
 };
+
+type SessionData = NonNullable<Awaited<ReturnType<typeof authClient.getSession>>['data']>;
+
+/**
+ * Re-read the session from the server into the shared query — quietly.
+ *
+ * Not invalidateQueries: a failed refetch puts the session query into its
+ * error state, and the root layout answers that by covering the whole app
+ * with "server unreachable". A background refresh (Settings coming into
+ * focus, the verification landing) must not do that to someone using the app
+ * offline, so a failure here leaves the cached session exactly as it was.
+ *
+ * It only ever refreshes the same user (a newer emailVerified, a new name);
+ * it never signs anyone in. With `allowSignOut`, a server that says there is
+ * no session any more is believed: a password reset made on this phone has
+ * just revoked it, along with every other session of that account.
+ */
+export async function refreshSession(
+  queryClient: QueryClient,
+  opts: { allowSignOut?: boolean } = {},
+): Promise<'signed-in' | 'signed-out' | 'unknown'> {
+  try {
+    const result = await authClient.getSession();
+    if (result.error) return 'unknown';
+    const next = (result.data ?? null) as SessionData | null;
+    const current = queryClient.getQueryData<SessionData | null>(SESSION_QUERY_KEY);
+    if (!next?.user) {
+      if (opts.allowSignOut && current?.user) queryClient.setQueryData(SESSION_QUERY_KEY, null);
+      return 'signed-out';
+    }
+    if (current?.user?.id === next.user.id) queryClient.setQueryData(SESSION_QUERY_KEY, next);
+    return 'signed-in';
+  } catch {
+    return 'unknown';
+  }
+}

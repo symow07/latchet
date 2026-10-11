@@ -9,6 +9,18 @@ import type { Context, Next } from "hono";
 import { hitWindow, lockFor, lockedKeys } from "./lib/distributed/counter";
 import { cacheGet, cacheSet } from "./lib/distributed/cache";
 import type { Db } from "./lib/distributed/clock";
+import { sendEmail, type EmailMessage } from "./lib/email";
+import {
+  APP_RESET_PASSWORD_URL,
+  APP_VERIFY_EMAIL_URL,
+  RESET_LINK_TTL_SECONDS,
+  VERIFY_LINK_TTL_SECONDS,
+  authEmailLocale,
+  passwordResetEmail,
+  pinAppCallback,
+  verificationEmail,
+  withAppCallback,
+} from "./lib/auth-emails";
 
 // ── Rate limiter (per-IP + per-identifier, with lockout) ────────
 // Counters and lockouts live in Postgres (lib/distributed/counter.ts), shared
@@ -118,9 +130,9 @@ export const generalAuthRateLimiter = createRateLimiter({
 });
 
 // Sign-up is the expensive one: each attempt creates an account and runs a
-// 600,000-iteration password hash, and once email verification is wired it will
-// also send mail through Resend — on our bill and our domain's reputation. Two
-// windows, applied together — a short burst limit and a daily ceiling.
+// 600,000-iteration password hash, and sends a verification mail through
+// Resend — on our bill and our domain's reputation. Two windows, applied
+// together — a short burst limit and a daily ceiling.
 export const signupBurstRateLimiter = createRateLimiter({
   scope: "signup-burst",
   ipMax: 5,
@@ -238,6 +250,97 @@ async function verifyPassword({
   return match;
 }
 
+// ── Reset and verification mail ─────────────────────────────────────────────
+//
+// Two rules, both about what a request may reveal or depend on:
+//
+//  - Mail never fails a request. A provider that is down, slow or missing
+//    (production with no RESEND_API_KEY throws in sendEmail) must not fail
+//    sign-up, and must not turn a reset request into an error.
+//  - Mail never tells anyone whether an account exists. Better Auth answers a
+//    reset request identically for known and unknown addresses; awaiting the
+//    send would undo that through timing (a known address waits on the
+//    provider) and through errors. So the send runs in the background: the
+//    request has its answer before the provider is even contacted, and a
+//    failure is logged, never thrown.
+//
+// Each account gets at most AUTH_MAIL_PER_HOUR of each kind, counted in
+// Postgres like the limiters above. The per-IP limits do not stop someone
+// spreading reset requests for one victim across many addresses; this does,
+// and it does it silently — the answer is the same either way.
+//
+// The reset link always redirects into the app, whatever redirectTo the
+// request named: that redirect carries the token, and the requester need not
+// be the account's owner (pinAppCallback, lib/auth-emails.ts).
+
+type AuthMailKind = "reset" | "verify";
+
+const AUTH_MAIL_PER_HOUR = 5;
+const HOUR_MS = 60 * 60 * 1000;
+
+/** The slice of a Better Auth user the mail needs. */
+interface MailUser {
+  id: string;
+  email: string;
+  name?: string | null;
+}
+
+export interface AuthMailDeps {
+  send: (msg: EmailMessage) => Promise<void>;
+  /** The account's saved UserSettings.locale, or null when it has no settings yet. */
+  savedLocale: (userId: string) => Promise<string | null>;
+  /** Counts one mail of this kind for this account; false once over the limit. */
+  allow: (kind: AuthMailKind, userId: string) => Promise<boolean>;
+}
+
+const defaultMailDeps: AuthMailDeps = {
+  send: sendEmail,
+  savedLocale: async (userId) =>
+    (await prisma.userSettings.findUnique({ where: { userId }, select: { locale: true } }))?.locale ?? null,
+  allow: async (kind, userId) =>
+    (await hitWindow(`auth-mail:${kind}:${userId}`, AUTH_MAIL_PER_HOUR, HOUR_MS)).allowed,
+};
+
+/**
+ * Builds the senders Better Auth calls. Each returns at once, having started
+ * the delivery in the background; the promise it returns never rejects.
+ * Exported with injectable deps so auth-flows.test.ts can hold it to that
+ * without a provider.
+ */
+export function createAuthMailer(deps: AuthMailDeps = defaultMailDeps) {
+  async function deliver(kind: AuthMailKind, user: MailUser, url: string, acceptLanguage: string | null) {
+    if (!(await deps.allow(kind, user.id))) {
+      console.warn(`[auth-mail] ${kind} mail for user ${user.id} not sent: over ${AUTH_MAIL_PER_HOUR} an hour`);
+      return;
+    }
+    const locale = authEmailLocale(await deps.savedLocale(user.id), acceptLanguage);
+    const content =
+      kind === "reset"
+        ? passwordResetEmail({ name: user.name, url: pinAppCallback(url, APP_RESET_PASSWORD_URL), locale })
+        : verificationEmail({ name: user.name, url: withAppCallback(url, APP_VERIFY_EMAIL_URL), locale });
+    await deps.send({ to: user.email, ...content });
+  }
+
+  function inBackground(kind: AuthMailKind) {
+    return (data: { user: MailUser; url: string }, request?: Request): Promise<void> => {
+      // Read now: the request is finished by the time the delivery runs.
+      const acceptLanguage = request?.headers.get("accept-language") ?? null;
+      deliver(kind, data.user, data.url, acceptLanguage).catch((e) => {
+        // No address and no link: the link is a live credential.
+        console.error(`[auth-mail] ${kind} mail for user ${data.user.id} failed: ${e instanceof Error ? e.message : String(e)}`);
+      });
+      return Promise.resolve();
+    };
+  }
+
+  return {
+    sendResetPassword: inBackground("reset"),
+    sendVerificationEmail: inBackground("verify"),
+  };
+}
+
+const authMailer = createAuthMailer();
+
 // ── Auth configuration ──────────────────────────────────────────
 
 /** One of Better Auth's rate-limit records, as it reads and writes them. */
@@ -264,6 +367,38 @@ export const auth = betterAuth({
       hash: hashPassword,
       verify: verifyPassword,
     },
+    // POST /request-password-reset { email, redirectTo } mails a link to
+    // GET /reset-password/:token, which redirects to the app
+    // (realbudget://reset-password?token=…, or ?error=INVALID_TOKEN); the app
+    // then POSTs /reset-password { newPassword, token }. The token is single
+    // use. Every session of the account ends with the reset, so whoever held
+    // the old password loses access along with it.
+    sendResetPassword: authMailer.sendResetPassword,
+    resetPasswordTokenExpiresIn: RESET_LINK_TTL_SECONDS,
+    revokeSessionsOnPasswordReset: true,
+    // Sign-in does not wait for verification (PLAN decision 2): requiring it
+    // would lock out every existing account, none of which has verified, and
+    // would change what sign-up returns. Verification is offered instead.
+    requireEmailVerification: false,
+  },
+  // Offered, not required: a link at sign-up, and a resend in Settings
+  // (POST /send-verification-email). GET /verify-email marks the address
+  // verified and redirects to realbudget://verify-email (or ?error=…).
+  //
+  // autoSignInAfterVerification stays off. The link is opened in a browser,
+  // and with it on, the expo plugin copies the new session's cookie into the
+  // realbudget:// redirect — a session token handed to whichever app claims
+  // the scheme. The app refreshes its own session on the landing instead.
+  emailVerification: {
+    sendVerificationEmail: authMailer.sendVerificationEmail,
+    sendOnSignUp: true,
+    expiresIn: VERIFY_LINK_TTL_SECONDS,
+  },
+  // Reset tokens are stored hashed, so a read of the Verification table (a
+  // backup, a leaked dump, a debug log of the row) yields nothing that resets
+  // a password. Better Auth still finds a token stored before this was set.
+  verification: {
+    storeIdentifier: { default: "plain", overrides: { "reset-password:": "hashed" } },
   },
   // Diagnostic-only: log the FIRST adapter call BetterAuth makes on each path.
   // The "auth.handler timeout" with no other logs means we can't tell whether
@@ -292,8 +427,11 @@ export const auth = betterAuth({
     verification: {
       create: {
         before: async (verification) => {
+          // The kind only. An identifier can embed the token itself
+          // ("reset-password:<token>"), and DEBUG_LOGS can be on in production.
           const v = verification as { identifier?: string };
-          debugLog(`[hook:verification-create:before] identifier=${v.identifier}`);
+          const kind = v.identifier?.includes(":") ? v.identifier.split(":")[0] : "opaque";
+          debugLog(`[hook:verification-create:before] kind=${kind}`);
           return { data: verification };
         },
       },
@@ -328,6 +466,11 @@ export const auth = betterAuth({
     },
   },
   advanced: {
+    // Better Auth switches its origin and callback-URL checks off whenever
+    // NODE_ENV is "test", which `bun test` sets — so no test could ever see a
+    // reset link redirect somewhere untrusted. Pinned on, as it already is in
+    // development and production, so auth-flows.test.ts runs the real checks.
+    disableOriginCheck: false,
     trustedProxyHeaders: true,
     // CSRF protection enabled (enforced via trustedOrigins above).
     // secure: true in production (HTTPS), false in local dev (plain HTTP).

@@ -18,6 +18,9 @@ import { join } from 'node:path';
 const NO_BACK_BY_DESIGN = new Set([
   'login.tsx', 'signup.tsx',                     // auth: forward or nothing
   'onboarding.tsx', 'account-type.tsx',           // first run, one-way
+  // Landings for emailed links: a deep link opens them with nothing beneath
+  // to go back to, so every state leads on — to sign-in or into the app.
+  'reset-password.tsx', 'verify-email.tsx',
   'index.tsx',                                    // the root
   '+not-found.tsx', '+html.tsx',
 ]);

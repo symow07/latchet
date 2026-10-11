@@ -12,7 +12,8 @@ import {
 } from '@/components/kit';
 import * as Haptics from 'expo-haptics';
 import * as SecureStore from 'expo-secure-store';
-import { authClient } from '@/lib/auth/auth-client';
+import { authClient, VERIFY_EMAIL_CALLBACK } from '@/lib/auth/auth-client';
+import { authErrorMessage } from '@/lib/auth/auth-errors';
 import { useInvalidateSession } from '@/lib/auth/use-session';
 import { t } from '@/lib/i18n/core';
 
@@ -26,13 +27,17 @@ const SECURE_STORE_PROBE_KEYS = [
   'realbudget_cookie',
 ];
 
-function friendlyAuthError(raw: string | null | undefined, fallback: string): string {
-  if (!raw) return fallback;
-  const lower = raw.toLowerCase();
-  if (lower.includes('network') || lower.includes('failed to fetch') || lower.includes('timed out') || lower.includes('aborted')) {
-    return t('auth.errorNetwork');
-  }
-  return raw;
+/**
+ * A problem that is already a sentence for the user: a form check, or the
+ * server's answer after the shared mapper. Marked with a property rather than
+ * an Error subclass, whose instanceof does not survive every class transform.
+ */
+function formProblem(message: string): Error {
+  return Object.assign(new Error(message), { formProblem: true as const });
+}
+
+function isFormProblem(err: unknown): err is Error {
+  return err instanceof Error && (err as { formProblem?: unknown }).formProblem === true;
 }
 
 async function probeSecureStore(label: string) {
@@ -66,13 +71,13 @@ export default function SignUpScreen() {
   const signUpMutation = useMutation({
     mutationFn: async () => {
       if (!name.trim() || !email.trim() || !password) {
-        throw new Error(t('auth.errorAllFields'));
+        throw formProblem(t('auth.errorAllFields'));
       }
       if (password.length < 8) {
-        throw new Error(t('auth.errorShortPassword'));
+        throw formProblem(t('auth.errorShortPassword'));
       }
       if (password !== confirmPassword) {
-        throw new Error(t('auth.errorMismatch'));
+        throw formProblem(t('auth.errorMismatch'));
       }
 
       const t0 = Date.now();
@@ -88,6 +93,9 @@ export default function SignUpScreen() {
           email: normEmail,
           password,
           name: name.trim(),
+          // The verification email sent at sign-up links back into the app.
+          // Verifying is offered, not required: sign-up signs straight in.
+          callbackURL: VERIFY_EMAIL_CALLBACK,
         });
       } catch (err) {
         console.error(
@@ -120,7 +128,7 @@ export default function SignUpScreen() {
       await probeSecureStore('post');
 
       if (result.error) {
-        throw new Error(friendlyAuthError(result.error.message, t('auth.errorCreateFailed')));
+        throw formProblem(authErrorMessage(result.error, 'auth.errorCreateFailed'));
       }
 
       return result.data;
@@ -137,7 +145,7 @@ export default function SignUpScreen() {
     onError: (err: Error) => {
       console.warn(`[mobile:signup:onError] ${err.message}`);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      setError(friendlyAuthError(err.message, t('auth.errorCreateFailed')));
+      setError(isFormProblem(err) ? err.message : authErrorMessage(err, 'auth.errorCreateFailed'));
     },
   });
 

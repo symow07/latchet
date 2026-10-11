@@ -9,12 +9,20 @@ import { fetchWithTimeout } from "./fetch-timeout";
  *                             relay.
  *   3. neither, non-prod    → log the message to the server console, so mail can
  *                             be exercised locally without configuring a provider.
+ *                             The log carries the plain-text body, links included:
+ *                             that is how a reset or verification link is followed
+ *                             locally, and the black-box auth check reads it.
  *   4. neither, production  → throw, rather than silently drop the message.
  *
- * Nothing calls this yet. It used to be the one-time-code sender, and the code
- * flow is gone — sign-in is email and password and never sends mail — but
- * password reset and email verification both need a way to send, so the
- * transport stays and the OTP-specific parts went.
+ * Mail to a reserved domain (example.com, *.test, *.invalid, …) is never handed
+ * to a provider in any environment: nothing can receive it, and every attempt
+ * is a bounce charged to the sending domain's reputation. Outside production it
+ * is logged like case 3, so the test suite and the gate checks (which sign up
+ * @example.test and @e2e.test accounts) never send real mail even on a machine
+ * whose .env names a provider.
+ *
+ * Callers: password reset and email verification (auth.ts), which send in the
+ * background and never let a failure here reach the request.
  *
  * The send goes through fetchWithTimeout. The previous version built its own
  * AbortController and never handed the signal to fetch, so its timeout raced
@@ -32,9 +40,34 @@ export interface EmailMessage {
   text: string;
 }
 
+/** Domains reserved by RFC 2606 and RFC 6761: no mail can ever be delivered there. */
+const RESERVED_TLDS = ["test", "example", "invalid", "localhost"];
+const RESERVED_DOMAINS = ["example.com", "example.net", "example.org"];
+
+/** True when the address's domain is reserved, so the message could never arrive. */
+export function isUndeliverableAddress(address: string): boolean {
+  const at = address.lastIndexOf("@");
+  if (at < 0) return true;
+  const domain = address.slice(at + 1).trim().toLowerCase().replace(/\.$/, "");
+  if (!domain) return true;
+  const tld = domain.split(".").pop() ?? "";
+  if (RESERVED_TLDS.includes(tld)) return true;
+  return RESERVED_DOMAINS.some((d) => domain === d || domain.endsWith("." + d));
+}
+
 export async function sendEmail(msg: EmailMessage): Promise<void> {
   const from = env.EMAIL_FROM ?? "Budget <onboarding@resend.dev>";
   let res: Response;
+
+  if (isUndeliverableAddress(msg.to)) {
+    if (env.NODE_ENV !== "production") {
+      console.warn(`[mail:dev] Not sent: reserved domain. To ${msg.to}: ${msg.subject}\n${msg.text}`);
+    } else {
+      // Never the body in production: a reset link in a log is a live credential.
+      console.warn("[mail] not sent: the recipient's domain is reserved and cannot receive mail");
+    }
+    return;
+  }
 
   if (env.RESEND_API_KEY) {
     res = await fetchWithTimeout(RESEND_URL, {

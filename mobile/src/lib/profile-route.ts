@@ -26,11 +26,25 @@ const BUSINESS_ONLY = new Set([
 ]);
 
 /**
+ * Where an emailed link lands. They belong to no profile and must open for any
+ * account — including a brand-new one with no profile yet, which is exactly
+ * who opens the verification link sent at sign-up. Sending them to the picker
+ * would swallow the link.
+ *
+ * forgot-password is not one: it is a signed-out screen, declared with login
+ * in the root layout's public group, so signing in closes it like sign-in
+ * itself. Left exempt here and outside the guards, it outlived a sign-in and
+ * stayed on top of the app.
+ */
+const AUTH_LANDINGS = new Set(['reset-password', 'verify-email']);
+
+/**
  * Where a signed-in account on `segments` should be sent, or null to stay.
  *
  * `segments` is Expo Router's `useSegments()`: the first entry is the group
  * or top-level screen, e.g. ['(business-tabs)', 'expenses'] or ['accounts'].
  *
+ *   an auth landing  → stays, for every profile (AUTH_LANDINGS)
  *   no profile yet   → the profile picker, unless already on it
  *   personal         → its tabs, from anything that belongs to business
  *   business         → its tabs, from the personal tabs or the picker
@@ -44,6 +58,7 @@ export function profileRedirect(
   segments: readonly string[],
 ): ProfileRedirect | null {
   const top = segments[0] ?? '';
+  if (AUTH_LANDINGS.has(top)) return null;
   if (!accountType) return top === 'account-type' ? null : '/account-type';
   if (accountType === 'personal') return BUSINESS_ONLY.has(top) ? '/(tabs)' : null;
   // Business. The picker is included because choosing Business there is

@@ -3,15 +3,16 @@ import {
   KeyboardAvoidingView, Platform, ActivityIndicator, ScrollView,
 } from 'react-native';
 import { useState } from 'react';
-import { useRouter } from 'expo-router';
-import { Eye, EyeOff, Lock, Mail, Wallet } from '@/components/icons';
-import { S, useC } from '@/lib/design';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Eye, EyeOff, Lock, Mail, ShieldCheck, Wallet } from '@/components/icons';
+import { R, S, useC } from '@/lib/design';
 import {
   Field, FormError, IconTile, PrimaryButton, Screen, Type,
 } from '@/components/kit';
 import * as Haptics from 'expo-haptics';
 import * as SecureStore from 'expo-secure-store';
 import { authClient } from '@/lib/auth/auth-client';
+import { authErrorMessage } from '@/lib/auth/auth-errors';
 import { useInvalidateSession } from '@/lib/auth/use-session';
 import { t } from '@/lib/i18n/core';
 
@@ -21,23 +22,6 @@ const SECURE_STORE_PROBE_KEYS = [
   'realbudget_session_token',
   'realbudget_cookie',
 ];
-
-/**
- * Turn an auth failure into a sentence.
- *
- * The network cases were the only ones translated before, and only into
- * English — a French user hit a connection problem and was told about it in a
- * language they had not chosen. The server's own message is still preferred
- * when there is one, because it is more specific than any fallback here.
- */
-function friendlyAuthError(raw: string | null | undefined, fallback: string): string {
-  if (!raw) return fallback;
-  const lower = raw.toLowerCase();
-  if (lower.includes('network') || lower.includes('failed to fetch') || lower.includes('timed out') || lower.includes('aborted')) {
-    return t('auth.errorNetwork');
-  }
-  return raw;
-}
 
 async function probeSecureStore(label: string) {
   try {
@@ -59,6 +43,8 @@ export default function LoginScreen() {
   const C = useC();
   const router = useRouter();
   const invalidateSession = useInvalidateSession();
+  // Arriving from a completed password reset (reset-password.tsx).
+  const { notice } = useLocalSearchParams<{ notice?: string }>();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -91,7 +77,7 @@ export default function LoginScreen() {
         `[mobile:signin:throw] ms=${Date.now() - t0} err=${err instanceof Error ? err.message : String(err)} stack=${err instanceof Error ? err.stack : ''}`,
       );
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      setError(friendlyAuthError(err instanceof Error ? err.message : null, t('auth.errorFailed')));
+      setError(authErrorMessage(err, 'auth.errorFailed'));
       return;
     }
 
@@ -110,7 +96,7 @@ export default function LoginScreen() {
 
     if (result.error) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      setError(friendlyAuthError(result.error.message, t('auth.errorInvalid')));
+      setError(authErrorMessage(result.error, 'auth.errorFailed'));
       return;
     }
 
@@ -144,9 +130,23 @@ export default function LoginScreen() {
           </IconTile>
 
           <Type role="title" color={C.ink}>{t('auth.welcomeBack')}</Type>
-          <Type role="body" color={C.inkDim} style={{ marginTop: 6, marginBottom: 36 }}>
+          <Type role="body" color={C.inkDim} style={{ marginTop: 6, marginBottom: notice === 'password-reset' ? S.group : 36 }}>
             {t('auth.signInSubtitle')}
           </Type>
+
+          {notice === 'password-reset' ? (
+            <View
+              accessibilityRole="alert"
+              style={{
+                flexDirection: 'row', alignItems: 'center', gap: 12,
+                padding: S.group, marginBottom: S.wide,
+                borderRadius: R.control, borderCurve: 'continuous', backgroundColor: C.groundSunk,
+              }}
+            >
+              <ShieldCheck size={19} color={C.ink} strokeWidth={S.stroke} />
+              <Type role="meta" color={C.ink} style={{ flex: 1 }}>{t('auth.passwordResetNotice')}</Type>
+            </View>
+          ) : null}
 
           <Field
             pal={C}
@@ -186,6 +186,19 @@ export default function LoginScreen() {
               </Pressable>
             }
           />
+
+          {/* With the address typed so far, so it need not be typed twice. */}
+          <Pressable
+            onPress={() => router.push({
+              pathname: '/forgot-password',
+              params: email.trim() ? { email: email.trim().toLowerCase() } : {},
+            })}
+            hitSlop={10}
+            accessibilityRole="link"
+            style={{ alignSelf: 'flex-end', marginTop: S.group }}
+          >
+            <Type role="meta" color={C.accent}>{t('auth.forgotLink')}</Type>
+          </Pressable>
 
           <FormError pal={C} message={error} />
 

@@ -624,7 +624,13 @@
     "errorAllFields": "Fill in every field to continue.",
     "errorShortPassword": "Use at least 8 characters.",
     "errorMismatch": "Those two passwords don't match.",
-    "errorCreateFailed": "Couldn't create the account. Try again in a moment."
+    "errorCreateFailed": "Couldn't create the account. Try again in a moment.",
+    "forgotLink": "Forgot password?",
+    "errorRateLimited": "Too many attempts. Wait a few minutes and try again.",
+    "errorExists": "An account already uses this email. Sign in, or reset its password.",
+    "errorInvalidEmail": "Enter a valid email address.",
+    "errorLongPassword": "Use 128 characters or fewer.",
+    "passwordResetNotice": "Your password was changed. Sign in with the new one."
   },
   "addTransaction": {
     "title": "Add Transaction",
@@ -1515,5 +1521,60 @@
     "flushFailedBody": "Your changes couldn't be backed up just now. Signing out deletes anything on this phone that hasn't reached your account.",
     "signOutAnyway": "Sign out anyway",
     "signingOut": "Signing out…"
+  },
+  "forgotPassword": {
+    "title": "Reset password",
+    "heading": "Forgot your password?",
+    "body": "Enter the email you signed up with and we'll send a link to choose a new password.",
+    "send": "Send reset link",
+    "sentTitle": "Check your email",
+    "sentBody": "If %{email} has a Budget account, a reset link is on its way. Open it on this phone. It works once and expires in an hour.",
+    "spamHint": "Nothing after a few minutes? Check your spam folder, or send it again.",
+    "resend": "Send again",
+    "resendIn": "Send again in %{seconds} s",
+    "useDifferent": "Use a different email",
+    "backToSignIn": "Back to sign in",
+    "failed": "Couldn't send the link. Try again in a moment."
+  },
+  "resetPassword": {
+    "title": "Choose a new password",
+    "body": "Use at least 8 characters, and one you don't use anywhere else. Your other devices will be signed out.",
+    "newPassword": "New password",
+    "confirmPassword": "Confirm new password",
+    "save": "Save new password",
+    "signedInNote": "You're signed in as %{email}. The new password is for the account this link was emailed to.",
+    "invalidTitle": "This link has expired",
+    "invalidBody": "Reset links work once and expire after an hour. Ask for a new one, and open the most recent email.",
+    "invalidSignedInHint": "To get a new link, sign out, then tap “Forgot password?” on the sign-in screen.",
+    "requestNew": "Send a new link",
+    "doneTitle": "Password changed",
+    "doneBody": "The account this link was sent to now signs in with the new password, and its other sessions were signed out.",
+    "continue": "Continue",
+    "backToSignIn": "Back to sign in",
+    "notNow": "Not now",
+    "failed": "Couldn't change the password. Try again in a moment."
+  },
+  "verifyEmail": {
+    "verifiedTitle": "Email confirmed",
+    "verifiedBody": "Thanks. Your email address is verified.",
+    "expiredTitle": "This link has expired",
+    "expiredBody": "Confirmation links expire after 24 hours. Send a new one, then open the most recent email.",
+    "invalidTitle": "This link didn't work",
+    "invalidBody": "It may have been cut short, or replaced by a newer one. Send a new link, then open the most recent email.",
+    "signedOutHint": "Sign in, then send a new link from Settings.",
+    "alreadyVerified": "The email of the account you're signed in to is already confirmed.",
+    "sendNew": "Send a new link",
+    "continue": "Continue",
+    "signIn": "Sign in"
+  },
+  "emailVerification": {
+    "section": "Account",
+    "verified": "Verified",
+    "notVerified": "Not verified. Open the link we emailed you.",
+    "sent": "Link sent. Check your inbox.",
+    "resend": "Send link",
+    "resendIn": "Again in %{seconds} s",
+    "resendLabel": "Send a verification link to %{email}",
+    "failed": "Couldn't send the link. Try again in a moment."
   }
 }

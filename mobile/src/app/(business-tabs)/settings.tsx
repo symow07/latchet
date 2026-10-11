@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
-import { View, ScrollView, Linking, Alert, ActivityIndicator } from 'react-native';
+import { View, ScrollView, Linking, Alert, ActivityIndicator, Pressable } from 'react-native';
 import {
-  Bell, Briefcase, Building2, FileText, Globe, HelpCircle, LogOut,
-  Moon, Shield, Smartphone, Sun, Users,
+  Bell, Briefcase, Building2, FileText, Globe, HelpCircle, LogOut, Mail,
+  Moon, Shield, ShieldCheck, Smartphone, Sun, Users,
 } from '@/components/icons';
 import * as Haptics from 'expo-haptics';
 import { useSession } from '@/lib/auth/use-session';
+import { useEmailVerification } from '@/lib/auth/use-email-verification';
 import { signOutAndClear } from '@/lib/user-session';
 import { useSignOutDeps } from '@/lib/use-sign-out';
 import { flushBeforeSignOut, resumeCloudSync } from '@/lib/cloud-sync';
@@ -21,7 +22,7 @@ import {
 } from '@/lib/notifications';
 import { BAR, R, S, useC } from '@/lib/design';
 import {
-  Card, ChoiceRow, Group, Header, IconTile, LinkRow, Screen, SwitchRow, Touchable, Type,
+  Card, ChoiceRow, FormError, Group, Header, IconTile, LinkRow, Screen, SwitchRow, Touchable, Type,
 } from '@/components/kit';
 import { t, SUPPORTED_LOCALES, LOCALE_LABELS } from '@/lib/i18n/core';
 import { useLocaleStore } from '@/lib/i18n/locale-store';
@@ -47,6 +48,10 @@ export default function BusinessSettingsScreen() {
   const insets = useSafeAreaInsets();
   const B = useC();
   const { data: session } = useSession();
+  // Whether the account's address is verified, with a resend — the same row
+  // as on the personal screen. Offered, never required.
+  const { email, emailVerified, sendVerificationEmail, sending, sent, secondsLeft, error: verifyError } =
+    useEmailVerification();
   const locale = useLocaleStore((s) => s.locale);
   const chooseLanguage = useLocaleStore((s) => s.choose);
   const themePreference = useThemeStore((s) => s.preference);
@@ -182,6 +187,49 @@ export default function BusinessSettingsScreen() {
             </View>
           </Card>
         </View>
+
+        {email ? (
+          <>
+            <Group pal={B} title={t('emailVerification.section')} style={{ marginTop: S.section }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, minHeight: 56, paddingVertical: 10 }}>
+                {tile(emailVerified ? ShieldCheck : Mail)}
+                <View style={{ flex: 1 }}>
+                  <Type role="body" color={B.ink} numberOfLines={1}>{email}</Type>
+                  <Type role="meta" color={B.inkDim}>
+                    {emailVerified
+                      ? t('emailVerification.verified')
+                      : sent ? t('emailVerification.sent') : t('emailVerification.notVerified')}
+                  </Type>
+                </View>
+                {!emailVerified ? (
+                  <Pressable
+                    onPress={sendVerificationEmail}
+                    disabled={sending || secondsLeft > 0}
+                    hitSlop={10}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('emailVerification.resendLabel', { email })}
+                    accessibilityState={{ disabled: sending || secondsLeft > 0 }}
+                  >
+                    {sending ? (
+                      <ActivityIndicator size="small" color={B.inkDim} />
+                    ) : (
+                      <Type role="meta" color={secondsLeft > 0 ? B.inkDim : B.accent}>
+                        {secondsLeft > 0
+                          ? t('emailVerification.resendIn', { seconds: secondsLeft })
+                          : t('emailVerification.resend')}
+                      </Type>
+                    )}
+                  </Pressable>
+                ) : null}
+              </View>
+            </Group>
+            {verifyError ? (
+              <View style={{ paddingHorizontal: S.screen + 4 }}>
+                <FormError pal={B} message={verifyError} />
+              </View>
+            ) : null}
+          </>
+        ) : null}
 
         <Group pal={B} title={t('bizSettings.sectionBusiness')} style={{ marginTop: S.section }}>
           <LinkRow

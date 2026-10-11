@@ -610,7 +610,13 @@
     "errorAllFields": "请填写所有字段以继续。",
     "errorShortPassword": "请至少使用 8 个字符。",
     "errorMismatch": "两次输入的密码不一致。",
-    "errorCreateFailed": "无法创建账户，请稍后再试。"
+    "errorCreateFailed": "无法创建账户，请稍后再试。",
+    "forgotLink": "忘记密码？",
+    "errorRateLimited": "尝试次数过多，请等几分钟后再试。",
+    "errorExists": "该邮箱已有账户。请直接登录，或重置其密码。",
+    "errorInvalidEmail": "请输入有效的邮箱地址。",
+    "errorLongPassword": "请不要超过 128 个字符。",
+    "passwordResetNotice": "密码已修改，请使用新密码登录。"
   },
   "addTransaction": {
     "title": "添加交易",
@@ -1482,5 +1488,60 @@
     "flushFailedBody": "暂时无法备份你的更改。退出登录会从此手机删除所有尚未同步到你账户的内容。",
     "signOutAnyway": "仍然退出登录",
     "signingOut": "正在退出登录…"
+  },
+  "forgotPassword": {
+    "title": "重置密码",
+    "heading": "忘记密码了？",
+    "body": "输入注册时使用的邮箱，我们会发送一个链接，供你设置新密码。",
+    "send": "发送重置链接",
+    "sentTitle": "请查收邮件",
+    "sentBody": "如果 %{email} 有 Budget 账户，重置链接正在发送中。请在这部手机上打开。该链接只能使用一次，一小时后失效。",
+    "spamHint": "几分钟后仍未收到？请检查垃圾邮件，或重新发送。",
+    "resend": "重新发送",
+    "resendIn": "%{seconds} 秒后可重新发送",
+    "useDifferent": "使用其他邮箱",
+    "backToSignIn": "返回登录",
+    "failed": "链接发送失败，请稍后再试。"
+  },
+  "resetPassword": {
+    "title": "设置新密码",
+    "body": "至少 8 个字符，且不要与其他地方的密码相同。你的其他设备将退出登录。",
+    "newPassword": "新密码",
+    "confirmPassword": "确认新密码",
+    "save": "保存新密码",
+    "signedInNote": "你当前登录的是 %{email}。新密码将用于接收此链接的账户。",
+    "invalidTitle": "此链接已失效",
+    "invalidBody": "重置链接只能使用一次，一小时后失效。请重新获取，并打开最新的一封邮件。",
+    "invalidSignedInHint": "如需新的链接，请先退出登录，然后在登录页面选择“忘记密码？”。",
+    "requestNew": "发送新链接",
+    "doneTitle": "密码已修改",
+    "doneBody": "接收此链接的账户现在使用新密码，其他登录会话已全部退出。",
+    "continue": "继续",
+    "backToSignIn": "返回登录",
+    "notNow": "以后再说",
+    "failed": "密码修改失败，请稍后再试。"
+  },
+  "verifyEmail": {
+    "verifiedTitle": "邮箱已确认",
+    "verifiedBody": "谢谢，你的邮箱地址已验证。",
+    "expiredTitle": "此链接已失效",
+    "expiredBody": "确认链接 24 小时后失效。请重新发送，并打开最新的一封邮件。",
+    "invalidTitle": "此链接无效",
+    "invalidBody": "链接可能不完整，或已被更新的链接取代。请重新发送，并打开最新的一封邮件。",
+    "signedOutHint": "请先登录，然后在设置中重新发送链接。",
+    "alreadyVerified": "你当前登录账户的邮箱已经确认。",
+    "sendNew": "发送新链接",
+    "continue": "继续",
+    "signIn": "登录"
+  },
+  "emailVerification": {
+    "section": "账户",
+    "verified": "已验证",
+    "notVerified": "未验证。请打开我们发送给你的链接。",
+    "sent": "链接已发送，请查收邮件。",
+    "resend": "发送链接",
+    "resendIn": "%{seconds} 秒后重发",
+    "resendLabel": "向 %{email} 发送验证链接",
+    "failed": "链接发送失败，请稍后再试。"
   }
 }

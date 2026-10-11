@@ -624,7 +624,13 @@
     "errorAllFields": "Remplissez tous les champs pour continuer.",
     "errorShortPassword": "Utilisez au moins 8 caractères.",
     "errorMismatch": "Ces deux mots de passe ne correspondent pas.",
-    "errorCreateFailed": "Impossible de créer le compte. Réessayez dans un instant."
+    "errorCreateFailed": "Impossible de créer le compte. Réessayez dans un instant.",
+    "forgotLink": "Mot de passe oublié ?",
+    "errorRateLimited": "Trop de tentatives. Patientez quelques minutes, puis réessayez.",
+    "errorExists": "Un compte utilise déjà cet e-mail. Connectez-vous ou réinitialisez son mot de passe.",
+    "errorInvalidEmail": "Saisissez une adresse e-mail valide.",
+    "errorLongPassword": "Utilisez 128 caractères au maximum.",
+    "passwordResetNotice": "Votre mot de passe a été modifié. Connectez-vous avec le nouveau."
   },
   "addTransaction": {
     "title": "Ajouter une transaction",
@@ -1515,5 +1521,60 @@
     "flushFailedBody": "Vos modifications n'ont pas pu être sauvegardées pour l'instant. Se déconnecter supprime de ce téléphone tout ce qui n'a pas atteint votre compte.",
     "signOutAnyway": "Se déconnecter quand même",
     "signingOut": "Déconnexion…"
+  },
+  "forgotPassword": {
+    "title": "Réinitialisation",
+    "heading": "Mot de passe oublié ?",
+    "body": "Saisissez l'e-mail utilisé à l'inscription : nous vous enverrons un lien pour choisir un nouveau mot de passe.",
+    "send": "Envoyer le lien",
+    "sentTitle": "Consultez vos e-mails",
+    "sentBody": "Si %{email} correspond à un compte Budget, un lien de réinitialisation est en route. Ouvrez-le sur ce téléphone. Il ne fonctionne qu'une fois et expire dans une heure.",
+    "spamHint": "Rien après quelques minutes ? Vérifiez vos spams ou renvoyez le lien.",
+    "resend": "Renvoyer",
+    "resendIn": "Renvoyer dans %{seconds} s",
+    "useDifferent": "Utiliser un autre e-mail",
+    "backToSignIn": "Retour à la connexion",
+    "failed": "Impossible d'envoyer le lien. Réessayez dans un instant."
+  },
+  "resetPassword": {
+    "title": "Nouveau mot de passe",
+    "body": "Au moins 8 caractères, et un mot de passe que vous n'utilisez nulle part ailleurs. Vos autres appareils seront déconnectés.",
+    "newPassword": "Nouveau mot de passe",
+    "confirmPassword": "Confirmer le nouveau mot de passe",
+    "save": "Enregistrer",
+    "signedInNote": "Vous êtes connecté en tant que %{email}. Le nouveau mot de passe concerne le compte auquel ce lien a été envoyé.",
+    "invalidTitle": "Ce lien a expiré",
+    "invalidBody": "Les liens de réinitialisation ne servent qu'une fois et expirent au bout d'une heure. Demandez-en un nouveau et ouvrez l'e-mail le plus récent.",
+    "invalidSignedInHint": "Pour recevoir un nouveau lien, déconnectez-vous, puis choisissez « Mot de passe oublié ? » sur l'écran de connexion.",
+    "requestNew": "Recevoir un nouveau lien",
+    "doneTitle": "Mot de passe modifié",
+    "doneBody": "Le compte auquel ce lien a été envoyé utilise désormais le nouveau mot de passe, et ses autres sessions ont été fermées.",
+    "continue": "Continuer",
+    "backToSignIn": "Retour à la connexion",
+    "notNow": "Plus tard",
+    "failed": "Impossible de modifier le mot de passe. Réessayez dans un instant."
+  },
+  "verifyEmail": {
+    "verifiedTitle": "Adresse confirmée",
+    "verifiedBody": "Merci. Votre adresse e-mail est vérifiée.",
+    "expiredTitle": "Ce lien a expiré",
+    "expiredBody": "Les liens de confirmation expirent au bout de 24 heures. Demandez-en un nouveau, puis ouvrez l'e-mail le plus récent.",
+    "invalidTitle": "Ce lien n'a pas fonctionné",
+    "invalidBody": "Il a peut-être été tronqué, ou remplacé par un plus récent. Demandez un nouveau lien, puis ouvrez l'e-mail le plus récent.",
+    "signedOutHint": "Connectez-vous, puis demandez un nouveau lien depuis les Réglages.",
+    "alreadyVerified": "L'adresse du compte auquel vous êtes connecté est déjà confirmée.",
+    "sendNew": "Recevoir un nouveau lien",
+    "continue": "Continuer",
+    "signIn": "Se connecter"
+  },
+  "emailVerification": {
+    "section": "Compte",
+    "verified": "Vérifiée",
+    "notVerified": "Non vérifiée. Ouvrez le lien que nous vous avons envoyé.",
+    "sent": "Lien envoyé. Consultez votre boîte de réception.",
+    "resend": "Envoyer le lien",
+    "resendIn": "Encore %{seconds} s",
+    "resendLabel": "Envoyer un lien de vérification à %{email}",
+    "failed": "Impossible d'envoyer le lien. Réessayez dans un instant."
   }
 }

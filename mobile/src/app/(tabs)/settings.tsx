@@ -1,4 +1,4 @@
-import { View, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { View, ScrollView, Alert, ActivityIndicator, Pressable } from 'react-native';
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
@@ -6,7 +6,7 @@ import { getSettings, updateSettings, getAccounts, resetAllData } from '@/lib/db
 import { exportTransactionsCSV, exportTransactionsJSON } from '@/lib/export-data';
 import {
   Award, Bell, Cloud, CreditCard, Download, Eye, Fingerprint, Flame,
-  HeartPulse, Home, LogOut, Moon, PieChart, Repeat, RotateCcw, Smartphone,
+  HeartPulse, Home, LogOut, Mail, Moon, PieChart, Repeat, RotateCcw, ShieldCheck, Smartphone,
   Sparkles, Sun, Trash2, TrendingUp, Upload,
 } from '@/components/icons';
 import * as Haptics from 'expo-haptics';
@@ -18,9 +18,10 @@ import { isBiometricAvailable } from '@/lib/biometric';
 import { BAR, S, useC } from '@/lib/design';
 import { DeleteAccountModal, UnrevokedGrantsNotice } from '@/components/DeleteAccountModal';
 import {
-  ChoiceRow, Field, Group, Header, IconTile, LinkRow, PrimaryButton, Screen,
+  ChoiceRow, Field, FormError, Group, Header, IconTile, LinkRow, PrimaryButton, Screen,
   SwitchRow, Touchable, Type,
 } from '@/components/kit';
+import { useEmailVerification } from '@/lib/auth/use-email-verification';
 import { useEntitlement } from '@/lib/useEntitlement';
 import { t, SUPPORTED_LOCALES, LOCALE_LABELS } from '@/lib/i18n/core';
 import { useLocaleStore } from '@/lib/i18n/locale-store';
@@ -70,6 +71,10 @@ export default function SettingsScreen() {
   const chooseTheme = useThemeStore((s) => s.choose);
   const { isPro, presentPaywall, restore } = useEntitlement();
   const [unrevokedGrants, setUnrevokedGrants] = useState<UnrevokedGrant[] | null>(null);
+  // The account's address and whether it is verified, with a resend. Offered,
+  // never required: nothing in the app waits on it.
+  const { email, emailVerified, sendVerificationEmail, sending, sent, secondsLeft, error: verifyError } =
+    useEmailVerification();
 
   /**
    * The server has already deleted the account, and DeleteAccountModal has
@@ -232,7 +237,50 @@ export default function SettingsScreen() {
           subtitle={t('settingsHeader.subtitle')}
         />
 
-        <Group pal={C} title={t('settings.sections.numbers')} style={{ marginTop: 24 }}>
+        {email ? (
+          <>
+            <Group pal={C} title={t('emailVerification.section')} style={{ marginTop: 24 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, minHeight: 56, paddingVertical: 10 }}>
+                {tile(emailVerified ? ShieldCheck : Mail)}
+                <View style={{ flex: 1 }}>
+                  <Type role="body" color={C.ink} numberOfLines={1}>{email}</Type>
+                  <Type role="meta" color={C.inkDim}>
+                    {emailVerified
+                      ? t('emailVerification.verified')
+                      : sent ? t('emailVerification.sent') : t('emailVerification.notVerified')}
+                  </Type>
+                </View>
+                {!emailVerified ? (
+                  <Pressable
+                    onPress={sendVerificationEmail}
+                    disabled={sending || secondsLeft > 0}
+                    hitSlop={10}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('emailVerification.resendLabel', { email })}
+                    accessibilityState={{ disabled: sending || secondsLeft > 0 }}
+                  >
+                    {sending ? (
+                      <ActivityIndicator size="small" color={C.inkDim} />
+                    ) : (
+                      <Type role="meta" color={secondsLeft > 0 ? C.inkDim : C.accent}>
+                        {secondsLeft > 0
+                          ? t('emailVerification.resendIn', { seconds: secondsLeft })
+                          : t('emailVerification.resend')}
+                      </Type>
+                    )}
+                  </Pressable>
+                ) : null}
+              </View>
+            </Group>
+            {verifyError ? (
+              <View style={{ paddingHorizontal: S.screen + 4 }}>
+                <FormError pal={C} message={verifyError} />
+              </View>
+            ) : null}
+          </>
+        ) : null}
+
+        <Group pal={C} title={t('settings.sections.numbers')} style={{ marginTop: email ? S.section : 24 }}>
           <Field
             pal={C}
             label={t('settings.monthlyBudget')}
