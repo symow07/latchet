@@ -127,7 +127,7 @@ function boundaryTransactions(month: string) {
 test('health score buckets boundary transactions into their own month', () => {
   const now = new Date();
   const month = todayISO(now).slice(0, 7);
-  const result = calculateHealthScore(boundaryTransactions(month), SETTINGS as any);
+  const result = calculateHealthScore(boundaryTransactions(month), SETTINGS as any, now);
 
   // 4000 income against 730 of expenses is a savings rate well above 30%,
   // which is only true if all four rows landed in the current month.
@@ -135,9 +135,28 @@ test('health score buckets boundary transactions into their own month', () => {
   expect(result.breakdown.savingsRate.score).toBe(25);
 });
 
-test('health score is stable across timezones for the same fixture', () => {
-  // The assertion above is the invariant; this file is run under both
-  // TZ=Asia/Shanghai and TZ=America/Los_Angeles (see package.json test:tz),
-  // and identical expected values in both runs is the proof.
-  expect(process.env.TZ ?? 'system').toBeDefined();
+/** Run `fn` with the process in `zone`, then put the previous zone back. */
+function inTimeZone<T>(zone: string, fn: () => T): T {
+  const previous = process.env.TZ ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
+  process.env.TZ = zone;
+  try {
+    return fn();
+  } finally {
+    process.env.TZ = previous;
+  }
+}
+
+test('health score is identical for the same local moment in every timezone', () => {
+  // The first half hour of August, local time, from UTC+14 to UTC-11. A UTC
+  // reparse of '2026-08-01' lands in July west of Greenwich, and July's rows
+  // are here to be wrongly picked up.
+  const zones = ['Asia/Shanghai', 'America/Los_Angeles', 'UTC', 'Pacific/Kiritimati', 'Pacific/Pago_Pago'];
+  const txs = [...boundaryTransactions('2026-07'), ...boundaryTransactions('2026-08')];
+  const results = zones.map((zone) =>
+    inTimeZone(zone, () => calculateHealthScore(txs, SETTINGS as any, new Date(2026, 7, 1, 0, 30)))
+  );
+  for (const r of results) expect(r).toEqual(results[0]!);
+  expect(results[0]!.breakdown.savingsRate).toEqual({ score: 25, value: 82, maxPoints: 25 });
+  // 730 of a 2000 budget on day 1 of 31 is ahead of pace but inside the budget.
+  expect(results[0]!.breakdown.budgetDiscipline.score).toBe(12);
 });

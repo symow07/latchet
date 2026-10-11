@@ -50,7 +50,10 @@ export function cancelGuidanceFor(merchant: string): { instructions: string; url
   };
 }
 
-export function detectSubscriptions(expenses: Expense[]): SubscriptionSummary {
+export function detectSubscriptions(
+  expenses: Expense[],
+  now: Date = new Date()
+): SubscriptionSummary {
   const detections = detectFromEngine(chargesFromExpenses(expenses));
 
   const subscriptions: DetectedSubscription[] = detections.map((s) => {
@@ -70,9 +73,9 @@ export function detectSubscriptions(expenses: Expense[]): SubscriptionSummary {
   });
 
   const monthlyTotal = monthlyCost(detections);
-  const horizon = daysAheadISO(30);
+  const horizon = daysAheadISO(30, now);
   const upcoming = subscriptions
-    .filter((s) => isBetween(s.nextChargeDate, todayISO(), horizon))
+    .filter((s) => isBetween(s.nextChargeDate, todayISO(now), horizon))
     .sort((a, b) => a.nextChargeDate.localeCompare(b.nextChargeDate));
 
   return {
@@ -85,11 +88,11 @@ export function detectSubscriptions(expenses: Expense[]): SubscriptionSummary {
 
 // ─── Format helpers ─────────────────────────────────────────────────────────
 
-export function formatNextCharge(dateStr: string): string {
+export function formatNextCharge(dateStr: string, now: Date = new Date()): string {
   // Compared as calendar dates: parsing with `new Date()` and differencing
   // timestamps made "Today" flip to "Overdue" partway through the day
   // depending on the device's timezone.
-  const diffDays = daysBetween(todayISO(), dateStr.slice(0, 10));
+  const diffDays = daysBetween(todayISO(now), dateStr.slice(0, 10));
 
   if (diffDays < 0) return t('subStatus.overdue');
   if (diffDays === 0) return t('subStatus.today');

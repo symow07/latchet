@@ -8,8 +8,8 @@ export interface DailySpending {
   amount: number;
 }
 
-export function getDateRange(days: number): { start: string; end: string } {
-  const today = startOfDay(new Date());
+export function getDateRange(days: number, now: Date = new Date()): { start: string; end: string } {
+  const today = startOfDay(now);
   const start = subDays(today, days - 1);
   return {
     start: format(start, 'yyyy-MM-dd'),
@@ -17,8 +17,8 @@ export function getDateRange(days: number): { start: string; end: string } {
   };
 }
 
-export function getMonthRange(): { start: string; end: string } {
-  const today = new Date();
+export function getMonthRange(now: Date = new Date()): { start: string; end: string } {
+  const today = now;
   const start = startOfMonth(today);
   const end = endOfMonth(today);
   return {
@@ -27,15 +27,15 @@ export function getMonthRange(): { start: string; end: string } {
   };
 }
 
-export function calculateTodaySpent(transactions: Transaction[]): number {
-  const today = format(new Date(), 'yyyy-MM-dd');
+export function calculateTodaySpent(transactions: Transaction[], now: Date = new Date()): number {
+  const today = format(now, 'yyyy-MM-dd');
   return transactions
     .filter(tx => tx.type === 'Expense' && tx.dateISO === today)
     .reduce((sum, tx) => sum + tx.amount, 0);
 }
 
-export function calculateWeekSpent(transactions: Transaction[]): number {
-  const { start, end } = getDateRange(7);
+export function calculateWeekSpent(transactions: Transaction[], now: Date = new Date()): number {
+  const { start, end } = getDateRange(7, now);
   return transactions
     .filter(tx => tx.type === 'Expense' && tx.dateISO >= start && tx.dateISO <= end)
     .reduce((sum, tx) => sum + tx.amount, 0);
@@ -48,8 +48,8 @@ export function calculateWeekSpent(transactions: Transaction[]): number {
  * the one comparison the home insight makes, and it has to line the windows
  * up exactly or a Monday reading compares six days against eight.
  */
-export function calculateLastWeekSpent(transactions: Transaction[]): number {
-  const today = startOfDay(new Date());
+export function calculateLastWeekSpent(transactions: Transaction[], now: Date = new Date()): number {
+  const today = startOfDay(now);
   const start = format(subDays(today, 13), 'yyyy-MM-dd');
   const end = format(subDays(today, 7), 'yyyy-MM-dd');
   return transactions
@@ -57,8 +57,8 @@ export function calculateLastWeekSpent(transactions: Transaction[]): number {
     .reduce((sum, tx) => sum + tx.amount, 0);
 }
 
-export function calculateMonthSpent(transactions: Transaction[]): number {
-  const { start, end } = getMonthRange();
+export function calculateMonthSpent(transactions: Transaction[], now: Date = new Date()): number {
+  const { start, end } = getMonthRange(now);
   return transactions
     .filter(tx => tx.type === 'Expense' && tx.dateISO >= start && tx.dateISO <= end)
     .reduce((sum, tx) => sum + tx.amount, 0);
@@ -197,8 +197,8 @@ export function calculateSurvivalDays(
   return Math.floor(currentBalance / averageDailySpend);
 }
 
-export function calculateImpulsePercentage(transactions: Transaction[]): number {
-  const { start, end } = getDateRange(30);
+export function calculateImpulsePercentage(transactions: Transaction[], now: Date = new Date()): number {
+  const { start, end } = getDateRange(30, now);
   const filtered = transactions.filter(
     tx => tx.type === 'Expense' && tx.dateISO >= start && tx.dateISO <= end
   );
@@ -213,7 +213,8 @@ export function calculateDisciplineGrade(
   monthlyBudget: number,
   monthlySpent: number
 ): 'A' | 'B' | 'C' | 'D' | 'F' {
-  if (monthlyBudget === 0) return 'C'; // No budget set: neutral grade
+  // No budget set (or a negative one, which made every ratio an A): neutral grade.
+  if (!(monthlyBudget > 0)) return 'C';
 
   const ratio = monthlySpent / monthlyBudget;
 
@@ -224,17 +225,18 @@ export function calculateDisciplineGrade(
   return 'F';
 }
 
-export function getDailySpendingData(transactions: Transaction[]): DailySpending[] {
-  const { start } = getDateRange(14);
+export function getDailySpendingData(transactions: Transaction[], now: Date = new Date()): DailySpending[] {
+  // Bounded at today: a future-dated expense used to add a fifteenth bar.
+  const { start, end } = getDateRange(14, now);
   const filtered = transactions.filter(
-    tx => tx.type === 'Expense' && tx.dateISO >= start
+    tx => tx.type === 'Expense' && tx.dateISO >= start && tx.dateISO <= end
   );
 
   const dailyMap = new Map<string, number>();
 
   // Initialize last 14 days with 0
   for (let i = 0; i < 14; i++) {
-    const date = format(subDays(new Date(), i), 'yyyy-MM-dd');
+    const date = format(subDays(now, i), 'yyyy-MM-dd');
     dailyMap.set(date, 0);
   }
 
@@ -250,14 +252,13 @@ export function getDailySpendingData(transactions: Transaction[]): DailySpending
     .sort((a, b) => a.date.localeCompare(b.date));
 }
 
-export function calculateLoggingStreak(transactions: Transaction[]): number {
+export function calculateLoggingStreak(transactions: Transaction[], now: Date = new Date()): number {
   const sorted = [...transactions].sort((a, b) => b.dateISO.localeCompare(a.dateISO));
 
   if (sorted.length === 0) return 0;
 
   let streak = 0;
-  let currentDate = new Date();
-  currentDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate());
+  const currentDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
   for (let i = 0; i < 365; i++) {
     const checkDate = format(subDays(currentDate, i), 'yyyy-MM-dd');

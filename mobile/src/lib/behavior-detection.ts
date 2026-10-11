@@ -1,9 +1,36 @@
-import { format, subDays, subMonths, startOfMonth, endOfMonth, getDay } from 'date-fns';
-import { detectSubscriptions as detectFromEngine } from './subscriptions/engine';
+import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns';
+import { detectSubscriptions as detectFromEngine, monthlyCost } from './subscriptions/engine';
 import { chargesFromTransactions } from './subscriptions/sources';
 import { t } from './i18n/core';
 import { categoryLabel } from './category-meta';
+import { projectMonthlyExpenses } from './calculations';
+import {
+  dayOfMonth,
+  daysAgoISO,
+  daysBetween,
+  daysInMonth,
+  isInCurrentMonth,
+  isWithinLastDays,
+} from './dates';
 import type { Transaction } from './transaction';
+
+/** 1 January 2023 was a Sunday. */
+const A_SUNDAY = '2023-01-01';
+
+/**
+ * Day of the week (0 = Sunday … 6 = Saturday) of a YYYY-MM-DD string, counted
+ * in calendar days and so the same in every timezone. `getDay(new Date(dateISO))`
+ * read UTC midnight with local getters: west of Greenwich every Saturday came
+ * out as a Friday and every Monday as a Sunday.
+ */
+function weekdayOf(dateISO: string): number {
+  return ((daysBetween(A_SUNDAY, dateISO) % 7) + 7) % 7;
+}
+
+const isWeekend = (dateISO: string) => {
+  const day = weekdayOf(dateISO);
+  return day === 0 || day === 6;
+};
 
 // Subscription Detection
 export interface DetectedSubscription {
@@ -17,6 +44,13 @@ export interface DetectedSubscription {
   totalSpent: number;
 }
 
+/** The shared engine's detections with a known cadence. */
+function recurringDetections(transactions: Transaction[]) {
+  return detectFromEngine(chargesFromTransactions(transactions)).filter(
+    (s) => s.cadence !== 'unknown'
+  );
+}
+
 /**
  * Recurring charges, for the analytics screen.
  *
@@ -26,8 +60,13 @@ export interface DetectedSubscription {
  * is now a view over the shared engine.
  */
 export function detectSubscriptions(transactions: Transaction[]): DetectedSubscription[] {
-  return detectFromEngine(chargesFromTransactions(transactions))
-    .filter((s) => s.cadence !== 'unknown')
+  return toAnalyticsView(recurringDetections(transactions));
+}
+
+function toAnalyticsView(
+  detections: ReturnType<typeof recurringDetections>
+): DetectedSubscription[] {
+  return detections
     .map((s) => ({
       description: s.merchantDisplay,
       amount: s.typicalAmount,
@@ -72,29 +111,51 @@ export function detectDuplicateCharges(transactions: Transaction[]): DuplicateCh
       amountGroups[key].push(tx);
     });
 
-    Object.entries(amountGroups).forEach(([amount, group]) => {
-      if (group.length > 1) {
-        // Check if descriptions are similar
-        const firstDesc = (group[0].note || group[0].category).toLowerCase();
-        const similarCount = group.filter(tx => {
-          const desc = (tx.note || tx.category).toLowerCase();
-          return desc.includes(firstDesc.split(' ')[0]) || firstDesc.includes(desc.split(' ')[0]);
-        }).length;
+    Object.values(amountGroups).forEach(group => {
+      if (group.length < 2) return;
 
-        if (similarCount > 1) {
+      // Within a same-day, same-amount group, only charges that look like the
+      // same merchant are duplicates of each other. Each charge joins the first
+      // cluster whose first charge it resembles: reporting the whole group
+      // swept a different merchant's same-priced charge into the refund, and a
+      // pair that did not include the group's first charge was never found.
+      const clusters: Transaction[][] = [];
+      group.forEach(tx => {
+        const cluster = clusters.find(c => similarDescriptions(c[0], tx));
+        if (cluster) cluster.push(tx);
+        else clusters.push([tx]);
+      });
+
+      clusters
+        .filter(cluster => cluster.length > 1)
+        .forEach(cluster => {
           duplicates.push({
-            transactions: group,
-            amount: group[0].amount,
-            description: group[0].note || group[0].category,
+            transactions: cluster,
+            amount: cluster[0].amount,
+            description: descriptionOf(cluster[0]),
             date,
-            potentialRefund: group[0].amount * (group.length - 1),
+            potentialRefund: cluster[0].amount * (cluster.length - 1),
           });
-        }
-      }
+        });
     });
   });
 
   return duplicates;
+}
+
+/** The note, trimmed, or the category when there is none. */
+function descriptionOf(tx: Transaction): string {
+  return tx.note?.trim() || tx.category;
+}
+
+/**
+ * Same first word either way round. Trimmed first: a note with a leading space
+ * has an empty first word, which every other description "contains".
+ */
+function similarDescriptions(a: Transaction, b: Transaction): boolean {
+  const descA = descriptionOf(a).toLowerCase();
+  const descB = descriptionOf(b).toLowerCase();
+  return descB.includes(descA.split(/\s+/)[0]) || descA.includes(descB.split(/\s+/)[0]);
 }
 
 // Unusual Transaction Detection
@@ -128,7 +189,10 @@ export function detectUnusualTransactions(transactions: Transaction[]): UnusualT
     const stats = categoryStats[category];
     const mean = stats.total / stats.count;
     const variance = stats.amounts.reduce((sum, amt) => sum + Math.pow(amt - mean, 2), 0) / stats.count;
-    const stdDev = Math.sqrt(variance);
+    // σ is floored at 10% of the average: in a near-constant category (a
+    // subscription, a fare) σ is tiny and a price rise of cents measured as
+    // three or four σ — an alert for nothing.
+    const stdDev = Math.max(Math.sqrt(variance), mean * 0.1);
 
     // Find transactions more than 2 standard deviations from mean
     transactions
@@ -142,8 +206,10 @@ export function detectUnusualTransactions(transactions: Transaction[]): UnusualT
 
           if (deviation > 4) {
             severity = 'high';
+            // "N× higher than your typical purchase" is the multiple of the
+            // average, not the σ count (which said 4× for a purchase 7× the norm).
             reason = t('analytics.reasonMultiple', {
-              times: Math.round(deviation),
+              times: Math.round(tx.amount / mean),
               category: categoryLabel(category),
             });
           } else if (deviation > 3) {
@@ -175,37 +241,40 @@ export interface SpendingPattern {
   averageTransaction: number;
   transactionCount: number;
   topCategories: { category: string; amount: number }[];
+  /** Seasonal patterns only: the projected total for this month. */
+  projectedTotal?: number;
   insight: string;
 }
 
-export function analyzeSpendingPatterns(transactions: Transaction[]): SpendingPattern[] {
+export function analyzeSpendingPatterns(
+  transactions: Transaction[],
+  now: Date = new Date()
+): SpendingPattern[] {
   const patterns: SpendingPattern[] = [];
-  const today = new Date();
-  const thirtyDaysAgo = format(subDays(today, 30), 'yyyy-MM-dd');
+  const today = now;
 
+  // The last 30 days, today included, and nothing future-dated.
   const recentTxs = transactions.filter(
-    tx => tx.type === 'Expense' && tx.dateISO >= thirtyDaysAgo
+    tx => tx.type === 'Expense' && isWithinLastDays(tx.dateISO, 30, now)
   );
 
   // Weekend vs Weekday analysis
-  const weekendTxs = recentTxs.filter(tx => {
-    const day = getDay(new Date(tx.dateISO));
-    return day === 0 || day === 6; // Sunday or Saturday
-  });
-
-  const weekdayTxs = recentTxs.filter(tx => {
-    const day = getDay(new Date(tx.dateISO));
-    return day !== 0 && day !== 6;
-  });
+  const weekendTxs = recentTxs.filter(tx => isWeekend(tx.dateISO));
+  const weekdayTxs = recentTxs.filter(tx => !isWeekend(tx.dateISO));
 
   const weekendTotal = weekendTxs.reduce((sum, tx) => sum + tx.amount, 0);
   const weekdayTotal = weekdayTxs.reduce((sum, tx) => sum + tx.amount, 0);
 
-  // Weekend days in 30 days ≈ 8-9, weekdays ≈ 21-22
-  const weekendDailyAvg = weekendTotal / 8;
-  const weekdayDailyAvg = weekdayTotal / 22;
+  // Per-day averages over the weekend days and weekdays the window actually
+  // holds (8 to 10 of the 30 are weekend days, depending on today).
+  let weekendDays = 0;
+  for (let i = 0; i < 30; i++) if (isWeekend(daysAgoISO(i, now))) weekendDays++;
+  const weekendDailyAvg = weekendTotal / weekendDays;
+  const weekdayDailyAvg = weekdayTotal / (30 - weekendDays);
 
-  if (weekendDailyAvg > weekdayDailyAvg * 1.3) {
+  // Needs weekday spending to compare against, as the month comparison needs
+  // last month: weekend-only spending used to read "Infinity% more".
+  if (weekdayTotal > 0 && weekendDailyAvg > weekdayDailyAvg * 1.3) {
     const weekendCategories = getTopCategories(weekendTxs, 3);
     patterns.push({
       type: 'weekend',
@@ -222,12 +291,12 @@ export function analyzeSpendingPatterns(transactions: Transaction[]): SpendingPa
   }
 
   // Monthly comparison (this month vs last month)
-  const thisMonth = format(startOfMonth(today), 'yyyy-MM-dd');
   const lastMonthStart = format(startOfMonth(subMonths(today, 1)), 'yyyy-MM-dd');
   const lastMonthEnd = format(endOfMonth(subMonths(today, 1)), 'yyyy-MM-dd');
 
+  // This calendar month only: a future-dated expense next month is not this month's.
   const thisMonthTxs = transactions.filter(
-    tx => tx.type === 'Expense' && tx.dateISO >= thisMonth
+    tx => tx.type === 'Expense' && isInCurrentMonth(tx.dateISO, now)
   );
   const lastMonthTxs = transactions.filter(
     tx => tx.type === 'Expense' && tx.dateISO >= lastMonthStart && tx.dateISO <= lastMonthEnd
@@ -237,8 +306,15 @@ export function analyzeSpendingPatterns(transactions: Transaction[]): SpendingPa
   const lastMonthTotal = lastMonthTxs.reduce((sum, tx) => sum + tx.amount, 0);
 
   if (lastMonthTotal > 0 && thisMonthTotal > lastMonthTotal * 1.2) {
-    const dayOfMonth = today.getDate();
-    const projectedTotal = (thisMonthTotal / dayOfMonth) * 30;
+    // The app's one month-end projection: the month's own run rate over its
+    // real length, leaning on last month while only a few days are in. This
+    // was (spent / day) × 30, which on the 3rd multiplied three days by 30.
+    const projectedTotal = projectMonthlyExpenses({
+      currentMonthExpenses: thisMonthTotal,
+      dayOfMonth: dayOfMonth(now),
+      daysInMonth: daysInMonth(now),
+      previousMonthExpenses: lastMonthTotal,
+    });
 
     patterns.push({
       type: 'seasonal',
@@ -247,6 +323,7 @@ export function analyzeSpendingPatterns(transactions: Transaction[]): SpendingPa
       averageTransaction: thisMonthTotal / (thisMonthTxs.length || 1),
       transactionCount: thisMonthTxs.length,
       topCategories: getTopCategories(thisMonthTxs, 3),
+      projectedTotal,
       insight: t('analytics.seasonalInsight', {
         pct: Math.round((thisMonthTotal / lastMonthTotal - 1) * 100),
         projected: `$${projectedTotal.toFixed(0)}`,
@@ -269,12 +346,13 @@ export interface WasteCategory {
   tip: string;
 }
 
-export function getTopWasteCategories(transactions: Transaction[]): WasteCategory[] {
-  const today = new Date();
-  const monthStart = format(startOfMonth(today), 'yyyy-MM-dd');
-
+export function getTopWasteCategories(
+  transactions: Transaction[],
+  now: Date = new Date()
+): WasteCategory[] {
+  // This calendar month only (a future-dated expense next month used to count).
   const monthTxs = transactions.filter(
-    tx => tx.type === 'Expense' && tx.dateISO >= monthStart
+    tx => tx.type === 'Expense' && isInCurrentMonth(tx.dateISO, now)
   );
 
   // Group by category
@@ -293,7 +371,8 @@ export function getTopWasteCategories(transactions: Transaction[]): WasteCategor
 
   const wasteCategories: WasteCategory[] = Object.entries(categoryData)
     .map(([category, data]) => {
-      const impulsePercentage = (data.impulse / data.total) * 100;
+      // A category of zero-amount rows has no impulse share (not NaN%).
+      const impulsePercentage = data.total > 0 ? (data.impulse / data.total) * 100 : 0;
       const potentialSavings = data.impulse * 0.5; // Assume 50% of impulse could be saved
 
       let tip = '';
@@ -359,16 +438,20 @@ export interface AnalyticsSummary {
   alertCount: number;
 }
 
-export function generateAnalyticsSummary(transactions: Transaction[]): AnalyticsSummary {
-  const subscriptions = detectSubscriptions(transactions);
+export function generateAnalyticsSummary(
+  transactions: Transaction[],
+  now: Date = new Date()
+): AnalyticsSummary {
+  const recurring = recurringDetections(transactions);
+  const subscriptions = toAnalyticsView(recurring);
   const duplicateCharges = detectDuplicateCharges(transactions);
   const unusualTransactions = detectUnusualTransactions(transactions);
-  const spendingPatterns = analyzeSpendingPatterns(transactions);
-  const wasteCategories = getTopWasteCategories(transactions);
+  const spendingPatterns = analyzeSpendingPatterns(transactions, now);
+  const wasteCategories = getTopWasteCategories(transactions, now);
 
-  const totalMonthlySubscriptions = subscriptions
-    .filter(s => s.frequency === 'monthly')
-    .reduce((sum, s) => sum + s.amount, 0);
+  // Weekly and yearly charges converted to a month, as the subscriptions
+  // screens do; this used to add the monthly ones only.
+  const totalMonthlySubscriptions = monthlyCost(recurring);
 
   const potentialMonthlySavings =
     wasteCategories.reduce((sum, w) => sum + w.potentialSavings, 0) +

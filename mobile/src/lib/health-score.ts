@@ -5,6 +5,7 @@ import {
   dayOfMonth,
   daysInMonth,
   isBetween,
+  todayISO,
 } from './dates';
 import type { Transaction } from './transaction';
 /**
@@ -24,6 +25,9 @@ interface Settings {
   spendingStyle: string;
   primaryGoal: string;
 }
+
+/** The settings the score reads (a subset of db.ts Settings). */
+export type HealthScoreSettings = Settings;
 
 export interface HealthScoreBreakdown {
   savingsRate: { score: number; value: number; maxPoints: number };
@@ -55,22 +59,29 @@ export type SpendingPersonality =
 // Calculate savings rate score (25 points max)
 function calculateSavingsRateScore(
   transactions: Transaction[],
-  settings: Settings
+  settings: Settings,
+  now: Date
 ): { score: number; value: number } {
-  const monthlyTransactions = transactions.filter(tx => isInCurrentMonth(tx.dateISO));
+  const monthlyTransactions = transactions.filter(tx => isInCurrentMonth(tx.dateISO, now));
 
   const monthlyIncome = monthlyTransactions
     .filter(tx => tx.type === 'Income')
-    .reduce((sum, tx) => sum + tx.amount, 0) || settings.monthlyIncome || 1;
+    .reduce((sum, tx) => sum + tx.amount, 0) || settings.monthlyIncome || 0;
+
+  // Neutral when the income is unknown. Standing in an income of 1 reported
+  // "saved 100%" for an empty month and "saved 0%" for any spending at all,
+  // and a negative income turned overspending into savings.
+  if (!(monthlyIncome > 0)) {
+    return { score: 12, value: 50 };
+  }
 
   const monthlyExpenses = monthlyTransactions
     .filter(tx => tx.type === 'Expense')
     .reduce((sum, tx) => sum + tx.amount, 0);
 
-  const safemonthlyIncome = monthlyIncome || 1; // Prevent division by zero
-  const savingsRate = Math.max(0, ((safemonthlyIncome - monthlyExpenses) / safemonthlyIncome) * 100);
+  const savingsRate = Math.max(0, ((monthlyIncome - monthlyExpenses) / monthlyIncome) * 100);
 
-  // Score: 0-10% = 5pts, 10-20% = 15pts, 20-30% = 20pts, 30%+ = 25pts
+  // Score: 30%+ = 25, 20-30% = 20, 10-20% = 15, 5-10% = 10, below 5% = the rounded rate
   let score = 0;
   if (savingsRate >= 30) score = 25;
   else if (savingsRate >= 20) score = 20;
@@ -84,18 +95,19 @@ function calculateSavingsRateScore(
 // Calculate budget discipline score (25 points max)
 function calculateBudgetDisciplineScore(
   transactions: Transaction[],
-  settings: Settings
+  settings: Settings,
+  now: Date
 ): { score: number; value: number } {
-  if (!settings.monthlyBudget || settings.monthlyBudget === 0) {
-    return { score: 12, value: 50 }; // Neutral if no budget set
+  if (!(settings.monthlyBudget > 0)) {
+    return { score: 12, value: 50 }; // Neutral if no budget set (or a nonsensical one)
   }
 
   const monthlyExpenses = transactions
-    .filter(tx => tx.type === 'Expense' && isInCurrentMonth(tx.dateISO))
+    .filter(tx => tx.type === 'Expense' && isInCurrentMonth(tx.dateISO, now))
     .reduce((sum, tx) => sum + tx.amount, 0);
 
   const budgetUsedPercent = (monthlyExpenses / settings.monthlyBudget) * 100;
-  const expectedUsage = (dayOfMonth() / daysInMonth()) * 100;
+  const expectedUsage = (dayOfMonth(now) / daysInMonth(now)) * 100;
 
   // Calculate how well they're tracking to budget
   const discipline = Math.max(0, 100 - Math.abs(budgetUsedPercent - expectedUsage));
@@ -105,20 +117,23 @@ function calculateBudgetDisciplineScore(
   else if (budgetUsedPercent <= expectedUsage) score = 22;
   else if (budgetUsedPercent <= expectedUsage + 10) score = 18;
   else if (budgetUsedPercent <= 100) score = 12;
-  else score = Math.max(0, 25 - Math.round((budgetUsedPercent - 100) / 4));
+  // Over budget keeps falling from the in-budget floor: a point per 4% over.
+  // (It used to restart from 25, so 104% of the budget outscored being on pace.)
+  else score = Math.max(0, 12 - Math.round((budgetUsedPercent - 100) / 4));
 
   return { score, value: Math.round(discipline) };
 }
 
 // Calculate spending consistency score (20 points max)
 function calculateSpendingConsistencyScore(
-  transactions: Transaction[]
+  transactions: Transaction[],
+  now: Date
 ): { score: number; value: number } {
   const last30Days: number[] = [];
 
   // Get daily spending for last 30 days
   for (let i = 0; i < 30; i++) {
-    const dateStr = daysAgoISO(i);
+    const dateStr = daysAgoISO(i, now);
 
     const daySpending = transactions
       .filter(tx => tx.dateISO === dateStr && tx.type === 'Expense')
@@ -154,13 +169,14 @@ function calculateSpendingConsistencyScore(
 // Calculate goal progress score (15 points max)
 function calculateGoalProgressScore(
   transactions: Transaction[],
-  settings: Settings
+  settings: Settings,
+  now: Date
 ): { score: number; value: number } {
-  if (!settings.savingsGoal || settings.savingsGoal === 0) {
-    return { score: 8, value: 50 }; // Neutral if no goal set
+  if (!(settings.savingsGoal > 0)) {
+    return { score: 8, value: 50 }; // Neutral if no goal set (a negative one would reward dissaving)
   }
 
-  const monthlyTransactions = transactions.filter(tx => isInCurrentMonth(tx.dateISO));
+  const monthlyTransactions = transactions.filter(tx => isInCurrentMonth(tx.dateISO, now));
 
   const monthlyIncome = monthlyTransactions
     .filter(tx => tx.type === 'Income')
@@ -180,15 +196,17 @@ function calculateGoalProgressScore(
   else if (progressPercent >= 25) score = 6;
   else score = Math.max(0, Math.round(progressPercent / 5));
 
-  return { score, value: Math.round(Math.min(100, progressPercent)) };
+  // A percentage like every other component's value: dissaving reads as 0.
+  return { score, value: Math.round(Math.max(0, Math.min(100, progressPercent))) };
 }
 
 // Calculate impulse control score (15 points max)
 function calculateImpulseControlScore(
-  transactions: Transaction[]
+  transactions: Transaction[],
+  now: Date
 ): { score: number; value: number } {
   const recentTransactions = transactions.filter(
-    tx => tx.type === 'Expense' && isWithinLastDays(tx.dateISO, 30)
+    tx => tx.type === 'Expense' && isWithinLastDays(tx.dateISO, 30, now)
   );
 
   if (recentTransactions.length === 0) {
@@ -212,15 +230,16 @@ function calculateImpulseControlScore(
 // Calculate weekly trend
 function calculateTrend(
   transactions: Transaction[],
-  settings: Settings
+  now: Date
 ): { trend: 'up' | 'down' | 'stable'; trendValue: number } {
-  const oneWeekAgo = daysAgoISO(6);
-  const twoWeeksAgo = daysAgoISO(13);
+  const oneWeekAgo = daysAgoISO(6, now);
+  const twoWeeksAgo = daysAgoISO(13, now);
 
-  const thisWeekTx = transactions.filter(tx => tx.dateISO >= oneWeekAgo);
+  // Bounded at today: a future-dated expense has not happened this week.
+  const thisWeekTx = transactions.filter(tx => isBetween(tx.dateISO, oneWeekAgo, todayISO(now)));
 
   const lastWeekTx = transactions.filter(tx =>
-    isBetween(tx.dateISO, twoWeeksAgo, daysAgoISO(7))
+    isBetween(tx.dateISO, twoWeeksAgo, daysAgoISO(7, now))
   );
 
   const thisWeekSpending = thisWeekTx
@@ -242,11 +261,8 @@ function calculateTrend(
   return { trend: 'stable', trendValue: 0 };
 }
 
-// Determine spending personality
-function determinePersonality(
-  breakdown: HealthScoreBreakdown,
-  transactions: Transaction[]
-): SpendingPersonality {
+// Determine spending personality. The order of the checks is the precedence.
+export function determinePersonality(breakdown: HealthScoreBreakdown): SpendingPersonality {
   const { savingsRate, budgetDiscipline, impulseControl, spendingConsistency } = breakdown;
 
   // High impulse = impulsive
@@ -268,7 +284,7 @@ function determinePersonality(
 }
 
 // Get grade from score
-function getGrade(score: number): { grade: HealthScoreResult['grade']; color: string } {
+export function getGrade(score: number): { grade: HealthScoreResult['grade']; color: string } {
   if (score >= 90) return { grade: 'A+', color: '#22c55e' };
   if (score >= 80) return { grade: 'A', color: '#4ade80' };
   if (score >= 70) return { grade: 'B+', color: '#84cc16' };
@@ -279,8 +295,8 @@ function getGrade(score: number): { grade: HealthScoreResult['grade']; color: st
   return { grade: 'F', color: '#dc2626' };
 }
 
-// Generate improvement suggestions
-function generateSuggestions(
+// Generate improvement suggestions (at most four)
+export function generateSuggestions(
   breakdown: HealthScoreBreakdown,
   personality: SpendingPersonality,
   settings: Settings
@@ -298,7 +314,7 @@ function generateSuggestions(
 
   // Budget discipline suggestions
   if (breakdown.budgetDiscipline.score < 15) {
-    if (!settings.monthlyBudget || settings.monthlyBudget === 0) {
+    if (!(settings.monthlyBudget > 0)) {
       suggestions.push('Set a monthly budget to better track your spending');
     } else {
       suggestions.push('Review your spending to stay within your monthly budget');
@@ -337,16 +353,22 @@ function generateSuggestions(
   return suggestions.slice(0, 4); // Return top 4 suggestions
 }
 
-// Main function to calculate health score
+/**
+ * The health score, as of `now`.
+ *
+ * `now` defaults to the current moment; tests pass a fixed date so every band
+ * can be pinned without depending on the wall clock.
+ */
 export function calculateHealthScore(
   transactions: Transaction[],
-  settings: Settings
+  settings: Settings,
+  now: Date = new Date()
 ): HealthScoreResult {
-  const savingsRate = calculateSavingsRateScore(transactions, settings);
-  const budgetDiscipline = calculateBudgetDisciplineScore(transactions, settings);
-  const spendingConsistency = calculateSpendingConsistencyScore(transactions);
-  const goalProgress = calculateGoalProgressScore(transactions, settings);
-  const impulseControl = calculateImpulseControlScore(transactions);
+  const savingsRate = calculateSavingsRateScore(transactions, settings, now);
+  const budgetDiscipline = calculateBudgetDisciplineScore(transactions, settings, now);
+  const spendingConsistency = calculateSpendingConsistencyScore(transactions, now);
+  const goalProgress = calculateGoalProgressScore(transactions, settings, now);
+  const impulseControl = calculateImpulseControlScore(transactions, now);
 
   const breakdown: HealthScoreBreakdown = {
     savingsRate: { ...savingsRate, maxPoints: 25 },
@@ -364,8 +386,8 @@ export function calculateHealthScore(
     impulseControl.score;
 
   const { grade, color } = getGrade(totalScore);
-  const { trend, trendValue } = calculateTrend(transactions, settings);
-  const personalityType = determinePersonality(breakdown, transactions);
+  const { trend, trendValue } = calculateTrend(transactions, now);
+  const personalityType = determinePersonality(breakdown);
   const suggestions = generateSuggestions(breakdown, personalityType, settings);
 
   return {
