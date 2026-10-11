@@ -59,8 +59,16 @@ import { t } from '@/lib/i18n/core';
 /** Either profile's palette — one and the same object now. */
 export type Pal = Palette;
 
-/** An identity tween as a Reanimated timing config. No springs anywhere here. */
+/**
+ * An identity tween as a Reanimated timing config. No springs anywhere here.
+ *
+ * A worklet: the Sheet and swipe-row pan gestures call it in onEnd, on the UI
+ * thread. Without the directive, Reanimated throws on the first drag-to-dismiss
+ * and the gesture freezes mid-way. worklets.test.ts holds every UI-thread body
+ * to this.
+ */
 function timed(tween: Tween) {
+  'worklet';
   const [x1, y1, x2, y2] = EASE[tween.ease as EaseName];
   return { duration: tween.duration, easing: Easing.bezier(x1, y1, x2, y2) };
 }
