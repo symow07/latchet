@@ -1,5 +1,8 @@
 # Budget — Submission Checklist
 
+> **Superseded on 12 October 2026 by [`LAUNCH-CHECKLIST.md`](LAUNCH-CHECKLIST.md)**, which has every remaining owner step with numbered instructions. This file is kept for its history (the 27 August build notes in §5).
+
+
 _27 August 2026 · everything left before you can submit, in dependency order._
 
 **The code is done for v1; the deployment is not configured.** Phases 0–3 are shipped, RevenueCat's
