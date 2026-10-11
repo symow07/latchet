@@ -20,8 +20,9 @@ in one app with a dark, deliberately un-spreadsheet-like UI.
 
 **Local-first, not offline-only.** Every transaction is written to SQLite on your device
 and all analytics are computed there, so the app is fully usable with no signal. Because
-the app requires an account, that ledger is also synced to your account so a reinstall
-doesn't lose it. Some features necessarily reach out further — the table below says
+the app requires an account, that ledger syncs both ways with your account, so a reinstall
+or a second phone gets it back. Each account has its own database on the phone, and signing
+out removes it. Some features necessarily reach out further — the table below says
 exactly which, and nothing leaves your device for a feature you haven't turned on.
 
 ---
@@ -32,7 +33,7 @@ exactly which, and nothing leaves your device for a feature you haven't turned o
 |---|---|---|
 | Core tracking, budgets, analytics | — | Stays on device |
 | CSV statement import | — | Parsed entirely on device |
-| Account sync & backup | Your transactions, accounts and settings | Our API |
+| Account sync & backup | Your transactions, accounts, settings, custom categories and subscriptions (never the advisor's health profile) | Our API |
 | Bank linking *(optional)* | Nothing — you sign in on your bank's own page | Plaid |
 | Receipt scan *(optional)* | The photo | Our API → OpenAI |
 | PDF statement import *(optional)* | The PDF (you're asked first) | Our API → OpenAI |
@@ -97,15 +98,16 @@ Bank sync covers 20 countries. Import covers everywhere, so it gets the attentio
 A monorepo with two halves:
 
 ```
-backend/                 Bun + Hono + Prisma 5 + SQLite, Better Auth. Deployed on Railway.
+backend/                 Bun + Hono + Prisma 5 + Postgres, Better Auth. Deployed on Railway, with
+                         its own self-hosted Postgres service.
   src/routes/            One router per resource, mounted at /api/v1/x and /api/x
   src/lib/               Dependency-free logic, each with tests beside it
-  src/jobs/              Recurring transactions, bill reminders
+  src/jobs/              Recurring transactions, bill reminders, retention (each tick leased)
   prisma/schema.prisma   Data model; every user-owned table cascades from User
 
 mobile/                  Expo 53, React Native 0.79.6, expo-router, NativeWind
   src/app/               Screens (file-based routing)
-  src/lib/               Local SQLite, analytics, import, sync — the app's real logic
+  src/lib/               Per-user local SQLite, two-way sync, analytics, import — the app's real logic
   src/components/        Shared UI
 ```
 
@@ -128,10 +130,14 @@ cd budget
 cd backend
 bun install
 cp .env.example .env     # then fill in the required values below
+createdb budget_dev      # Postgres 16+ running locally
+DATABASE_URL=postgresql://$USER@localhost:5432/budget_dev bunx prisma migrate deploy
 bun run dev
 ```
 
-Required: `BETTER_AUTH_SECRET` (32+ chars) and `DATABASE_URL`. Strongly recommended:
+Required: `BETTER_AUTH_SECRET` (32+ chars) and `DATABASE_URL`, a Postgres URL that names the
+user (`postgresql://<user>@localhost:5432/budget_dev`). Tests use their own `budget_test`
+database and never touch it. Strongly recommended:
 `TOKEN_ENCRYPTION_KEY` (32+ chars) — it decouples token encryption from the auth secret so
 the latter can be rotated. Sign-in is email and password and sends no mail. Outgoing email
 (`RESEND_API_KEY` or `SMTP_SERVICE_URL`) is wired but has no sender yet; without either,
@@ -155,7 +161,7 @@ Point `EXPO_PUBLIC_BACKEND_URL` at your backend.
 ```bash
 # backend
 bun run typecheck     # tsc --noEmit (strict)
-bun test              # 195 tests
+bun test              # runs against the local budget_test Postgres database
 
 # mobile
 bun run typecheck

@@ -1,239 +1,311 @@
 /**
- * Cloud sync layer — syncs local SQLite data to/from the backend.
- * All operations are best-effort: local data is always the source of truth.
+ * Two-way cloud sync for the signed-in user: the engine (lib/sync/engine.ts)
+ * over the user's own database (lib/sync/sqlite-store.ts), wired to its
+ * triggers and to the network.
+ *
+ * Triggers:
+ *   - a local write              debounced LOCAL_CHANGE_DEBOUNCE_MS (db.ts onLocalMutation)
+ *   - the app coming to the front
+ *   - every SYNC_INTERVAL_MS while the app is in front
+ *   - activation                 the root layout calls syncNow(); on a fresh
+ *                                database that is the full pull (no cursor yet)
+ *   - explicit                   syncNow() / requestPull(): recurring run-now,
+ *                                bank link and bank sync, after server-side work
+ *   - leaving for the background, if a local write is still waiting to go
+ *   - sign-out                   flushBeforeSignOut()
+ *
+ * Every outbound payload goes through redactDeviceOnly (sync-redaction.ts).
+ *
+ * A sync belongs to one user's database. The engine is created for the user
+ * whose database is active, and every store operation checks, under db.ts's
+ * write lock, that the same database is still the active one — so a cycle
+ * still running when that user signs out or another signs in fails instead
+ * of writing into the wrong ledger.
  */
 import { AppState, type AppStateStatus } from 'react-native';
-import { api } from './api/api';
-import {
-  getTransactions,
-  getAccounts,
-  getSettings,
-  createAccountWithId,
-  addTransactionWithId,
-  recomputeAccountBalances,
-  updateSettings,
-  onLocalMutation,
-} from './db';
-import {
-  planAccountUpserts,
-  selectNewTransactions,
-  type CloudAccount,
-  type CloudTransaction,
-} from './sync-merge';
+import { ApiError, NetworkError, TimeoutError, api } from './api/api';
+import { activeUserId, countUnsyncedChanges, getDatabase, onLocalMutation, withWriteLock, type SqlDb } from './db';
 import { redactDeviceOnly } from './sync-redaction';
+import { createSyncEngine, type SyncEngine, type SyncReport } from './sync/engine';
+import {
+  SyncTransportError,
+  type PullResponse,
+  type PushRequest,
+  type PushResponse,
+  type SyncTransport,
+} from './sync/protocol';
+import { createSqliteSyncStore, type SyncDbAccess, type SyncSqlDb } from './sync/sqlite-store';
 
-export interface SyncResult {
-  success: boolean;
-  error?: string;
+export type { SyncReport };
+
+/** How often the app syncs while it is in front. */
+export const SYNC_INTERVAL_MS = 60_000;
+/** A burst of local writes (one add screen, an import) goes as one cycle. */
+const LOCAL_CHANGE_DEBOUNCE_MS = 2_000;
+
+// db.ts's database must be what the store expects. A compile-time check, so
+// the store can stay free of db.ts (and of expo-sqlite) at runtime.
+const sqlDbFitsStore = (db: SqlDb): SyncSqlDb => db;
+void sqlDbFitsStore;
+
+/** The store operation found a different database active than the one it was created for. */
+class SyncUserChangedError extends Error {
+  constructor() {
+    super('The signed-in user changed during sync');
+    this.name = 'SyncUserChangedError';
+  }
 }
 
-/**
- * Set while a pull is applying server rows. Local writes made by the pull must
- * not schedule a push — that would bounce the same data straight back up.
- */
-let isPulling = false;
-
-/**
- * SQLite has no boolean type, so local rows carry 0/1 where the API's Zod
- * schemas expect real booleans. The bulk-sync endpoints *skip* rows that fail
- * to parse rather than erroring, so leaving these as integers would drop data
- * silently on every upload.
- */
-const bool = (v: unknown): boolean => v === true || v === 1;
-
-/**
- * Rows per sync request. The server rejects anything over 1,000 (it would mean
- * a very long single write against one SQLite connection), so a user with more
- * history than that has to be uploaded in batches — otherwise their sync fails
- * outright at exactly the point they have the most to lose.
- */
-const SYNC_CHUNK_SIZE = 500;
-
-function chunk<T>(items: T[], size: number): T[][] {
-  if (items.length === 0) return [];
-  const out: T[][] = [];
-  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
-  return out;
+/** Translate api.ts's failures into the engine's transport errors. */
+function transportError(e: unknown, what: string): SyncTransportError {
+  if (e instanceof SyncTransportError) return e;
+  if (e instanceof NetworkError || e instanceof TimeoutError) return new SyncTransportError('network', `${what}: ${e.message}`);
+  if (e instanceof ApiError) {
+    const body = e.body as { code?: unknown; error?: unknown } | null;
+    const code = typeof body?.code === 'string' ? body.code : typeof body?.error === 'string' ? body.error : undefined;
+    return new SyncTransportError('http', `${what}: ${e.message}`, e.status, code);
+  }
+  return new SyncTransportError('protocol', `${what}: ${e instanceof Error ? e.message : String(e)}`);
 }
 
-/** Push all local data to the cloud (best-effort; local stays authoritative) */
-export async function pushLocalDataToCloud(): Promise<SyncResult> {
+const transport: SyncTransport = {
+  async push(request: PushRequest): Promise<PushResponse> {
+    try {
+      return await api.post<PushResponse>('/api/v1/sync/push', redactDeviceOnly(request));
+    } catch (e) {
+      throw transportError(e, 'push');
+    }
+  },
+  async pull(cursor: string | null, limit: number): Promise<PullResponse> {
+    const query = `limit=${limit}${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`;
+    try {
+      return await api.get<PullResponse>(`/api/v1/sync/pull?${query}`);
+    } catch (e) {
+      throw transportError(e, 'pull');
+    }
+  },
+};
+
+/**
+ * The store's access to one activation's database: db.ts's write lock, and a
+ * check that the database it hands over is still that one — not another
+ * user's, and not this user's next file after a sign-out and sign-in.
+ */
+function accessFor(userId: string, handle: SqlDb): SyncDbAccess {
+  return {
+    run: (fn) =>
+      withWriteLock(async (db, activeId) => {
+        if (activeId !== userId || db !== handle) throw new SyncUserChangedError();
+        return fn(db);
+      }),
+  };
+}
+
+/** One activation's sync: its engine (and so its single-flight guard) and store. */
+interface Session {
+  userId: string;
+  handle: SqlDb;
+  engine: SyncEngine;
+  store: ReturnType<typeof createSqliteSyncStore>;
+  /** Sign-out has flushed: no cycle may start until resumed or replaced. */
+  suspended: boolean;
+}
+
+let session: Session | null = null;
+let onRemoteChange: ((report: SyncReport) => void) | null = null;
+let lastReported: SyncReport | null = null;
+let lastWarning = '';
+
+/**
+ * The sync of the database active now; null when nobody's is. One per
+ * activation, keyed on the database handle, so every trigger of that
+ * activation shares one engine and never runs two cycles at once.
+ */
+async function currentSession(): Promise<Session | null> {
+  const userId = activeUserId();
+  if (!userId) return null;
+  let handle: SqlDb;
   try {
-    const [transactions, accounts, settings] = await Promise.all([
-      getTransactions(),
-      getAccounts(),
-      getSettings(),
-    ]);
-
-    // Sequential rather than parallel: the server has a single SQLite writer,
-    // so firing every chunk at once only queues them behind each other anyway.
-    // Every outbound payload goes through redactDeviceOnly. The health profile
-    // is in its own table and nothing here reads it, so today this strips
-    // nothing — that is the point. The settings PUT below spreads a whole row,
-    // and the day someone stores a health field on it, this is what stops it
-    // leaving the device. See lib/sync-redaction.ts.
-    for (const batch of chunk(transactions, SYNC_CHUNK_SIZE)) {
-      await api.post('/api/transactions/sync', redactDeviceOnly({
-        transactions: batch.map((t) => ({ ...t, isImpulse: bool(t.isImpulse) })),
-      }));
-    }
-
-    for (const batch of chunk(accounts, SYNC_CHUNK_SIZE)) {
-      await api.post('/api/accounts/sync', redactDeviceOnly({
-        accounts: batch.map((a) => ({ ...a, isDefault: bool(a.isDefault) })),
-      }));
-    }
-
-    await api.put('/api/settings', redactDeviceOnly({
-      ...settings,
-      showTimeCost: bool(settings?.showTimeCost),
-    }));
-
-    return { success: true };
-  } catch (e) {
-    const errorMessage = e instanceof Error ? e.message : String(e);
-    console.warn('[CloudSync] pushLocalDataToCloud failed:', errorMessage);
-    return { success: false, error: errorMessage };
+    handle = await getDatabase();
+  } catch {
+    return null;
   }
+  // Switched while waiting: whoever is active now gets asked again next time.
+  if (activeUserId() !== userId) return null;
+  if (!session || session.userId !== userId || session.handle !== handle) {
+    const store = createSqliteSyncStore(accessFor(userId, handle));
+    session = {
+      userId,
+      handle,
+      store,
+      engine: createSyncEngine({ store, transport, now: () => new Date().toISOString() }),
+      suspended: false,
+    };
+  }
+  return session;
 }
 
-/** Fetch all transactions from the cloud, paginating until exhausted */
-async function fetchAllCloudTransactions(): Promise<any[]> {
-  const PAGE = 100;
-  let offset = 0;
-  const all: any[] = [];
-  while (true) {
-    const res = await api.get<{ data: any[]; pagination: { hasMore: boolean } }>(
-      `/api/transactions?limit=${PAGE}&offset=${offset}`
-    );
-    const page = res?.data ?? [];
-    all.push(...page);
-    if (!res?.pagination?.hasMore || page.length === 0) break;
-    offset += PAGE;
+function afterCycle(report: SyncReport): SyncReport {
+  // Offline, the same failure repeats every minute: say it once.
+  const warning = report.ok ? '' : report.errors.slice(0, 5).join(' | ');
+  if (warning && warning !== lastWarning) console.warn('[sync] cycle finished with errors:', warning);
+  lastWarning = warning;
+  // Several triggers can join one cycle; screens refresh once for it.
+  if (report !== lastReported) {
+    lastReported = report;
+    if (report.pulled.changed > 0) {
+      try {
+        onRemoteChange?.(report);
+      } catch (e) {
+        console.warn('[sync] refresh after pull failed', e);
+      }
+    }
   }
-  return all;
+  return report;
 }
 
 /**
- * Pull cloud data down and merge into local SQLite.
+ * Run a sync cycle that starts now or after the one in progress, and resolve
+ * with its report. Null when nobody is signed in, or sign-out has begun.
+ */
+export async function syncNow(): Promise<SyncReport | null> {
+  const s = await currentSession();
+  if (!s || s.suspended) return null;
+  return afterCycle(await s.engine.requestCycle());
+}
+
+/**
+ * Ask for the server's latest, without waiting: after the server itself
+ * changed this user's data (recurring run-now, a bank link or bank sync).
+ */
+export function requestPull(): void {
+  void syncNow();
+}
+
+/** A periodic or foreground cycle: joining one already running is enough. */
+function syncSoon(): void {
+  void currentSession().then((s) => {
+    if (!s || s.suspended) return;
+    return s.engine.syncOnce().then(afterCycle);
+  });
+}
+
+/** This database has never completed a pull: the first one is a full snapshot. */
+export async function needsFirstPull(): Promise<boolean> {
+  const s = await currentSession();
+  if (!s) return false;
+  const state = await s.store.getPullState();
+  return state.cursor === null || state.resyncActive;
+}
+
+/** Local changes the server does not have yet (edits and deletions). */
+export async function pendingChangeCount(): Promise<number> {
+  return (await countUnsyncedChanges()).total;
+}
+
+let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+let intervalTimer: ReturnType<typeof setInterval> | null = null;
+/** The teardown of the triggers startCloudSync wired, while they are wired. */
+let unsubscribeAll: (() => void) | null = null;
+
+function cancelDebounce(): boolean {
+  if (!debounceTimer) return false;
+  clearTimeout(debounceTimer);
+  debounceTimer = null;
+  return true;
+}
+
+function scheduleAfterLocalChange(): void {
+  cancelDebounce();
+  debounceTimer = setTimeout(() => {
+    debounceTimer = null;
+    void syncNow();
+  }, LOCAL_CHANGE_DEBOUNCE_MS);
+}
+
+function startInterval(): void {
+  if (intervalTimer) return;
+  intervalTimer = setInterval(syncSoon, SYNC_INTERVAL_MS);
+}
+
+function stopInterval(): void {
+  if (!intervalTimer) return;
+  clearInterval(intervalTimer);
+  intervalTimer = null;
+}
+
+/**
+ * Send what can be sent before an explicit sign-out deletes this user's
+ * database, and report what could not be (user-session.ts signOutAndClear
+ * asks the user before discarding it).
  *
- * Every row is written under the *server's* id. The previous implementation
- * routed through createAccount/addTransaction, which mint their own ids and
- * discard the server's — so nothing pulled was ever recognised as
- * already-present, and each login re-inserted the entire account and
- * re-applied every transaction's balance delta on top.
- */
-export async function pullCloudDataToLocal(): Promise<SyncResult> {
-  isPulling = true;
-  try {
-    const [cloudTransactions, cloudAccounts, cloudSettings] = await Promise.all([
-      fetchAllCloudTransactions(),
-      api.get<any[]>('/api/accounts'),
-      api.get<any>('/api/settings'),
-    ]);
-
-    // Sync accounts first (transactions depend on them)
-    const localAccounts = await getAccounts();
-    const localById = new Map(localAccounts.map((a) => [a.id, a]));
-
-    const planned = planAccountUpserts(
-      (cloudAccounts ?? []) as CloudAccount[],
-      (cloudTransactions ?? []) as CloudTransaction[]
-    );
-
-    for (const acc of planned) {
-      const existing = localById.get(acc.id);
-      await createAccountWithId(acc.id, {
-        name: acc.name,
-        type: acc.type,
-        balance: acc.balance ?? 0,
-        openingBalance: acc.openingBalance,
-        currency: acc.currency ?? 'USD',
-        color: acc.color ?? '#a855f7',
-        icon: acc.icon ?? 'wallet',
-        isDefault: acc.isDefault,
-        createdAt: existing?.createdAt ?? acc.createdAt,
-      }).catch(() => {});
-    }
-
-    // Sync transactions
-    const localTxs = await getTransactions();
-    const newTransactions = selectNewTransactions(
-      (cloudTransactions ?? []) as CloudTransaction[],
-      localTxs.map((t) => t.id)
-    );
-
-    for (const tx of newTransactions) {
-      await addTransactionWithId(tx.id, {
-        amount: tx.amount,
-        category: tx.category,
-        type: tx.type,
-        isImpulse: Boolean(tx.isImpulse),
-        note: tx.note ?? undefined,
-        dateISO: tx.dateISO,
-        accountId: tx.accountId ?? undefined,
-        currency: tx.currency,
-        createdAt: tx.createdAt,
-      }).catch(() => {});
-    }
-
-    // One authoritative pass over the ledger instead of per-row deltas, so a
-    // pull that runs twice cannot move any balance.
-    await recomputeAccountBalances();
-
-    // Sync settings
-    if (cloudSettings) {
-      await updateSettings(cloudSettings).catch(() => {});
-    }
-
-    return { success: true };
-  } catch (e) {
-    const errorMessage = e instanceof Error ? e.message : String(e);
-    console.warn('[CloudSync] pullCloudDataToLocal failed:', errorMessage);
-    return { success: false, error: errorMessage };
-  } finally {
-    isPulling = false;
-  }
-}
-
-const PUSH_DEBOUNCE_MS = 5_000;
-let pushTimer: ReturnType<typeof setTimeout> | null = null;
-
-/**
- * Coalesce bursts of local writes into a single upload. Entering a category on
- * the add screen fires several mutations in a row; this uploads once.
- */
-export function scheduleCloudPush(delayMs = PUSH_DEBOUNCE_MS): void {
-  if (isPulling) return;
-  if (pushTimer) clearTimeout(pushTimer);
-  pushTimer = setTimeout(() => {
-    pushTimer = null;
-    void pushLocalDataToCloud();
-  }, delayMs);
-}
-
-/**
- * Wire the push side to real triggers.
+ * From here on no new cycle starts — no trigger may race the deletion that
+ * follows. If the user then decides to stay, resumeCloudSync() lifts that.
  *
- * pushLocalDataToCloud() existed but had no call sites anywhere in the app, so
- * hand-entered transactions, accounts and settings lived only in on-device
- * SQLite — a reinstall lost them permanently despite the app requiring an
- * account. Returns a teardown function.
+ * `send: false` (account deletion) only stops the triggers: the account the
+ * changes would go to is already gone, so nothing is sent and nothing counts.
  */
-export function startCloudSync(): () => void {
-  const unsubscribe = onLocalMutation(() => scheduleCloudPush());
+export async function flushBeforeSignOut(options: { send?: boolean } = {}): Promise<{ unsynced: number }> {
+  cancelDebounce();
+  stopInterval();
+  const s = await currentSession();
+  if (!s) return { unsynced: options.send === false ? 0 : await pendingChangeCount() };
+  s.suspended = true;
+  if (options.send === false) return { unsynced: 0 };
+  // Waits for a cycle in progress, then runs one more that sends everything left.
+  afterCycle(await s.engine.requestCycle());
+  return { unsynced: await pendingChangeCount() };
+}
+
+/** The user chose to stay signed in after flushBeforeSignOut: sync again. */
+export function resumeCloudSync(): void {
+  if (session) session.suspended = false;
+  if (AppState.currentState === 'active' && unsubscribeAll) startInterval();
+  requestPull();
+}
+
+export interface CloudSyncOptions {
+  /** A pull changed local data: refresh what screens show. */
+  onRemoteChange?: (report: SyncReport) => void;
+}
+
+/**
+ * Wire the triggers for the active user. The root layout starts this once
+ * that user's database is ready and calls the returned teardown when the user
+ * changes, so no timer set for one user fires into the next one's session.
+ */
+export function startCloudSync(options: CloudSyncOptions = {}): () => void {
+  unsubscribeAll?.();
+  onRemoteChange = options.onRemoteChange ?? null;
+
+  const stopLocal = onLocalMutation(scheduleAfterLocalChange);
 
   const onAppStateChange = (state: AppStateStatus) => {
-    if (state === 'active') scheduleCloudPush(1_000);
-  };
-  const subscription = AppState.addEventListener('change', onAppStateChange);
-
-  return () => {
-    unsubscribe();
-    subscription.remove();
-    if (pushTimer) {
-      clearTimeout(pushTimer);
-      pushTimer = null;
+    if (state === 'active') {
+      startInterval();
+      syncSoon();
+    } else if (state === 'background') {
+      stopInterval();
+      // A write still waiting for its debounce goes now, while iOS still
+      // gives the app a moment; otherwise it waits for the next launch.
+      if (cancelDebounce()) void syncNow();
     }
   };
+  const appState = AppState.addEventListener('change', onAppStateChange);
+  if (AppState.currentState === 'active') startInterval();
+
+  const teardown = () => {
+    stopLocal();
+    appState.remove();
+    cancelDebounce();
+    stopInterval();
+    onRemoteChange = null;
+    // The session itself is kept: it is keyed on the database handle, so the
+    // next activation (even of the same user) gets a new one by itself, and a
+    // restart of these triggers for the same database keeps sharing its
+    // single-flight guard.
+    if (unsubscribeAll === teardown) unsubscribeAll = null;
+  };
+  unsubscribeAll = teardown;
+  return teardown;
 }

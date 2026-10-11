@@ -16,6 +16,7 @@ import { Hono } from "hono";
 import { prisma } from "../prisma";
 import { withLegacyAliases } from "../lib/legacy-aliases";
 import { businessRouter } from "./business";
+import { client, createTestUser, deleteTestUsers } from "../lib/sync/testing";
 
 const P = "legacytest_";
 const OWNER = `${P}owner`;
@@ -78,21 +79,28 @@ test("GET /business serves teamMembers alongside members", async () => {
 });
 
 test("the alias middleware is wired into the real app, not just this harness", async () => {
-  // The two tests above rebuild index.ts's middleware locally, which proves
-  // the function and not the wiring — and it was the wiring that was missing.
-  // This imports the actual exported app and asserts the same property, so
+  // The tests around this one rebuild index.ts's middleware locally, which
+  // proves the function and not the wiring — and it was the wiring that was
+  // missing. This drives the exported app itself, with a real session, so
   // deleting the app.use in index.ts fails here.
-  const real = (await import("../index")).default as { fetch: (r: Request) => Promise<Response> };
-
-  const res = await real.fetch(new Request("http://t/api/business", {
-    headers: { "x-test-user": OWNER },
-  }));
-  // Unauthenticated, so this is a 401 — but a JSON one, which is what the
-  // middleware acts on. The point is that index.ts installs it at all.
-  const source = await Bun.file(new URL("../index.ts", import.meta.url)).text();
-  expect(source).toContain("withLegacyAliases");
-  expect(source.indexOf('app.use("*", logger())')).toBeLessThan(source.indexOf("withLegacyAliases(parsed)"));
-  expect(res.headers.get("content-type")).toContain("application/json");
+  const { app } = await import("../index");
+  const owner = await createTestUser("legacy");
+  try {
+    const now = new Date();
+    await prisma.group.create({
+      data: {
+        ownerId: owner.id, name: "Real wiring", type: "business", createdAt: now, updatedAt: now,
+        members: { create: { userId: owner.id, role: "owner" } },
+      },
+    });
+    const res = await client(app, owner).get("/api/business");
+    expect(res.status).toBe(200);
+    const business = res.json.business as { members?: unknown[]; teamMembers?: unknown[] };
+    expect(Array.isArray(business.members)).toBe(true);
+    expect(business.teamMembers).toEqual(business.members!);
+  } finally {
+    await deleteTestUsers([owner]);
+  }
 });
 
 test("the exact call that crashed the 26 August build now works", async () => {

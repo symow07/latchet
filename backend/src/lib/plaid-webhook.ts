@@ -6,7 +6,7 @@
  * exact body, so verifying both proves the request came from Plaid and was not
  * tampered with. Without this anyone could POST a SYNC_UPDATES_AVAILABLE body
  * and force unbounded /transactions/sync runs against our Plaid quota and our
- * single SQLite writer.
+ * database.
  *
  * Dependency-free (WebCrypto only) so it can be unit-tested without network.
  */

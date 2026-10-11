@@ -20,3 +20,7 @@ _site/
 
 # Scratch staging area, not part of the project
 _to_delete/
+
+# unlazy orchestration state (local only)
+.unlazy/
+.unlazy-hook-state.json

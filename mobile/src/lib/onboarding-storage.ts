@@ -1,7 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { userKey } from './storage-keys';
 
-// Same key as the legacy auth.ts module so existing user data is preserved
-// across the rename.
+// The onboarding answers are the signed-in user's, so the key is per user
+// (storage-keys.ts) and goes with them on sign-out.
 const ONBOARDING_KEY = '@real_budget_onboarding';
 
 export interface OnboardingData {
@@ -14,17 +15,35 @@ export interface OnboardingData {
   completed: boolean;
 }
 
+/**
+ * What is stored: the answers when this device ran onboarding, or only the
+ * flag when a returning account skipped it (returning-account.ts) — its
+ * answers are already in its synced settings.
+ */
+export type StoredOnboarding = Partial<OnboardingData> & { completed: boolean };
+
 export async function saveOnboardingData(data: OnboardingData): Promise<void> {
-  await AsyncStorage.setItem(ONBOARDING_KEY, JSON.stringify(data));
+  await AsyncStorage.setItem(userKey(ONBOARDING_KEY), JSON.stringify(data));
 }
 
-export async function getOnboardingData(): Promise<OnboardingData | null> {
-  const dataStr = await AsyncStorage.getItem(ONBOARDING_KEY);
+export async function getOnboardingData(): Promise<StoredOnboarding | null> {
+  const dataStr = await AsyncStorage.getItem(userKey(ONBOARDING_KEY));
   if (!dataStr) return null;
-  return JSON.parse(dataStr);
+  try {
+    return JSON.parse(dataStr) as StoredOnboarding;
+  } catch {
+    return null;
+  }
 }
 
 export async function isOnboardingComplete(): Promise<boolean> {
   const data = await getOnboardingData();
   return data?.completed ?? false;
+}
+
+/** Record onboarding as done without answers: the account already has its settings. */
+export async function markOnboardingComplete(): Promise<void> {
+  const existing = await getOnboardingData();
+  const next: StoredOnboarding = { ...(existing ?? {}), completed: true };
+  await AsyncStorage.setItem(userKey(ONBOARDING_KEY), JSON.stringify(next));
 }

@@ -1505,5 +1505,15 @@
     "owner": "Propriétaire",
     "manager": "Responsable",
     "employee": "Employé"
+  },
+  "signOutFlow": {
+    "unsyncedTitle": "Modifications non sauvegardées",
+    "unsyncedBody": {
+      "one": "%{count} modification sur ce téléphone n'a pas encore atteint votre compte. Se déconnecter la supprime de ce téléphone.",
+      "other": "%{count} modifications sur ce téléphone n'ont pas encore atteint votre compte. Se déconnecter les supprime de ce téléphone."
+    },
+    "flushFailedBody": "Vos modifications n'ont pas pu être sauvegardées pour l'instant. Se déconnecter supprime de ce téléphone tout ce qui n'a pas atteint votre compte.",
+    "signOutAnyway": "Se déconnecter quand même",
+    "signingOut": "Déconnexion…"
   }
 }

@@ -13,12 +13,17 @@
  */
 import * as FileSystem from 'expo-file-system';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { addTransaction } from './db';
+import { activeUserId, addTransaction } from './db';
 import { parsePendingQueue, selectDrainable } from './pending-capture';
 import { categoriseNote, loadMerchantMemory } from './categorise';
 
 /** Must match PendingCaptureQueue.fileName in the Swift. */
 const QUEUE_FILE = 'pending-captures.ndjson';
+/**
+ * Device key (storage-keys.ts): the queue is a file on the phone, written
+ * without knowing who is signed in, so what has been drained from it is the
+ * phone's record, not an account's.
+ */
 const SEEN_KEY = 'pending_capture_seen_v1';
 
 /**
@@ -51,7 +56,14 @@ async function writeSeen(seen: Set<string>): Promise<void> {
 }
 
 /**
- * Insert everything Siri queued, and return how many landed.
+ * Insert everything Siri queued into `ownerUserId`'s ledger, and return how
+ * many landed.
+ *
+ * The owner is the user whose database is active when the drain starts; the
+ * root layout only runs it once that database is ready, and sign-out runs it
+ * once more before the flush, so captures spoken before signing out land in
+ * the ledger of the user who spoke them. If the active user changes while it
+ * runs, it stops: a capture is lost rather than booked to someone else.
  *
  * Ids are marked seen *before* the insert, not after. A crash in between
  * therefore loses a capture rather than inserting it twice, and that is the
@@ -59,9 +71,10 @@ async function writeSeen(seen: Set<string>): Promise<void> {
  * has no reason to re-check, whereas a missing one is no worse than never
  * having spoken it, and they are standing there to notice.
  */
-export async function drainPendingCaptures(): Promise<number> {
+export async function drainPendingCaptures(ownerUserId: string): Promise<number> {
+  const stillOwner = () => activeUserId() === ownerUserId;
   const uri = queueUri();
-  if (!uri) return 0;
+  if (!uri || !stillOwner()) return 0;
 
   const info = await FileSystem.getInfoAsync(uri);
   if (!info.exists) return 0;
@@ -77,6 +90,7 @@ export async function drainPendingCaptures(): Promise<number> {
 
   const seen = await readSeen();
   const captures = selectDrainable(parsePendingQueue(raw), seen, Date.now());
+  if (!stillOwner()) return 0;
 
   // Delete before inserting. The ids are in `seen` either way, so a re-parse
   // would find nothing; leaving the file behind only risks it growing.
@@ -93,6 +107,7 @@ export async function drainPendingCaptures(): Promise<number> {
 
   let inserted = 0;
   for (const capture of captures) {
+    if (!stillOwner()) break;
     try {
       await addTransaction({
         amount: capture.amount,

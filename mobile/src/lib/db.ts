@@ -1,10 +1,106 @@
+/**
+ * The phone's local store: expo-sqlite, one database file per signed-in user.
+ *
+ * There is no shared database any more. Until the root layout activates the
+ * signed-in user (user-session.ts activateUser), getDatabase() waits; after a
+ * sign-out it refuses. Which file belongs to whom, and the rules for switching
+ * between them, live in user-db.ts; the schema is local-schema.ts.
+ *
+ * Every user-originated write here stamps `clientUpdatedAt` with the time of
+ * the change, sets `dirty = 1` and tells the local-mutation listeners, and
+ * every user-originated delete of a synced row leaves a `sync_tombstones` row
+ * so the deletion reaches the server (I-LOCAL-SCHEMA). Applying rows that came
+ * from the server is the sync engine's job and does none of that.
+ *
+ * This file is also the one place SQLite's representations are translated:
+ * 0/1 into booleans and NULL into null, on the way out.
+ */
 import * as SQLite from 'expo-sqlite';
 import { setActiveCurrency } from './calculations';
+import {
+  DEFAULT_ACCOUNT,
+  EPOCH_ISO,
+  LOCAL_SYNC_TABLES,
+  SYNC_ENTITIES,
+  defaultAccountId,
+  type SyncEntity,
+} from './local-schema';
+import type { Transaction } from './transaction';
+import { createUserDatabaseRegistry, type UserDatabaseDriver } from './user-db';
 
-const DB_NAME = 'real_budget.db';
+/**
+ * The slice of expo-sqlite's database the app and the sync engine use.
+ * Structural, so code written against it (leaf-1.2.2's sync store, the tests)
+ * does not depend on expo-sqlite itself.
+ */
+export type SqlBindValue = string | number | null | boolean | Uint8Array;
+export type SqlBindParams = SqlBindValue[] | Record<string, SqlBindValue>;
+export interface SqlRunResult {
+  lastInsertRowId: number;
+  changes: number;
+}
+export interface SqlDb {
+  getAllAsync<T>(source: string, params?: SqlBindParams): Promise<T[]>;
+  getFirstAsync<T>(source: string, params?: SqlBindParams): Promise<T | null>;
+  runAsync(source: string, params?: SqlBindParams): Promise<SqlRunResult>;
+  execAsync(source: string): Promise<void>;
+}
 
-let db: SQLite.SQLiteDatabase | null = null;
-let initPromise: Promise<SQLite.SQLiteDatabase> | null = null;
+/** The shared file every user used to read and write. Test data; deleted, not migrated. */
+const LEGACY_SHARED_DATABASE = 'real_budget.db';
+
+const expoDriver: UserDatabaseDriver<SQLite.SQLiteDatabase> = {
+  open: (fileName) => SQLite.openDatabaseAsync(fileName),
+  close: (db) => db.closeAsync(),
+  remove: async (fileName) => {
+    try {
+      await SQLite.deleteDatabaseAsync(fileName);
+    } catch (e) {
+      // expo-sqlite throws "Database <path> not found" for a file that was
+      // never created, which for a delete is success.
+      if (/not found/i.test(e instanceof Error ? e.message : String(e))) return;
+      throw e;
+    }
+  },
+};
+
+const registry = createUserDatabaseRegistry(expoDriver, {
+  legacyFileNames: [LEGACY_SHARED_DATABASE],
+  onWarning: (message, error) => console.warn(`[db] ${message}`, error ?? ''),
+});
+
+/**
+ * Open the user's database and make it the active one. Idempotent; switching
+ * to another user closes the previous user's file first. Called by
+ * user-session.ts activateUser, not by screens.
+ */
+export async function openUserDatabase(userId: string): Promise<SqlDb> {
+  return registry.open(userId);
+}
+
+/** Close the active database. getDatabase() refuses until the next activation. */
+export async function closeUserDatabase(): Promise<void> {
+  return registry.close();
+}
+
+/** Close the user's database if it is open, then delete the file. */
+export async function deleteUserDatabase(userId: string): Promise<void> {
+  return registry.remove(userId);
+}
+
+/** The user whose database is open and ready, or null. */
+export function activeUserId(): string | null {
+  return registry.activeUserId();
+}
+
+/**
+ * The active user's database. Waits while it is being opened; rejects with
+ * NoActiveUserDatabaseError once nobody is signed in. Never opens a database
+ * by itself.
+ */
+export async function getDatabase(): Promise<SqlDb> {
+  return registry.get();
+}
 
 type MutationListener = () => void;
 const mutationListeners = new Set<MutationListener>();
@@ -29,335 +125,108 @@ function notifyLocalMutation(): void {
   }
 }
 
-export async function initializeDatabase(): Promise<SQLite.SQLiteDatabase> {
-  if (db) return db;
-  if (initPromise) return initPromise;
+// ── Writing ──────────────────────────────────────────────────────────────────
 
-  initPromise = performInit();
+let writeQueue: Promise<unknown> = Promise.resolve();
+
+/**
+ * Run a write against the active user's database, one at a time.
+ *
+ * Serialised because the multi-statement writes below use BEGIN/COMMIT on the
+ * single connection, and two interleaved transactions on one connection fail
+ * ("cannot start a transaction within a transaction"). The database handle is
+ * taken when the write is *requested*: a write queued behind others while the
+ * user switches runs against the old user's (closed) handle and fails, rather
+ * than landing in the new user's ledger. Exported for the sync engine's store,
+ * whose batch writes must queue behind the user's own. Not re-entrant: never
+ * call another write function of this module from inside `fn` — it would wait
+ * for `fn` itself.
+ */
+export async function withWriteLock<T>(
+  fn: (db: SqlDb, userId: string) => Promise<T>,
+): Promise<T> {
+  const { db, userId } = await registry.active();
+  const run = writeQueue.then(() => fn(db, userId));
+  writeQueue = run.then(
+    () => undefined,
+    () => undefined,
+  );
+  return run;
+}
+
+async function inTransaction<T>(db: SqlDb, fn: () => Promise<T>): Promise<T> {
+  await db.execAsync('BEGIN');
   try {
-    return await initPromise;
+    const result = await fn();
+    await db.execAsync('COMMIT');
+    return result;
   } catch (e) {
-    initPromise = null; // allow retry on failure
+    try {
+      await db.execAsync('ROLLBACK');
+    } catch {
+      // Nothing to roll back, or the connection is already gone.
+    }
     throw e;
   }
 }
 
-async function performInit(): Promise<SQLite.SQLiteDatabase> {
-  db = await SQLite.openDatabaseAsync(DB_NAME);
+function nowISO(): string {
+  return new Date().toISOString();
+}
 
-  await db.execAsync(`
-    CREATE TABLE IF NOT EXISTS transactions (
-      id TEXT PRIMARY KEY,
-      amount REAL NOT NULL,
-      category TEXT NOT NULL,
-      type TEXT NOT NULL,
-      isImpulse INTEGER NOT NULL DEFAULT 0,
-      note TEXT,
-      dateISO TEXT NOT NULL,
-      createdAt TEXT NOT NULL,
-      accountId TEXT,
-      currency TEXT DEFAULT 'USD'
-    );
+function newId(prefix: string): string {
+  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
+}
 
-    CREATE TABLE IF NOT EXISTS settings (
-      id INTEGER PRIMARY KEY CHECK (id = 1),
-      monthlyBudget REAL DEFAULT 0,
-      startingBalance REAL DEFAULT 0,
-      hourlyValue REAL DEFAULT 0,
-      showTimeCost INTEGER DEFAULT 0,
-      currency TEXT DEFAULT 'USD',
-      currencySymbol TEXT DEFAULT '$',
-      monthlyIncome REAL DEFAULT 0,
-      savingsGoal REAL DEFAULT 0,
-      spendingStyle TEXT DEFAULT 'moderate',
-      primaryGoal TEXT DEFAULT 'track',
-      locale TEXT DEFAULT 'en'
-    );
+/** Record that a synced row was deleted here, so the deletion is pushed. */
+async function writeTombstone(db: SqlDb, entity: SyncEntity, id: string, at: string): Promise<void> {
+  await db.runAsync(
+    `INSERT INTO sync_tombstones (entity, id, clientUpdatedAt) VALUES (?, ?, ?)
+     ON CONFLICT(entity, id) DO UPDATE SET clientUpdatedAt = excluded.clientUpdatedAt`,
+    [entity, id, at],
+  );
+}
 
-    CREATE TABLE IF NOT EXISTS accounts (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      type TEXT NOT NULL,
-      balance REAL DEFAULT 0,
-      openingBalance REAL DEFAULT 0,
-      currency TEXT DEFAULT 'USD',
-      color TEXT DEFAULT '#a855f7',
-      icon TEXT DEFAULT 'wallet',
-      isDefault INTEGER DEFAULT 0,
-      createdAt TEXT NOT NULL
-    );
+/** Re-creating a deleted row is newer than its deletion: the row wins. */
+async function clearTombstone(db: SqlDb, entity: SyncEntity, id: string): Promise<void> {
+  await db.runAsync(`DELETE FROM sync_tombstones WHERE entity = ? AND id = ?`, [entity, id]);
+}
 
-    CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions(dateISO);
-    CREATE INDEX IF NOT EXISTS idx_transactions_category ON transactions(category);
-    CREATE INDEX IF NOT EXISTS idx_transactions_type ON transactions(type);
+/**
+ * Move an account's derived balance by one transaction's effect.
+ *
+ * Exact inside the same SQLite transaction as the row it accounts for, and
+ * O(1): adding rows one at a time (an import, a drain) must not re-sum the
+ * whole ledger per row. recomputeBalances / recomputeAccountBalances remain
+ * the authority, and the sync engine runs the latter after applying a pull.
+ */
+async function adjustBalance(
+  db: SqlDb,
+  accountId: string | null,
+  tx: { amount: number; type: string },
+  direction: 1 | -1,
+): Promise<void> {
+  if (!accountId) return;
+  const signed = (tx.type === 'Income' ? tx.amount : -tx.amount) * direction;
+  await db.runAsync('UPDATE accounts SET balance = balance + ? WHERE id = ?', [signed, accountId]);
+}
 
-    CREATE TABLE IF NOT EXISTS subscriptions (
-      id TEXT PRIMARY KEY,
-      merchantDisplay TEXT NOT NULL,
-      merchantNormalized TEXT NOT NULL,
-      cadence TEXT NOT NULL DEFAULT 'monthly',
-      typicalAmount REAL NOT NULL DEFAULT 0,
-      currency TEXT DEFAULT 'USD',
-      confidenceScore REAL DEFAULT 0,
-      lastChargedAt TEXT,
-      nextExpectedAt TEXT,
-      status TEXT NOT NULL DEFAULT 'possible',
-      cancelUrl TEXT,
-      cancelNotes TEXT,
-      source TEXT DEFAULT 'transaction',
-      createdAt TEXT NOT NULL,
-      updatedAt TEXT NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS subscription_occurrences (
-      id TEXT PRIMARY KEY,
-      subscriptionId TEXT NOT NULL,
-      transactionId TEXT,
-      chargedAt TEXT NOT NULL,
-      amount REAL NOT NULL,
-      FOREIGN KEY (subscriptionId) REFERENCES subscriptions(id)
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_subscriptions_status ON subscriptions(status);
-    CREATE INDEX IF NOT EXISTS idx_sub_occurrences_sub ON subscription_occurrences(subscriptionId);
-
-    CREATE TABLE IF NOT EXISTS custom_categories (
-      name TEXT PRIMARY KEY,
-      icon TEXT NOT NULL DEFAULT '',
-      color TEXT NOT NULL DEFAULT '#94a3b8',
-      createdAt TEXT NOT NULL
-    );
-
-    -- The advisor's personal profile. DEVICE-ONLY, never synced.
-    --
-    -- Its own table rather than columns on the settings row, for one specific
-    -- reason: cloud-sync spreads that entire row into PUT /api/settings, so a
-    -- health column added there would upload itself the next time anything
-    -- triggered a sync. Nobody would have written a line of code to send it.
-    --
-    -- The sensitive tier (allergies, conditions) carries its own consent flag
-    -- and its own timestamp, because GDPR Article 9 and China's PIPL both
-    -- require that consent to be separate from everything else the user agreed
-    -- to, and "separate" has to mean recorded separately.
-    CREATE TABLE IF NOT EXISTS health_profile (
-      id INTEGER PRIMARY KEY CHECK (id = 1),
-      householdSize INTEGER,
-      city TEXT,
-      cookingHabits TEXT,
-      goals TEXT,
-      activityInterests TEXT,
-      dietaryPreferences TEXT,
-      allergies TEXT,
-      healthConsiderations TEXT,
-      standardConsentAt TEXT,
-      sensitiveConsentAt TEXT,
-      updatedAt TEXT
-    );
-  `);
-
-  // Migration: Add accountId column if it doesn't exist (for older databases)
-  try {
-    const tableInfo = await db.getAllAsync('PRAGMA table_info(transactions)');
-    const hasAccountId = (tableInfo as { name: string }[]).some(col => col.name === 'accountId');
-    if (!hasAccountId) {
-      await db.execAsync('ALTER TABLE transactions ADD COLUMN accountId TEXT');
-    }
-    const hasCurrency = (tableInfo as { name: string }[]).some(col => col.name === 'currency');
-    if (!hasCurrency) {
-      await db.execAsync("ALTER TABLE transactions ADD COLUMN currency TEXT DEFAULT 'USD'");
-    }
-  } catch (e) {
-    // Column may already exist, ignore error
-    console.log('Migration check:', e);
-  }
-
-  // Migration: add `source` column to subscriptions ('transaction' | 'email')
-  // so email-detected subscriptions can be distinguished from transaction ones.
-  try {
-    const subInfo = await db.getAllAsync('PRAGMA table_info(subscriptions)');
-    const hasSource = (subInfo as { name: string }[]).some(col => col.name === 'source');
-    if (!hasSource) {
-      await db.execAsync("ALTER TABLE subscriptions ADD COLUMN source TEXT DEFAULT 'transaction'");
-    }
-  } catch (e) {
-    console.log('Subscriptions source migration:', e);
-  }
-
-  // Create index for accountId after ensuring column exists
-  try {
-    await db.execAsync('CREATE INDEX IF NOT EXISTS idx_transactions_account ON transactions(accountId)');
-  } catch {
-    // Ignore if index creation fails
-  }
-
-  // Initialize settings if not exists
-  const result = await db.getFirstAsync('SELECT id FROM settings WHERE id = 1');
-  if (!result) {
+/** balance = openingBalance + the account's ledger, for the given accounts. */
+async function recomputeBalances(db: SqlDb, accountIds: (string | null | undefined)[]): Promise<void> {
+  for (const id of new Set(accountIds.filter((a): a is string => !!a))) {
     await db.runAsync(
-      `INSERT INTO settings (id, monthlyBudget, startingBalance, hourlyValue, showTimeCost, currency, currencySymbol, monthlyIncome, savingsGoal, spendingStyle, primaryGoal)
-       VALUES (1, 0, 0, 0, 0, 'USD', '$', 0, 0, 'moderate', 'track')`
+      `UPDATE accounts SET balance = openingBalance + COALESCE((
+         SELECT SUM(CASE WHEN t.type = 'Income' THEN t.amount ELSE -t.amount END)
+         FROM transactions t WHERE t.accountId = accounts.id
+       ), 0)
+       WHERE id = ?`,
+      [id],
     );
   }
-
-  // Migration v2: wipe all demo/seeded data so every new user starts at zero.
-  // Uses a migrations table to ensure this only runs once per device.
-  await db.execAsync(`CREATE TABLE IF NOT EXISTS migrations (key TEXT PRIMARY KEY)`);
-  const alreadyRan = await db.getFirstAsync(`SELECT key FROM migrations WHERE key = 'v2_clear_seed'`);
-  if (!alreadyRan) {
-    await db.runAsync(`DELETE FROM transactions`);
-    await db.runAsync(`UPDATE settings SET startingBalance = 0, monthlyBudget = 0, hourlyValue = 0, showTimeCost = 0 WHERE id = 1`);
-    await db.runAsync(`INSERT INTO migrations (key) VALUES ('v2_clear_seed')`);
-  }
-
-  // Migration v4: `balance` becomes a derived value — openingBalance plus the
-  // net of every transaction on the account. Previously balance was only ever
-  // mutated incrementally, so any missed or double-applied adjustment (notably
-  // the cloud-sync duplicate bug) drifted permanently with no way to recover.
-  // Back-derive openingBalance from the current balance so existing users see
-  // no change, then recompute from the ledger on every bulk write.
-  try {
-    const accInfo = await db.getAllAsync('PRAGMA table_info(accounts)');
-    const hasOpening = (accInfo as { name: string }[]).some(col => col.name === 'openingBalance');
-    if (!hasOpening) {
-      await db.execAsync('ALTER TABLE accounts ADD COLUMN openingBalance REAL DEFAULT 0');
-      await db.runAsync(`
-        UPDATE accounts SET openingBalance = balance - COALESCE((
-          SELECT SUM(CASE WHEN t.type = 'Income' THEN t.amount ELSE -t.amount END)
-          FROM transactions t WHERE t.accountId = accounts.id
-        ), 0)
-      `);
-    }
-  } catch (e) {
-    console.log('Opening balance migration:', e);
-  }
-
-  // Migration v6: UI language, so the app can be used in French or Chinese.
-  // Existing devices default to English until the user picks, or until the
-  // first-run device-language default applies to a fresh install.
-  try {
-    const settingsInfo = await db.getAllAsync('PRAGMA table_info(settings)');
-    const hasLocale = (settingsInfo as { name: string }[]).some(c => c.name === 'locale');
-    if (!hasLocale) {
-      await db.execAsync("ALTER TABLE settings ADD COLUMN locale TEXT DEFAULT 'en'");
-    }
-  } catch (e) {
-    console.log('Locale migration:', e);
-  }
-
-  // Migration v5: subscription ids no longer embed the amount, so a price
-  // change updates a subscription instead of minting a second one. Existing
-  // rows carry the old `sub_<merchant>_<amount>` form; fold each into its
-  // merchant-only id, keeping whichever row the user had already acted on.
-  // Occurrences move with their subscription, and duplicates collapse because
-  // their ids are deterministic now too.
-  try {
-    const already = await db.getFirstAsync(
-      `SELECT key FROM migrations WHERE key = 'v5_subscription_ids'`
-    );
-    if (!already) {
-      const rows = (await db.getAllAsync(
-        `SELECT id, status FROM subscriptions`
-      )) as { id: string; status: string }[];
-
-      for (const row of rows) {
-        const match = row.id.match(/^(sub_.+)_\d+$/);
-        if (!match) continue;
-        const newId = match[1]!;
-
-        const existing = await db.getFirstAsync(
-          `SELECT id, status FROM subscriptions WHERE id = ?`,
-          [newId]
-        ) as { id: string; status: string } | null;
-
-        if (!existing) {
-          await db.runAsync(`UPDATE subscriptions SET id = ? WHERE id = ?`, [newId, row.id]);
-          await db.runAsync(
-            `UPDATE subscription_occurrences SET subscriptionId = ? WHERE subscriptionId = ?`,
-            [newId, row.id]
-          );
-          continue;
-        }
-
-        // Both forms present. Keep the one the user acted on; otherwise keep
-        // the new-format row and discard the stale duplicate.
-        const userActed = (s: string) => s === 'confirmed' || s === 'canceled';
-        if (userActed(row.status) && !userActed(existing.status)) {
-          await db.runAsync(`DELETE FROM subscriptions WHERE id = ?`, [newId]);
-          await db.runAsync(`UPDATE subscriptions SET id = ? WHERE id = ?`, [newId, row.id]);
-        } else {
-          await db.runAsync(`DELETE FROM subscriptions WHERE id = ?`, [row.id]);
-        }
-        await db.runAsync(
-          `UPDATE OR IGNORE subscription_occurrences SET subscriptionId = ? WHERE subscriptionId = ?`,
-          [newId, row.id]
-        );
-        await db.runAsync(`DELETE FROM subscription_occurrences WHERE subscriptionId = ?`, [row.id]);
-      }
-
-      await db.runAsync(`INSERT INTO migrations (key) VALUES ('v5_subscription_ids')`);
-    }
-  } catch (e) {
-    console.log('Subscription id migration:', e);
-  }
-
-  // Migration v3: add subscriptions tables
-  try {
-    await db.execAsync(`CREATE TABLE IF NOT EXISTS subscriptions (
-      id TEXT PRIMARY KEY,
-      merchantDisplay TEXT NOT NULL,
-      merchantNormalized TEXT NOT NULL,
-      cadence TEXT NOT NULL DEFAULT 'monthly',
-      typicalAmount REAL NOT NULL DEFAULT 0,
-      currency TEXT DEFAULT 'USD',
-      confidenceScore REAL DEFAULT 0,
-      lastChargedAt TEXT,
-      nextExpectedAt TEXT,
-      status TEXT NOT NULL DEFAULT 'possible',
-      cancelUrl TEXT,
-      cancelNotes TEXT,
-      source TEXT DEFAULT 'transaction',
-      createdAt TEXT NOT NULL,
-      updatedAt TEXT NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS subscription_occurrences (
-      id TEXT PRIMARY KEY,
-      subscriptionId TEXT NOT NULL,
-      transactionId TEXT,
-      chargedAt TEXT NOT NULL,
-      amount REAL NOT NULL,
-      FOREIGN KEY (subscriptionId) REFERENCES subscriptions(id)
-    );
-    CREATE INDEX IF NOT EXISTS idx_subscriptions_status ON subscriptions(status);
-    CREATE INDEX IF NOT EXISTS idx_sub_occurrences_sub ON subscription_occurrences(subscriptionId);`);
-  } catch (e) {
-    console.log('Subscriptions migration:', e);
-  }
-
-  // Check if accounts table has data, if not create default account
-  const accountCount = await db.getFirstAsync('SELECT COUNT(*) as count FROM accounts');
-  if ((accountCount as { count: number } | undefined)?.count === 0) {
-    await createAccount({
-      name: 'Cash',
-      type: 'cash',
-      balance: 0,
-      currency: 'USD',
-      color: '#22c55e',
-      icon: 'wallet',
-      isDefault: true,
-    });
-  }
-
-  return db;
 }
 
-export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
-  if (!db) {
-    await initializeDatabase();
-  }
-  return db!;
-}
+// ── Accounts ─────────────────────────────────────────────────────────────────
 
-// Account operations
 export interface Account {
   id: string;
   name: string;
@@ -386,335 +255,298 @@ export interface AccountInput {
   createdAt?: string;
 }
 
+const ACCOUNT_COLUMNS =
+  'id, name, type, balance, openingBalance, currency, color, icon, isDefault, createdAt';
+
 export async function createAccount(account: AccountInput): Promise<string> {
-  const id = `acc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-  await createAccountWithId(id, account);
+  const id = newId('acc');
+  const at = nowISO();
+  await withWriteLock(async (db) => {
+    const opening = account.openingBalance ?? account.balance;
+    await db.runAsync(
+      `INSERT INTO accounts (${ACCOUNT_COLUMNS}, clientUpdatedAt, dirty, syncError)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, NULL)`,
+      [
+        id,
+        account.name,
+        account.type,
+        opening,
+        opening,
+        account.currency,
+        account.color,
+        account.icon,
+        account.isDefault ? 1 : 0,
+        account.createdAt ?? at,
+        at,
+      ],
+    );
+  });
   notifyLocalMutation();
   return id;
 }
 
-/**
- * Create an account under a caller-supplied id.
- *
- * Cloud sync must preserve the server's id: `createAccount` mints its own,
- * which meant a pulled account was never recognised as already-present and was
- * re-created on every single login.
- */
-export async function createAccountWithId(
-  id: string,
-  account: AccountInput
-): Promise<void> {
-  const database = await getDatabase();
-
-  await database.runAsync(
-    `INSERT OR REPLACE INTO accounts (id, name, type, balance, openingBalance, currency, color, icon, isDefault, createdAt)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [
-      id,
-      account.name,
-      account.type,
-      account.balance,
-      account.openingBalance ?? account.balance,
-      account.currency,
-      account.color,
-      account.icon,
-      account.isDefault ? 1 : 0,
-      account.createdAt ?? new Date().toISOString(),
-    ]
-  );
-}
-
 export async function getAccounts(): Promise<Account[]> {
   const database = await getDatabase();
-  const accounts = await database.getAllAsync(
-    'SELECT * FROM accounts ORDER BY isDefault DESC, createdAt ASC'
+  return database.getAllAsync<Account>(
+    `SELECT ${ACCOUNT_COLUMNS} FROM accounts ORDER BY isDefault DESC, createdAt ASC`,
   );
-  return accounts as Account[];
 }
 
 export async function getAccountById(id: string): Promise<Account | null> {
   const database = await getDatabase();
-  const account = await database.getFirstAsync(
-    'SELECT * FROM accounts WHERE id = ?',
-    [id]
-  );
-  return account as Account | null;
+  return database.getFirstAsync<Account>(`SELECT ${ACCOUNT_COLUMNS} FROM accounts WHERE id = ?`, [id]);
 }
 
 export async function updateAccount(id: string, account: Partial<Account>): Promise<void> {
-  const database = await getDatabase();
-  const current = await getAccountById(id);
-  if (!current) return;
+  const changed = await withWriteLock(async (db) => {
+    const current = await db.getFirstAsync<Account>(
+      `SELECT ${ACCOUNT_COLUMNS} FROM accounts WHERE id = ?`,
+      [id],
+    );
+    if (!current) return false;
 
-  const nextBalance = account.balance ?? current.balance;
+    // A caller setting `balance` is asserting "this account is now worth X".
+    // Rebase openingBalance off the existing ledger so the derived balance
+    // reproduces X rather than reverting the edit. `balance` itself is never
+    // stored as given: it is recomputed, here as everywhere.
+    let nextOpening = account.openingBalance ?? current.openingBalance;
+    if (account.balance !== undefined && account.openingBalance === undefined) {
+      nextOpening = account.balance - (await ledgerNet(db, id));
+    }
 
-  // A caller setting `balance` is asserting "this account is now worth X".
-  // Rebase openingBalance off the existing ledger so the next recompute
-  // reproduces X rather than reverting the edit.
-  let nextOpening = account.openingBalance ?? current.openingBalance;
-  if (account.balance !== undefined && account.openingBalance === undefined) {
-    nextOpening = nextBalance - (await getAccountLedgerNet(id));
-  }
+    await db.runAsync(
+      `UPDATE accounts
+       SET name = ?, type = ?, openingBalance = ?, currency = ?, color = ?, icon = ?,
+           clientUpdatedAt = ?, dirty = 1, syncError = NULL
+       WHERE id = ?`,
+      [
+        account.name ?? current.name,
+        account.type ?? current.type,
+        nextOpening,
+        account.currency ?? current.currency,
+        account.color ?? current.color,
+        account.icon ?? current.icon,
+        nowISO(),
+        id,
+      ],
+    );
+    await recomputeBalances(db, [id]);
+    return true;
+  });
+  if (changed) notifyLocalMutation();
+}
 
-  await database.runAsync(
-    `UPDATE accounts SET name = ?, type = ?, balance = ?, openingBalance = ?, currency = ?, color = ?, icon = ?
-     WHERE id = ?`,
-    [
-      account.name ?? current.name,
-      account.type ?? current.type,
-      nextBalance,
-      nextOpening,
-      account.currency ?? current.currency,
-      account.color ?? current.color,
-      account.icon ?? current.icon,
-      id,
-    ]
+async function ledgerNet(db: SqlDb, accountId: string): Promise<number> {
+  const row = await db.getFirstAsync<{ net: number }>(
+    `SELECT COALESCE(SUM(CASE WHEN type = 'Income' THEN amount ELSE -amount END), 0) AS net
+     FROM transactions WHERE accountId = ?`,
+    [accountId],
   );
-  notifyLocalMutation();
+  return row?.net ?? 0;
 }
 
 /** Net effect of every transaction booked to an account (income − expense). */
 export async function getAccountLedgerNet(accountId: string): Promise<number> {
-  const database = await getDatabase();
-  const row = (await database.getFirstAsync(
-    `SELECT COALESCE(SUM(CASE WHEN type = 'Income' THEN amount ELSE -amount END), 0) AS net
-     FROM transactions WHERE accountId = ?`,
-    [accountId]
-  )) as { net: number } | null;
-  return row?.net ?? 0;
+  return ledgerNet(await getDatabase(), accountId);
 }
 
 /**
  * Recompute every account balance from openingBalance + its ledger.
  *
- * Cheaper and far safer than incremental adjustment after a bulk write: it is
- * idempotent, so a sync that runs twice cannot double-count.
+ * Idempotent, so a sync that applies the same rows twice cannot double-count.
+ * A derived value: it never marks anything dirty.
  */
 export async function recomputeAccountBalances(): Promise<void> {
-  const database = await getDatabase();
-  await database.runAsync(`
-    UPDATE accounts SET balance = openingBalance + COALESCE((
-      SELECT SUM(CASE WHEN t.type = 'Income' THEN t.amount ELSE -t.amount END)
-      FROM transactions t WHERE t.accountId = accounts.id
-    ), 0)
-  `);
+  await withWriteLock(async (db) => {
+    await db.runAsync(`
+      UPDATE accounts SET balance = openingBalance + COALESCE((
+        SELECT SUM(CASE WHEN t.type = 'Income' THEN t.amount ELSE -t.amount END)
+        FROM transactions t WHERE t.accountId = accounts.id
+      ), 0)
+    `);
+  });
 }
 
 export async function deleteAccount(id: string): Promise<void> {
-  const database = await getDatabase();
-  await database.runAsync('DELETE FROM accounts WHERE id = ?', [id]);
-  notifyLocalMutation();
-}
-
-export async function updateAccountBalance(id: string, amount: number, type: 'add' | 'subtract'): Promise<void> {
-  const database = await getDatabase();
-  const operator = type === 'add' ? '+' : '-';
-  await database.runAsync(
-    `UPDATE accounts SET balance = balance ${operator} ? WHERE id = ?`,
-    [amount, id]
+  const deleted = await withWriteLock((db) =>
+    inTransaction(db, async () => {
+      const result = await db.runAsync('DELETE FROM accounts WHERE id = ?', [id]);
+      if (result.changes > 0) await writeTombstone(db, 'accounts', id, nowISO());
+      return result.changes > 0;
+    }),
   );
+  if (deleted) notifyLocalMutation();
 }
 
-// Transaction operations
+// ── Transactions ─────────────────────────────────────────────────────────────
+
 export interface TransactionInput {
   amount: number;
   category: string;
   type: 'Expense' | 'Income';
   isImpulse: boolean;
-  note?: string;
+  note?: string | null;
   dateISO: string;
-  accountId?: string;
+  accountId?: string | null;
   currency?: string;
   createdAt?: string;
 }
 
-async function insertTransactionRow(
-  id: string,
-  transaction: TransactionInput,
-  opts: { adjustBalance: boolean; replace?: boolean }
-): Promise<void> {
-  const database = await getDatabase();
-
-  // Get default account if none specified
-  let accountId = transaction.accountId;
-  if (!accountId) {
-    const defaultAccount = await database.getFirstAsync(
-      'SELECT id FROM accounts WHERE isDefault = 1'
-    ) as { id: string } | null;
-    accountId = defaultAccount?.id;
-  }
-
-  await database.runAsync(
-    `INSERT ${opts.replace ? 'OR REPLACE ' : ''}INTO transactions (id, amount, category, type, isImpulse, note, dateISO, createdAt, accountId, currency)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [
-      id,
-      transaction.amount,
-      transaction.category,
-      transaction.type,
-      transaction.isImpulse ? 1 : 0,
-      transaction.note || null,
-      transaction.dateISO,
-      transaction.createdAt ?? new Date().toISOString(),
-      accountId || null,
-      transaction.currency || 'USD',
-    ]
-  );
-
-  if (opts.adjustBalance && accountId) {
-    await updateAccountBalance(
-      accountId,
-      transaction.amount,
-      transaction.type === 'Income' ? 'add' : 'subtract'
-    );
-  }
+/** A transactions row as SQLite returns it. */
+interface TransactionRow {
+  id: string;
+  amount: number;
+  category: string;
+  type: string;
+  isImpulse: number;
+  note: string | null;
+  dateISO: string;
+  createdAt: string;
+  accountId: string | null;
+  currency: string | null;
 }
 
-export async function addTransaction(transaction: TransactionInput) {
-  const id = `tx_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-  await insertTransactionRow(id, transaction, { adjustBalance: true });
+const TRANSACTION_COLUMNS =
+  'id, amount, category, type, isImpulse, note, dateISO, createdAt, accountId, currency';
+
+/** The SQLite boundary: 0/1 becomes a boolean, NULL stays null, never undefined. */
+function toTransaction(row: TransactionRow): Transaction {
+  return {
+    id: row.id,
+    amount: row.amount,
+    category: row.category,
+    type: row.type === 'Income' ? 'Income' : 'Expense',
+    isImpulse: row.isImpulse === 1,
+    note: row.note ?? null,
+    dateISO: row.dateISO,
+    createdAt: row.createdAt,
+    accountId: row.accountId ?? null,
+    currency: row.currency ?? 'USD',
+  };
+}
+
+export async function addTransaction(transaction: TransactionInput): Promise<string> {
+  const id = newId('tx');
+  const at = nowISO();
+  await withWriteLock((db) =>
+    inTransaction(db, async () => {
+      let accountId = transaction.accountId ?? null;
+      if (!accountId) {
+        const fallback = await db.getFirstAsync<{ id: string }>(
+          'SELECT id FROM accounts WHERE isDefault = 1 ORDER BY createdAt ASC LIMIT 1',
+        );
+        accountId = fallback?.id ?? null;
+      }
+      await db.runAsync(
+        `INSERT INTO transactions (${TRANSACTION_COLUMNS}, clientUpdatedAt, dirty, syncError)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, NULL)`,
+        [
+          id,
+          transaction.amount,
+          transaction.category,
+          transaction.type,
+          transaction.isImpulse ? 1 : 0,
+          transaction.note || null,
+          transaction.dateISO,
+          transaction.createdAt ?? at,
+          accountId,
+          transaction.currency || 'USD',
+          at,
+        ],
+      );
+      await adjustBalance(db, accountId, transaction, 1);
+    }),
+  );
   notifyLocalMutation();
   return id;
 }
 
-/**
- * Insert a transaction under a caller-supplied id, without touching any
- * balance.
- *
- * Used by cloud sync, which must preserve the server's id (otherwise every
- * pull re-inserts the same rows) and must not re-apply balance deltas — the
- * caller runs `recomputeAccountBalances()` once when the pull completes.
- */
-export async function addTransactionWithId(
-  id: string,
-  transaction: TransactionInput
-): Promise<void> {
-  await insertTransactionRow(id, transaction, {
-    adjustBalance: false,
-    replace: true,
-  });
-}
-
-export async function getTransactions() {
+export async function getTransactions(): Promise<Transaction[]> {
   const database = await getDatabase();
-  const transactions = await database.getAllAsync(
-    'SELECT * FROM transactions ORDER BY dateISO DESC, createdAt DESC'
+  const rows = await database.getAllAsync<TransactionRow>(
+    `SELECT ${TRANSACTION_COLUMNS} FROM transactions ORDER BY dateISO DESC, createdAt DESC`,
   );
-  return transactions as {
-    id: string;
-    amount: number;
-    category: string;
-    type: string;
-    isImpulse: number;
-    note?: string;
-    dateISO: string;
-    createdAt: string;
-    accountId?: string;
-    currency?: string;
-  }[];
+  return rows.map(toTransaction);
 }
 
-export async function getTransactionsByAccount(accountId: string) {
+export async function getTransactionsByAccount(accountId: string): Promise<Transaction[]> {
   const database = await getDatabase();
-  const transactions = await database.getAllAsync(
-    'SELECT * FROM transactions WHERE accountId = ? ORDER BY dateISO DESC, createdAt DESC',
-    [accountId]
+  const rows = await database.getAllAsync<TransactionRow>(
+    `SELECT ${TRANSACTION_COLUMNS} FROM transactions WHERE accountId = ?
+     ORDER BY dateISO DESC, createdAt DESC`,
+    [accountId],
   );
-  return transactions as {
-    id: string;
-    amount: number;
-    category: string;
-    type: string;
-    isImpulse: number;
-    note?: string;
-    dateISO: string;
-    createdAt: string;
-    accountId?: string;
-    currency?: string;
-  }[];
+  return rows.map(toTransaction);
 }
 
-export async function getTransactionsByDateRange(startDate: string, endDate: string) {
+export async function getTransactionsByDateRange(startDate: string, endDate: string): Promise<Transaction[]> {
   const database = await getDatabase();
-  const transactions = await database.getAllAsync(
-    `SELECT * FROM transactions
+  const rows = await database.getAllAsync<TransactionRow>(
+    `SELECT ${TRANSACTION_COLUMNS} FROM transactions
      WHERE dateISO >= ? AND dateISO <= ?
      ORDER BY dateISO DESC, createdAt DESC`,
-    [startDate, endDate]
+    [startDate, endDate],
   );
-  return transactions as {
-    id: string;
-    amount: number;
-    category: string;
-    type: string;
-    isImpulse: number;
-    note?: string;
-    dateISO: string;
-    createdAt: string;
-    accountId?: string;
-    currency?: string;
-  }[];
+  return rows.map(toTransaction);
 }
 
-export async function deleteTransaction(id: string) {
-  const database = await getDatabase();
-
-  // Get transaction to reverse account balance
-  const tx = await database.getFirstAsync(
-    'SELECT * FROM transactions WHERE id = ?',
-    [id]
-  ) as { amount: number; type: string; accountId?: string } | null;
-
-  if (tx?.accountId) {
-    await updateAccountBalance(
-      tx.accountId,
-      tx.amount,
-      tx.type === 'Income' ? 'subtract' : 'add'
-    );
-  }
-
-  await database.runAsync('DELETE FROM transactions WHERE id = ?', [id]);
-  notifyLocalMutation();
+export async function deleteTransaction(id: string): Promise<void> {
+  const deleted = await withWriteLock((db) =>
+    inTransaction(db, async () => {
+      const tx = await db.getFirstAsync<{ accountId: string | null; amount: number; type: string }>(
+        'SELECT accountId, amount, type FROM transactions WHERE id = ?',
+        [id],
+      );
+      if (!tx) return false;
+      await db.runAsync('DELETE FROM transactions WHERE id = ?', [id]);
+      await writeTombstone(db, 'transactions', id, nowISO());
+      await adjustBalance(db, tx.accountId, tx, -1);
+      return true;
+    }),
+  );
+  if (deleted) notifyLocalMutation();
 }
 
 export async function updateTransaction(
   id: string,
-  transaction: {
-    amount: number;
-    category: string;
-    type: 'Expense' | 'Income';
-    isImpulse: boolean;
-    note?: string;
-    dateISO: string;
-    accountId?: string;
-    currency?: string;
-  }
-) {
-  const database = await getDatabase();
-  await database.runAsync(
-    `UPDATE transactions
-     SET amount = ?, category = ?, type = ?, isImpulse = ?, note = ?, dateISO = ?, accountId = ?, currency = ?
-     WHERE id = ?`,
-    [
-      transaction.amount,
-      transaction.category,
-      transaction.type,
-      transaction.isImpulse ? 1 : 0,
-      transaction.note || null,
-      transaction.dateISO,
-      transaction.accountId || null,
-      transaction.currency || 'USD',
-      id,
-    ]
+  transaction: Omit<TransactionInput, 'createdAt'>,
+): Promise<void> {
+  const updated = await withWriteLock((db) =>
+    inTransaction(db, async () => {
+      const before = await db.getFirstAsync<{ accountId: string | null }>(
+        'SELECT accountId FROM transactions WHERE id = ?',
+        [id],
+      );
+      if (!before) return false;
+      const accountId = transaction.accountId || null;
+      await db.runAsync(
+        `UPDATE transactions
+         SET amount = ?, category = ?, type = ?, isImpulse = ?, note = ?, dateISO = ?, accountId = ?, currency = ?,
+             clientUpdatedAt = ?, dirty = 1, syncError = NULL
+         WHERE id = ?`,
+        [
+          transaction.amount,
+          transaction.category,
+          transaction.type,
+          transaction.isImpulse ? 1 : 0,
+          transaction.note || null,
+          transaction.dateISO,
+          accountId,
+          transaction.currency || 'USD',
+          nowISO(),
+          id,
+        ],
+      );
+      // An edit can move money between accounts; both sides change.
+      await recomputeBalances(db, [before.accountId, accountId]);
+      return true;
+    }),
   );
-
-  // Editing an amount, type or account changes what the ledger implies; the
-  // incremental path never accounted for this, so recompute instead.
-  await recomputeAccountBalances();
-  notifyLocalMutation();
+  if (updated) notifyLocalMutation();
 }
 
-// Settings operations
+// ── Settings ─────────────────────────────────────────────────────────────────
+
 export interface Settings {
   id: number;
   monthlyBudget: number;
@@ -727,15 +559,34 @@ export interface Settings {
   savingsGoal: number;
   spendingStyle: string;
   primaryGoal: string;
-  /** UI language: 'en' | 'fr' | 'zh'. */
+  /** UI language: 'en' | 'fr' | 'ar' | 'zh'. */
   locale: string;
 }
 
+const SETTINGS_COLUMNS =
+  'id, monthlyBudget, startingBalance, hourlyValue, showTimeCost, currency, currencySymbol, ' +
+  'monthlyIncome, savingsGoal, spendingStyle, primaryGoal, locale';
+
+/** The settings fields a write may set, in column order. */
+const SETTINGS_FIELDS = [
+  'monthlyBudget',
+  'startingBalance',
+  'hourlyValue',
+  'showTimeCost',
+  'currency',
+  'currencySymbol',
+  'monthlyIncome',
+  'savingsGoal',
+  'spendingStyle',
+  'primaryGoal',
+  'locale',
+] as const;
+
 export async function getSettings(): Promise<Settings> {
   const database = await getDatabase();
-  const settings = await database.getFirstAsync(
-    'SELECT * FROM settings WHERE id = 1'
-  ) as Settings;
+  const settings = (await database.getFirstAsync<Settings>(
+    `SELECT ${SETTINGS_COLUMNS} FROM settings WHERE id = 1`,
+  )) as Settings;
   // Keep app-wide currency formatting in sync with the user's choice, so every
   // formatCurrency call site follows without threading it through.
   //
@@ -743,75 +594,147 @@ export async function getSettings(): Promise<Settings> {
   // read of the settings row would re-apply the *stored* language, and
   // updateSettings() reads before it writes — so choosing French ran
   // setLocale('fr'), then this line put it straight back to 'en' from the row
-  // that had not been written yet. The choice persisted but the interface
-  // never changed, which is exactly the bug this looked like from the outside.
+  // that had not been written yet.
   //
-  // Language transitions have two owners and only two: initLocale() at startup
-  // and chooseLocale() when the user picks. Neither needs a hook here.
+  // Language transitions have their owners in i18n/bootstrap.ts: startup,
+  // activation of a user, and chooseLocale() when the user picks.
   if (settings) {
     setActiveCurrency(settings.currency, settings.currencySymbol);
   }
   return settings;
 }
 
-export async function updateSettings(settings: Partial<Settings>) {
-  const database = await getDatabase();
-  const current = await getSettings();
-
-  // If no settings row exists yet, insert one first
-  if (!current) {
-    await database.runAsync(
-      `INSERT INTO settings (id, monthlyBudget, startingBalance, hourlyValue, showTimeCost, currency, currencySymbol, monthlyIncome, savingsGoal, spendingStyle, primaryGoal)
-       VALUES (1, 0, 0, 0, 0, 'USD', '$', 0, 0, 'moderate', 'track')`
-    );
+/** Column values for a partial settings write; `showTimeCost` accepts a boolean too. */
+function settingsAssignments(settings: Partial<Settings>): { sql: string[]; params: SqlBindValue[] } {
+  const sql: string[] = [];
+  const params: SqlBindValue[] = [];
+  for (const field of SETTINGS_FIELDS) {
+    const value = settings[field];
+    if (value === undefined) continue;
+    sql.push(`${field} = ?`);
+    params.push(field === 'showTimeCost' ? (value ? 1 : 0) : (value as SqlBindValue));
   }
+  return { sql, params };
+}
 
-  await database.runAsync(
-    `UPDATE settings
-     SET monthlyBudget = ?, startingBalance = ?, hourlyValue = ?, showTimeCost = ?,
-         currency = ?, currencySymbol = ?, monthlyIncome = ?, savingsGoal = ?,
-         spendingStyle = ?, primaryGoal = ?, locale = ?
-     WHERE id = 1`,
-    [
-      settings.monthlyBudget ?? current?.monthlyBudget ?? 0,
-      settings.startingBalance ?? current?.startingBalance ?? 0,
-      settings.hourlyValue ?? current?.hourlyValue ?? 0,
-      settings.showTimeCost !== undefined ? (settings.showTimeCost ? 1 : 0) : (current?.showTimeCost ?? 0),
-      settings.currency ?? current?.currency ?? 'USD',
-      settings.currencySymbol ?? current?.currencySymbol ?? '$',
-      settings.monthlyIncome ?? current?.monthlyIncome ?? 0,
-      settings.savingsGoal ?? current?.savingsGoal ?? 0,
-      settings.spendingStyle ?? current?.spendingStyle ?? 'moderate',
-      settings.primaryGoal ?? current?.primaryGoal ?? 'track',
-      settings.locale ?? current?.locale ?? 'en',
-    ]
+/** A change the user made to their settings. */
+export async function updateSettings(settings: Partial<Settings>): Promise<void> {
+  const { sql, params } = settingsAssignments(settings);
+  if (sql.length === 0) return;
+  await withWriteLock(async (db) => {
+    // The row is seeded when the file is created; this only guards a file
+    // whose seed was lost, and seeds it the same way (epoch, dirty).
+    await db.runAsync(`INSERT OR IGNORE INTO settings (id, clientUpdatedAt, dirty) VALUES (1, ?, 1)`, [
+      EPOCH_ISO,
+    ]);
+    await db.runAsync(
+      `UPDATE settings SET ${[...sql, 'clientUpdatedAt = ?', 'dirty = 1', 'syncError = NULL'].join(', ')}
+       WHERE id = 1`,
+      [...params, nowISO()],
+    );
+  });
+  notifyLocalMutation();
+}
+
+/**
+ * Fill in settings the device chose by itself, without claiming the user did.
+ *
+ * Only touches a row nobody has edited yet (clientUpdatedAt still the epoch),
+ * and leaves it at the epoch, so the server's real settings still win. Used for
+ * the first-run language: writing it through updateSettings() would stamp the
+ * whole row as a fresh edit and push a page of zeros over the user's budget.
+ */
+export async function applySettingsDefaults(settings: Partial<Settings>): Promise<boolean> {
+  const { sql, params } = settingsAssignments(settings);
+  if (sql.length === 0) return false;
+  return withWriteLock(async (db) => {
+    const result = await db.runAsync(
+      `UPDATE settings SET ${sql.join(', ')} WHERE id = 1 AND clientUpdatedAt = ?`,
+      [...params, EPOCH_ISO],
+    );
+    return result.changes > 0;
+  });
+}
+
+/** True while the settings row is still the seeded default nobody has edited. */
+export async function isSettingsDefault(): Promise<boolean> {
+  const database = await getDatabase();
+  const row = await database.getFirstAsync<{ clientUpdatedAt: string }>(
+    'SELECT clientUpdatedAt FROM settings WHERE id = 1',
+  );
+  return !row || row.clientUpdatedAt === EPOCH_ISO;
+}
+
+/**
+ * "Reset all activity": delete every transaction and account, and zero the
+ * numbers in settings — as changes the server receives, not just a local wipe.
+ *
+ * Each deleted row leaves a tombstone, so the next sync deletes it on the
+ * server too; without them the reset would be undone by the next pull. The
+ * user's default account is reset in place to the seeded Cash account rather
+ * than deleted (a ledger always needs somewhere to book to), as an edit made
+ * now so it beats the server's copy. Currency, language and preferences stay.
+ */
+export async function resetAllData(): Promise<void> {
+  await withWriteLock((db, userId) =>
+    inTransaction(db, async () => {
+      const at = nowISO();
+      const keep = defaultAccountId(userId);
+
+      await db.runAsync(
+        `INSERT INTO sync_tombstones (entity, id, clientUpdatedAt)
+         SELECT 'transactions', id, ? FROM transactions WHERE 1
+         ON CONFLICT(entity, id) DO UPDATE SET clientUpdatedAt = excluded.clientUpdatedAt`,
+        [at],
+      );
+      await db.runAsync(`DELETE FROM transactions`);
+
+      await db.runAsync(
+        `INSERT INTO sync_tombstones (entity, id, clientUpdatedAt)
+         SELECT 'accounts', id, ? FROM accounts WHERE id <> ?
+         ON CONFLICT(entity, id) DO UPDATE SET clientUpdatedAt = excluded.clientUpdatedAt`,
+        [at, keep],
+      );
+      await db.runAsync(`DELETE FROM accounts WHERE id <> ?`, [keep]);
+      await db.runAsync(
+        `INSERT INTO accounts
+           (id, name, type, balance, openingBalance, currency, color, icon, isDefault, createdAt, clientUpdatedAt, dirty, syncError)
+         VALUES (?, ?, ?, 0, 0, ?, ?, ?, 1, ?, ?, 1, NULL)
+         ON CONFLICT(id) DO UPDATE SET
+           name = excluded.name, type = excluded.type, balance = 0, openingBalance = 0,
+           color = excluded.color, icon = excluded.icon, isDefault = 1,
+           clientUpdatedAt = excluded.clientUpdatedAt, dirty = 1, syncError = NULL`,
+        [
+          keep,
+          DEFAULT_ACCOUNT.name,
+          DEFAULT_ACCOUNT.type,
+          DEFAULT_ACCOUNT.currency,
+          DEFAULT_ACCOUNT.color,
+          DEFAULT_ACCOUNT.icon,
+          at,
+          at,
+        ],
+      );
+      await clearTombstone(db, 'accounts', keep);
+
+      await db.runAsync(`INSERT OR IGNORE INTO settings (id, clientUpdatedAt, dirty) VALUES (1, ?, 1)`, [
+        EPOCH_ISO,
+      ]);
+      await db.runAsync(
+        `UPDATE settings
+         SET startingBalance = 0, monthlyBudget = 0, hourlyValue = 0, showTimeCost = 0,
+             monthlyIncome = 0, savingsGoal = 0,
+             clientUpdatedAt = ?, dirty = 1, syncError = NULL
+         WHERE id = 1`,
+        [at],
+      );
+    }),
   );
   notifyLocalMutation();
 }
 
-// Reset all user data — wipes transactions, accounts, and resets settings to zero
-export async function resetAllData(): Promise<void> {
-  try {
-    const database = await getDatabase();
-    if (!database) throw new Error('Database not available');
-    await database.runAsync(`DELETE FROM transactions`);
-    await database.runAsync(`DELETE FROM accounts`);
-    // Only reset columns guaranteed to exist across all schema versions
-    await database.runAsync(
-      `UPDATE settings SET startingBalance = 0, monthlyBudget = 0, hourlyValue = 0, showTimeCost = 0 WHERE id = 1`
-    );
-    // Reset optional columns only if they exist in this device's schema
-    const cols = (await database.getAllAsync('PRAGMA table_info(settings)') as { name: string }[]).map(c => c.name);
-    if (cols.includes('monthlyIncome')) await database.runAsync(`UPDATE settings SET monthlyIncome = 0 WHERE id = 1`);
-    if (cols.includes('savingsGoal')) await database.runAsync(`UPDATE settings SET savingsGoal = 0 WHERE id = 1`);
-    await database.runAsync(`DELETE FROM migrations WHERE key = 'v2_clear_seed'`);
-  } catch (e) {
-    console.error('[resetAllData] failed:', e);
-    throw e;
-  }
-}
+// ── Subscriptions ────────────────────────────────────────────────────────────
 
-// Subscription operations
 export interface Subscription {
   id: string;
   merchantDisplay: string;
@@ -827,6 +750,7 @@ export interface Subscription {
   cancelNotes: string | null;
   source: 'transaction' | 'email';
   createdAt: string;
+  /** When the row last changed, on any device. */
   updatedAt: string;
 }
 
@@ -838,90 +762,186 @@ export interface SubscriptionOccurrence {
   amount: number;
 }
 
+/** The fields that travel with a subscription and that a re-scan may change. */
+const SUBSCRIPTION_FIELDS = [
+  'merchantDisplay',
+  'merchantNormalized',
+  'cadence',
+  'typicalAmount',
+  'currency',
+  'confidenceScore',
+  'lastChargedAt',
+  'nextExpectedAt',
+  'status',
+  'cancelUrl',
+  'cancelNotes',
+  'source',
+] as const;
+
+const SUBSCRIPTION_SELECT =
+  `SELECT id, ${SUBSCRIPTION_FIELDS.join(', ')}, createdAt, clientUpdatedAt AS updatedAt FROM subscriptions`;
+
 export async function getSubscriptions(status?: string): Promise<Subscription[]> {
   const database = await getDatabase();
   if (status) {
-    return (await database.getAllAsync(`SELECT * FROM subscriptions WHERE status = ? ORDER BY nextExpectedAt ASC`, [status])) as Subscription[];
+    return database.getAllAsync<Subscription>(
+      `${SUBSCRIPTION_SELECT} WHERE status = ? ORDER BY nextExpectedAt ASC`,
+      [status],
+    );
   }
-  return (await database.getAllAsync(`SELECT * FROM subscriptions ORDER BY nextExpectedAt ASC`)) as Subscription[];
+  return database.getAllAsync<Subscription>(`${SUBSCRIPTION_SELECT} ORDER BY nextExpectedAt ASC`);
 }
 
 export async function getSubscriptionById(id: string): Promise<Subscription | null> {
   const database = await getDatabase();
-  return (await database.getFirstAsync(`SELECT * FROM subscriptions WHERE id = ?`, [id])) as Subscription | null;
+  return database.getFirstAsync<Subscription>(`${SUBSCRIPTION_SELECT} WHERE id = ?`, [id]);
 }
 
-export async function upsertSubscription(sub: Omit<Subscription, 'createdAt' | 'updatedAt'> & { createdAt?: string }): Promise<void> {
-  const database = await getDatabase();
-  const now = new Date().toISOString();
-  await database.runAsync(
-    `INSERT INTO subscriptions (id, merchantDisplay, merchantNormalized, cadence, typicalAmount, currency, confidenceScore, lastChargedAt, nextExpectedAt, status, cancelUrl, cancelNotes, source, createdAt, updatedAt)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-     ON CONFLICT(id) DO UPDATE SET
-       merchantDisplay = excluded.merchantDisplay,
-       merchantNormalized = excluded.merchantNormalized,
-       cadence = excluded.cadence,
-       typicalAmount = excluded.typicalAmount,
-       confidenceScore = excluded.confidenceScore,
-       lastChargedAt = excluded.lastChargedAt,
-       nextExpectedAt = excluded.nextExpectedAt,
-       status = excluded.status,
-       cancelUrl = excluded.cancelUrl,
-       cancelNotes = excluded.cancelNotes,
-       source = excluded.source,
-       updatedAt = excluded.updatedAt`,
-    [sub.id, sub.merchantDisplay, sub.merchantNormalized, sub.cadence, sub.typicalAmount, sub.currency,
-     sub.confidenceScore, sub.lastChargedAt, sub.nextExpectedAt, sub.status,
-     sub.cancelUrl, sub.cancelNotes, sub.source ?? 'transaction', sub.createdAt ?? now, now]
+type SubscriptionUpsert = Omit<Subscription, 'createdAt' | 'updatedAt'> & { createdAt?: string };
+
+/**
+ * Write what the detection engine (or the email scan) found.
+ *
+ * The row is stamped and marked dirty only when a value actually changed. A
+ * re-scan re-derives every subscription from the same ledger, and stamping
+ * them all would re-upload every one of them on every scan — and, worse, make
+ * this device's unchanged copy "newer" than an edit made on another device.
+ */
+export async function upsertSubscription(sub: SubscriptionUpsert): Promise<void> {
+  const next: Record<(typeof SUBSCRIPTION_FIELDS)[number], SqlBindValue> = {
+    merchantDisplay: sub.merchantDisplay,
+    merchantNormalized: sub.merchantNormalized,
+    cadence: sub.cadence,
+    typicalAmount: sub.typicalAmount,
+    currency: sub.currency || 'USD',
+    confidenceScore: sub.confidenceScore,
+    lastChargedAt: sub.lastChargedAt ?? null,
+    nextExpectedAt: sub.nextExpectedAt ?? null,
+    status: sub.status,
+    cancelUrl: sub.cancelUrl ?? null,
+    cancelNotes: sub.cancelNotes ?? null,
+    source: sub.source ?? 'transaction',
+  };
+
+  const changed = await withWriteLock((db) =>
+    inTransaction(db, async () => {
+      const existing = await db.getFirstAsync<Record<string, SqlBindValue>>(
+        `SELECT ${SUBSCRIPTION_FIELDS.join(', ')} FROM subscriptions WHERE id = ?`,
+        [sub.id],
+      );
+      const at = nowISO();
+
+      if (!existing) {
+        await db.runAsync(
+          `INSERT INTO subscriptions (id, ${SUBSCRIPTION_FIELDS.join(', ')}, createdAt, clientUpdatedAt, dirty, syncError)
+           VALUES (?, ${SUBSCRIPTION_FIELDS.map(() => '?').join(', ')}, ?, ?, 1, NULL)`,
+          [sub.id, ...SUBSCRIPTION_FIELDS.map((f) => next[f]), sub.createdAt ?? at, at],
+        );
+        await clearTombstone(db, 'subscriptions', sub.id);
+        return true;
+      }
+
+      if (SUBSCRIPTION_FIELDS.every((f) => (existing[f] ?? null) === next[f])) return false;
+
+      await db.runAsync(
+        `UPDATE subscriptions
+         SET ${SUBSCRIPTION_FIELDS.map((f) => `${f} = ?`).join(', ')},
+             clientUpdatedAt = ?, dirty = 1, syncError = NULL
+         WHERE id = ?`,
+        [...SUBSCRIPTION_FIELDS.map((f) => next[f]), at, sub.id],
+      );
+      return true;
+    }),
   );
+  if (changed) notifyLocalMutation();
 }
 
-export async function updateSubscriptionStatus(id: string, status: 'confirmed' | 'possible' | 'canceled'): Promise<void> {
-  const database = await getDatabase();
-  await database.runAsync(`UPDATE subscriptions SET status = ?, updatedAt = ? WHERE id = ?`, [status, new Date().toISOString(), id]);
+export async function updateSubscriptionStatus(
+  id: string,
+  status: 'confirmed' | 'possible' | 'canceled',
+): Promise<void> {
+  await withWriteLock((db) =>
+    db.runAsync(
+      `UPDATE subscriptions SET status = ?, clientUpdatedAt = ?, dirty = 1, syncError = NULL WHERE id = ?`,
+      [status, nowISO(), id],
+    ),
+  );
+  notifyLocalMutation();
 }
 
-export async function updateSubscriptionCancelInfo(id: string, cancelUrl: string | null, cancelNotes: string | null): Promise<void> {
-  const database = await getDatabase();
-  await database.runAsync(`UPDATE subscriptions SET cancelUrl = ?, cancelNotes = ?, updatedAt = ? WHERE id = ?`, [cancelUrl, cancelNotes, new Date().toISOString(), id]);
+export async function updateSubscriptionCancelInfo(
+  id: string,
+  cancelUrl: string | null,
+  cancelNotes: string | null,
+): Promise<void> {
+  await withWriteLock((db) =>
+    db.runAsync(
+      `UPDATE subscriptions SET cancelUrl = ?, cancelNotes = ?, clientUpdatedAt = ?, dirty = 1, syncError = NULL
+       WHERE id = ?`,
+      [cancelUrl, cancelNotes, nowISO(), id],
+    ),
+  );
+  notifyLocalMutation();
 }
 
 export async function deleteSubscription(id: string): Promise<void> {
-  const database = await getDatabase();
-  await database.runAsync(`DELETE FROM subscription_occurrences WHERE subscriptionId = ?`, [id]);
-  await database.runAsync(`DELETE FROM subscriptions WHERE id = ?`, [id]);
+  await withWriteLock((db) =>
+    inTransaction(db, async () => {
+      await db.runAsync(`DELETE FROM subscription_occurrences WHERE subscriptionId = ?`, [id]);
+      const result = await db.runAsync(`DELETE FROM subscriptions WHERE id = ?`, [id]);
+      if (result.changes > 0) await writeTombstone(db, 'subscriptions', id, nowISO());
+    }),
+  );
+  notifyLocalMutation();
 }
 
 export async function getSubscriptionOccurrences(subscriptionId: string): Promise<SubscriptionOccurrence[]> {
   const database = await getDatabase();
-  return (await database.getAllAsync(`SELECT * FROM subscription_occurrences WHERE subscriptionId = ? ORDER BY chargedAt DESC`, [subscriptionId])) as SubscriptionOccurrence[];
+  return database.getAllAsync<SubscriptionOccurrence>(
+    `SELECT id, subscriptionId, transactionId, chargedAt, amount FROM subscription_occurrences
+     WHERE subscriptionId = ? ORDER BY chargedAt DESC`,
+    [subscriptionId],
+  );
 }
 
 /**
- * Record one charge against a subscription.
+ * Record one charge against a subscription. Local only: occurrences are
+ * re-derived from the ledger on every device, so they are never synced.
  *
  * `id` must be deterministic (see occurrenceId in lib/subscriptions/engine).
  * It used to be generated randomly here and then guarded with INSERT OR
  * IGNORE — which had nothing to collide with, so every scan re-appended the
  * same occurrences and the charge history grew without bound.
  */
-export async function addSubscriptionOccurrence(
-  occ: SubscriptionOccurrence
-): Promise<void> {
-  const database = await getDatabase();
-  await database.runAsync(
-    `INSERT OR IGNORE INTO subscription_occurrences (id, subscriptionId, transactionId, chargedAt, amount) VALUES (?, ?, ?, ?, ?)`,
-    [occ.id, occ.subscriptionId, occ.transactionId, occ.chargedAt, occ.amount]
+export async function addSubscriptionOccurrence(occ: SubscriptionOccurrence): Promise<void> {
+  await withWriteLock((db) =>
+    db.runAsync(
+      `INSERT OR IGNORE INTO subscription_occurrences (id, subscriptionId, transactionId, chargedAt, amount)
+       VALUES (?, ?, ?, ?, ?)`,
+      [occ.id, occ.subscriptionId, occ.transactionId, occ.chargedAt, occ.amount],
+    ),
   );
 }
 
+/** Delete every subscription, as deletions the server receives. */
 export async function clearSubscriptions(): Promise<void> {
-  const database = await getDatabase();
-  await database.runAsync(`DELETE FROM subscription_occurrences`);
-  await database.runAsync(`DELETE FROM subscriptions`);
+  await withWriteLock((db) =>
+    inTransaction(db, async () => {
+      await db.runAsync(
+        `INSERT INTO sync_tombstones (entity, id, clientUpdatedAt)
+         SELECT 'subscriptions', id, ? FROM subscriptions WHERE 1
+         ON CONFLICT(entity, id) DO UPDATE SET clientUpdatedAt = excluded.clientUpdatedAt`,
+        [nowISO()],
+      );
+      await db.runAsync(`DELETE FROM subscription_occurrences`);
+      await db.runAsync(`DELETE FROM subscriptions`);
+    }),
+  );
+  notifyLocalMutation();
 }
 
-// Custom (user-created) categories
+// ── Custom (user-created) categories ─────────────────────────────────────────
+
 export interface CustomCategory {
   name: string;
   icon: string;
@@ -931,23 +951,74 @@ export interface CustomCategory {
 
 export async function getCustomCategories(): Promise<CustomCategory[]> {
   const database = await getDatabase();
-  return (await database.getAllAsync(
-    `SELECT * FROM custom_categories ORDER BY createdAt ASC`
-  )) as CustomCategory[];
-}
-
-export async function addCustomCategory(cat: { name: string; icon: string; color: string }): Promise<void> {
-  const database = await getDatabase();
-  await database.runAsync(
-    `INSERT OR REPLACE INTO custom_categories (name, icon, color, createdAt) VALUES (?, ?, ?, ?)`,
-    [cat.name.trim(), cat.icon, cat.color, new Date().toISOString()]
+  return database.getAllAsync<CustomCategory>(
+    `SELECT name, icon, color, createdAt FROM custom_categories ORDER BY createdAt ASC`,
   );
 }
 
-export async function deleteCustomCategory(name: string): Promise<void> {
-  const database = await getDatabase();
-  await database.runAsync(`DELETE FROM custom_categories WHERE name = ?`, [name]);
+/** Create a category, or restyle one of the same name. Its sync id is the name. */
+export async function addCustomCategory(cat: { name: string; icon: string; color: string }): Promise<void> {
+  const name = cat.name.trim();
+  await withWriteLock((db) =>
+    inTransaction(db, async () => {
+      const at = nowISO();
+      await db.runAsync(
+        `INSERT INTO custom_categories (name, icon, color, createdAt, clientUpdatedAt, dirty, syncError)
+         VALUES (?, ?, ?, ?, ?, 1, NULL)
+         ON CONFLICT(name) DO UPDATE SET
+           icon = excluded.icon, color = excluded.color,
+           clientUpdatedAt = excluded.clientUpdatedAt, dirty = 1, syncError = NULL`,
+        [name, cat.icon, cat.color, at, at],
+      );
+      await clearTombstone(db, 'categories', name);
+    }),
+  );
+  notifyLocalMutation();
 }
 
-// Seeding function for demo data
+export async function deleteCustomCategory(name: string): Promise<void> {
+  const deleted = await withWriteLock((db) =>
+    inTransaction(db, async () => {
+      const result = await db.runAsync(`DELETE FROM custom_categories WHERE name = ?`, [name]);
+      if (result.changes > 0) await writeTombstone(db, 'categories', name, nowISO());
+      return result.changes > 0;
+    }),
+  );
+  if (deleted) notifyLocalMutation();
+}
+
+// ── Sync bookkeeping ─────────────────────────────────────────────────────────
+
+export interface UnsyncedChanges {
+  /** Edited rows not yet accepted by the server, per entity. */
+  byEntity: Record<SyncEntity, number>;
+  /** Deletions not yet sent. */
+  deletions: number;
+  total: number;
+}
+
+/**
+ * What would be lost if this user's database were deleted now.
+ *
+ * Seeded defaults are dirty too (decision 6), but they are not anyone's work —
+ * they are recreated by the next device to open the account — so rows still at
+ * the epoch do not count.
+ */
+export async function countUnsyncedChanges(): Promise<UnsyncedChanges> {
+  const database = await getDatabase();
+  const byEntity = {} as Record<SyncEntity, number>;
+  let total = 0;
+  for (const entity of SYNC_ENTITIES) {
+    const { table } = LOCAL_SYNC_TABLES[entity];
+    const row = await database.getFirstAsync<{ n: number }>(
+      `SELECT COUNT(*) AS n FROM ${table} WHERE dirty = 1 AND clientUpdatedAt <> ?`,
+      [EPOCH_ISO],
+    );
+    byEntity[entity] = row?.n ?? 0;
+    total += byEntity[entity];
+  }
+  const tombstones = await database.getFirstAsync<{ n: number }>(`SELECT COUNT(*) AS n FROM sync_tombstones`);
+  const deletions = tombstones?.n ?? 0;
+  return { byEntity, deletions, total: total + deletions };
+}
 

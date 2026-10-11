@@ -6,16 +6,16 @@ import { prisma } from "./prisma";
 import { env } from "./env";
 import { debugLog } from "./lib/log";
 import type { Context, Next } from "hono";
+import { hitWindow, lockFor, lockedKeys } from "./lib/distributed/counter";
+import { cacheGet, cacheSet } from "./lib/distributed/cache";
+import type { Db } from "./lib/distributed/clock";
 
 // ── Rate limiter (per-IP + per-identifier, with lockout) ────────
-interface RateLimitRecord {
-  count: number;
-  resetAt: number;
-}
-
-const ipStore = new Map<string, RateLimitRecord>();
-const identifierStore = new Map<string, RateLimitRecord>();
-const lockoutStore = new Map<string, number>(); // key → lockout expiry timestamp
+// Counters and lockouts live in Postgres (lib/distributed/counter.ts), shared
+// by every instance. They were Maps in this process, so each instance kept its
+// own copy of every limit — with two instances, five sign-in attempts per
+// account became ten — and a restart cleared every lockout. They still read
+// headers only, never the body, for the reason given on extractIdentifier.
 
 function getIp(c: Context): string {
   return c.req.header("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
@@ -43,42 +43,8 @@ function extractIdentifier(c: Context): string | null {
   return null;
 }
 
-function checkStore(
-  store: Map<string, RateLimitRecord>,
-  key: string,
-  max: number,
-  windowMs: number
-): boolean {
-  const now = Date.now();
-  const record = store.get(key);
-
-  if (!record || now > record.resetAt) {
-    store.set(key, { count: 1, resetAt: now + windowMs });
-    return true;
-  }
-
-  if (record.count >= max) return false;
-
-  record.count++;
-  return true;
-}
-
-function checkLockout(key: string): boolean {
-  const expiry = lockoutStore.get(key);
-  if (!expiry) return true;
-  if (Date.now() > expiry) {
-    lockoutStore.delete(key);
-    return true;
-  }
-  return false;
-}
-
-function applyLockout(key: string, store: Map<string, RateLimitRecord>, threshold: number) {
-  const record = store.get(key);
-  if (record && record.count >= threshold) {
-    lockoutStore.set(key, Date.now() + 15 * 60 * 1000); // 15-minute lockout
-  }
-}
+/** How long a tripped lockout lasts. */
+const LOCKOUT_MS = 15 * 60 * 1000;
 
 export function createRateLimiter(opts: {
   /**
@@ -94,31 +60,36 @@ export function createRateLimiter(opts: {
   identifierMax: number;
   identifierWindowMs: number;
   lockoutThreshold: number;
-}) {
+}, db: Db = prisma) {
   return async (c: Context, next: Next) => {
     const ip = getIp(c);
     const identifier = extractIdentifier(c);
     const ipKey = `${opts.scope}:ip:${ip}`;
     const idKey = identifier ? `${opts.scope}:id:${identifier}` : null;
 
-    // Check lockout (by identifier first, then IP)
-    if (idKey && !checkLockout(idKey)) {
+    // Check lockout (by identifier first, then IP). One query for both.
+    const locked = await lockedKeys(idKey ? [idKey, ipKey] : [ipKey], db);
+    if (idKey && locked.has(idKey)) {
       return c.json({ error: "Account temporarily locked, try again later" }, 429);
     }
-    if (!checkLockout(ipKey)) {
+    if (locked.has(ipKey)) {
       return c.json({ error: "Too many requests, try again later" }, 429);
     }
 
-    // Check IP rate limit
-    if (!checkStore(ipStore, ipKey, opts.ipMax, opts.ipWindowMs)) {
-      applyLockout(ipKey, ipStore, opts.lockoutThreshold);
+    // Check IP rate limit. A refused hit locks the key once the window's
+    // count has reached the threshold; a limit set below its threshold
+    // (sign-up's per-identifier ones) refuses without ever locking.
+    const byIp = await hitWindow(ipKey, opts.ipMax, opts.ipWindowMs, db);
+    if (!byIp.allowed) {
+      if (byIp.count >= opts.lockoutThreshold) await lockFor(ipKey, LOCKOUT_MS, db);
       return c.json({ error: "Too many requests, try again later" }, 429);
     }
 
-    // Check identifier rate limit
+    // Check identifier rate limit. Not counted when the IP was refused.
     if (idKey) {
-      if (!checkStore(identifierStore, idKey, opts.identifierMax, opts.identifierWindowMs)) {
-        applyLockout(idKey, identifierStore, opts.lockoutThreshold);
+      const byId = await hitWindow(idKey, opts.identifierMax, opts.identifierWindowMs, db);
+      if (!byId.allowed) {
+        if (byId.count >= opts.lockoutThreshold) await lockFor(idKey, LOCKOUT_MS, db);
         return c.json({ error: "Too many requests for this account, try again later" }, 429);
       }
     }
@@ -167,14 +138,6 @@ export const signupDailyRateLimiter = createRateLimiter({
   identifierWindowMs: 24 * 60 * 60 * 1000,
   lockoutThreshold: 20,
 });
-
-// Periodically purge expired entries to prevent memory growth
-setInterval(() => {
-  const now = Date.now();
-  for (const [key, val] of ipStore) if (now > val.resetAt) ipStore.delete(key);
-  for (const [key, val] of identifierStore) if (now > val.resetAt) identifierStore.delete(key);
-  for (const [key, expiry] of lockoutStore) if (now > expiry) lockoutStore.delete(key);
-}, 60_000).unref();
 
 // ── Password hashing (PBKDF2-SHA256) ────────────────────────────────────────
 // BetterAuth's built-in scrypt uses N=16384,r=16 — 2× the standard r=8 —
@@ -276,8 +239,23 @@ async function verifyPassword({
 }
 
 // ── Auth configuration ──────────────────────────────────────────
+
+/** One of Better Auth's rate-limit records, as it reads and writes them. */
+interface RateLimit {
+  key: string;
+  count: number;
+  lastRequest: number;
+}
+
+/**
+ * How long a Better Auth rate-limit record is kept. It compares lastRequest
+ * against its own window (10 or 60 s) itself, so this only needs to outlast
+ * the longest of those; the retention job purges what expires.
+ */
+const BETTER_AUTH_RATE_TTL_MS = 10 * 60 * 1000;
+
 export const auth = betterAuth({
-  database: prismaAdapter(prisma, { provider: "sqlite" }),
+  database: prismaAdapter(prisma, { provider: "postgresql" }),
   secret: env.BETTER_AUTH_SECRET,
   baseURL: env.BACKEND_URL,
   emailAndPassword: {
@@ -337,6 +315,18 @@ export const auth = betterAuth({
     expo(),
     bearer(),
   ],
+  // Better Auth's own limiter (production only: three sign-in or sign-up
+  // attempts per 10 s per address, 100 requests per 10 s elsewhere) keeps its
+  // counts in a Map inside this process unless given storage. Shared storage
+  // makes every instance see the same counts, like the limiters above. Its
+  // read-then-write is not atomic, which is why the limiters above, not this
+  // one, are the enforced budget; this stays as the short-burst layer it was.
+  rateLimit: {
+    customStorage: {
+      get: (key) => cacheGet<RateLimit>(`better-auth-rate:${key}`),
+      set: (key, value) => cacheSet(`better-auth-rate:${key}`, value, BETTER_AUTH_RATE_TTL_MS),
+    },
+  },
   advanced: {
     trustedProxyHeaders: true,
     // CSRF protection enabled (enforced via trustedOrigins above).

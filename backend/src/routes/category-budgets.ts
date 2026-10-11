@@ -22,8 +22,12 @@ router.get("/", async (c) => {
   const user = c.get("user");
   if (!user) return c.json({ error: "Unauthorized" }, 401);
 
+  // Explicit order: Postgres returns rows in no particular order (an updated
+  // row can move), where the old single-file database happened to return them
+  // in insertion order.
   const budgets = await prisma.categoryBudget.findMany({
     where: { userId: user.id },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
   });
   return c.json(budgets);
 });

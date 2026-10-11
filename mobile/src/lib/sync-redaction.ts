@@ -1,15 +1,16 @@
 /**
  * Fields that must never leave the device through cloud sync.
  *
- * The health profile lives in its own table, so today nothing in
- * pushLocalDataToCloud reads it — it is excluded by construction. This module
- * exists because "by construction" is a property of the code as it stands, and
- * the code will not stand still.
+ * The health profile lives in its own table, which the sync never reads, so
+ * today it is excluded by construction. This module exists because "by
+ * construction" is a property of the code as it stands, and the code will not
+ * stand still.
  *
- * The specific way it would break: pushLocalDataToCloud spreads the whole
- * settings row into PUT /api/settings. Anyone who later stores a health field
- * on `settings` — the obvious place to put it, if you did not know — uploads
- * it without writing a line of code that sends it. This turns that from a
+ * The specific way it would break: the sync pushes whole rows of the synced
+ * tables (settings among them) to /api/v1/sync/push. Anyone who later stores a
+ * health field on `settings` — the obvious place to put it, if you did not
+ * know — uploads it without writing a line of code that sends it. Every push
+ * goes through redactDeviceOnly (lib/cloud-sync.ts), which turns that from a
  * silent leak into a stripped field and a failing test.
  */
 

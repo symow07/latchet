@@ -10,12 +10,14 @@
  * Profiles are keyed by a signature of the header row, so the match is exact
  * and cheap, and two banks can never be confused for each other.
  *
- * The pure functions here have no imports so they can be unit-tested;
+ * The pure functions here import nothing native so they can be unit-tested;
  * AsyncStorage is pulled in lazily inside the two persistence functions, which
  * keeps this module loadable outside React Native.
  */
 import type { ColumnMapping, CsvFormat } from './import-parser';
+import { userKey } from './storage-keys';
 
+/** Per user (storage-keys.ts): a bank's export format is part of that user's setup. */
 const STORAGE_KEY = '@import_profiles_v1';
 
 /** How many profiles to keep. Well beyond the number of banks anyone uses. */
@@ -103,7 +105,8 @@ async function storage() {
 
 export async function loadProfiles(): Promise<ImportProfile[]> {
   try {
-    const raw = await (await storage()).getItem(STORAGE_KEY);
+    const AsyncStorage = await storage();
+    const raw = await AsyncStorage.getItem(userKey(STORAGE_KEY));
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     return Array.isArray(parsed) ? (parsed as ImportProfile[]) : [];
@@ -115,7 +118,8 @@ export async function loadProfiles(): Promise<ImportProfile[]> {
 
 export async function saveProfiles(profiles: ImportProfile[]): Promise<void> {
   try {
-    await (await storage()).setItem(STORAGE_KEY, JSON.stringify(profiles));
+    const AsyncStorage = await storage();
+    await AsyncStorage.setItem(userKey(STORAGE_KEY), JSON.stringify(profiles));
   } catch {
     /* remembering is a convenience, never a requirement */
   }

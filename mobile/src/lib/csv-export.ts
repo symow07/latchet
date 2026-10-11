@@ -12,7 +12,7 @@ export interface ExportableTransaction {
   amount: number;
   category: string;
   type: string;
-  isImpulse: number | boolean;
+  isImpulse: boolean;
   note?: string | null;
   dateISO: string;
   createdAt?: string;

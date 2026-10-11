@@ -65,13 +65,9 @@ test('every outbound sync payload is redacted at the call site', async () => {
   // Asserting the wiring, not just the function. A redactor nothing calls is
   // the failure mode this whole module exists to prevent.
   const source = await Bun.file(new URL('./cloud-sync.ts', import.meta.url)).text();
-  const push = source.slice(
-    source.indexOf('export async function pushLocalDataToCloud'),
-    source.indexOf('async function fetchAllCloudTransactions')
-  );
-
-  const calls = [...push.matchAll(/api\.(post|put|patch)\(\s*'[^']+'\s*,\s*([\s\S]{0,20})/g)];
+  const calls = [...source.matchAll(/api\.(post|put|patch)(?:<[^>]*>)?\(\s*'[^']+'\s*,\s*([\s\S]{0,20})/g)];
   expect(calls.length).toBeGreaterThan(0);
+  expect(source).toContain("'/api/v1/sync/push'");
   for (const [, , afterComma] of calls) {
     expect(afterComma).toContain('redactDeviceOnly');
   }

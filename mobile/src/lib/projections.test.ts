@@ -9,15 +9,19 @@ import {
   MIN_HISTORY_DAYS,
 } from './calculations';
 import { daysAgoISO, todayISO } from './dates';
+import type { Transaction } from './transaction';
 
-const expense = (dateISO: string, amount: number) => ({
+const expense = (dateISO: string, amount: number): Transaction => ({
   id: `t_${dateISO}_${amount}`,
   amount,
   category: 'Food',
-  type: 'Expense' as const,
-  isImpulse: 0,
+  type: 'Expense',
+  isImpulse: false,
+  note: null,
   dateISO,
   createdAt: `${dateISO}T00:00:00.000Z`,
+  accountId: null,
+  currency: 'USD',
 });
 
 // ── Monthly projection ───────────────────────────────────────────────────────

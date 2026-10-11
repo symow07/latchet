@@ -1,7 +1,8 @@
 import { test, expect } from "bun:test";
 import {
-  sniffImageType, contentTypeFor, isSafeId, receiptPath, receiptDir, logoPath,
+  sniffImageType, contentTypeFor, isSafeId, receiptPath, logoPath,
 } from "./receipt-store";
+import { assertFilePath } from "./distributed/files";
 
 const bytes = (...values: number[]) => new Uint8Array(values);
 const ascii = (text: string) => Array.from(text).map((c) => c.charCodeAt(0));
@@ -47,10 +48,11 @@ test("HEIC is served as HEIC, and jpg as image/jpeg", () => {
 
 // ── Path safety ──────────────────────────────────────────────────────────────
 
-test("an id that could escape the directory is rejected", () => {
-  // This value becomes a filesystem path. A traversal here would let a request
-  // read or overwrite anything the process can reach.
-  for (const bad of ["../../etc/passwd", "a/b", "..", "", "a".repeat(65), "a b", "a.png"]) {
+test("an id that could escape its folder is rejected", () => {
+  // This value becomes part of a file path, and a path is also a prefix that
+  // a recursive delete matches: a separator or wildcard here could reach
+  // another business's files.
+  for (const bad of ["../../etc/passwd", "a/b", "..", "", "a".repeat(65), "a b", "a.png", "a%", "a\\b"]) {
     expect(isSafeId(bad)).toBe(false);
   }
 });
@@ -60,29 +62,38 @@ test("a cuid is accepted", () => {
 });
 
 test("building a path with an unsafe id throws rather than returning one", () => {
-  expect(() => receiptPath("../escape", "jpg", "/tmp/receipts")).toThrow();
+  expect(() => receiptPath("biz", "../escape")).toThrow();
+  expect(() => receiptPath("../escape", "e1")).toThrow();
+  expect(() => receiptPath("a/b")).toThrow();
 });
 
-test("receipts sit beside the database, so they land on the same volume", () => {
-  // The Railway volume is mounted at /data and DATABASE_URL points into it.
-  // Deriving the directory means there is no second setting to forget.
-  delete process.env.RECEIPT_DIR;
-  expect(receiptDir("file:/data/prod.db")).toBe("/data/receipts");
+test("a receipt is filed under its business, so a business is one folder", () => {
+  expect(receiptPath("biz1", "exp1")).toBe("receipts/biz1/exp1");
+  expect(receiptPath("biz1")).toBe("receipts/biz1");
+  // Deleting the business's folder is a prefix match on "receipts/biz1/":
+  // a business whose id merely starts the same is a different folder.
+  expect(receiptPath("biz10", "exp1").startsWith(receiptPath("biz1") + "/")).toBe(false);
 });
 
-test("an explicit RECEIPT_DIR wins", () => {
-  process.env.RECEIPT_DIR = "/mnt/uploads";
-  expect(receiptDir("file:/data/prod.db")).toBe("/mnt/uploads");
-  delete process.env.RECEIPT_DIR;
-});
-
-test("a logo cannot collide with an expense id", () => {
-  // Both live in one directory; without the prefix a business whose id matched
-  // an expense id would overwrite that receipt.
-  expect(logoPath("abc", "png", "/r")).toBe("/r/logo-abc.png");
-  expect(receiptPath("abc", "png", "/r")).toBe("/r/abc.png");
+test("a logo cannot collide with a receipt", () => {
+  // Separate top-level folders, whatever the ids are.
+  expect(logoPath("abc")).toBe("logos/abc");
+  expect(receiptPath("abc", "abc")).toBe("receipts/abc/abc");
+  expect(logoPath("abc")).not.toBe(receiptPath("abc"));
 });
 
 test("an unsafe business id throws rather than building a path", () => {
-  expect(() => logoPath("../../etc/passwd", "png", "/r")).toThrow();
+  expect(() => logoPath("../../etc/passwd")).toThrow();
+});
+
+test("every path built here is one the file store accepts", () => {
+  for (const path of [receiptPath("biz_1-a", "exp_9"), receiptPath("biz_1-a"), logoPath("biz_1-a")]) {
+    expect(assertFilePath(path)).toBe(path);
+  }
+});
+
+test("the file store refuses a path that is not made of ids", () => {
+  for (const bad of ["", "/abs", "a//b", "a/", "a/../b", "a%/b", "a/b c"]) {
+    expect(() => assertFilePath(bad)).toThrow();
+  }
 });

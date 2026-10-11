@@ -3,21 +3,27 @@ import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { prisma } from "../prisma";
 import { auth } from "../auth";
-import { MAX_SYNC_ROWS } from "../lib/schemas";
+import { transactionFields } from "../lib/sync/schemas";
+import { stampTombstones } from "../lib/sync/sql";
 
+/**
+ * Transaction CRUD. The phone syncs through /sync (routes/sync.ts); these
+ * routes write the same rows, so they follow the same model: every write is
+ * stamped with clientUpdatedAt = now (the server's time, decision 5), a delete
+ * leaves a tombstone carrying that time, and an account the caller does not
+ * own is never linked. The old bulk POST /transactions/sync is gone.
+ */
+
+// The field rules are shared with the sync rows (lib/sync/schemas.ts).
 const transactionSchema = z.object({
-  amount: z.number().positive().max(1_000_000),
-  // Free-form, not an enum: users can create their own categories (see
-  // mobile/src/lib/categories.ts) and Transaction.category is a plain String
-  // in the schema. An enum here silently dropped every custom-category row
-  // during bulk sync, because /sync skips whatever fails to parse.
-  category: z.string().min(1).max(50),
-  type: z.enum(["Expense", "Income"]),
-  isImpulse: z.boolean().optional().default(false),
-  note: z.string().max(500).optional().nullable(),
-  dateISO: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be YYYY-MM-DD"),
-  accountId: z.string().optional().nullable(),
-  currency: z.string().min(1).max(5).optional().default("USD"),
+  amount: transactionFields.amount,
+  category: transactionFields.category,
+  type: transactionFields.type,
+  isImpulse: transactionFields.isImpulse.optional().default(false),
+  note: transactionFields.note.optional(),
+  dateISO: transactionFields.dateISO,
+  accountId: transactionFields.accountId.optional(),
+  currency: transactionFields.currency.optional().default("USD"),
 });
 
 const router = new Hono<{
@@ -34,6 +40,17 @@ router.use("*", async (c, next) => {
   await next();
 });
 
+/**
+ * The account to store: the requested one when the caller owns it, otherwise
+ * null — the rule a sync push applies (I-WIRE). Linking to someone else's
+ * account id used to be accepted as-is.
+ */
+async function ownAccountOrNull(userId: string, accountId: string | null | undefined): Promise<string | null> {
+  if (!accountId) return null;
+  const owned = await prisma.bankAccount.findFirst({ where: { id: accountId, userId }, select: { id: true } });
+  return owned ? owned.id : null;
+}
+
 // GET all transactions for user
 router.get("/", async (c) => {
   const user = c.get("user")!;
@@ -44,7 +61,9 @@ router.get("/", async (c) => {
   const [transactions, total] = await Promise.all([
     prisma.transaction.findMany({
       where: { userId: user.id },
-      orderBy: { dateISO: "desc" },
+      // id breaks ties: Postgres has no implicit row order, and rows on the
+      // same day would otherwise move between pages.
+      orderBy: [{ dateISO: "desc" }, { id: "asc" }],
       take: limit,
       skip: offset,
     }),
@@ -63,7 +82,7 @@ router.post("/", zValidator("json", transactionSchema), async (c) => {
     data: {
       id: `tx_${Date.now()}_${Math.random().toString(36).slice(2)}`,
       userId: user.id,
-      accountId: body.accountId || null,
+      accountId: await ownAccountOrNull(user.id, body.accountId),
       amount: body.amount,
       category: body.category,
       type: body.type,
@@ -71,16 +90,22 @@ router.post("/", zValidator("json", transactionSchema), async (c) => {
       note: body.note || null,
       dateISO: body.dateISO,
       currency: body.currency,
+      clientUpdatedAt: new Date(),
     },
   });
   return c.json(transaction, 201);
 });
 
-// PUT update transaction
+// PUT update transaction. Fields left out keep their value; accountId, when
+// sent, links (or with null unlinks) an account the caller owns.
 router.put("/:id", zValidator("json", transactionSchema.partial()), async (c) => {
   const user = c.get("user")!;
   const id = c.req.param("id");
+  // .partial() keeps the defaults, so a field the request left out would come
+  // back as false/"USD" and overwrite the stored value; only what was sent counts.
+  const raw = (await c.req.json()) as Record<string, unknown>;
   const body = c.req.valid("json");
+  const sent = (key: string) => Object.prototype.hasOwnProperty.call(raw, key);
 
   const transaction = await prisma.transaction.update({
     where: { id, userId: user.id },
@@ -88,10 +113,12 @@ router.put("/:id", zValidator("json", transactionSchema.partial()), async (c) =>
       amount: body.amount,
       category: body.category,
       type: body.type,
-      isImpulse: body.isImpulse,
+      isImpulse: sent("isImpulse") ? body.isImpulse : undefined,
       note: body.note,
       dateISO: body.dateISO,
-      currency: body.currency,
+      currency: sent("currency") ? body.currency : undefined,
+      accountId: sent("accountId") ? await ownAccountOrNull(user.id, body.accountId) : undefined,
+      clientUpdatedAt: new Date(),
     },
   });
   return c.json(transaction);
@@ -101,91 +128,13 @@ router.put("/:id", zValidator("json", transactionSchema.partial()), async (c) =>
 router.delete("/:id", async (c) => {
   const user = c.get("user")!;
   const id = c.req.param("id");
-  await prisma.transaction.delete({ where: { id, userId: user.id } });
-  return c.json({ success: true });
-});
-
-// POST bulk sync — validates ownership before upsert
-router.post("/sync", async (c) => {
-  const user = c.get("user")!;
-  const body = await c.req.json();
-  const { transactions } = body;
-
-  if (!Array.isArray(transactions)) return c.json({ error: "Invalid payload" }, 400);
-  if (transactions.length > MAX_SYNC_ROWS) {
-    return c.json(
-      {
-        error: `Too many transactions in one request (max ${MAX_SYNC_ROWS})`,
-        code: "payload_too_large",
-      },
-      413
-    );
-  }
-
-  const syncSchema = transactionSchema.extend({
-    id: z.string().min(1),
-    createdAt: z.union([z.string(), z.number()]).optional(),
+  await prisma.$transaction(async (tx) => {
+    await tx.transaction.delete({ where: { id, userId: user.id } });
+    // The tombstone the trigger wrote carries the row's last edit time; the
+    // delete happened now, and a device's older edit must not undo it.
+    await stampTombstones(tx, user.id, "transactions", [{ id, cu: Date.now() }], { insertMissing: false });
   });
-
-  // Parse first, then resolve ownership for the whole batch in one query.
-  // This previously ran a findUnique per row in a serial loop, so 1,000 rows
-  // meant 1,000 sequential round-trips against the single SQLite connection,
-  // blocking every other request for the duration.
-  const parsed = transactions
-    .map((raw) => syncSchema.safeParse(raw))
-    .filter((r) => r.success)
-    .map((r) => r.data);
-
-  const owners = new Map(
-    (
-      await prisma.transaction.findMany({
-        where: { id: { in: parsed.map((t) => t.id) } },
-        select: { id: true, userId: true },
-      })
-    ).map((t) => [t.id, t.userId])
-  );
-
-  const validated = parsed
-    .filter((tx) => {
-      const owner = owners.get(tx.id);
-      return owner === undefined || owner === user.id; // skip ownership violations
-    })
-    .map((tx) => ({ ...tx, _exists: owners.has(tx.id) }));
-
-  // Execute all upserts atomically
-  await prisma.$transaction(
-    validated.map((tx) =>
-      tx._exists
-        ? prisma.transaction.update({
-            where: { id: tx.id },
-            data: {
-              amount: tx.amount,
-              category: tx.category,
-              type: tx.type,
-              isImpulse: tx.isImpulse,
-              note: tx.note,
-              dateISO: tx.dateISO,
-            },
-          })
-        : prisma.transaction.create({
-            data: {
-              id: tx.id,
-              userId: user.id,
-              accountId: tx.accountId || null,
-              amount: tx.amount,
-              category: tx.category,
-              type: tx.type,
-              isImpulse: tx.isImpulse,
-              note: tx.note || null,
-              dateISO: tx.dateISO,
-              currency: tx.currency,
-              createdAt: new Date(tx.createdAt || Date.now()),
-            },
-          })
-    )
-  );
-
-  return c.json({ synced: validated.length });
+  return c.json({ success: true });
 });
 
 export { router as transactionsRouter };

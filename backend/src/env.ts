@@ -1,10 +1,23 @@
 import { z } from "zod";
+import { isPostgresUrl } from "./lib/database-url";
+
+/**
+ * The local developer database, used when DATABASE_URL is unset outside
+ * production. Create it once with `createdb budget_dev`, then apply the
+ * migrations: `DATABASE_URL=postgresql://$USER@localhost:5432/budget_dev bunx prisma migrate deploy`.
+ */
+export const DEV_DATABASE_URL = "postgresql://localhost:5432/budget_dev";
 
 const envSchema = z.object({
   PORT: z.string().optional().default("3000"),
   NODE_ENV: z.string().optional(),
   BACKEND_URL: z.url("BACKEND_URL must be a valid URL").default("http://localhost:3000"),
-  DATABASE_URL: z.string().default("file:./prisma/dev.db"),
+  // Postgres. Required in production (validated below); elsewhere it defaults
+  // to the local developer database, DEV_DATABASE_URL.
+  DATABASE_URL: z
+    .string()
+    .refine(isPostgresUrl, "DATABASE_URL must be a postgres:// or postgresql:// URL naming a database")
+    .optional(),
   // lib/crypto.ts derives the AES-256-GCM key protecting every Plaid access
   // token from this value, so a short secret is a weak key for data at rest —
   // not just a weak session secret.
@@ -76,7 +89,19 @@ const envSchema = z.object({
   // Both optional → the forwarding endpoints 503 until configured.
   INBOUND_EMAIL_DOMAIN: z.string().optional(),
   INBOUND_EMAIL_SECRET: z.string().optional(),
-});
+})
+  .superRefine((e, ctx) => {
+    // A production server silently opening a developer default would come up
+    // healthy against an empty database. Refuse to boot instead.
+    if (e.NODE_ENV === "production" && !e.DATABASE_URL) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["DATABASE_URL"],
+        message: "DATABASE_URL is required in production",
+      });
+    }
+  })
+  .transform((e) => ({ ...e, DATABASE_URL: e.DATABASE_URL ?? DEV_DATABASE_URL }));
 
 function validateEnv() {
   try {

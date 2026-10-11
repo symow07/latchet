@@ -38,7 +38,29 @@ const PRISMA_ERRORS: Record<string, MappedError> = {
     code: "invalid_relation",
     message: "That change would break a required relation",
   },
+  // Postgres runs writers concurrently, so two requests can deadlock or fail
+  // to serialise; Postgres aborts one of them. Nothing was written, and the
+  // same request is expected to succeed if sent again.
+  P2034: {
+    status: 409,
+    code: "write_conflict",
+    message: "A concurrent change got in the way. Please try again",
+  },
 };
+
+/**
+ * Postgres refuses text it cannot store, notably a NUL character (U+0000), with
+ * SQLSTATE 22021 or 22P05. Prisma does not map these to a code of its own; they
+ * arrive as an unknown request error naming the SQLSTATE in its message. The
+ * value came from the request, so it is the caller's error, not ours.
+ */
+const UNSTORABLE_TEXT = /code: "(22021|22P05)"/;
+
+function isUnstorableText(err: unknown): boolean {
+  if (typeof err !== "object" || err === null) return false;
+  const message = (err as { message?: unknown }).message;
+  return typeof message === "string" && UNSTORABLE_TEXT.test(message);
+}
 
 function hasCode(err: unknown): err is { code: string } {
   return (
@@ -71,6 +93,10 @@ export function mapError(err: unknown): MappedError {
 
   if (isZodError(err)) {
     return { status: 400, code: "invalid_request", message: "Invalid request" };
+  }
+
+  if (isUnstorableText(err)) {
+    return { status: 400, code: "invalid_text", message: "Text contains a character that cannot be stored" };
   }
 
   const status = honoStatus(err);

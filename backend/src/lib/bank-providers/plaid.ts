@@ -51,6 +51,10 @@ async function plaid<T = any>(path: string, body: Record<string, unknown>): Prom
 // Webhook verification keys, cached by key_id. A given key_id always maps to
 // the same key, so this only grows by the handful Plaid rotates through — and
 // it stops a burst of webhooks becoming a burst of key fetches.
+//
+// Deliberately per process, the one piece of server state not moved to
+// Postgres (DEPLOYMENT.md §4): the keys are public and immutable per key_id, so
+// a second instance with an empty cache costs one refetch, never correctness.
 const verificationKeys = new Map<string, PlaidJwk>();
 
 async function getVerificationKey(keyId: string): Promise<PlaidJwk | null> {

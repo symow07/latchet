@@ -53,7 +53,20 @@ async function makeUser(id: string, entitlement: string, expiresAt: Date | null)
   });
 }
 
+/**
+ * The AI allowance is counted in Postgres (lib/usage-limit.ts), so what an
+ * earlier run spent for these fixed users would still be spent now. Their
+ * counters start empty on every run.
+ */
+async function resetAllowances() {
+  const users = [FREE_USER, PRO_USER, EXPIRED_USER, WEBHOOK_USER, VOICE_USER];
+  await prisma.rateLimitBucket.deleteMany({
+    where: { OR: users.map((u) => ({ key: { startsWith: "usage:ai:", endsWith: `:${u}` } })) },
+  });
+}
+
 beforeAll(async () => {
+  await resetAllowances();
   const future = new Date(Date.now() + 30 * 86_400_000);
   const past = new Date(Date.now() - 86_400_000);
   await makeUser(FREE_USER, "free", null);
@@ -63,6 +76,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  await resetAllowances();
   await prisma.user.deleteMany({
     where: { id: { in: [FREE_USER, PRO_USER, EXPIRED_USER, WEBHOOK_USER] } },
   });
@@ -114,7 +128,7 @@ test("a free user gets a taste of the advisor, then a paywall", async () => {
   // 15s timeout, which is both slow and dependent on the network.
   const allowance = aiAllowance(false);
   for (let i = 0; i < FREE_AI_CALLS_PER_DAY; i++) {
-    expect(allowUsageTiered("ai", FREE_USER, allowance)).toBe(true);
+    expect(await allowUsageTiered("ai", FREE_USER, allowance)).toBe(true);
   }
 
   // One request past the allowance: refused by the guard, so it never reaches
@@ -137,7 +151,7 @@ test("a Pro user is not stopped at the free allowance", async () => {
   const allowance = aiAllowance(true);
   // Well past what a free user gets, still permitted.
   for (let i = 0; i < FREE_AI_CALLS_PER_DAY + 3; i++) {
-    expect(allowUsageTiered("ai", PRO_USER, allowance)).toBe(true);
+    expect(await allowUsageTiered("ai", PRO_USER, allowance)).toBe(true);
   }
 });
 
@@ -242,7 +256,7 @@ test("every AI route is behind the paywall, including ones added later", () => {
 test("the voice route refuses a free user who has spent their allowance", async () => {
   const allowance = aiAllowance(false);
   for (let i = 0; i < FREE_AI_CALLS_PER_DAY; i++) {
-    expect(allowUsageTiered("ai", VOICE_USER, allowance)).toBe(true);
+    expect(await allowUsageTiered("ai", VOICE_USER, allowance)).toBe(true);
   }
   const res = await appAs(VOICE_USER, aiRouter as never).request("/voice-transactions", {
     method: "POST",

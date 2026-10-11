@@ -28,8 +28,8 @@ function clampInt(raw: string | undefined, min: number, max: number, fallback: n
  * What a salary with no payment row for this period looks like.
  *
  * Reading the payroll screen used to upsert a row per salary, so merely
- * opening it wrote to the database — inside a GET, against the single SQLite
- * writer. An absent row already means "unpaid"; the row gets created when a
+ * opening it wrote to the database — inside a GET, one write per employee on
+ * every view. An absent row already means "unpaid"; the row gets created when a
  * payment is actually recorded.
  */
 function unpaidPlaceholder(month: number, year: number) {

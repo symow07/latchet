@@ -76,9 +76,10 @@ export async function saveHealthProfile(patch: Partial<HealthProfile>): Promise<
     next.healthConsiderations = null;
   }
 
-  const { getDatabase } = await import('./db');
-  const db = await getDatabase();
-  await db.runAsync(
+  // Through the write queue, so this never lands inside another write's
+  // transaction on the shared connection. Device-only: no sync bookkeeping.
+  const { withWriteLock } = await import('./db');
+  await withWriteLock((db) => db.runAsync(
     `INSERT INTO health_profile
        (id, householdSize, city, cookingHabits, goals, activityInterests,
         dietaryPreferences, allergies, healthConsiderations,
@@ -100,7 +101,7 @@ export async function saveHealthProfile(patch: Partial<HealthProfile>): Promise<
       next.allergies, next.healthConsiderations,
       next.standardConsentAt, next.sensitiveConsentAt, next.updatedAt,
     ]
-  );
+  ));
 }
 
 /**
@@ -109,20 +110,18 @@ export async function saveHealthProfile(patch: Partial<HealthProfile>): Promise<
  * mean if the button is going to claim it.
  */
 export async function deleteHealthProfile(): Promise<void> {
-  const { getDatabase } = await import('./db');
-  const db = await getDatabase();
-  await db.runAsync('DELETE FROM health_profile WHERE id = 1');
+  const { withWriteLock } = await import('./db');
+  await withWriteLock((db) => db.runAsync('DELETE FROM health_profile WHERE id = 1'));
 }
 
 /** Withdrawing only the sensitive tier, keeping the rest. */
 export async function revokeSensitiveConsent(): Promise<void> {
-  const { getDatabase } = await import('./db');
-  const db = await getDatabase();
-  await db.runAsync(
+  const { withWriteLock } = await import('./db');
+  await withWriteLock((db) => db.runAsync(
     `UPDATE health_profile
         SET allergies = NULL, healthConsiderations = NULL,
             sensitiveConsentAt = NULL, updatedAt = ?
       WHERE id = 1`,
     [new Date().toISOString()]
-  );
+  ));
 }

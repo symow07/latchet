@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react';
-import { View, ScrollView, Linking, Alert } from 'react-native';
+import { View, ScrollView, Linking, Alert, ActivityIndicator } from 'react-native';
 import {
   Bell, Briefcase, Building2, FileText, Globe, HelpCircle, LogOut,
   Moon, Shield, Smartphone, Sun, Users,
 } from '@/components/icons';
 import * as Haptics from 'expo-haptics';
-import { authClient } from '@/lib/auth/auth-client';
-import { useInvalidateSession, useSession } from '@/lib/auth/use-session';
-import { useAccountTypeStore } from '@/lib/account-type-store';
+import { useSession } from '@/lib/auth/use-session';
+import { signOutAndClear } from '@/lib/user-session';
+import { useSignOutDeps } from '@/lib/use-sign-out';
+import { flushBeforeSignOut, resumeCloudSync } from '@/lib/cloud-sync';
 import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -110,14 +111,33 @@ export default function BusinessSettingsScreen() {
   };
 
   const memberCount = readMembers(business).length;
-  const invalidateSession = useInvalidateSession();
-  const reset = useAccountTypeStore((s) => s.reset);
+  const signOutDeps = useSignOutDeps();
+  const [signingOut, setSigningOut] = useState(false);
 
+  /**
+   * Sign out: flush this user's changes, sign out, then delete everything of
+   * theirs on the phone (user-session.ts signOutAndClear). If something could
+   * not be backed up, the user is asked first, and cancelling keeps them here.
+   */
   const handleLogout = async () => {
+    if (!signOutDeps || signingOut) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    reset();
-    await authClient.signOut();
-    await invalidateSession();
+    setSigningOut(true);
+    try {
+      // The flush sends everything pending and then holds sync still, so no
+      // cycle races the deletion of this user's database that follows.
+      const outcome = await signOutAndClear({ ...signOutDeps, flush: flushBeforeSignOut });
+      // Signed out: this screen is about to unmount behind the login screen.
+      if (outcome.status === 'kept') {
+        // They chose to stay: sync carries on.
+        resumeCloudSync();
+        setSigningOut(false);
+      }
+    } catch (e) {
+      console.error('[sign-out] failed:', e);
+      resumeCloudSync();
+      setSigningOut(false);
+    }
   };
 
   const tile = (Icon: React.ComponentType<{ size: number; color: string; strokeWidth: number }>) => (
@@ -289,13 +309,15 @@ export default function BusinessSettingsScreen() {
           {/* No chevron: this row does not go anywhere, it does something. */}
           <Touchable
             pal={B}
-            onPress={handleLogout}
+            onPress={signingOut ? undefined : handleLogout}
             accessibilityLabel={t('businessSettings.signOut')}
             style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, minHeight: 56 }}
           >
-            <LogOut size={19} color={B.negative} strokeWidth={S.stroke} />
+            {signingOut
+              ? <ActivityIndicator size="small" color={B.negative} />
+              : <LogOut size={19} color={B.negative} strokeWidth={S.stroke} />}
             <Type role="cardTitle" color={B.negative}>
-              {t('businessSettings.signOut')}
+              {signingOut ? t('signOutFlow.signingOut') : t('businessSettings.signOut')}
             </Type>
           </Touchable>
         </Group>

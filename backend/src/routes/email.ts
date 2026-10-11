@@ -88,7 +88,9 @@ router.post("/inbound", async (c) => {
   // Spend cap: at most 60 OpenAI parses per user per day (a mail-bomb of
   // forwards should not become an OpenAI bill). Over-cap emails are still
   // stored, just unparsed.
-  const mayParse = env.OPENAI_API_KEY && allowUsage("inbound-parse", conn.userId, 60, 24 * 60 * 60 * 1000);
+  const mayParse =
+    !!env.OPENAI_API_KEY &&
+    (await allowUsage("inbound-parse", conn.userId, 60, 24 * 60 * 60 * 1000));
   const parsed = mayParse ? await parseInboundEmail(subject, from, text).catch(() => null) : null;
   await prisma.inboxEmail.create({
     data: {

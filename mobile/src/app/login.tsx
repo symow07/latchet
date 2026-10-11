@@ -13,7 +13,6 @@ import * as Haptics from 'expo-haptics';
 import * as SecureStore from 'expo-secure-store';
 import { authClient } from '@/lib/auth/auth-client';
 import { useInvalidateSession } from '@/lib/auth/use-session';
-import { useAccountTypeStore } from '@/lib/account-type-store';
 import { t } from '@/lib/i18n/core';
 
 const SECURE_STORE_PROBE_KEYS = [
@@ -60,7 +59,6 @@ export default function LoginScreen() {
   const C = useC();
   const router = useRouter();
   const invalidateSession = useInvalidateSession();
-  const loadAccountType = useAccountTypeStore(s => s.load);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -120,36 +118,11 @@ export default function LoginScreen() {
     console.log('[mobile:signin:onSuccess] invalidating session…');
     await invalidateSession();
 
-    const userId = result.data?.user?.id;
-    if (!userId) {
-      console.warn('[mobile:signin:noUserId] result.data.user.id missing — staying on screen');
-      return;
-    }
-
-    console.log(`[mobile:signin:loadAccountType] start userId=${userId}`);
-    const lt0 = Date.now();
-    try {
-      await loadAccountType(userId);
-    } catch (e) {
-      console.warn(
-        `[mobile:signin:loadAccountType:error] ${e instanceof Error ? e.message : String(e)}`,
-      );
-    }
-    const { accountType } = useAccountTypeStore.getState();
-    console.log(
-      `[mobile:signin:loadAccountType] done in ${Date.now() - lt0}ms accountType=${accountType ?? 'null'}`,
-    );
-
-    let target: string;
-    if (!accountType) {
-      target = '/account-type';
-    } else if (accountType === 'business') {
-      target = '/(business-tabs)';
-    } else {
-      target = '/(tabs)';
-    }
-    console.log(`[mobile:signin:nav] target=${target} accountType=${accountType ?? 'null'}`);
-    router.replace(target as never);
+    // No navigation from here. The session change makes the root layout open
+    // this user's own database, and the signed-in screens only exist once it
+    // is open; the layout then sends the account to its profile's screens
+    // (profile-route.ts). Navigating from here would race that opening.
+    console.log(`[mobile:signin:done] userId=${result.data?.user?.id ?? 'missing'}`);
   };
 
   return (

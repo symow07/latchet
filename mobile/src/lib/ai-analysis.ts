@@ -5,17 +5,7 @@ import { hasEnoughHistory, projectMonthlyExpenses } from './calculations';
 import { categoryLabel, DEFAULT_CATEGORIES } from './category-meta';
 import type { AppLocale } from './i18n/core';
 import { fitConversationHistory, fitConversationTurns, historyBudget, omissionNote, localeInstruction } from './prompt-budget';
-
-export interface Transaction {
-  id: string;
-  amount: number;
-  category: string;
-  type: string;
-  isImpulse: number;
-  note?: string;
-  dateISO: string;
-  createdAt: string;
-}
+import type { Transaction } from './transaction';
 
 export interface Settings {
   monthlyBudget: number;
@@ -62,7 +52,7 @@ export interface SpendingAnalysis {
   weekOverWeekChange: number;
   daysUntilBudgetExceeded: number | null;
   consecutiveDaysOfSpending: number;
-  biggestExpenseThisMonth: { amount: number; category: string; note?: string } | null;
+  biggestExpenseThisMonth: { amount: number; category: string; note: string | null } | null;
   // New enhanced fields
   healthScore: HealthScoreResult;
   savingsForecast: SavingsForecast[];

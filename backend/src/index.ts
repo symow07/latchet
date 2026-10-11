@@ -31,11 +31,15 @@ import { ratesRouter } from "./routes/rates";
 import { meRouter } from "./routes/me";
 import { revenueCatRouter } from "./routes/revenuecat";
 import { emailRouter } from "./routes/email";
+import { syncRouter } from "./routes/sync";
 import { installErrorHandlers } from "./lib/http-errors";
 import { prisma } from "./prisma";
 import { withLegacyAliases } from "./lib/legacy-aliases";
 
-const app = new Hono<{
+// Exported so tests can drive the whole pipeline in-process — CORS, the alias
+// and session middleware, every mount and the error handlers — exactly as
+// served. Importing this module starts no timers; see the bottom of the file.
+export const app = new Hono<{
   Variables: {
     user: typeof auth.$Infer.Session.user | null;
     session: typeof auth.$Infer.Session.session | null;
@@ -214,6 +218,7 @@ app.route("/api/v1/plaid", plaidRouter);
 app.route("/api/v1/rates", ratesRouter);
 app.route("/api/v1/revenuecat", revenueCatRouter);
 app.route("/api/v1/email", emailRouter);
+app.route("/api/v1/sync", syncRouter);
 
 // Backward-compatible unversioned routes (alias to v1)
 app.route("/api/transactions", transactionsRouter);
@@ -235,11 +240,16 @@ app.route("/api/plaid", plaidRouter);
 app.route("/api/rates", ratesRouter);
 app.route("/api/revenuecat", revenueCatRouter);
 app.route("/api/email", emailRouter);
+app.route("/api/sync", syncRouter);
 
-// Start background jobs
-startRecurringProcessor();
-startBillReminderChecker();
-startRetentionJob();
+// Background jobs run only in the served process (`bun run src/index.ts`,
+// start:prod). A test that imports `app` must not start interval timers that
+// write to the test database behind its back and keep the runner alive.
+if (import.meta.main) {
+  startRecurringProcessor();
+  startBillReminderChecker();
+  startRetentionJob();
+}
 
 const port = Number(process.env.PORT) || 3000;
 

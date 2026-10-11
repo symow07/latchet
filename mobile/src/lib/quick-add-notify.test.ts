@@ -1,4 +1,5 @@
 import { test, expect, mock, beforeEach } from 'bun:test';
+import { dbModuleMock } from './test-support/db-module';
 
 /**
  * The handler itself needs expo-notifications and the database, so those are
@@ -16,10 +17,12 @@ mock.module('expo-notifications', () => ({
   setNotificationCategoryAsync: async () => {},
   setNotificationHandler: () => {},
 }));
-mock.module('./db', () => ({
-  addTransaction: async (tx: unknown) => { added.push(tx); },
-  getTransactions: async () => [],
-}));
+mock.module('./db', () =>
+  dbModuleMock({
+    addTransaction: async (tx: unknown) => { added.push(tx); },
+    getTransactions: async () => [],
+  }),
+);
 mock.module('./notifications', () => ({
   QUICK_ADD_ACTION: 'quick-add-log',
   registerQuickAddCategory: async () => {},

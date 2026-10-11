@@ -1,4 +1,6 @@
 import { randomBytes } from "crypto";
+import { hitWindow } from "./distributed/counter";
+import type { Db } from "./distributed/clock";
 
 /**
  * Joining a group, by invite code and nothing else.
@@ -23,7 +25,11 @@ export interface RateLimitState {
 }
 
 /**
- * Pure so it can be tested without waiting out a real window.
+ * The rule the join limiter applies, as a pure function: a window opens on
+ * the first attempt, every attempt in it counts (refused ones too, so
+ * hammering cannot outrun it), and attempts past JOIN_MAX are refused until
+ * the window closes. lib/distributed/counter implements the same rule in one
+ * SQL statement; this stays as its readable specification.
  *
  * A 6-hex-character code is 16.7M possibilities, which is ample against five
  * tries per quarter hour but not against an unthrottled loop — the limiter is
@@ -40,13 +46,25 @@ export function checkRateLimit(
   return { allowed: next.count <= JOIN_MAX, next };
 }
 
-export function makeJoinRateLimiter() {
-  const attempts = new Map<string, RateLimitState>();
-  return (userId: string, now = Date.now()): boolean => {
-    const { allowed, next } = checkRateLimit(attempts.get(userId), now);
-    attempts.set(userId, next);
-    return allowed;
-  };
+/**
+ * The join limiter for one kind of group: at most JOIN_MAX attempts per user
+ * per JOIN_WINDOW_MS, refused attempts included — checkRateLimit's rule.
+ *
+ * Counted in Postgres (lib/distributed/counter), where it used to be a Map
+ * held by the route module: each instance had its own five tries, so the
+ * code-guessing budget grew with every instance and reset on every deploy.
+ *
+ * `scope` keeps groups apart: the household and business endpoints each have
+ * their own budget, as they did when each had its own Map.
+ */
+export function makeJoinRateLimiter(
+  scope: string,
+  opts: { max?: number; windowMs?: number; db?: Db } = {}
+) {
+  const max = opts.max ?? JOIN_MAX;
+  const windowMs = opts.windowMs ?? JOIN_WINDOW_MS;
+  return async (userId: string): Promise<boolean> =>
+    (await hitWindow(`join:${scope}:${userId}`, max, windowMs, opts.db)).allowed;
 }
 
 export { JOIN_MAX, JOIN_WINDOW_MS };

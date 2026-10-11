@@ -1,18 +1,17 @@
-import { dirname, join } from "node:path";
-
 /**
- * Where receipt images live.
+ * Receipt images and company logos.
  *
  * Expense.imageUrl used to hold whatever the picker handed the client — a
  * `file://` path on the submitter's phone. It rendered for them and for nobody
  * else, so a manager approving an expense could not see the receipt they were
  * approving. The bytes have to reach the server or the feature does not work.
  *
- * They are written next to the database rather than into it: on Railway the
- * SQLite file sits on the attached volume, so deriving the directory from
- * DATABASE_URL puts receipts on that same volume with no second setting to
- * forget. Blobs in the database would work too, but they would be copied by
- * every backup and read into memory by queries that never wanted them.
+ * They are stored in Postgres (StoredFile, through lib/distributed/files.ts),
+ * under the paths built here. They used to be written to a directory on the
+ * instance's volume, which only that instance could read and which had to
+ * exist for uploads to work at all; in the database every instance serves
+ * every file, and a business's files go in the same transaction as the
+ * business.
  */
 
 /** Matches the AI routes' cap, and roughly a 12-megapixel phone photo. */
@@ -24,10 +23,10 @@ export type ReceiptType = "jpg" | "png" | "webp" | "heic";
 /**
  * The image format, read from the bytes themselves.
  *
- * Never from a client-supplied name or extension: that is what decides the
- * filename written to disk, and trusting it means the client picks the path.
- * An unrecognised format returns null and is refused rather than stored as
- * something the server cannot serve back.
+ * Never from a client-supplied name or extension: that decides the content
+ * type the file is served back with, and trusting it means the client picks
+ * what a viewer's app renders. An unrecognised format returns null and is
+ * refused rather than stored as something the server cannot serve back.
  */
 export function sniffImageType(bytes: Uint8Array): ReceiptType | null {
   const at = (i: number) => bytes[i];
@@ -62,38 +61,41 @@ export function contentTypeFor(type: ReceiptType): string {
 }
 
 /**
- * An id safe to use as a filename.
+ * An id safe to use in a file path.
  *
- * Ids are cuids and already safe, but this is the value that becomes a path,
- * so it is checked rather than assumed — a traversal here would let a request
- * read or overwrite anything the process can reach.
+ * Ids are cuids and already safe, but this is the value that becomes part of
+ * a path, so it is checked rather than assumed — and a path is also a prefix
+ * that a recursive delete matches, so a stray separator here could reach
+ * another business's files.
  */
 export function isSafeId(id: string): boolean {
   return /^[A-Za-z0-9_-]{1,64}$/.test(id);
 }
 
-/** Directory receipts are written to, derived from the database location. */
-export function receiptDir(databaseUrl = process.env.DATABASE_URL ?? ""): string {
-  if (process.env.RECEIPT_DIR) return process.env.RECEIPT_DIR;
-  const file = databaseUrl.replace(/^file:/, "");
-  // No DATABASE_URL at all only happens in tooling; keep it beside the code
-  // rather than writing to the filesystem root.
-  return join(file ? dirname(file) : "./prisma", "receipts");
-}
+/** StoredFile.kind of a receipt; its ownerId is the expense's id. */
+export const RECEIPT_KIND = "receipt";
+/** StoredFile.kind of a company logo; its ownerId is the business's id. */
+export const LOGO_KIND = "logo";
 
-export function receiptPath(id: string, type: ReceiptType, dir = receiptDir()): string {
-  if (!isSafeId(id)) throw new Error("Unsafe receipt id");
-  return join(dir, `${id}.${type}`);
+/**
+ * Where a business's receipts live: `receipts/<groupId>` is the business's
+ * folder, `receipts/<groupId>/<expenseId>` one expense's receipt in it.
+ *
+ * Grouped by business so that deleting a business removes all of its receipts
+ * with one recursive rm, without first listing every expense it had.
+ */
+export function receiptPath(groupId: string, expenseId?: string): string {
+  if (!isSafeId(groupId)) throw new Error("Unsafe business id");
+  if (expenseId === undefined) return `receipts/${groupId}`;
+  if (!isSafeId(expenseId)) throw new Error("Unsafe receipt id");
+  return `receipts/${groupId}/${expenseId}`;
 }
 
 /**
- * Where a company logo lives.
- *
- * Same directory and the same volume as receipts — it is the same kind of
- * thing, a file a business uploaded. Prefixed so it can never collide with an
- * expense id.
+ * Where a company logo lives. Its own top-level folder, so it can never
+ * collide with a receipt whatever the ids are.
  */
-export function logoPath(groupId: string, type: ReceiptType, dir = receiptDir()): string {
+export function logoPath(groupId: string): string {
   if (!isSafeId(groupId)) throw new Error("Unsafe business id");
-  return join(dir, `logo-${groupId}.${type}`);
+  return `logos/${groupId}`;
 }

@@ -6,21 +6,11 @@ import {
   daysInMonth,
   isBetween,
 } from './dates';
+import type { Transaction } from './transaction';
 /**
  * Financial Health Score System
  * Calculates a dynamic score (0-100) based on multiple financial factors
  */
-
-interface Transaction {
-  id: string;
-  amount: number;
-  category: string;
-  type: string;
-  isImpulse: number;
-  note?: string;
-  dateISO: string;
-  createdAt: string;
-}
 
 interface Settings {
   monthlyBudget: number;
@@ -205,7 +195,7 @@ function calculateImpulseControlScore(
     return { score: 8, value: 50 }; // Neutral if no data
   }
 
-  const impulseCount = recentTransactions.filter(tx => tx.isImpulse === 1).length;
+  const impulseCount = recentTransactions.filter(tx => tx.isImpulse).length;
   const impulsePercent = (impulseCount / recentTransactions.length) * 100;
   const controlPercent = 100 - impulsePercent;
 

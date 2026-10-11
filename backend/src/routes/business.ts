@@ -4,13 +4,13 @@ import { z } from "zod";
 import { prisma } from "../prisma";
 import { buildBusinessProfileFields } from "../lib/business-profile";
 import {
-  receiptPath, logoPath, sniffImageType, contentTypeFor, MAX_RECEIPT_BASE64_CHARS,
+  receiptPath, logoPath, sniffImageType, contentTypeFor, LOGO_KIND, MAX_RECEIPT_BASE64_CHARS,
 } from "../lib/receipt-store";
-import { rm, mkdir, writeFile, readFile } from "node:fs/promises";
-import { dirname } from "node:path";
+import { rm, writeFile, readFile } from "../lib/distributed/files";
 import { auth } from "../auth";
 import { randomBytes } from "crypto";
 import { getUserBusiness } from "../lib/get-user-group";
+import { makeJoinRateLimiter } from "../lib/group-invites";
 
 const businessRouter = new Hono<{
   Variables: {
@@ -30,21 +30,9 @@ function generateCode(): string {
   return randomBytes(3).toString("hex").toUpperCase(); // 6 char hex
 }
 
-// Simple rate limiter for invite code attempts
-const joinAttempts = new Map<string, { count: number; resetAt: number }>();
-const JOIN_MAX = 5;
-const JOIN_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
-
-function checkJoinRateLimit(userId: string): boolean {
-  const now = Date.now();
-  const entry = joinAttempts.get(userId);
-  if (!entry || now > entry.resetAt) {
-    joinAttempts.set(userId, { count: 1, resetAt: now + JOIN_WINDOW_MS });
-    return true;
-  }
-  entry.count++;
-  return entry.count <= JOIN_MAX;
-}
+// Invite-code attempts, five per user per quarter hour across every instance
+// (lib/group-invites.ts). Its own budget, separate from the household one.
+const checkJoinRateLimit = makeJoinRateLimiter("business");
 
 // ─── createBusiness ───────────────────────────────────────────────────────────
 // POST /api/business
@@ -155,24 +143,17 @@ businessRouter.delete(
       return c.json({ error: "Name does not match" }, 400);
     }
 
-    // Read the ids before the delete: afterwards nothing links the receipt
-    // files to this business and they would sit on the volume forever.
-    const expenses = await prisma.expense.findMany({
-      where: { groupId: business.id },
-      select: { id: true },
+    // The company, its logo and every receipt filed under it go in one
+    // transaction: either all of it is gone or none of it is. Receipts are
+    // stored under the business's folder, so one recursive rm takes them all
+    // without listing the expenses first. (A receipt whose upload commits in
+    // the instant between the two is swept later by the retention job, which
+    // removes any receipt or logo whose expense or business no longer exists.)
+    await prisma.$transaction(async (tx) => {
+      await tx.group.delete({ where: { id: business.id } });
+      await rm(receiptPath(business.id), { recursive: true }, tx);
+      await rm(logoPath(business.id), {}, tx);
     });
-
-    // The row goes first. If receipt cleanup fails the company is still gone,
-    // which is what was asked for; orphaned files are a disk-space problem,
-    // not a correctness one, and the other order risks deleting receipts for a
-    // business that then fails to delete.
-    await prisma.group.delete({ where: { id: business.id } });
-
-    for (const expense of expenses) {
-      for (const type of ["jpg", "png", "webp", "heic"] as const) {
-        await rm(receiptPath(expense.id, type)).catch(() => {});
-      }
-    }
 
     return c.json({ ok: true });
   }
@@ -182,10 +163,11 @@ businessRouter.delete(
 // PUT /api/business/logo — replace the company logo. Owner only.
 // GET /api/business/logo — anyone in the business can see it.
 //
-// The bytes are stored on the volume beside receipts and served back from
-// here. logoUrl holds this path and never a remote URL: a stored address
-// would be fetched by every client that renders the company, handing whoever
-// set it a view of every viewer.
+// The bytes are stored in Postgres beside receipts (lib/distributed/files) and
+// served back from here, by whichever instance gets the request. logoUrl
+// holds this path and never a remote URL: a stored address would be fetched
+// by every client that renders the company, handing whoever set it a view of
+// every viewer.
 businessRouter.put(
   "/logo",
   zValidator("json", z.object({ image: z.string().max(MAX_RECEIPT_BASE64_CHARS) })),
@@ -197,26 +179,30 @@ businessRouter.put(
     if (!business) return c.json({ error: "No business found" }, 404);
 
     // Identified from the bytes, never from a client-supplied name: that value
-    // decides the filename written to disk.
+    // decides the content type every viewer is served.
     const bytes = Buffer.from(image, "base64");
     const type = sniffImageType(bytes);
     if (!type) return c.json({ error: "Unsupported image format" }, 400);
 
-    const path = logoPath(business.id, type);
-    await mkdir(dirname(path), { recursive: true });
-    await writeFile(path, bytes);
-
-    // A logo replaced with a different format leaves the old file behind, and
-    // the GET below would find whichever it tried first.
-    for (const stale of ["jpg", "png", "webp", "heic"] as const) {
-      if (stale !== type) await rm(logoPath(business.id, stale)).catch(() => {});
-    }
-
-    const updated = await prisma.group.update({
-      where: { id: business.id },
-      data: { logoUrl: "/api/business/logo" },
-      include: { members: { include: { user: { select: { id: true, name: true, email: true } } } } },
-    });
+    // One path per business whatever the format, so a replacement simply
+    // overwrites the old logo; the file and logoUrl commit together.
+    const updated = await prisma.$transaction(
+      async (tx) => {
+        await writeFile(
+          logoPath(business.id),
+          bytes,
+          { kind: LOGO_KIND, ownerId: business.id, contentType: contentTypeFor(type) },
+          tx
+        );
+        return tx.group.update({
+          where: { id: business.id },
+          data: { logoUrl: "/api/business/logo" },
+          include: { members: { include: { user: { select: { id: true, name: true, email: true } } } } },
+        });
+      },
+      // Up to 10 MB of bytes in one statement.
+      { timeout: 30_000 }
+    );
 
     return c.json({ business: updated });
   }
@@ -227,13 +213,13 @@ businessRouter.delete("/logo", async (c) => {
   const business = await prisma.group.findUnique({ where: { ownerId_type: { ownerId: user.id, type: "business" } } });
   if (!business) return c.json({ error: "No business found" }, 404);
 
-  for (const type of ["jpg", "png", "webp", "heic"] as const) {
-    await rm(logoPath(business.id, type)).catch(() => {});
-  }
-  const updated = await prisma.group.update({
-    where: { id: business.id },
-    data: { logoUrl: null },
-    include: { members: { include: { user: { select: { id: true, name: true, email: true } } } } },
+  const updated = await prisma.$transaction(async (tx) => {
+    await rm(logoPath(business.id), {}, tx);
+    return tx.group.update({
+      where: { id: business.id },
+      data: { logoUrl: null },
+      include: { members: { include: { user: { select: { id: true, name: true, email: true } } } } },
+    });
   });
   return c.json({ business: updated });
 });
@@ -246,20 +232,14 @@ businessRouter.get("/logo", async (c) => {
   const membership = await getUserBusiness(user.id);
   if (!membership) return c.json({ error: "Not found" }, 404);
 
-  for (const type of ["jpg", "png", "webp", "heic"] as const) {
-    try {
-      const bytes = await readFile(logoPath(membership.id, type));
-      return new Response(bytes, {
-        headers: {
-          "Content-Type": contentTypeFor(type),
-          "Cache-Control": "private, max-age=86400",
-        },
-      });
-    } catch {
-      // Wrong extension for this logo; try the next.
-    }
-  }
-  return c.json({ error: "Not found" }, 404);
+  const file = await readFile(logoPath(membership.id));
+  if (!file) return c.json({ error: "Not found" }, 404);
+  return new Response(file.bytes, {
+    headers: {
+      "Content-Type": file.contentType,
+      "Cache-Control": "private, max-age=86400",
+    },
+  });
 });
 
 // ─── getInviteCode ────────────────────────────────────────────────────────────
@@ -318,7 +298,7 @@ businessRouter.post(
     const user = c.get("user")!;
     const { code } = c.req.valid("json");
 
-    if (!checkJoinRateLimit(user.id)) {
+    if (!(await checkJoinRateLimit(user.id))) {
       return c.json({ error: "Too many join attempts, try again later" }, 429);
     }
 

@@ -49,7 +49,9 @@ router.use("*", async (c, next) => {
   const pro = await userIsPro(user.id);
   const allowance = aiAllowance(pro);
 
-  if (!allowUsageTiered("ai", user.id, allowance)) {
+  // Counted in Postgres (lib/usage-limit.ts), so the allowance is one per
+  // user across every instance, not one per instance.
+  if (!(await allowUsageTiered("ai", user.id, allowance))) {
     // 402 rather than 429 for a free user who has used their taste of the
     // advisor: this is a paywall, not congestion, and the client should offer
     // an upgrade rather than "try again later".

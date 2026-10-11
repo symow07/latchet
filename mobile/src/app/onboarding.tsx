@@ -18,7 +18,7 @@ import {
 import * as Haptics from 'expo-haptics';
 import { saveOnboardingData } from '@/lib/onboarding-storage';
 import { updateSettings } from '@/lib/db';
-import { scheduleCloudPush } from '@/lib/cloud-sync';
+import { syncNow } from '@/lib/cloud-sync';
 import { CURRENCIES, getPopularCurrencies, getDefaultCurrency, type Currency } from '@/lib/currencies';
 import { t } from '@/lib/i18n/core';
 
@@ -96,8 +96,9 @@ export default function OnboardingScreen() {
     },
     onSuccess: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      // First upload of the account's settings and any starter data.
-      scheduleCloudPush(0);
+      // Send the account's first real settings now rather than after the
+      // local-write debounce.
+      void syncNow();
       router.replace('/(tabs)');
     },
     onError: (error) => {

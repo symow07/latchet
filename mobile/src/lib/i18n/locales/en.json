@@ -1505,5 +1505,15 @@
     "owner": "Owner",
     "manager": "Manager",
     "employee": "Employee"
+  },
+  "signOutFlow": {
+    "unsyncedTitle": "Changes not backed up",
+    "unsyncedBody": {
+      "one": "%{count} change on this phone hasn't reached your account yet. Signing out deletes it from this phone.",
+      "other": "%{count} changes on this phone haven't reached your account yet. Signing out deletes them from this phone."
+    },
+    "flushFailedBody": "Your changes couldn't be backed up just now. Signing out deletes anything on this phone that hasn't reached your account.",
+    "signOutAnyway": "Sign out anyway",
+    "signingOut": "Signing out…"
   }
 }

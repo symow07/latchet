@@ -15,6 +15,7 @@ so the hosted page and the repository can never disagree.
 |---|---|---|
 | Account info (name, email) | You, at sign-up | Authentication, account recovery |
 | Transactions & budgets | You, or your linked bank | The app's core budgeting features |
+| Accounts, settings, custom categories, tracked subscriptions | You | Synced with your account so a reinstall or a second phone restores them. Each account's copy on a phone is a separate database, removed from the phone when you sign out. |
 | Bank account data | Plaid (only if you link a bank) | Automatic transaction sync. We never see or store your bank credentials; Plaid provides read-only access tokens, which we store encrypted (AES-256-GCM). |
 | Forwarded billing emails | You (via an email filter you create) | Detecting recurring subscriptions. **We extract only the merchant name, amount, currency, billing cycle, and date. The email body, the sender's address and the subject line are all discarded — we keep the sender's domain (e.g. `netflix.com`) and a subject remnant with every number removed, so an email we could not identify still shows you something recognisable.** Deleted after 90 days. |
 | Business data (expenses, team, payroll) | You and your team | Business mode features |
@@ -78,6 +79,7 @@ or clinical advice. It uses this information to explain costs.
 |---|---|
 | Your transactions, accounts, budgets and business data | Until you delete them, or delete your account |
 | Forwarded billing emails | 90 days — long enough to see an annual renewal cycle |
+| Records of deleted items (the item's identifier — for a custom category, its name — and when) | 60 days, so your other phones remove the same item |
 | Email-forwarding confirmation codes | 24 hours |
 | Expired sign-in sessions | 7 days past expiry |
 | Used one-time sign-in codes | 24 hours past expiry |

@@ -3,9 +3,25 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+// ─── Sync columns ────────────────────────────────────────────────────────────
+// The five tables the phone syncs (Transaction, BankAccount, UserSettings,
+// CustomCategory, Subscription) carry two timestamps:
+//
+//   clientUpdatedAt  When the change was made on a client (server-created rows
+//                    use the server's time). Last writer wins by this value.
+//   serverUpdatedAt  When the row last changed on THIS database, set by a
+//                    trigger to clock_timestamp() (in UTC) on every insert and
+//                    update. The pull cursor orders by it. Never written by the
+//                    app: @updatedAt is each instance's own clock, and two
+//                    instances' clocks cannot order one ledger.
+//
+// The triggers live in the init migration (prisma/migrations/*_postgres_init):
+// serverUpdatedAt, BankAccount.balance derived from the ledger, and a
+// SyncTombstone row for every delete of a synced row, however it happened.
 
 model User {
   id                    String                 @id
@@ -42,6 +58,8 @@ model User {
   plaidItems            PlaidItem[]
   emailConnections      EmailConnection[]
   inboxEmails           InboxEmail[]
+  customCategories      CustomCategory[]
+  subscriptions         Subscription[]
 }
 
 model Session {
@@ -90,6 +108,12 @@ model BankAccount {
   user              User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   name              String
   type              String // cash|checking|savings|credit|investment|other
+  /// The balance before any transaction in the ledger. The one balance input.
+  openingBalance    Float         @default(0)
+  /// Derived, never written by the app: a trigger keeps it equal to
+  /// openingBalance + Σ Income − Σ Expense of this account's transactions,
+  /// on every transaction insert, update and delete and on every write of
+  /// openingBalance. The phone derives it the same way and never sends it.
   balance           Float         @default(0)
   currency          String        @default("USD")
   color             String        @default("#a855f7")
@@ -101,29 +125,37 @@ model BankAccount {
   sharedWithGroupId String?
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
+  clientUpdatedAt   DateTime      @default(now())
+  /// Set by trigger (clock_timestamp()); see the sync note at the top.
+  serverUpdatedAt   DateTime      @default(now())
   transactions      Transaction[]
   sharedWithGroup   Group?        @relation(fields: [sharedWithGroupId], references: [id], onDelete: SetNull)
 
   @@index([sharedWithGroupId])
+  @@index([userId, serverUpdatedAt])
 }
 
 model Transaction {
-  id        String       @id
-  userId    String
-  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  accountId String?
-  account   BankAccount? @relation(fields: [accountId], references: [id], onDelete: SetNull)
-  amount    Float
-  category  String // Food|Gym|Transport|Shopping|Subscriptions|Other
-  type      String // Expense|Income
-  isImpulse Boolean      @default(false)
-  note      String?
-  dateISO   String // YYYY-MM-DD
-  currency  String       @default("USD")
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
+  id              String       @id
+  userId          String
+  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accountId       String?
+  account         BankAccount? @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  amount          Float
+  category        String // Food|Gym|Transport|Shopping|Subscriptions|Other
+  type            String // Expense|Income
+  isImpulse       Boolean      @default(false)
+  note            String?
+  dateISO         String // YYYY-MM-DD
+  currency        String       @default("USD")
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  clientUpdatedAt DateTime     @default(now())
+  /// Set by trigger (clock_timestamp()); see the sync note at the top.
+  serverUpdatedAt DateTime     @default(now())
 
   @@index([userId, dateISO])
+  @@index([userId, serverUpdatedAt])
 }
 
 model UserSettings {
@@ -149,6 +181,9 @@ model UserSettings {
   activeGroupId   String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+  clientUpdatedAt DateTime @default(now())
+  /// Set by trigger (clock_timestamp()); see the sync note at the top.
+  serverUpdatedAt DateTime @default(now())
 }
 
 model BillReminder {
@@ -462,4 +497,125 @@ model SalaryPayment {
   salary    Salary    @relation(fields: [salaryId], references: [id], onDelete: Cascade)
 
   @@unique([salaryId, month, year])
+}
+
+// ─── Synced from the phone ───────────────────────────────────────────────────
+
+// A category the user added on top of the built-in ones. The sync id is the
+// name: the phone keys custom categories by name, so two devices that both add
+// "Pets" converge on one row instead of two.
+model CustomCategory {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name            String
+  icon            String   @default("")
+  color           String   @default("#94a3b8")
+  createdAt       DateTime @default(now())
+  clientUpdatedAt DateTime @default(now())
+  /// Set by trigger (clock_timestamp()); see the sync note at the top.
+  serverUpdatedAt DateTime @default(now())
+
+  @@unique([userId, name])
+  @@index([userId, serverUpdatedAt])
+}
+
+// A recurring charge the user confirmed, or the detector proposed, on the
+// phone. `syncId` is the phone's own id for it; `id` is this table's key.
+// Occurrences are derived on the device from the ledger and are not stored.
+model Subscription {
+  id                 String   @id @default(cuid())
+  userId             String
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  syncId             String
+  merchantDisplay    String
+  merchantNormalized String
+  cadence            String   @default("monthly")
+  typicalAmount      Float    @default(0)
+  currency           String   @default("USD")
+  confidenceScore    Float    @default(0)
+  lastChargedAt      String?
+  nextExpectedAt     String?
+  status             String   @default("possible") // confirmed|possible|canceled
+  cancelUrl          String?
+  cancelNotes        String?
+  source             String   @default("transaction") // transaction|email
+  createdAt          DateTime @default(now())
+  clientUpdatedAt    DateTime @default(now())
+  /// Set by trigger (clock_timestamp()); see the sync note at the top.
+  serverUpdatedAt    DateTime @default(now())
+
+  @@unique([userId, syncId])
+  @@index([userId, serverUpdatedAt])
+}
+
+// One deleted synced row, so a pull can tell other devices it is gone.
+//
+// Written by an AFTER DELETE trigger on each synced table, which catches every
+// delete path (REST, sync push, cascades, bank unlink) without each route
+// remembering to. entity: transactions|accounts|settings|categories|
+// subscriptions. syncId is the row's sync id: `id` for transactions and
+// accounts, "settings" for the settings row, `name` for a category, `syncId`
+// for a subscription.
+//
+// Deliberately no relation to User: deleting a user cascades into the synced
+// tables, whose triggers then write here, and a foreign key back to the user
+// being deleted would fail inside its own cascade. Retention purges orphans.
+model SyncTombstone {
+  id              String   @id @default(cuid())
+  userId          String
+  entity          String
+  syncId          String
+  /// Database time of the delete (clock_timestamp(), UTC). The pull cursor
+  /// orders by it, as it does by serverUpdatedAt for live rows.
+  deletedAt       DateTime @default(now())
+  /// The delete's client time. An upsert newer than this resurrects the row.
+  clientUpdatedAt DateTime @default(now())
+
+  @@unique([userId, entity, syncId])
+  @@index([userId, deletedAt])
+}
+
+// ─── Process-local state, moved into the database ───────────────────────────
+// Several instances can serve the API at once, so nothing that must agree
+// across requests may live in one process's memory.
+
+// A fixed-window counter: rate limits and usage caps.
+model RateLimitBucket {
+  key         String   @id
+  count       Int      @default(0)
+  windowStart DateTime @default(now())
+  expiresAt   DateTime
+
+  @@index([expiresAt])
+}
+
+// Short-lived shared state: caches and one-time values with an expiry.
+model CacheEntry {
+  key       String   @id
+  value     Json
+  expiresAt DateTime
+
+  @@index([expiresAt])
+}
+
+// An uploaded file (receipt image, company logo), stored in the database so
+// every instance can serve it and no volume is needed.
+model StoredFile {
+  id          String   @id @default(cuid())
+  kind        String
+  ownerId     String?
+  contentType String
+  size        Int
+  bytes       Bytes
+  createdAt   DateTime @default(now())
+
+  @@index([kind, ownerId])
+}
+
+// Which instance runs a periodic job right now, and until when.
+model JobLease {
+  name       String   @id
+  holder     String
+  leaseUntil DateTime
 }

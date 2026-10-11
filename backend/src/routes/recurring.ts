@@ -10,6 +10,7 @@ import {
   recurrenceFrequency,
   transactionType,
 } from "../lib/schemas";
+import { runRecurringNow } from "../jobs/recurring-booking";
 
 const recurringSchema = z.object({
   accountId: z.string().max(100).optional().nullable(),
@@ -93,6 +94,28 @@ router.put("/:id", zValidator("json", recurringUpdateSchema), async (c) => {
     },
   });
   return c.json(recurring);
+});
+
+// ─── run now ──────────────────────────────────────────────────────────────────
+// POST /recurring/:id/run — book today's occurrence now, owner only.
+//
+// Replaces what the app used to do itself: post a transaction and then set
+// nextDate to today, after which the job booked a second one. This books
+// through the job's own code (jobs/recurring-booking.ts) under the job's own
+// occurrence id, tx_rec_<id>_<YYYY-MM-DD> (UTC), so the two can never both
+// book a day, on one instance or several. The booked row reaches the phone
+// through sync like any server-created transaction.
+//
+// 201 { transactionId, nextDate } when this call booked it; 200 with the same
+// id when today's occurrence was already booked. A series that is not the
+// caller's is 404, the same as one that does not exist.
+router.post("/:id/run", async (c) => {
+  const user = c.get("user");
+  if (!user) return c.json({ error: "Unauthorized" }, 401);
+
+  const result = await runRecurringNow(c.req.param("id"), user.id);
+  if (!result) return c.json({ error: "Not found" }, 404);
+  return c.json({ transactionId: result.transactionId, nextDate: result.nextDate }, result.status);
 });
 
 router.delete("/:id", async (c) => {

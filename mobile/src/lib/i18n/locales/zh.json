@@ -1473,5 +1473,14 @@
     "owner": "所有者",
     "manager": "主管",
     "employee": "员工"
+  },
+  "signOutFlow": {
+    "unsyncedTitle": "有更改尚未备份",
+    "unsyncedBody": {
+      "other": "此手机上有 %{count} 项更改尚未同步到你的账户。退出登录会将其从此手机删除。"
+    },
+    "flushFailedBody": "暂时无法备份你的更改。退出登录会从此手机删除所有尚未同步到你账户的内容。",
+    "signOutAnyway": "仍然退出登录",
+    "signingOut": "正在退出登录…"
   }
 }

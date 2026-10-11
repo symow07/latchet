@@ -56,9 +56,12 @@ export async function findUserForRevenueCatId(appUserId: string): Promise<string
   });
   if (direct) return direct.id;
 
+  // Oldest first, so the answer is the same on every call should two accounts
+  // ever carry the same alias. Postgres has no implicit row order.
   const aliased = await prisma.user.findFirst({
     where: { revenueCatUserId: appUserId },
     select: { id: true },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
   });
   return aliased?.id ?? null;
 }

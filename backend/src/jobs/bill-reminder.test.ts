@@ -1,5 +1,7 @@
-import { test, expect } from "bun:test";
+import { test, expect, afterAll } from "bun:test";
+import { prisma } from "../prisma";
 import {
+  billReminderDeps,
   advanceMonth,
   shouldNotify,
   checkBillReminders,
@@ -53,10 +55,19 @@ function fakeDeps(bills: DueBill[]) {
     async sendPush(userId, _title, body) {
       sends.push({ userId, body });
     },
-    async markNotified(id, notifiedAt, nextDueDate) {
-      const bill = bills.find((b) => b.id === id)!;
+    async claimNotification(read, notifiedAt, nextDueDate) {
+      // The real one is a conditional update: it only applies while the row
+      // still holds what this run read.
+      const bill = bills.find((b) => b.id === read.id)!;
+      if (
+        bill.nextDueDate !== read.nextDueDate ||
+        bill.lastNotifiedAt?.getTime() !== read.lastNotifiedAt?.getTime()
+      ) {
+        return false;
+      }
       bill.lastNotifiedAt = notifiedAt;
       bill.nextDueDate = nextDueDate;
+      return true;
     },
   };
   return { deps, sends };
@@ -115,4 +126,50 @@ test("the push body uses the user's currency symbol, not a hardcoded $", async (
 
   expect(sends[0]!.body).toContain("€42");
   expect(sends[0]!.body).not.toContain("$");
+});
+
+test("two runs that read the same bill send it once", async () => {
+  // Two instances' ticks overlapping: both find the bill due, only the one
+  // whose claim lands sends the push.
+  const bills = [bill()];
+  const { deps, sends } = fakeDeps(bills);
+  const stale = { ...bills[0]! };
+  await Promise.all([
+    checkBillReminders(deps),
+    checkBillReminders({ ...deps, findDueBills: async () => [stale] }),
+  ]);
+  expect(sends.length).toBe(1);
+});
+
+// ── The real claim, against Postgres ─────────────────────────────────────────
+
+const U = `billtest_${process.pid}${Date.now().toString(36)}`;
+afterAll(async () => {
+  await prisma.user.deleteMany({ where: { id: U } });
+});
+
+test("two instances checking at once notify a due bill once, through the real claim", async () => {
+  const today = new Date().toISOString().split("T")[0]!;
+  const now = new Date();
+  await prisma.user.create({ data: { id: U, name: U, email: `${U}@x.test`, createdAt: now, updatedAt: now } });
+  await prisma.billReminder.create({
+    data: { id: `${U}_rent`, userId: U, name: "Rent", amount: 900, dueDay: Number(today.slice(8, 10)),
+            isRecurring: true, nextDueDate: today },
+  });
+
+  const sends: string[] = [];
+  // The real deps, scoped to this test's user: the database is shared.
+  const deps: BillReminderDeps = {
+    ...billReminderDeps,
+    findDueBills: async (t, s) => (await billReminderDeps.findDueBills(t, s)).filter((b) => b.userId === U),
+    sendPush: async (userId) => {
+      sends.push(userId);
+    },
+  };
+  await Promise.all([checkBillReminders(deps), checkBillReminders(deps), checkBillReminders(deps)]);
+
+  expect(sends).toEqual([U]);
+  const after = await prisma.billReminder.findUnique({ where: { id: `${U}_rent` } });
+  expect(after!.nextDueDate > today).toBe(true);
+  expect(after!.lastNotifiedAt).not.toBeNull();
 });

@@ -7,6 +7,9 @@ import * as Haptics from 'expo-haptics';
 import { useSession } from '@/lib/auth/use-session';
 import { useAccountTypeStore, type AccountType } from '@/lib/account-type-store';
 import { createBusiness } from '@/lib/businessApi';
+import { needsFirstPull, syncNow } from '@/lib/cloud-sync';
+import { isOnboardingComplete } from '@/lib/onboarding-storage';
+import { restoreReturningAccount } from '@/lib/returning-account';
 import { R, S, useC } from '@/lib/design';
 import { PressableScale } from '@/components/motion';
 import { Card, IconTile, PrimaryButton, Screen, Type } from '@/components/kit';
@@ -23,6 +26,32 @@ import { t } from '@/lib/i18n/core';
 const MARK = 36;
 const MARK_STROKE = Math.max(GLYPH.minStrokePt, (GLYPH.stroke * MARK) / GLYPH.grid);
 const MARK_RING = (2 * 8.75 * MARK) / GLYPH.grid + MARK_STROKE;
+
+const FIRST_PULL_RETRY_MS = 10_000;
+
+/**
+ * Whether a personal account still needs onboarding. Not for an account that
+ * has been here before: onboarding writes settings, and they would replace
+ * the ones it has. Normally the root layout settled that after the first
+ * pull; if that pull had not finished by the time the picker showed, it gets
+ * one more chance here, before onboarding can write anything.
+ */
+async function personalOnboardingNeeded(userId: string): Promise<boolean> {
+  try {
+    if (await needsFirstPull()) {
+      // Bounded: a server that does not answer must not trap the user here.
+      const report = await Promise.race([
+        syncNow(),
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), FIRST_PULL_RETRY_MS)),
+      ]);
+      await restoreReturningAccount(userId, !!report?.pulled.complete);
+    }
+    return !(await isOnboardingComplete());
+  } catch (e) {
+    console.warn('[account-type] onboarding check failed', e);
+    return true;
+  }
+}
 
 /**
  * The profile picker — DESIGN-PROMPT.md §6.22 and board §7.
@@ -71,10 +100,11 @@ export default function AccountTypeScreen() {
     setIsSaving(true);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-    await save(session.user.id, selected);
+    const userId = session.user.id;
+    await save(userId, selected);
 
     if (selected === 'personal') {
-      router.replace('/onboarding');
+      router.replace((await personalOnboardingNeeded(userId)) ? '/onboarding' : '/(tabs)');
     } else {
       // Provision business record + owner team membership
       try {

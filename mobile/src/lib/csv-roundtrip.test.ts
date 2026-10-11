@@ -7,7 +7,7 @@ const tx = (over: Partial<ExportableTransaction> = {}): ExportableTransaction =>
   amount: 42.5,
   category: 'Food',
   type: 'Expense',
-  isImpulse: 0,
+  isImpulse: false,
   note: 'Carrefour',
   dateISO: '2026-08-18',
   currency: 'EUR',
@@ -38,10 +38,10 @@ test('a custom category survives the round trip', () => {
 test('the impulse flag survives, in both directions', () => {
   // Impulse was never exported at all, so it could not be recovered by any
   // means — a re-import silently re-guessed it from the description.
-  const [impulsive] = roundTrip([tx({ isImpulse: 1, note: 'Something dull' })]);
+  const [impulsive] = roundTrip([tx({ isImpulse: true, note: 'Something dull' })]);
   expect(impulsive!.isImpulse).toBe(true);
 
-  const [deliberate] = roundTrip([tx({ isImpulse: 0, note: 'impulse buy sale deal' })]);
+  const [deliberate] = roundTrip([tx({ isImpulse: false, note: 'impulse buy sale deal' })]);
   // The description would otherwise trip the impulse heuristic.
   expect(deliberate!.isImpulse).toBe(false);
 });
@@ -70,9 +70,9 @@ test('descriptions containing commas and quotes survive', () => {
 
 test('a whole ledger round-trips unchanged', () => {
   const original: ExportableTransaction[] = [
-    tx({ id: 'a', amount: 12.3, category: 'Food', type: 'Expense', isImpulse: 1, note: 'Coffee' }),
-    tx({ id: 'b', amount: 2500, category: 'Salary', type: 'Income', isImpulse: 0, note: 'Payday' }),
-    tx({ id: 'c', amount: 89.9, category: 'Transport', type: 'Expense', isImpulse: 0, note: 'SNCF' }),
+    tx({ id: 'a', amount: 12.3, category: 'Food', type: 'Expense', isImpulse: true, note: 'Coffee' }),
+    tx({ id: 'b', amount: 2500, category: 'Salary', type: 'Income', isImpulse: false, note: 'Payday' }),
+    tx({ id: 'c', amount: 89.9, category: 'Transport', type: 'Expense', isImpulse: false, note: 'SNCF' }),
   ];
 
   const reimported = roundTrip(original);
@@ -93,7 +93,7 @@ test('a whole ledger round-trips unchanged', () => {
       amount: t.amount,
       category: t.category,
       type: t.type,
-      isImpulse: Boolean(t.isImpulse),
+      isImpulse: t.isImpulse,
       description: t.note ?? '',
       date: t.dateISO,
       currency: t.currency,

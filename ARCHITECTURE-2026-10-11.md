@@ -11,7 +11,7 @@ except to add this file._
 **What it is.** A React Native app (Expo SDK 53) and a small TypeScript server. The server runs
 on **Bun** with the **Hono** web framework, hosted on **Railway**.
 
-**The database is not Supabase or Postgres.** It is **SQLite** — one file on the server, managed
+**The database is not Postgres.** It is **SQLite** — one file on the server, managed
 with Prisma — plus a **second, separate SQLite database on every phone**. Each phone keeps its
 own copy of transactions, accounts and settings, and copies them up to the server.
 
@@ -374,8 +374,8 @@ production unless `DEBUG_ROUTES=true` (`backend/src/index.ts:191`).
 
 ### 3.1 On the server: one SQLite database
 
-- **Engine:** SQLite — `provider = "sqlite"` (`backend/prisma/schema.prisma:5-8`). Not Supabase,
-  not Postgres, not hosted.
+- **Engine:** SQLite — `provider = "sqlite"` (`backend/prisma/schema.prisma:5-8`). Not Postgres,
+  not hosted.
 - **How many:** one. `DATABASE_URL` is a file path, defaulting to `file:./prisma/dev.db`
   (`backend/src/env.ts:7`).
 - **Connection:** forced to **one connection** (`connection_limit=1`), WAL journal, foreign keys

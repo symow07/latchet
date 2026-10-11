@@ -24,6 +24,9 @@ import {
   type DeletionPreview,
   type UnrevokedGrant,
 } from '@/lib/accountApi';
+import { signOutAndClear } from '@/lib/user-session';
+import { useSignOutDeps } from '@/lib/use-sign-out';
+import { flushBeforeSignOut } from '@/lib/cloud-sync';
 
 /**
  * Account deletion, with the consequences shown before the user commits.
@@ -61,6 +64,7 @@ export function DeleteAccountModal({
   const [typed, setTyped] = useState('');
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
+  const signOutDeps = useSignOutDeps();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -103,6 +107,22 @@ export function DeleteAccountModal({
         await deleteHealthProfile();
       } catch (e) {
         console.warn('[delete-account] local advisor profile not cleared:', e);
+      }
+
+      // Then everything else of this user's on the phone: their database file,
+      // their per-user keys, the cached queries, and the session. Nothing is
+      // sent and nothing needs confirming — the account the changes would go
+      // to no longer exists — so the flush only stops sync, so that no cycle
+      // runs against the deleted account or races the database's deletion.
+      // The server sign-out may well be refused for the same reason, which
+      // signOutAndClear tolerates.
+      if (signOutDeps) {
+        await signOutAndClear({
+          ...signOutDeps,
+          drainPending: undefined,
+          flush: () => flushBeforeSignOut({ send: false }),
+          confirmDiscard: async () => true,
+        });
       }
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);

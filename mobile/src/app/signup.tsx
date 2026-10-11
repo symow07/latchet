@@ -129,8 +129,10 @@ export default function SignUpScreen() {
       console.log('[mobile:signup:onSuccess] invalidating session…');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       await invalidateSession();
-      console.log('[mobile:signup:nav] target=/account-type invalidated=true');
-      router.replace('/account-type');
+      // No navigation from here: the root layout opens the new user's database
+      // and then routes them (to the profile picker, as a new account has no
+      // profile yet). Navigating first would race that opening.
+      console.log('[mobile:signup:done] session invalidated');
     },
     onError: (err: Error) => {
       console.warn(`[mobile:signup:onError] ${err.message}`);

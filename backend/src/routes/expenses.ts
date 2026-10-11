@@ -4,10 +4,9 @@ import { z } from "zod";
 import { prisma } from "../prisma";
 import { auth } from "../auth";
 import { getUserMembership } from "../lib/get-user-group";
-import { mkdir, writeFile, readFile } from "node:fs/promises";
-import { dirname } from "node:path";
+import { writeFile, readFile } from "../lib/distributed/files";
 import {
-  sniffImageType, contentTypeFor, receiptPath, receiptDir, isSafeId,
+  sniffImageType, contentTypeFor, receiptPath, isSafeId, RECEIPT_KIND,
   MAX_RECEIPT_BASE64_CHARS,
 } from "../lib/receipt-store";
 
@@ -57,12 +56,12 @@ expensesRouter.post(
     // Decoded and identified before the row is written, so an unreadable or
     // non-image upload fails the request outright instead of leaving an expense
     // pointing at a receipt that was never stored.
-    let receipt: { bytes: Buffer; type: ReturnType<typeof sniffImageType> } | null = null;
+    let receipt: { bytes: Buffer; contentType: string } | null = null;
     if (image) {
       const bytes = Buffer.from(image, "base64");
       const type = sniffImageType(bytes);
       if (!type) return c.json({ error: "Unsupported image format" }, 400);
-      receipt = { bytes, type };
+      receipt = { bytes, contentType: contentTypeFor(type) };
     }
 
     const expense = await prisma.expense.create({
@@ -81,31 +80,44 @@ expensesRouter.post(
       },
     });
 
-    if (!receipt || !receipt.type) return c.json({ expense }, 201);
+    if (!receipt) return c.json({ expense }, 201);
+    const upload = receipt;
 
-    // Named by the expense id, so the file and the row cannot disagree and a
-    // resubmission cannot collide with someone else's receipt.
+    // The file and the imageUrl that points at it commit together, so a row
+    // can never point at a receipt that was not stored. Stored under the
+    // expense's business and id, so the file and the row cannot disagree and
+    // a resubmission cannot collide with someone else's receipt.
+    let withReceipt;
     try {
-      const path = receiptPath(expense.id, receipt.type);
-      await mkdir(dirname(path), { recursive: true });
-      await writeFile(path, receipt.bytes);
+      withReceipt = await prisma.$transaction(
+        async (tx) => {
+          await writeFile(
+            receiptPath(expense.groupId, expense.id),
+            upload.bytes,
+            { kind: RECEIPT_KIND, ownerId: expense.id, contentType: upload.contentType },
+            tx
+          );
+          // A path, not a URL: the client prefixes its own backend origin, so
+          // this survives the backend moving without rewriting stored rows.
+          return tx.expense.update({
+            where: { id: expense.id },
+            data: { imageUrl: `/api/expenses/${expense.id}/receipt` },
+            include: {
+              submitter: { select: { id: true, name: true, email: true } },
+              reviewer:  { select: { id: true, name: true, email: true } },
+            },
+          });
+        },
+        // Up to 10 MB of bytes in one statement; the default 5 s is for
+        // ordinary rows.
+        { timeout: 30_000 }
+      );
     } catch (e) {
       console.error("[expenses] receipt write failed:", e instanceof Error ? e.message : e);
       // The expense is real and worth keeping; only the image is missing, and
       // the row still says so because imageUrl was never set.
       return c.json({ expense }, 201);
     }
-
-    // A path, not a URL: the client prefixes its own backend origin, so this
-    // survives the backend moving without rewriting stored rows.
-    const withReceipt = await prisma.expense.update({
-      where: { id: expense.id },
-      data: { imageUrl: `/api/expenses/${expense.id}/receipt` },
-      include: {
-        submitter: { select: { id: true, name: true, email: true } },
-        reviewer:  { select: { id: true, name: true, email: true } },
-      },
-    });
 
     return c.json({ expense: withReceipt }, 201);
   }
@@ -133,23 +145,17 @@ expensesRouter.get("/:id/receipt", async (c) => {
   // telling a caller that an id exists but is not theirs is itself a leak.
   if (!expense?.imageUrl) return c.json({ error: "Not found" }, 404);
 
-  for (const type of ["jpg", "png", "webp", "heic"] as const) {
-    try {
-      const bytes = await readFile(receiptPath(id, type));
-      return new Response(bytes, {
-        headers: {
-          "Content-Type": contentTypeFor(type),
-          // Private: this is somebody's receipt, and a shared cache must not
-          // hand it to the next person through the same proxy.
-          "Cache-Control": "private, max-age=86400",
-        },
-      });
-    } catch {
-      // Wrong extension for this receipt; try the next.
-    }
-  }
-
-  return c.json({ error: "Not found" }, 404);
+  // Read from Postgres, so any instance serves a receipt any instance stored.
+  const file = await readFile(receiptPath(membership.groupId, id));
+  if (!file) return c.json({ error: "Not found" }, 404);
+  return new Response(file.bytes, {
+    headers: {
+      "Content-Type": file.contentType,
+      // Private: this is somebody's receipt, and a shared cache must not
+      // hand it to the next person through the same proxy.
+      "Cache-Control": "private, max-age=86400",
+    },
+  });
 });
 
 // ─── GET /api/expenses ────────────────────────────────────────────────────────

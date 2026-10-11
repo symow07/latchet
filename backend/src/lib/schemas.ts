@@ -50,7 +50,8 @@ export const accountType = z.enum([
  *
  * The sync routes accepted unbounded arrays and ran a findUnique per row in a
  * serial loop before a single $transaction — 10,000 rows meant 10,000
- * sequential queries against the one SQLite connection, blocking every other
- * request for the duration.
+ * sequential database round-trips inside one request before the write began.
+ *
+ * Defined once, with the rest of the sync protocol's constants.
  */
-export const MAX_SYNC_ROWS = 1_000;
+export { MAX_SYNC_ROWS } from "./sync/constants";

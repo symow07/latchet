@@ -176,7 +176,7 @@ export default function AddTransactionScreen() {
         amount: value,
         category,
         type,
-        isImpulse: isImpulse ? 1 : 0,
+        isImpulse,
         note: note || null,
         dateISO: format(date, 'yyyy-MM-dd'),
         accountId: currentAccountId || null,

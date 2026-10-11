@@ -25,6 +25,7 @@ import {
   type LinkedAccount,
   type LinkedBank,
 } from '@/lib/bank-linking';
+import { requestPull } from '@/lib/cloud-sync';
 import { formatCurrencyAmount } from '@/lib/currencies';
 import { accountTypeLabel } from '@/lib/tx-display';
 import { useEntitlement } from '@/lib/useEntitlement';
@@ -135,8 +136,10 @@ export default function LinkBankScreen() {
 
       // The webhook may take a moment to land; refresh now and the user can
       // also pull-to-refresh / tap Sync if their bank appears a few seconds
-      // later.
+      // later. The initial sync's transactions reach the ledger by a pull:
+      // one now, and the 60 s sync picks up whatever lands after it.
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      requestPull();
       await loadData();
       setViewMode('main');
     } catch (e) {

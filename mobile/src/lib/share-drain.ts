@@ -10,7 +10,7 @@
  */
 import * as FileSystem from 'expo-file-system';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { addTransaction } from './db';
+import { activeUserId, addTransaction } from './db';
 import { appGroupPath } from '../../modules/app-group';
 import { parseSharedQueue, selectDrainableShares, planShares } from './pending-share';
 import { categoriseNote, loadMerchantMemory } from './categorise';
@@ -20,6 +20,7 @@ import { todayISO } from './dates';
 const QUEUE_FILE = 'pending-shares.ndjson';
 const MEDIA_DIR = 'shared-media';
 
+/** Device key (storage-keys.ts), for the same reason as the Siri queue's. */
 const SEEN_KEY = 'pending_share_seen_v1';
 const SEEN_CAP = 500;
 
@@ -68,14 +69,17 @@ async function importReceipt(containerPath: string, fileName: string): Promise<s
 }
 
 /**
- * Consume the shared queue.
+ * Consume the shared queue into `ownerUserId`'s ledger.
  *
  * As with the Siri queue, ids are marked seen before anything is written, so a
- * crash mid-drain loses a share rather than duplicating one.
+ * crash mid-drain loses a share rather than duplicating one — and the drain
+ * stops if the active user changes under it, rather than write into the
+ * ledger of whoever is signed in now.
  */
-export async function drainSharedItems(): Promise<ShareDrainResult> {
+export async function drainSharedItems(ownerUserId: string): Promise<ShareDrainResult> {
+  const stillOwner = () => activeUserId() === ownerUserId;
   const container = appGroupPath();
-  if (!container) return EMPTY;
+  if (!container || !stillOwner()) return EMPTY;
 
   const queueUri = `file://${container}/${QUEUE_FILE}`;
   const info = await FileSystem.getInfoAsync(queueUri).catch(() => null);
@@ -91,6 +95,7 @@ export async function drainSharedItems(): Promise<ShareDrainResult> {
 
   const seen = await readSeen();
   const items = selectDrainableShares(parseSharedQueue(raw), seen, Date.now());
+  if (!stillOwner()) return EMPTY;
 
   // Delete before writing. The ids go into `seen` either way, so a re-parse
   // would find nothing; leaving the file behind only risks it growing.
@@ -104,6 +109,7 @@ export async function drainSharedItems(): Promise<ShareDrainResult> {
   const memory = plan.transactions.length > 0 ? await loadMerchantMemory() : null;
   let inserted = 0;
   for (const tx of plan.transactions) {
+    if (!stillOwner()) break;
     try {
       await addTransaction({
         amount: tx.amount,

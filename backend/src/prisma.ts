@@ -1,25 +1,20 @@
 import { PrismaClient } from "@prisma/client";
 import { env } from "./env";
+import { withDefaultUser } from "./lib/database-url";
 
-// SQLite is a single-writer database. Prisma's default connection pool spawns
-// multiple connections that compete for the write lock and hang on SQLITE_BUSY.
-// connection_limit=1 eliminates all intra-process lock contention — the single
-// root cause of the 10-second signup hang on Railway.
-const dbUrl = (() => {
-  const base = env.DATABASE_URL;
-  if (base.includes("connection_limit")) return base;
-  return base.includes("?") ? `${base}&connection_limit=1` : `${base}?connection_limit=1`;
-})();
-
+// A plain pooled client. Pool size comes from DATABASE_URL: `connection_limit`
+// when the URL sets one, Prisma's default (2 × CPUs + 1) otherwise.
+//
+// This file used to cap the pool at a single connection and set four PRAGMAs
+// (WAL, foreign_keys, busy_timeout, synchronous). The server then ran on a
+// single-file database that allows one writer at a time: Prisma's pooled
+// connections competed for its write lock and hung on a busy error, which was
+// the 10-second signup hang on Railway, and one connection was the cure.
+// Postgres has no such lock to fight over. Writers lock rows, foreign keys are
+// always enforced and nothing is set per connection, while a single connection
+// would now queue every request in the process behind one socket. Do not bring
+// the one-connection cap back to fix contention; find the transaction that is
+// holding locks instead.
 export const prisma = new PrismaClient({
-  datasources: { db: { url: dbUrl } },
+  datasources: { db: { url: withDefaultUser(env.DATABASE_URL) } },
 });
-
-// Pragmas only need to be set once per connection. With connection_limit=1
-// there is exactly one connection for the lifetime of the process.
-prisma
-  .$queryRawUnsafe("PRAGMA journal_mode = WAL;")
-  .then(() => prisma.$queryRawUnsafe("PRAGMA foreign_keys = ON;"))
-  .then(() => prisma.$queryRawUnsafe("PRAGMA busy_timeout = 3000;"))
-  .then(() => prisma.$queryRawUnsafe("PRAGMA synchronous = NORMAL;"))
-  .catch((err) => console.error("[prisma] pragma init failed:", err));

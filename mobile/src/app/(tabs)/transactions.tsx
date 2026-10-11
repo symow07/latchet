@@ -4,6 +4,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, parseISO, startOfMonth, endOfMonth } from 'date-fns';
 import { getTransactions, deleteTransaction, getSettings } from '@/lib/db';
+import type { Transaction } from '@/lib/transaction';
 import { categoryLabel } from '@/lib/category-meta';
 import { getCategories, DEFAULT_CATEGORIES } from '@/lib/categories';
 import { formatCurrency, formatTimeCost, calculateTimeCost } from '@/lib/calculations';
@@ -18,17 +19,6 @@ import {
 } from '@/components/kit';
 import { t, getDateFnsLocale } from '@/lib/i18n/core';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
-interface Transaction {
-  id: string;
-  amount: number;
-  category: string;
-  type: string;
-  isImpulse: number;
-  note?: string;
-  dateISO: string;
-  createdAt: string;
-}
 
 /**
  * Activity — DESIGN-PROMPT.md §14.

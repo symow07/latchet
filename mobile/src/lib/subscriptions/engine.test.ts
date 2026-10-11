@@ -233,11 +233,13 @@ test('the analytics screen and the engine report the same subscriptions', () => 
     id: `t${m}`,
     amount: 10.99,
     category: 'Subscriptions',
-    type: 'Expense',
-    isImpulse: 0,
+    type: 'Expense' as const,
+    isImpulse: false,
     note: 'NETFLIX.COM',
     dateISO: `2026-0${m}-15`,
     createdAt: `2026-0${m}-15T00:00:00Z`,
+    accountId: null,
+    currency: 'USD',
   }));
 
   const viaEngine = detectSubscriptions(chargesFromTransactions(txs));
@@ -256,11 +258,13 @@ test('the analytics screen no longer invents a Food subscription', () => {
     id: `t${m}`,
     amount: 45,
     category: 'Food',
-    type: 'Expense',
-    isImpulse: 0,
-    note: undefined,
+    type: 'Expense' as const,
+    isImpulse: false,
+    note: null,
     dateISO: `2026-0${m}-10`,
     createdAt: `2026-0${m}-10T00:00:00Z`,
+    accountId: null,
+    currency: 'USD',
   }));
 
   expect(detectForAnalytics(txs)).toEqual([]);

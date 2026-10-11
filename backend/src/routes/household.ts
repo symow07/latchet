@@ -43,7 +43,8 @@ householdRouter.use("*", async (c, next) => {
   await next();
 });
 
-const checkJoinRateLimit = makeJoinRateLimiter();
+// Shared by preview and join, across every instance (lib/group-invites.ts).
+const checkJoinRateLimit = makeJoinRateLimiter("household");
 
 const HOUSEHOLD_ROLES = ["owner", "member"] as const;
 
@@ -123,7 +124,7 @@ householdRouter.get("/preview", async (c) => {
 
   // Rate limited on the same budget as joining: without this, preview becomes
   // the oracle that tells an attacker which codes exist.
-  if (!checkJoinRateLimit(user.id)) {
+  if (!(await checkJoinRateLimit(user.id))) {
     return c.json({ error: "Too many attempts, try again later" }, 429);
   }
 
@@ -166,7 +167,7 @@ householdRouter.post(
     const user = c.get("user")!;
     const { code, acknowledgedShareLevel } = c.req.valid("json");
 
-    if (!checkJoinRateLimit(user.id)) {
+    if (!(await checkJoinRateLimit(user.id))) {
       return c.json({ error: "Too many join attempts, try again later" }, 429);
     }
 
@@ -289,6 +290,7 @@ householdRouter.get("/visibility", async (c) => {
     prisma.bankAccount.findMany({
       where: { sharedWithGroupId: group.id },
       select: { id: true, name: true, userId: true },
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
     }),
   ]);
 
@@ -326,6 +328,7 @@ householdRouter.get("/dashboard", async (c) => {
   const sharedAccounts = await prisma.bankAccount.findMany({
     where: { sharedWithGroupId: group.id },
     select: { id: true, name: true, userId: true, balance: true, currency: true },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
   });
   const sharedAccountIds = new Set(sharedAccounts.map((a) => a.id));
 
@@ -339,6 +342,8 @@ householdRouter.get("/dashboard", async (c) => {
         id: true, accountId: true, amount: true, type: true,
         category: true, note: true, dateISO: true,
       },
+      // Explicit: Postgres has no implicit row order to fall back on.
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
     });
 
     const finances: MemberFinances = {

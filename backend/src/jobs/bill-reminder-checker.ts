@@ -1,6 +1,7 @@
 import { prisma } from "../prisma";
 import { sendPushToUser } from "../lib/expo-push";
 import { advanceMonth } from "../lib/recurrence";
+import { withJobLease } from "../lib/distributed/lease";
 
 export { advanceMonth };
 
@@ -45,14 +46,21 @@ export interface BillReminderDeps {
     body: string,
     data: Record<string, unknown>
   ): Promise<void>;
-  markNotified(
-    id: string,
+  /**
+   * Claim the bill's current due date: record the notification and move a
+   * recurring bill on, but only if the row still has the lastNotifiedAt and
+   * nextDueDate this run read. True when this run made the change and should
+   * send the push; false when another run (another instance) got there first.
+   */
+  claimNotification(
+    bill: DueBill,
     notifiedAt: Date,
     nextDueDate: string
-  ): Promise<void>;
+  ): Promise<boolean>;
 }
 
-const prismaDeps: BillReminderDeps = {
+/** The real deps, on the app's database. */
+export const billReminderDeps: BillReminderDeps = {
   findDueBills: (today, startOfToday) =>
     prisma.billReminder.findMany({
       where: {
@@ -82,16 +90,22 @@ const prismaDeps: BillReminderDeps = {
   sendPush: (userId, title, body, data) =>
     sendPushToUser(userId, title, body, data),
 
-  async markNotified(id, notifiedAt, nextDueDate) {
-    await prisma.billReminder.update({
-      where: { id },
+  async claimNotification(bill, notifiedAt, nextDueDate) {
+    const { count } = await prisma.billReminder.updateMany({
+      where: {
+        id: bill.id,
+        isPaid: false,
+        nextDueDate: bill.nextDueDate,
+        lastNotifiedAt: bill.lastNotifiedAt,
+      },
       data: { lastNotifiedAt: notifiedAt, nextDueDate, isPaid: false },
     });
+    return count === 1;
   },
 };
 
 export async function checkBillReminders(
-  deps: BillReminderDeps = prismaDeps
+  deps: BillReminderDeps = billReminderDeps
 ): Promise<void> {
   const now = new Date();
   const today = now.toISOString().split("T")[0]!;
@@ -104,6 +118,15 @@ export async function checkBillReminders(
   const symbols = await deps.currencySymbols([...new Set(due.map((b) => b.userId))]);
 
   for (const bill of due) {
+    // Recurring bills roll forward to next month; one-off bills keep their due
+    // date. Either way lastNotifiedAt is stamped so this due date is spent.
+    // Claimed before sending, so two instances never both send it: of two
+    // runs that read the same row, only one's conditional update matches.
+    const nextDueDate = bill.isRecurring
+      ? advanceMonth(bill.nextDueDate, bill.dueDay)
+      : bill.nextDueDate;
+    if (!(await deps.claimNotification(bill, now, nextDueDate))) continue;
+
     const symbol = symbols.get(bill.userId) ?? "$";
     console.log(
       `[bill-reminder] Due: "${bill.name}" — ${symbol}${bill.amount} (user: ${bill.userId})`
@@ -116,30 +139,28 @@ export async function checkBillReminders(
       `"${bill.name}" — ${symbol}${bill.amount} is due today.`,
       { type: "bill-reminder", billId: bill.id }
     );
-
-    // Recurring bills roll forward to next month; one-off bills keep their due
-    // date. Either way lastNotifiedAt is stamped so this due date is spent.
-    const nextDueDate = bill.isRecurring
-      ? advanceMonth(bill.nextDueDate, bill.dueDay)
-      : bill.nextDueDate;
-    await deps.markNotified(bill.id, now, nextDueDate);
   }
+}
+
+/** The lease every instance's tick competes for (lib/distributed/lease). */
+export const BILL_REMINDER_LEASE = "bill-reminder-checker";
+/** Held this long at a time, renewed while a tick runs. */
+const LEASE_TTL_MS = 5 * 60_000;
+
+/** One tick: run under the lease, or skip when another instance holds it. */
+export function runBillReminderTick(deps: BillReminderDeps = billReminderDeps) {
+  return withJobLease(BILL_REMINDER_LEASE, LEASE_TTL_MS, () => checkBillReminders(deps));
 }
 
 let intervalHandle: ReturnType<typeof setInterval> | null = null;
 
 export function startBillReminderChecker(intervalMs = 5 * 60_000) {
-  // Run immediately
-  checkBillReminders().catch((e) =>
-    console.error("[bill-reminder] Initial run failed:", e)
-  );
+  const tick = () =>
+    runBillReminderTick().catch((e) => console.error("[bill-reminder] Run failed:", e));
 
-  // Then repeat on interval
-  intervalHandle = setInterval(() => {
-    checkBillReminders().catch((e) =>
-      console.error("[bill-reminder] Scheduled run failed:", e)
-    );
-  }, intervalMs);
+  // Run immediately, then repeat on interval.
+  tick();
+  intervalHandle = setInterval(tick, intervalMs);
   intervalHandle.unref();
 }
 

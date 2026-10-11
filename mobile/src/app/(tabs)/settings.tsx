@@ -9,11 +9,11 @@ import {
   HeartPulse, Home, LogOut, Moon, PieChart, Repeat, RotateCcw, Smartphone,
   Sparkles, Sun, Trash2, TrendingUp, Upload,
 } from '@/components/icons';
-import { authClient } from '@/lib/auth/auth-client';
-import { useInvalidateSession } from '@/lib/auth/use-session';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useAccountTypeStore } from '@/lib/account-type-store';
+import { signOutAndClear } from '@/lib/user-session';
+import { useSignOutDeps } from '@/lib/use-sign-out';
+import { flushBeforeSignOut, resumeCloudSync } from '@/lib/cloud-sync';
 import { isBiometricAvailable } from '@/lib/biometric';
 import { BAR, S, useC } from '@/lib/design';
 import { DeleteAccountModal, UnrevokedGrantsNotice } from '@/components/DeleteAccountModal';
@@ -54,8 +54,8 @@ export default function SettingsScreen() {
   const C = useC();
   const router = useRouter();
   const queryClient = useQueryClient();
-  const invalidateSession = useInvalidateSession();
-  const resetAccountType = useAccountTypeStore((s) => s.reset);
+  const signOutDeps = useSignOutDeps();
+  const [signingOut, setSigningOut] = useState(false);
   const [monthlyBudget, setMonthlyBudget] = useState('');
   const [startingBalance, setStartingBalance] = useState('');
   const [hourlyValue, setHourlyValue] = useState('');
@@ -72,25 +72,41 @@ export default function SettingsScreen() {
   const [unrevokedGrants, setUnrevokedGrants] = useState<UnrevokedGrant[] | null>(null);
 
   /**
-   * The server has already deleted the account. Clear everything on-device too
-   * — the local SQLite copy would otherwise survive the account it belongs to —
-   * and drop the (now invalid) session.
+   * The server has already deleted the account, and DeleteAccountModal has
+   * already signed out and deleted this user's data from the phone
+   * (signOutAndClear). What is left is to close the sheet and say which bank
+   * grants could not be revoked.
    */
-  const handleAccountDeleted = async (unrevoked: UnrevokedGrant[]) => {
+  const handleAccountDeleted = (unrevoked: UnrevokedGrant[]) => {
     setShowDeleteAccount(false);
-    try {
-      await resetAllData();
-    } catch (e) {
-      console.error('[delete-account] local wipe failed:', e);
-    }
-    queryClient.clear();
-    resetAccountType();
-    await authClient.signOut().catch(() => {});
-    await invalidateSession();
-
-    // Shown over the signed-out screen; the account is gone either way.
     if (unrevoked.length > 0) setUnrevokedGrants(unrevoked);
   };
+
+  /**
+   * Log out: flush this user's changes, sign out, then delete everything of
+   * theirs on the phone (user-session.ts signOutAndClear). If something could
+   * not be backed up, the user is asked first, and cancelling keeps them here.
+   */
+  async function handleSignOut() {
+    if (!signOutDeps || signingOut) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setSigningOut(true);
+    try {
+      // The flush sends everything pending and then holds sync still, so no
+      // cycle races the deletion of this user's database that follows.
+      const outcome = await signOutAndClear({ ...signOutDeps, flush: flushBeforeSignOut });
+      // Signed out: this screen is about to unmount behind the login screen.
+      if (outcome.status === 'kept') {
+        // They chose to stay: sync carries on.
+        resumeCloudSync();
+        setSigningOut(false);
+      }
+    } catch (e) {
+      console.error('[sign-out] failed:', e);
+      resumeCloudSync();
+      setSigningOut(false);
+    }
+  }
 
   useEffect(() => {
     AsyncStorage.getItem('@biometric_lock').then((val) => {
@@ -463,16 +479,15 @@ export default function SettingsScreen() {
           <Touchable
             pal={C}
             accessibilityLabel={t('settings.logOut')}
-            onPress={async () => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-              resetAccountType();
-              await authClient.signOut();
-              await invalidateSession();
-            }}
+            onPress={signingOut ? undefined : handleSignOut}
             style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, minHeight: 56 }}
           >
-            <LogOut size={19} color={C.negative} strokeWidth={S.stroke} />
-            <Type role="cardTitle" color={C.negative}>{t('settings.logOut')}</Type>
+            {signingOut
+              ? <ActivityIndicator size="small" color={C.negative} />
+              : <LogOut size={19} color={C.negative} strokeWidth={S.stroke} />}
+            <Type role="cardTitle" color={C.negative}>
+              {signingOut ? t('signOutFlow.signingOut') : t('settings.logOut')}
+            </Type>
           </Touchable>
         </Group>
 

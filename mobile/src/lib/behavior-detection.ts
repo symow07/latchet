@@ -3,17 +3,7 @@ import { detectSubscriptions as detectFromEngine } from './subscriptions/engine'
 import { chargesFromTransactions } from './subscriptions/sources';
 import { t } from './i18n/core';
 import { categoryLabel } from './category-meta';
-
-export interface Transaction {
-  id: string;
-  amount: number;
-  category: string;
-  type: string;
-  isImpulse: number;
-  note?: string;
-  dateISO: string;
-  createdAt: string;
-}
+import type { Transaction } from './transaction';
 
 // Subscription Detection
 export interface DetectedSubscription {

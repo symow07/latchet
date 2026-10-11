@@ -96,7 +96,7 @@ debugRouter.get("/signup-prereq", async (c) => {
     }),
   );
 
-  // Synthetic insert/delete to prove write path under connection_limit=1.
+  // Synthetic insert/delete to prove the write path end to end.
   // Email is namespaced + timestamped so retries never collide. Same id used
   // for both ops so the delete cleans up even if mid-flow we error out.
   const debugId = `debug_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;

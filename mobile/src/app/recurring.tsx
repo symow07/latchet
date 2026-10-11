@@ -7,6 +7,7 @@ import { Play, Plus, RefreshCw } from '@/components/icons';
 import * as Haptics from 'expo-haptics';
 
 import { api } from '@/lib/api/api';
+import { requestPull } from '@/lib/cloud-sync';
 import { getSettings } from '@/lib/db';
 import { formatCurrency } from '@/lib/calculations';
 import { categoryLabel } from '@/lib/category-meta';
@@ -66,15 +67,10 @@ interface CreateRecurringBody {
   currency: string;
 }
 
-interface CreateTransactionBody {
-  name: string;
-  amount: number;
-  category: Category;
-  type: TxType;
-  isImpulse: boolean;
-  note: string;
-  dateISO: string;
-  currency: string;
+/** POST /api/v1/recurring/:id/run — 201 when it booked today's occurrence, 200 when it already was. */
+interface RunNowResponse {
+  transactionId: string;
+  nextDate: string;
 }
 
 const CATEGORIES: readonly Category[] = [
@@ -353,25 +349,18 @@ export default function RecurringScreen() {
     },
   });
 
+  // The server books today's occurrence, under the same id its recurring job
+  // uses, and moves nextDate past today — so the job cannot book it a second
+  // time, and pressing again books nothing new. It used to post a transaction
+  // of its own and set nextDate to today, which the job then booked again.
+  // The transaction reaches this phone's ledger through the pull that follows;
+  // that pull refreshes the screens that show it.
   const runNowMutation = useMutation({
-    mutationFn: async (item: RecurringTransaction) => {
-      const today = todayISO();
-      const txBody: CreateTransactionBody = {
-        name: item.name,
-        amount: item.amount,
-        category: item.category,
-        type: item.type,
-        isImpulse: false,
-        note: t('recurring.noteRuns', { frequency: t(`frequency.${item.frequency}`) }),
-        dateISO: today,
-        currency: item.currency ?? currency,
-      };
-      await api.post('/api/transactions', txBody);
-      await api.put(`/api/recurring/${item.id}`, { ...item, nextDate: today });
-    },
+    mutationFn: (item: RecurringTransaction) =>
+      api.post<RunNowResponse>(`/api/v1/recurring/${encodeURIComponent(item.id)}/run`, {}),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['recurring'] });
-      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      requestPull();
       setRunningId(null);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     },

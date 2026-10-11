@@ -7,10 +7,14 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { View, Pressable, ActivityIndicator, AppState } from 'react-native';
-import { initializeDatabase } from '@/lib/db';
-import { startCloudSync } from '@/lib/cloud-sync';
+import { activeUserId } from '@/lib/db';
+import { activateUser, deactivateUser } from '@/lib/user-session';
+import { UserDatabaseSupersededError } from '@/lib/user-db';
+import { clearUserQueries } from '@/lib/use-sign-out';
+import { needsFirstPull, requestPull, startCloudSync, syncNow } from '@/lib/cloud-sync';
+import { restoreReturningAccount } from '@/lib/returning-account';
 import { loadRates } from '@/lib/rates';
-import { initLocale } from '@/lib/i18n/bootstrap';
+import { applyUserLocale, initDeviceLocale } from '@/lib/i18n/bootstrap';
 import { useLocaleStore } from '@/lib/i18n/locale-store';
 import { useThemeStore } from '@/lib/theme-store';
 import { useSession, SESSION_QUERY_KEY } from '@/lib/auth/use-session';
@@ -53,6 +57,21 @@ const queryClient = new QueryClient();
 
 const DB_INIT_TIMEOUT_MS = 5000;
 
+/**
+ * How long activation waits for a fresh database's first pull before showing
+ * the app anyway. Long enough for a normal restore; the pull carries on in the
+ * background after it.
+ */
+const FIRST_PULL_WAIT_MS = 10_000;
+
+/**
+ * The user whose account language has been applied. Module scope, not state:
+ * RootLayoutNav remounts on every language change (it is keyed on the locale
+ * version), and re-applying the stored language on each remount could undo
+ * the very choice that caused it.
+ */
+let localeAppliedFor: string | null = null;
+
 function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     const t = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
@@ -67,6 +86,53 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise
       },
     );
   });
+}
+
+/** Resolves `true` once `promise` settles within `ms`, `false` if it is still running. */
+function settledWithin(promise: Promise<unknown>, ms: number): Promise<boolean> {
+  return new Promise<boolean>((resolve) => {
+    const t = setTimeout(() => resolve(false), ms);
+    promise.then(
+      () => {
+        clearTimeout(t);
+        resolve(true);
+      },
+      () => {
+        clearTimeout(t);
+        resolve(true);
+      },
+    );
+  });
+}
+
+/**
+ * A fresh database's first pull: the account's ledger, accounts, settings,
+ * categories and subscriptions come down before any screen reads them. Then,
+ * if the server shows the account has been here before, its profile and
+ * onboarding are restored instead of asked again (returning-account.ts) — the
+ * picker and onboarding would otherwise write a new account's settings over
+ * the ones it has.
+ */
+async function restoreAccount(userId: string): Promise<boolean> {
+  const report = await syncNow();
+  const pulled = !!report?.pulled.complete && activeUserId() === userId;
+  await restoreReturningAccount(userId, pulled).catch((e) =>
+    console.warn('[mobile:gate:restore] returning-account check failed', e),
+  );
+  return pulled;
+}
+
+/** Apply the account's language (it lives in the synced settings row) and tell the store. */
+async function applyAccountLocale(remount: boolean): Promise<void> {
+  const applied = await applyUserLocale();
+  if (!remount) {
+    useLocaleStore.getState().sync(applied);
+    return;
+  }
+  // Screens are already up: t() is read at render, so they remount in it.
+  if (useLocaleStore.getState().locale !== applied) {
+    useLocaleStore.setState((s) => ({ locale: applied, version: s.version + 1 }));
+  }
 }
 
 /**
@@ -197,6 +263,118 @@ function RootLayoutNav({ colorScheme }: { colorScheme: 'light' | 'dark' | null |
     });
   }, [sessionLoading, session?.user, sessionError, sessionTimedOut, accountTypeLoaded, accountType]);
 
+  const userId = session?.user?.id ?? null;
+  const resetAccountType = useAccountTypeStore((s: AccountTypeStore) => s.reset);
+
+  // The user whose database is open and ready: the gate every screen behind
+  // the auth guard waits on, because every one of them reads it. Seeded from
+  // the registry so the remount a language change causes (this component is
+  // keyed on the locale) does not flash the startup screen.
+  const [dbUser, setDbUser] = useState<string | null>(() => activeUserId());
+  const [dbError, setDbError] = useState<string | null>(null);
+  const [activationAttempt, setActivationAttempt] = useState(0);
+  const previousUser = useRef<string | null>(activeUserId());
+
+  // Open the signed-in user's own database once the session says who that is,
+  // switch when it names someone else, and close it when it names nobody.
+  // Nothing opens a database before this: there is no shared one any more.
+  useEffect(() => {
+    if (sessionLoading) return;
+
+    if (previousUser.current !== null && previousUser.current !== userId) {
+      // A different user, or none: what the previous user's screens loaded is
+      // still cached, and must not be shown to whoever comes next. (Explicit
+      // sign-out has already done this; a session that simply ended has not.)
+      clearUserQueries(queryClient);
+      resetAccountType();
+    }
+    previousUser.current = userId;
+
+    if (!userId) {
+      setDbUser(null);
+      localeAppliedFor = null;
+      deactivateUser().catch((e) => console.warn('[mobile:gate:db] close failed', e));
+      return;
+    }
+
+    let cancelled = false;
+    setDbError(null);
+    if (activeUserId() !== userId) setDbUser(null);
+    (async () => {
+      const t0 = Date.now();
+      try {
+        await withTimeout(activateUser(userId), DB_INIT_TIMEOUT_MS, 'activateUser');
+        if (cancelled) return;
+        // A database this phone has never pulled into (a first sign-in, a
+        // reinstall, a sign-in after sign-out) restores the account before
+        // anything renders — bounded, so a slow network cannot hold the app.
+        if (await needsFirstPull()) {
+          const restoring = restoreAccount(userId);
+          if (!(await settledWithin(restoring, FIRST_PULL_WAIT_MS))) {
+            console.warn('[mobile:gate:db] first pull still running; continuing');
+            // When it lands, the account's language follows it.
+            restoring
+              .then((pulled) => (pulled && activeUserId() === userId ? applyAccountLocale(true) : undefined))
+              .catch(() => {});
+          }
+          if (cancelled) return;
+        }
+        // The account's own language, once per activation — it lives in the
+        // user's settings row, so it is read after that row has been pulled.
+        if (localeAppliedFor !== userId) {
+          localeAppliedFor = userId;
+          await applyAccountLocale(false);
+        }
+        if (cancelled) return;
+        console.log(`[mobile:gate:db] ready userId=${userId} in ${Date.now() - t0}ms`);
+        setDbUser(userId);
+      } catch (e) {
+        // Superseded: a sign-out or another user overtook this activation.
+        if (cancelled || e instanceof UserDatabaseSupersededError) return;
+        console.error('[mobile:gate:db] activation failed', e);
+        setDbError(e instanceof Error ? e.message : t('errors.dbInit'));
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [sessionLoading, userId, activationAttempt, queryClient, resetAccountType]);
+
+  /** The signed-in user's database is open: screens behind the auth guard may render. */
+  const dbReady = userId !== null && dbUser === userId;
+  const signedIn = !!session?.user;
+
+  // On a cold start the navigator is not mounted until the signed-in user's
+  // database is open, as it used to wait for the shared one: expo-router
+  // resolves the launch URL (a deep link, or "/") when the navigator first
+  // mounts, and every screen that URL can name reads the database. After that
+  // — signing in from the login screen, or the session changing hands — the
+  // navigator is already up and has to stay up, so the gate covers it instead.
+  const [navigatorUp, setNavigatorUp] = useState(false);
+  const showNavigator = navigatorUp || !(signedIn && !dbReady);
+  useEffect(() => {
+    if (showNavigator && !navigatorUp) setNavigatorUp(true);
+  }, [showNavigator, navigatorUp]);
+
+  // Siri and share-sheet captures, only into an open user database.
+  usePendingCaptures(dbUser);
+
+  // Two-way sync for the user whose database is open: local writes, the app
+  // coming to the front and a 60 s interval (lib/cloud-sync.ts), and one
+  // cycle now. Torn down when the user changes, so nothing scheduled for one
+  // user runs in the next one's session. A pull that changed local data
+  // refreshes every screen's queries (the session's excepted).
+  useEffect(() => {
+    if (!dbUser) return;
+    const stop = startCloudSync({
+      onRemoteChange: () => {
+        queryClient.invalidateQueries({ predicate: (query) => query.queryKey[0] !== SESSION_QUERY_KEY[0] });
+      },
+    });
+    requestPull();
+    return stop;
+  }, [dbUser, queryClient]);
+
   // Load accountType from AsyncStorage when session is ready. Awaited so the
   // redirect useEffect always runs after the store has hydrated, eliminating
   // the implicit race window.
@@ -233,6 +411,10 @@ function RootLayoutNav({ colorScheme }: { colorScheme: 'light' | 'dark' | null |
   useEffect(() => {
     if (sessionLoading || !session?.user) return;
     if (!accountTypeLoaded) return;
+    // The signed-in screens only exist once the user's database is open (see
+    // the guards below); redirecting before then would name a screen that is
+    // not there.
+    if (!dbReady) return;
 
     const target = profileRedirect(accountType, segments);
     if (!target) return;
@@ -240,17 +422,17 @@ function RootLayoutNav({ colorScheme }: { colorScheme: 'light' | 'dark' | null |
       `[mobile:gate:redirect] target=${target} accountType=${accountType ?? 'null'} from=/${segments.join('/')}`,
     );
     router.replace(target);
-  }, [sessionLoading, session?.user, accountType, accountTypeLoaded, router, segments]);
+  }, [sessionLoading, session?.user, accountType, accountTypeLoaded, dbReady, router, segments]);
 
   // Open a receipt shared in from another app, once the auth gate has settled.
   // Any earlier and the redirect below replaces the route out from under it.
   const pendingRoute = usePendingNavigationStore((s) => s.route);
   const clearPendingRoute = usePendingNavigationStore((s) => s.setRoute);
   useEffect(() => {
-    if (!pendingRoute || sessionLoading || !accountTypeLoaded) return;
+    if (!pendingRoute || sessionLoading || !accountTypeLoaded || !dbReady) return;
     clearPendingRoute(null);
     router.push(pendingRoute as Parameters<typeof router.push>[0]);
-  }, [pendingRoute, sessionLoading, accountTypeLoaded, router, clearPendingRoute]);
+  }, [pendingRoute, sessionLoading, accountTypeLoaded, dbReady, router, clearPendingRoute]);
 
   // Register the device for push notifications (bill reminders, badge alerts)
   // and schedule the daily streak nudge — once per authenticated user.
@@ -320,11 +502,36 @@ function RootLayoutNav({ colorScheme }: { colorScheme: 'light' | 'dark' | null |
 
   if (sessionLoading && !sessionTimedOut) return <StartupScreen stage="Checking session…" />;
 
+  // Signed in, but this user's database is not open yet, or failed to open.
+  const activationGate = dbError ? (
+    <View style={{ flex: 1, backgroundColor: C.ground, alignItems: 'center', justifyContent: 'center', padding: S.screen }}>
+      <Type role="section" color={C.negative} style={{ marginBottom: 12, textAlign: 'center' }}>
+        {t('startup.errorTitle')}
+      </Type>
+      <Type role="meta" color={C.inkDim} style={{ textAlign: 'center', marginBottom: 24 }}>
+        {dbError}
+      </Type>
+      <PrimaryButton
+        pal={C}
+        label={t('startup.retry')}
+        onPress={() => setActivationAttempt((n) => n + 1)}
+        style={{ alignSelf: 'stretch' }}
+      />
+    </View>
+  ) : (
+    <StartupScreen stage="Opening your data…" />
+  );
+
+  if (!showNavigator) return activationGate;
+
   return (
     <ThemeProvider value={navTheme}>
       <Stack screenOptions={{ headerShown: false }}>
-        {/* Protected: only accessible when signed in */}
-        <Stack.Protected guard={!!session?.user}>
+        {/* Protected: only once signed in AND that user's own database is
+            open, since every one of these screens reads it. A screen mounted
+            any earlier would query a database that is still opening — or,
+            right after another user signed out, one that is closed. */}
+        <Stack.Protected guard={signedIn && dbReady}>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="onboarding" options={{ headerShown: false }} />
           <Stack.Screen name="accounts" options={{ headerShown: false }} />
@@ -346,14 +553,32 @@ function RootLayoutNav({ colorScheme }: { colorScheme: 'light' | 'dark' | null |
           <Stack.Screen name="business-profile" options={{ headerShown: false }} />
           <Stack.Screen name="business-tax" options={{ headerShown: false }} />
           <Stack.Screen name="currency" options={{ headerShown: false }} />
+          {/* These read or write the signed-in user's own data — the health
+              profile, the ledger, the household's accounts — so they wait for
+              that user's database like the rest. Left undeclared they were
+              reachable signed out, and stayed mounted across a change of
+              session with the previous user's data in their state. */}
+          <Stack.Screen name="advisor-profile" options={{ headerShown: false }} />
+          <Stack.Screen name="receipt-scan" options={{ headerShown: false }} />
+          <Stack.Screen name="household" options={{ headerShown: false }} />
+          <Stack.Screen name="business-team" options={{ headerShown: false }} />
         </Stack.Protected>
 
-        {/* Public: only accessible when NOT signed in */}
-        <Stack.Protected guard={!session?.user}>
+        {/* Public: when not signed in — and while a signed-in user's database
+            is still opening, so the navigator always has a screen to stand
+            on. That moment is covered by the overlay below; once the database
+            is open this group closes and the guard above takes over. */}
+        <Stack.Protected guard={!signedIn || !dbReady}>
           <Stack.Screen name="login" options={{ headerShown: false }} />
           <Stack.Screen name="signup" options={{ headerShown: false }} />
         </Stack.Protected>
       </Stack>
+
+      {/* The navigator is up but this user's database is not: cover it, rather
+          than unmount it under the redirect that follows. */}
+      {signedIn && !dbReady ? (
+        <View style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 }}>{activationGate}</View>
+      ) : null}
     </ThemeProvider>
   );
 }
@@ -411,15 +636,19 @@ function useBiometricRelock(onRelock: () => void) {
   }, [onRelock]);
 }
 
-function usePendingCaptures(dbReady: boolean) {
-  // Parked, not navigated to. The drain runs as soon as the database is ready,
-  // which is before the auth gate has decided where the user belongs — a push
-  // here is wiped by the router.replace that follows. RootLayoutNav opens it
-  // once that has settled.
+function usePendingCaptures(dbUser: string | null) {
+  // Parked, not navigated to. The drain runs as soon as the user's database is
+  // ready, which is before the auth gate has decided where the user belongs — a
+  // push here is wiped by the router.replace that follows. RootLayoutNav opens
+  // it once that has settled.
   const setPendingRoute = usePendingNavigationStore((s) => s.setRoute);
 
   useEffect(() => {
-    if (!dbReady) return;
+    // The queues are files on the phone, written while nobody may have been
+    // signed in. They are drained only into an open user database, and each
+    // drain is bound to that user: a switch tears this effect down, and a
+    // drain already running stops rather than write into the next ledger.
+    if (!dbUser) return;
 
     let cancelled = false;
     const refresh = () => {
@@ -429,7 +658,7 @@ function usePendingCaptures(dbReady: boolean) {
 
     const drain = async () => {
       try {
-        const inserted = await drainPendingCaptures();
+        const inserted = await drainPendingCaptures(dbUser);
         if (inserted > 0 && !cancelled) refresh();
       } catch (e) {
         // Capture is a convenience. Failing it must never break a launch.
@@ -437,7 +666,7 @@ function usePendingCaptures(dbReady: boolean) {
       }
 
       try {
-        const { inserted, receiptUri } = await drainSharedItems();
+        const { inserted, receiptUri } = await drainSharedItems(dbUser);
         if (cancelled) return;
         if (inserted > 0) refresh();
         // A shared photo cannot be written blind — it has to go through the
@@ -462,21 +691,21 @@ function usePendingCaptures(dbReady: boolean) {
       stopTaps();
       sub.remove();
     };
-  }, [dbReady, setPendingRoute]);
+  }, [dbUser, setPendingRoute]);
 }
 
 export default function RootLayout() {
-  const C = useC();
   const localeVersion = useLocaleStore((s) => s.version);
   // The user's theme choice, not the raw OS value: otherwise React
   // Navigation paints dark chrome underneath a light-themed app.
   const colorScheme = useScheme();
-  const [dbReady, setDbReady] = useState(false);
-  const [dbError, setDbError] = useState<string | null>(null);
+  // Boot is only what needs no user: language, splash, the biometric lock.
+  // No database opens here. Each user's own database is opened by
+  // RootLayoutNav once the session says who is signed in.
+  const [booted, setBooted] = useState(false);
   const [locked, setLocked] = useState(false);
   const [stage, setStage] = useState<string>('Booting…');
 
-  usePendingCaptures(dbReady);
   // useCallback so the listener is not torn down and rebuilt on every render.
   useBiometricRelock(useCallback(() => setLocked(true), []));
 
@@ -490,37 +719,30 @@ export default function RootLayout() {
   }, []);
 
   // Read the stored theme choice as early as possible. It is deliberately not
-  // inside initApp: that waits on the database, and the theme has nothing to
-  // do with the database — gating it there would paint one frame of the wrong
-  // scheme behind the startup screen.
+  // inside initApp: the theme has nothing to do with anything initApp waits
+  // on — gating it there would paint one frame of the wrong scheme behind the
+  // startup screen.
   const loadTheme = useThemeStore((s) => s.load);
   useEffect(() => {
     loadTheme();
   }, [loadTheme]);
 
   const initApp = useCallback(async () => {
-    setDbError(null);
-    setStage('Opening database…');
-    console.log('[startup] initializeDatabase start');
+    setStage('Starting…');
     try {
-      await withTimeout(initializeDatabase(), DB_INIT_TIMEOUT_MS, 'initializeDatabase');
-      console.log('[startup] initializeDatabase success');
-      // Language before any screen renders, so nothing flashes in English first.
-      // Startup applies the stored language directly to i18n-js, so the
-      // store has to be told what it landed on or the first change looks
-      // like a no-op.
-      await initLocale()
+      // Language before any screen renders, so nothing flashes in English
+      // first: the phone's own until a user is known (the login screen), then
+      // the account's, applied when that user's database opens. Startup
+      // applies it directly to i18n-js, so the store has to be told what it
+      // landed on or the first change looks like a no-op.
+      await initDeviceLocale()
         .then((applied) => useLocaleStore.getState().sync(applied))
         .catch(() => {});
-    } catch (e) {
-      console.error('[startup] initializeDatabase error', e);
-      setDbError(e instanceof Error ? e.message : t('errors.dbInit'));
-      return;
     } finally {
-      // Always hide splash once we've reached this branch — error UI or success UI both
-      // need the JS surface visible. Backstop in the module also covers this.
+      // Always hide the splash once we get here. Backstop in the module also
+      // covers this.
       SplashScreen.hideAsync().catch(() => {});
-      console.log('[startup] SplashScreen.hideAsync called (after DB init)');
+      console.log('[startup] SplashScreen.hideAsync called (after boot)');
     }
 
     // Biometric check — must never hang the app. Bound to 2s.
@@ -538,40 +760,22 @@ export default function RootLayout() {
     }
 
     setStage('Ready');
-    setDbReady(true);
-    console.log('[startup] dbReady true');
+    setBooted(true);
+    console.log('[startup] booted');
   }, []);
 
   useEffect(() => {
     initApp();
   }, [initApp]);
 
-  // Back up local writes to the cloud. Registered once the database is open so
-  // the debounced push never races initialization.
+  // Exchange rates are the phone's, not a user's. Best-effort: conversions
+  // fall back to the cached or bundled table.
   useEffect(() => {
-    if (!dbReady) return;
-    // Best-effort: conversions fall back to the cached or bundled table.
+    if (!booted) return;
     loadRates().catch(() => {});
-    return startCloudSync();
-  }, [dbReady]);
+  }, [booted]);
 
-  if (dbError) {
-    return (
-      <SafeAreaProvider>
-        <View style={{ flex: 1, backgroundColor: C.ground, alignItems: 'center', justifyContent: 'center', padding: S.screen }}>
-          <Type role="section" color={C.negative} style={{ marginBottom: 12, textAlign: 'center' }}>
-            {t('startup.errorTitle')}
-          </Type>
-          <Type role="meta" color={C.inkDim} style={{ textAlign: 'center', marginBottom: 24 }}>
-            {dbError}
-          </Type>
-          <PrimaryButton pal={C} label={t('startup.retry')} onPress={initApp} style={{ alignSelf: 'stretch' }} />
-        </View>
-      </SafeAreaProvider>
-    );
-  }
-
-  if (!dbReady) {
+  if (!booted) {
     return (
       <SafeAreaProvider>
         <StartupScreen stage={stage} />

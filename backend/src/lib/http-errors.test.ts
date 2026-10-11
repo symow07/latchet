@@ -23,6 +23,26 @@ test("a broken foreign key is a 400", () => {
   expect(mapError(prismaError("P2003")).status).toBe(400);
 });
 
+test("a deadlock or serialisation failure is a retryable 409, not a 500", () => {
+  // Postgres aborts one of two conflicting writers; nothing was written.
+  expect(mapError(prismaError("P2034"))).toMatchObject({ status: 409, code: "write_conflict" });
+});
+
+test("text Postgres cannot store is the caller's 400, not our 500", () => {
+  // A NUL character in a note. Prisma reports it as an unknown request error
+  // carrying the SQLSTATE in its message, with no code of its own.
+  const nul = new Error(
+    'Error occurred during query execution:\nConnectorError(ConnectorError { user_facing_error: None, ' +
+      'kind: QueryError(PostgresError { code: "22021", message: "invalid byte sequence for encoding \\"UTF8\\": 0x00", ' +
+      'severity: "ERROR", detail: None, column: None, hint: None }), transient: false })'
+  );
+  const mapped = mapError(nul);
+  expect(mapped).toMatchObject({ status: 400, code: "invalid_text" });
+  expect(mapped.message).not.toContain("UTF8");
+  // Any other database failure stays a 500.
+  expect(mapError(new Error('PostgresError { code: "57P01", message: "terminating connection" }')).status).toBe(500);
+});
+
 test("an unknown Prisma code is still a 500", () => {
   expect(mapError(prismaError("P9999")).status).toBe(500);
 });

@@ -1,56 +1,47 @@
+import { hitWindow } from "./distributed/counter";
+import type { Db } from "./distributed/clock";
+
 /**
- * Lightweight per-key usage caps for OpenAI-backed endpoints. Guards spend, not
- * abuse (auth.ts's rate limiters cover brute-force). In-memory like the auth
- * limiters — acceptable for the current single-instance deployment; restarting
- * the process resets counters, which only errs in the user's favor.
+ * Per-key usage caps for the OpenAI-backed endpoints. Guards spend, not abuse
+ * (auth.ts's rate limiters cover brute force).
+ *
+ * Counted through lib/distributed/counter, in Postgres, so every instance
+ * draws on one allowance. These were Maps in each process: with two instances
+ * a free user's five advisor calls a day were ten, and a deploy reset them.
  */
 
-interface Window {
-  count: number;
-  resetAt: number;
-}
-
-const stores = new Map<string, Map<string, Window>>();
-
 /**
- * Count one use of `bucket` for `key`; returns false when over `max` per
+ * Count one use of `bucket` for `key`; resolves false when over `max` per
  * `windowMs`. e.g. allowUsage("ai-chat", userId, 30, 5*60_000).
+ *
+ * A refused use is not counted against the next window, and does not extend
+ * the current one.
  */
-export function allowUsage(bucket: string, key: string, max: number, windowMs: number): boolean {
-  let store = stores.get(bucket);
-  if (!store) {
-    store = new Map();
-    stores.set(bucket, store);
-  }
-  const now = Date.now();
-  const win = store.get(key);
-  if (!win || now > win.resetAt) {
-    store.set(key, { count: 1, resetAt: now + windowMs });
-    return true;
-  }
-  if (win.count >= max) return false;
-  win.count++;
-  return true;
+export async function allowUsage(
+  bucket: string,
+  key: string,
+  max: number,
+  windowMs: number,
+  db?: Db
+): Promise<boolean> {
+  return (await hitWindow(`usage:${bucket}:${key}`, max, windowMs, db)).allowed;
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-/** Short-window + daily cap in one call. */
-export function allowUsageTiered(
+/**
+ * Short-window + daily cap in one call. The daily cap is only counted when
+ * the burst cap allows the use, so a burst-limited caller does not also burn
+ * through the day.
+ */
+export async function allowUsageTiered(
   bucket: string,
   key: string,
-  opts: { burstMax: number; burstWindowMs: number; dailyMax: number }
-): boolean {
+  opts: { burstMax: number; burstWindowMs: number; dailyMax: number },
+  db?: Db
+): Promise<boolean> {
   return (
-    allowUsage(`${bucket}:burst`, key, opts.burstMax, opts.burstWindowMs) &&
-    allowUsage(`${bucket}:daily`, key, opts.dailyMax, DAY_MS)
+    (await allowUsage(`${bucket}:burst`, key, opts.burstMax, opts.burstWindowMs, db)) &&
+    (await allowUsage(`${bucket}:daily`, key, opts.dailyMax, DAY_MS, db))
   );
 }
-
-// Purge expired windows so long-lived processes don't leak.
-setInterval(() => {
-  const now = Date.now();
-  for (const store of stores.values()) {
-    for (const [key, win] of store) if (now > win.resetAt) store.delete(key);
-  }
-}, 60_000).unref();

@@ -14,6 +14,7 @@ import {
   monthBounds,
 } from './dates';
 import { calculateHealthScore } from './health-score';
+import type { Transaction } from './transaction';
 
 // A moment that lands on different calendar dates depending on the viewer's
 // timezone: 2026-08-01 00:30 UTC is still 31 July in Los Angeles and already
@@ -103,14 +104,17 @@ const SETTINGS = {
  * that landed in the wrong bucket when the code did new Date(dateISO).getMonth().
  */
 function boundaryTransactions(month: string) {
-  const mk = (id: string, dateISO: string, amount: number, type: string) => ({
+  const mk = (id: string, dateISO: string, amount: number, type: Transaction['type']): Transaction => ({
     id,
     amount,
     category: 'Food',
     type,
-    isImpulse: 0,
+    isImpulse: false,
+    note: null,
     dateISO,
     createdAt: `${dateISO}T00:00:00.000Z`,
+    accountId: null,
+    currency: 'USD',
   });
   return [
     mk('t1', `${month}-01`, 300, 'Expense'),
@@ -123,7 +127,7 @@ function boundaryTransactions(month: string) {
 test('health score buckets boundary transactions into their own month', () => {
   const now = new Date();
   const month = todayISO(now).slice(0, 7);
-  const result = calculateHealthScore(boundaryTransactions(month) as any, SETTINGS as any);
+  const result = calculateHealthScore(boundaryTransactions(month), SETTINGS as any);
 
   // 4000 income against 730 of expenses is a savings rate well above 30%,
   // which is only true if all four rows landed in the current month.

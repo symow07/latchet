@@ -10,7 +10,8 @@ import {
   syncConnectionTransactions,
   removeConnection,
 } from "../lib/bank-sync";
-import { ExpiringMap, OAUTH_STATE_TTL_MS, autoSweep } from "../lib/expiring-map";
+import { cacheSet, cacheTake } from "../lib/distributed/cache";
+import type { Db } from "../lib/distributed/clock";
 import { userIsPro } from "../lib/user-entitlement";
 
 /**
@@ -34,13 +35,37 @@ import { userIsPro } from "../lib/user-entitlement";
 
 const provider = getProvider(DEFAULT_PROVIDER_ID);
 
-// Maps a link token to the user who created it, so the completion webhook can
-// exchange the resulting public token for the right account. Process-local
-// (single-instance). Entries expire so an abandoned bank login does not leak
-// one forever.
-const pendingLinkSessions = autoSweep(
-  new ExpiringMap<string, string>(OAUTH_STATE_TTL_MS)
-);
+// ── Pending link sessions ────────────────────────────────────────────────────
+// A link token maps to the user who created it, so the completion webhook can
+// exchange the resulting public token for the right account. It lives in
+// CacheEntry, not in this process: the provider's webhook reaches whichever
+// instance the load balancer picks, rarely the one that created the session.
+// Entries expire, so an abandoned bank login leaves nothing behind for long.
+
+/** Bank logins are interactive; 15 minutes is generous. */
+export const LINK_SESSION_TTL_MS = 15 * 60 * 1000;
+
+const linkSessionKey = (linkToken: string) => `plaid:link-session:${linkToken}`;
+
+/** Remember that `userId` started the link session `linkToken`. */
+export async function rememberLinkSession(
+  linkToken: string,
+  userId: string,
+  db?: Db
+): Promise<void> {
+  await cacheSet(linkSessionKey(linkToken), { userId }, LINK_SESSION_TTL_MS, db);
+}
+
+/**
+ * The user who started `linkToken`, consuming the session: a second call, on
+ * this instance or any other, gets null. Taking it before the exchange rather
+ * than deleting it after means a webhook delivered twice at once (providers
+ * retry) is exchanged once, not once per delivery.
+ */
+export async function consumeLinkSession(linkToken: string, db?: Db): Promise<string | null> {
+  const session = await cacheTake<{ userId: string }>(linkSessionKey(linkToken), db);
+  return session?.userId ?? null;
+}
 
 const router = new Hono<{
   Variables: {
@@ -53,7 +78,7 @@ const router = new Hono<{
 // registered before the auth guard so it is not blocked. Authenticity comes
 // from the provider's signature instead — without it anyone could POST a
 // "transactions changed" body and drive unbounded syncs against our quota and
-// our single SQLite writer.
+// our database.
 router.post("/webhook", async (c) => {
   if (!provider.isConfigured()) {
     // No credentials means no way to verify a signature, so nothing here could
@@ -83,18 +108,26 @@ router.post("/webhook", async (c) => {
   const event = provider.parseWebhook(body);
 
   if (event.kind === "link-finished") {
-    const userId = event.linkToken ? pendingLinkSessions.get(event.linkToken) : undefined;
-    if (userId) {
-      for (const publicToken of event.publicTokens) {
-        await persistConnection(userId, provider, await provider.exchange(publicToken)).catch(
-          (e) =>
-            console.warn(
-              "[bank:webhook] exchange failed:",
-              e instanceof Error ? e.message : e
-            )
-        );
+    const linkToken = event.linkToken;
+    const userId = linkToken ? await consumeLinkSession(linkToken) : null;
+    if (linkToken && userId) {
+      try {
+        for (const publicToken of event.publicTokens) {
+          await persistConnection(userId, provider, await provider.exchange(publicToken)).catch(
+            (e) =>
+              console.warn(
+                "[bank:webhook] exchange failed:",
+                e instanceof Error ? e.message : e
+              )
+          );
+        }
+      } catch (e) {
+        // The exchange itself threw, which fails this delivery so the provider
+        // retries it. Put the session back so the retry finds it, as it did
+        // when the session was only removed after a successful exchange.
+        await rememberLinkSession(linkToken, userId).catch(() => {});
+        throw e;
       }
-      pendingLinkSessions.delete(event.linkToken);
     }
     return c.json({ received: true });
   }
@@ -146,7 +179,7 @@ router.post("/link-token", async (c) => {
   });
 
   // Remember which user owns this session for the webhook exchange.
-  pendingLinkSessions.set(session.linkToken, user.id);
+  await rememberLinkSession(session.linkToken, user.id);
   return c.json({
     linkToken: session.linkToken,
     hostedLinkUrl: session.hostedUrl,
@@ -163,7 +196,12 @@ router.post("/exchange", zValidator("json", exchangeSchema), async (c) => {
   const connection = await provider.exchange(publicToken);
   const item = await persistConnection(user.id, provider, connection);
 
-  const accounts = await prisma.plaidAccount.findMany({ where: { itemId: item.id } });
+  // Ordered explicitly: Postgres has no implicit row order. Ids are cuids,
+  // which sort in creation order, i.e. the order the provider listed them.
+  const accounts = await prisma.plaidAccount.findMany({
+    where: { itemId: item.id },
+    orderBy: { id: "asc" },
+  });
   return c.json({ itemId: item.id, institutionName: item.institutionName, accounts });
 });
 
@@ -171,7 +209,8 @@ router.get("/accounts", async (c) => {
   const user = c.get("user")!;
   const items = await prisma.plaidItem.findMany({
     where: { userId: user.id },
-    include: { accounts: true },
+    include: { accounts: { orderBy: { id: "asc" } } },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
   });
   return c.json({ items });
 });

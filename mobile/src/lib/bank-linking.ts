@@ -6,6 +6,13 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { api } from './api/api';
+import { requestPull } from './cloud-sync';
+import { userKey } from './storage-keys';
+
+// Bank connections write to this user's ledger on the server: the exchange
+// runs an initial transaction sync, a bank sync books new transactions, and a
+// disconnect deletes the bank's. None of it reaches the phone until it pulls,
+// so each of those asks for a pull as soon as the server is done.
 
 // ── Backend (Plaid) wire types + mappers ─────────────────────────────────────
 interface PlaidAccountDTO {
@@ -117,9 +124,21 @@ export interface ConsentInfo {
   canRevoke: boolean;
 }
 
-// Storage keys
+// Storage keys. Per user (storage-keys.ts): an offline snapshot of this user's
+// Plaid links — bank names and masked account numbers — deleted on sign-out.
 const LINKED_BANKS_KEY = 'linked_banks';
 const LINKED_ACCOUNTS_KEY = 'linked_accounts';
+
+// The cache is a convenience: a failure here — including nobody being signed
+// in, when userKey() throws — must never fail the call it decorates.
+function parseCached<T>(data: string | null): T[] {
+  try {
+    const parsed: unknown = data ? JSON.parse(data) : [];
+    return Array.isArray(parsed) ? (parsed as T[]) : [];
+  } catch {
+    return [];
+  }
+}
 
 // There is deliberately no bank list here.
 //
@@ -136,12 +155,19 @@ export async function getLinkedBanks(): Promise<LinkedBank[]> {
     const items = await fetchPlaidItems();
     const banks = items.map(itemToBank);
     // Cache for offline display.
-    await AsyncStorage.setItem(LINKED_BANKS_KEY, JSON.stringify(banks)).catch(() => {});
+    try {
+      await AsyncStorage.setItem(userKey(LINKED_BANKS_KEY), JSON.stringify(banks));
+    } catch {
+      /* offline display only */
+    }
     return banks;
   } catch {
     // Fall back to the last cached snapshot when offline / unconfigured.
-    const data = await AsyncStorage.getItem(LINKED_BANKS_KEY).catch(() => null);
-    return data ? JSON.parse(data) : [];
+    try {
+      return parseCached<LinkedBank>(await AsyncStorage.getItem(userKey(LINKED_BANKS_KEY)));
+    } catch {
+      return [];
+    }
   }
 }
 
@@ -150,11 +176,18 @@ export async function getLinkedAccounts(): Promise<LinkedAccount[]> {
   try {
     const items = await fetchPlaidItems();
     const accounts = items.flatMap((item) => item.accounts.map((a) => accountToLinked(item, a)));
-    await AsyncStorage.setItem(LINKED_ACCOUNTS_KEY, JSON.stringify(accounts)).catch(() => {});
+    try {
+      await AsyncStorage.setItem(userKey(LINKED_ACCOUNTS_KEY), JSON.stringify(accounts));
+    } catch {
+      /* offline display only */
+    }
     return accounts;
   } catch {
-    const data = await AsyncStorage.getItem(LINKED_ACCOUNTS_KEY).catch(() => null);
-    return data ? JSON.parse(data) : [];
+    try {
+      return parseCached<LinkedAccount>(await AsyncStorage.getItem(userKey(LINKED_ACCOUNTS_KEY)));
+    } catch {
+      return [];
+    }
   }
 }
 
@@ -183,6 +216,7 @@ export async function completeBankConnection(
 ): Promise<{ success: boolean; bank?: LinkedBank; accounts?: LinkedAccount[]; error?: string }> {
   try {
     await api.post('/api/plaid/exchange', { publicToken });
+    requestPull();
     // Re-read the canonical state from the backend.
     const items = await fetchPlaidItems();
     const newest = items[items.length - 1];
@@ -200,8 +234,13 @@ export async function completeBankConnection(
 export async function disconnectBank(bankId: string): Promise<boolean> {
   try {
     await api.delete(`/api/plaid/items/${bankId}`);
-    await AsyncStorage.removeItem(LINKED_BANKS_KEY).catch(() => {});
-    await AsyncStorage.removeItem(LINKED_ACCOUNTS_KEY).catch(() => {});
+    requestPull();
+    try {
+      await AsyncStorage.removeItem(userKey(LINKED_BANKS_KEY));
+      await AsyncStorage.removeItem(userKey(LINKED_ACCOUNTS_KEY));
+    } catch {
+      /* nothing cached, or nobody signed in */
+    }
     return true;
   } catch {
     return false;
@@ -234,6 +273,8 @@ export async function syncAllTransactions(): Promise<{
       '/api/plaid/transactions/sync',
       {}
     );
+    // Even a partial sync may have booked some: bring them into the ledger.
+    requestPull();
     return { success: errors.length === 0, newTransactions: added, errors };
   } catch (e) {
     return {

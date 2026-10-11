@@ -30,6 +30,11 @@ async function cleanup() {
   await prisma.groupMember.deleteMany({ where: { userId: { startsWith: P } } });
   await prisma.group.deleteMany({ where: { ownerId: { startsWith: P } } });
   await prisma.user.deleteMany({ where: { id: { startsWith: P } } });
+  // Join attempts now count in Postgres rather than per process, so they
+  // outlive a run; without this, a few runs inside the limiter's window hit 429.
+  await prisma.rateLimitBucket.deleteMany({ where: { key: { contains: P } } });
+  // Tombstones have no foreign key to User (PLAN decision 3), so they outlive it too.
+  await prisma.syncTombstone.deleteMany({ where: { userId: { startsWith: P } } });
 }
 
 /** Acts as `userId` for the next request. Stands in for Better Auth only. */

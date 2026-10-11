@@ -1,21 +1,11 @@
 import { format, startOfDay, subDays, startOfMonth, endOfMonth } from 'date-fns';
 import { todayISO, daysAgoISO, daysBetween } from './dates';
 import { getIntlTag } from './i18n/core';
+import type { Transaction } from './transaction';
 
 export interface DailySpending {
   date: string;
   amount: number;
-}
-
-export interface Transaction {
-  id: string;
-  amount: number;
-  category: string;
-  type: string;
-  isImpulse: number;
-  note?: string;
-  dateISO: string;
-  createdAt: string;
 }
 
 export function getDateRange(days: number): { start: string; end: string } {
