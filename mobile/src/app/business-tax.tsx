@@ -6,7 +6,7 @@ import { Check, FileText } from '@/components/icons';
 import * as Haptics from 'expo-haptics';
 import { getBusiness, updateBusiness } from '@/lib/businessApi';
 import { useSession } from '@/lib/auth/use-session';
-import { S, useB } from '@/lib/design';
+import { R, S, useC } from '@/lib/design';
 import { PressableScale } from '@/components/motion';
 import {
   Card,
@@ -30,7 +30,7 @@ import { monthNames, normaliseFiscalMonth } from '@/lib/fiscal-year';
  * is correct. The backend caps length and stores what it is given.
  */
 export default function BusinessTaxScreen() {
-  const B = useB();
+  const B = useC();
   const router = useRouter();
   const qc = useQueryClient();
   const { data: session } = useSession();
@@ -91,7 +91,7 @@ export default function BusinessTaxScreen() {
         ) : (
           <View style={{ paddingHorizontal: S.screen, marginTop: 24 }}>
             <View style={{ alignItems: 'center' }}>
-              <IconTile pal={B} size={64} style={{ borderRadius: 20 }}>
+              <IconTile pal={B} size={64} style={{ borderRadius: R.control }}>
                 <FileText size={28} color={B.accent} strokeWidth={S.stroke} />
               </IconTile>
             </View>
@@ -162,7 +162,7 @@ export default function BusinessTaxScreen() {
                       {label}
                     </Type>
                     {active ? (
-                      <Check size={18} color={B.accent} strokeWidth={2.2} />
+                      <Check size={18} color={B.accent} strokeWidth={S.stroke} />
                     ) : null}
                   </PressableScale>
                 );

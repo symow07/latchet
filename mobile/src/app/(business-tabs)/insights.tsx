@@ -12,9 +12,11 @@ import { roleOf } from '@/lib/group-members';
 import { useSession } from '@/lib/auth/use-session';
 import { useFocusEffect } from 'expo-router';
 import { formatCurrency } from '@/lib/calculations';
-import { BAR, S, useB, type BizPalette } from '@/lib/design';
+import { BAR, S, useC, type Palette } from '@/lib/design';
+import { EASE, MOTION } from '@/lib/identity/motion';
+import { DARK as ON_ESPRESSO } from '@/lib/identity/tokens';
 import {
-  Amount, Card, CircleAction, Empty, Field, Header, PrimaryButton, Screen,
+  Amount, BalanceCard, Card, CircleAction, Empty, Field, Header, PrimaryButton, Screen,
   SectionHeader, Sheet, Stat, Type,
 } from '@/components/kit';
 import { t } from '@/lib/i18n/core';
@@ -31,11 +33,11 @@ function ratio(spent: number, budget: number) {
 /**
  * Three states, and the sentence beside the bar always says which one.
  *
- * The colours used to be `#ef4444` / `#f59e0b` / `#14b8a6` — three literals
- * that appear nowhere in the palette. They are now the semantic tokens, which
- * are the ones verified against both grounds.
+ * The colours used to be three hex literals (a red, an amber and a teal) that
+ * appear nowhere in the palette. They are now the semantic tokens, which are
+ * the ones verified against both grounds.
  */
-function trackTone(pal: BizPalette, spent: number, budget: number): string {
+function trackTone(pal: Palette, spent: number, budget: number): string {
   if (budget <= 0) return pal.groundSunk;
   const r = spent / budget;
   return r >= 1 ? pal.negative : r >= 0.8 ? pal.warning : pal.accentMark;
@@ -48,15 +50,21 @@ function trackTone(pal: BizPalette, spent: number, budget: number): string {
  * staggered delay — and when eight bars all arrive the same way, none of them
  * arrives. The screen has one number worth watching land; the rows beneath it
  * are a list you read.
+ *
+ * The fill is the identity's progress line: 280 ms on the ease-in-out curve.
+ * It used to take 700 ms, which is a wait rather than a response.
+ *
+ * `onAnchor` draws it on the espresso anchor: a translucent silver track
+ * under a silver fill, never white.
  */
 function Meter({
-  pal, value, tone, animate = false, onDark = false,
+  pal, value, tone, animate = false, onAnchor = false,
 }: {
-  pal: BizPalette;
+  pal: Palette;
   value: number;
   tone: string;
   animate?: boolean;
-  onDark?: boolean;
+  onAnchor?: boolean;
 }) {
   const reduced = useReducedMotion();
   const width = useSharedValue(animate && !reduced ? 0 : value);
@@ -68,7 +76,11 @@ function Meter({
         return;
       }
       width.value = 0;
-      width.value = withTiming(value, { duration: 700, easing: Easing.out(Easing.cubic) });
+      const [x1, y1, x2, y2] = EASE[MOTION.progress.ease];
+      width.value = withTiming(value, {
+        duration: MOTION.progress.duration,
+        easing: Easing.bezier(x1, y1, x2, y2),
+      });
     }, [value, animate, reduced, width])
   );
 
@@ -81,7 +93,7 @@ function Meter({
       style={{
         height: 6,
         borderRadius: 3,
-        backgroundColor: onDark ? 'rgba(255,255,255,0.16)' : pal.groundSunk,
+        backgroundColor: onAnchor ? pal.glassStrong : pal.groundSunk,
         overflow: 'hidden',
         // Fills from the reading direction, so it mirrors in Arabic rather
         // than draining backwards (§7).
@@ -102,7 +114,7 @@ function EditBudgetSheet({
   onClose: () => void;
   currentData: BudgetData | null | undefined;
 }) {
-  const B = useB();
+  const B = useC();
   const qc = useQueryClient();
   const [total, setTotal] = useState('');
   const [byCategory, setByCategory] = useState<Partial<Record<BudgetCategory, string>>>({});
@@ -196,16 +208,18 @@ function EditBudgetSheet({
  * Budget — DESIGN-PROMPT.md §36.
  *
  * The hero card used to change colour wholesale when you went over: a
- * near-black red gradient (`#220a0a`) on a light-mode screen, plus a tinted
- * warning strip, plus a percentage in a fourth colour, plus a row of three
- * differently-coloured figures underneath. Five signals for one fact.
+ * near-black red gradient on a light-mode screen, plus a tinted warning strip,
+ * plus a percentage in a fourth colour, plus a row of three differently
+ * coloured figures underneath. Five signals for one fact.
  *
  * §6.2 says it in one sentence and one track, with the state named in words so
- * it never rests on telling two tints apart.
+ * it never rests on telling two tints apart. The hero is the screen's one
+ * espresso anchor: off-white figures, a silver track, and the silver
+ * Remaining figure, as on home.
  */
 export default function BudgetScreen({ embedded }: { embedded?: boolean } = {}) {
   const insets = useSafeAreaInsets();
-  const B = useB();
+  const B = useC();
   const qc = useQueryClient();
   const { data: session } = useSession();
   const [showEdit, setShowEdit] = useState(false);
@@ -260,36 +274,37 @@ export default function BudgetScreen({ embedded }: { embedded?: boolean } = {}) 
         ) : (
           <>
             <View style={{ paddingHorizontal: S.screen, marginTop: embedded ? 12 : 24 }}>
-              <Card pal={B} radius={24} padding={S.card + 2} contentStyle={{ backgroundColor: B.inkSoft }}>
-                <Type role="meta" color={B.onInk} style={{ opacity: 0.7 }}>
-                  {data?.month.label ?? t('businessInsights.monthlySpend')}
-                </Type>
-                <Amount
-                  value={totalSpent}
-                  format={formatCurrency}
-                  size={40}
-                  color={B.onInk}
-                  style={{ marginTop: 6 }}
-                />
-
+              <BalanceCard
+                pal={B}
+                label={data?.month.label ?? t('businessInsights.monthlySpend')}
+                amount={totalSpent}
+                format={formatCurrency}
+                // One sentence, in plain English, that already contains the
+                // state — no badge, no percentage in a fourth hue.
+                caption={
+                  totalBudget > 0
+                    ? overBudget
+                      ? t('businessInsights.overBudgetBy', {
+                          amount: formatCurrency(totalSpent - totalBudget),
+                        })
+                      : t('businessInsights.pctUsed', { pct: Math.round(totalRatio * 100) })
+                    : undefined
+                }
+              >
                 {totalBudget > 0 ? (
                   <>
-                    {/* One sentence, in plain English, that already contains
-                        the state — no badge, no percentage in a fourth hue. */}
-                    <Type role="meta" color={B.onInk} style={{ opacity: 0.7, marginTop: 6 }}>
-                      {overBudget
-                        ? t('businessInsights.overBudgetBy', {
-                            amount: formatCurrency(totalSpent - totalBudget),
-                          })
-                        : t('businessInsights.pctUsed', { pct: Math.round(totalRatio * 100) })}
-                    </Type>
-                    <Meter
-                      pal={B}
-                      value={totalRatio}
-                      tone={overBudget ? B.negative : B.accentGlow}
-                      animate
-                      onDark
-                    />
+                    <View style={{ marginTop: 16 }}>
+                      {/* Over budget the fill turns red: the dark scheme's red,
+                          the one that reads on espresso. The sentence above
+                          says "over" in words. */}
+                      <Meter
+                        pal={B}
+                        value={totalRatio}
+                        tone={overBudget ? ON_ESPRESSO.negative : B.silver}
+                        animate
+                        onAnchor
+                      />
+                    </View>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 16 }}>
                       <Stat
                         pal={B}
@@ -297,8 +312,8 @@ export default function BudgetScreen({ embedded }: { embedded?: boolean } = {}) 
                         value={totalBudget}
                         format={formatCurrency}
                         size={17}
-                        tone={B.onInk}
-                        labelTone={B.onInk}
+                        tone={B.onEspresso}
+                        labelTone={B.onEspressoDim}
                       />
                       <Stat
                         pal={B}
@@ -306,20 +321,23 @@ export default function BudgetScreen({ embedded }: { embedded?: boolean } = {}) 
                         value={remaining}
                         format={formatCurrency}
                         size={17}
-                        tone={B.onInk}
-                        labelTone={B.onInk}
+                        tone={B.silver}
+                        labelTone={B.onEspressoDim}
                         align="flex-end"
                       />
                     </View>
                   </>
                 ) : null}
-              </Card>
+              </BalanceCard>
 
+              {/* The secondary button, not espresso: the anchor above is
+                  already the screen's one espresso surface. */}
               {totalBudget === 0 && canEdit ? (
                 <PrimaryButton
                   pal={B}
                   label={t('businessInsights.setBudgetShort')}
                   onPress={() => setShowEdit(true)}
+                  variant="secondary"
                   style={{ marginTop: 16 }}
                 />
               ) : null}

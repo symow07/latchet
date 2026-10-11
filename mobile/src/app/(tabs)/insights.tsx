@@ -23,6 +23,7 @@ import {
   BarChart,
   Card,
   Empty,
+  Group,
   Header,
   IconTile,
   LinkRow,
@@ -44,6 +45,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
  * entry rows into it.
  *
  * Held to the density budget (§4): one hero (the chart), then two blocks.
+ * The hero is the screen's one espresso anchor (DESIGN-IDENTITY.md).
  */
 export default function InsightsScreen() {
   const insets = useSafeAreaInsets();
@@ -99,14 +101,15 @@ export default function InsightsScreen() {
           />
         ) : (
           <>
-            {/* Hero — the 14-day chart that used to crowd home */}
+            {/* Hero — the 14-day chart that used to crowd home, and the
+                screen's one espresso anchor: off-white title, silver beneath. */}
             <View style={{ paddingHorizontal: S.screen, marginTop: 24 }}>
-              <Card pal={C}>
-                <Type role="cardTitle" color={C.ink}>{t('insightsHub.last14')}</Type>
-                <Type role="meta" color={C.inkDim} style={{ marginTop: 2, marginBottom: 16 }}>
+              <Card pal={C} anchor>
+                <Type role="cardTitle" color={C.onEspresso}>{t('insightsHub.last14')}</Type>
+                <Type role="meta" color={C.onEspressoDim} style={{ marginTop: 2, marginBottom: 16 }}>
                   {t('insightsHub.spentTotal', { amount: formatCurrency(twoWeekTotal) })}
                 </Type>
-                <BarChart pal={C} data={chart} />
+                <BarChart pal={C} data={chart} onAnchor />
               </Card>
               {runway !== null ? (
                 <Type role="body" color={C.inkDim} style={{ marginTop: 12 }}>
@@ -137,22 +140,19 @@ export default function InsightsScreen() {
             {/* Everything that already had a screen of its own */}
             <View style={{ marginTop: S.section }}>
               <SectionHeader pal={C} title={t('insightsHub.more')} />
-              <View style={{ paddingHorizontal: S.screen }}>
-                <Card pal={C} padding={0} contentStyle={{ paddingHorizontal: S.card }}>
-                  {rows.map((r, i) => (
-                    <View key={r.key} style={i > 0 ? { borderTopWidth: 1, borderTopColor: C.hairline } : undefined}>
-                      <LinkRow
-                        pal={C}
-                        icon={<IconTile pal={C}>{r.icon}</IconTile>}
-                        title={r.title}
-                        body={r.body}
-                        onPress={() => router.push(r.to as never)}
-                        style={{ paddingVertical: 14 }}
-                      />
-                    </View>
-                  ))}
-                </Card>
-              </View>
+              <Group pal={C}>
+                {rows.map((r) => (
+                  <LinkRow
+                    key={r.key}
+                    pal={C}
+                    icon={<IconTile pal={C}>{r.icon}</IconTile>}
+                    title={r.title}
+                    body={r.body}
+                    onPress={() => router.push(r.to as never)}
+                    style={{ paddingVertical: 14 }}
+                  />
+                ))}
+              </Group>
             </View>
           </>
         )}

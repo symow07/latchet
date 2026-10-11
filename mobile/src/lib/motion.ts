@@ -10,6 +10,7 @@
  * arrives. So: the balance is the moment, press is feedback, and everything
  * else stays still.
  */
+import { MOTION } from './identity/motion';
 
 /** Exponential ease-out. Fast departure, long settle — the shape of something
  *  arriving under its own weight rather than being placed. */
@@ -26,48 +27,17 @@ export function countAt(target: number, elapsedMs: number, durationMs: number): 
 }
 
 /**
- * How long a number should take to count.
- *
- * Fixed durations make small numbers feel sluggish and large ones feel rushed,
- * so it scales with magnitude and then stops — past about a second the user is
- * waiting on an animation rather than reading a figure.
+ * How long a number should take to count: the identity's count-up, 280 ms,
+ * whatever the magnitude. The design identity caps every animation under
+ * 300 ms (DESIGN-IDENTITY.md §Motion); a count is there to show that a figure
+ * changed, not to make anyone wait to read it. Zero has nothing to count.
  */
 export function countDuration(target: number): number {
-  const magnitude = Math.abs(target);
-  if (magnitude === 0) return 0;
-  return Math.min(420 + Math.log10(magnitude + 1) * 240, 1100);
+  return target === 0 ? 0 : MOTION.countUp.duration;
 }
 
 /** Press feedback. Enough to feel, not enough to notice. */
-export const PRESS_SCALE = 0.97;
-
-export const SPRING = { damping: 18, stiffness: 220, mass: 0.7 } as const;
-
-/**
- * The hero's slow breath: a shadow that swells and settles, ~6s a cycle.
- *
- * The first pass ran 0.72 -> 1.0, which measured as a peak difference of 4/255
- * against the dark background — present in the pixels, invisible to a person.
- * A range wide enough to notice is the entire point of an ambient effect; one
- * you cannot see is just battery.
- */
-export const BREATH_MS = 5800;
-export const BREATH_MIN = 0.45;
-export const BREATH_MAX = 1;
-
-/**
- * One turn of the glint round a quick-action tile's rim.
- *
- * 11s, and slow on purpose: there are four of them side by side sharing nothing
- * but a start time, and anything quicker reads as four spinners.
- *
- * The first version of this animated the tile's *field* rather than its rim —
- * the highlight drifting and dimming across the face. Two frames half a cycle
- * apart measured 0.4/255 between them, because `tileSheen` is contrast-measured
- * at full strength and so the field has nowhere brighter to go; on a pale tint
- * the whole budget is about five values of red. See `tileGlint`.
- */
-export const TILE_GLINT_MS = 11000;
+export const PRESS_SCALE = MOTION.press.scale;
 
 // ── Locale-safe formatting inside a worklet ──────────────────────────────────
 
@@ -231,30 +201,9 @@ export function splitAmount(
 
 // ── Physical motion (apple-design §4, §6, §9) ───────────────────────────────
 
-/**
- * Apple's two spring parameters, expressed directly.
- *
- * *Designing Fluid Interfaces* replaced the physics triplet (mass, stiffness,
- * damping) with two a designer can reason about: **damping ratio**, which
- * controls overshoot, and **response**, how quickly the value reaches its
- * target. Reanimated 3 takes exactly that pair as `dampingRatio` + `duration`,
- * so these are the shipped values from the talk rather than a translation of
- * them.
- *
- * The rule that governs which one to reach for: bounce is earned. A spring
- * overshoots only when the gesture that started it carried momentum — a flick,
- * a throw, a drag release. A menu that merely appeared has no momentum to
- * express, and overshoot there reads as a tic.
- */
-
-/** Move / reposition. Critically damped: arrives and stops. */
-export const SPRING_MOVE = { dampingRatio: 1, duration: 400 } as const;
-
-/** Drawer / sheet. The gesture threw it, so it may overshoot slightly. */
-export const SPRING_SHEET = { dampingRatio: 0.8, duration: 300 } as const;
-
-/** Settle after a flick, carrying the finger's velocity in. */
-export const SPRING_FLICK = { dampingRatio: 0.82, duration: 400 } as const;
+// The springs that lived here (SPRING_MOVE 400 ms, SPRING_SHEET and
+// SPRING_FLICK with overshoot) are retired: the identity moves everything on
+// timed, non-overshooting curves under 300 ms (lib/identity/motion.ts).
 
 /**
  * Where a flick would come to rest.

@@ -1,4 +1,4 @@
-import { View, ScrollView, Text as RNText } from 'react-native';
+import { View, ScrollView, Pressable, Text as RNText } from 'react-native';
 import { useMemo, useState } from 'react';
 import { useRouter } from 'expo-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -7,7 +7,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { addTransaction, getSettings, getAccounts, addCustomCategory } from '@/lib/db';
 import { Calendar, Wallet, Zap, FileText } from '@/components/icons';
 import * as Haptics from 'expo-haptics';
-import { BAR, F, S, useC } from '@/lib/design';
+import { BAR, F, R, S, useC } from '@/lib/design';
 import { currencyParts } from '@/lib/motion';
 import {
   Card, ChoiceRow, Field, FilterChip, Group, Header, Keypad, LinkRow,
@@ -421,7 +421,7 @@ export default function AddTransactionScreen() {
                 key={emoji}
                 pal={C}
                 padding={0}
-                radius={14}
+                radius={R.sm}
                 style={{ opacity: newCatEmoji === emoji ? 1 : 0.55 }}
                 contentStyle={{
                   width: 44,
@@ -444,21 +444,42 @@ export default function AddTransactionScreen() {
           <Type role="meta" color={C.inkDim} style={{ marginTop: 16, marginBottom: 12 }}>
             {t('addTransaction.color')}
           </Type>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
-            {CATEGORY_COLORS.map((colour) => (
-              <View
-                key={colour}
-                onTouchEnd={() => setNewCatColor(colour)}
-                style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: 18,
-                  backgroundColor: colour,
-                  borderWidth: newCatColor === colour ? 3 : 0,
-                  borderColor: C.ink,
-                }}
-              />
-            ))}
+          {/* The eight tones of the warm `cat` ramp, never a rainbow. Each
+              swatch draws the active scheme's tone and saves the light-ramp
+              value at the same index (CATEGORY_COLORS), so what is stored does
+              not depend on the scheme it was picked in. The selection is an
+              ink ring around the swatch, which reads on every tone. */}
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+            {C.cat.map((tone, i) => {
+              const stored = CATEGORY_COLORS[i] ?? tone;
+              const selected = newCatColor === stored;
+              return (
+                <Pressable
+                  key={stored}
+                  onPress={() => setNewCatColor(stored)}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected }}
+                  style={{
+                    width: 44,
+                    height: 44,
+                    padding: 4,
+                    borderRadius: R.pill,
+                    borderCurve: 'continuous',
+                    borderWidth: 2,
+                    borderColor: selected ? C.ink : 'transparent',
+                  }}
+                >
+                  <View
+                    style={{
+                      flex: 1,
+                      borderRadius: R.pill,
+                      borderCurve: 'continuous',
+                      backgroundColor: tone,
+                    }}
+                  />
+                </Pressable>
+              );
+            })}
           </View>
 
           <PrimaryButton

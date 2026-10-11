@@ -14,9 +14,9 @@ import {
 import { type GroupMember } from '@/lib/businessApi';
 import { roleOf } from '@/lib/group-members';
 import { formatCurrency } from '@/lib/calculations';
-import { BAR, S, useB, type BizPalette } from '@/lib/design';
+import { BAR, R, S, useC, type Palette } from '@/lib/design';
 import {
-  Amount, Card, ChoiceRow, CircleAction, Empty, Field, FormError, PrimaryButton,
+  Amount, BalanceCard, Card, ChoiceRow, CircleAction, Empty, Field, FormError, PrimaryButton,
   Screen, SectionHeader, Sheet, Stat, Stepper, Touchable, Type,
 } from '@/components/kit';
 import { t, getDateFnsLocale } from '@/lib/i18n/core';
@@ -27,6 +27,24 @@ function monthName(month: number, year: number): string {
   return new Date(year, month - 1, 1).toLocaleDateString(getDateFnsLocale()?.code ?? undefined, {
     month: 'long',
   });
+}
+
+/**
+ * A person's initials on a sunk squircle: the same tile a category glyph sits
+ * on, so a list of people and a list of expenses share one shape.
+ */
+function initialsTile(pal: Palette, name: string | null | undefined) {
+  return (
+    <View
+      style={{
+        width: 40, height: 40, borderRadius: R.sm, borderCurve: 'continuous',
+        backgroundColor: pal.groundSunk,
+        alignItems: 'center', justifyContent: 'center',
+      }}
+    >
+      <Type role="meta" color={pal.ink}>{initialsOf(name)}</Type>
+    </View>
+  );
 }
 
 function initialsOf(name: string | null | undefined): string {
@@ -57,7 +75,7 @@ function AddSalarySheet({
   members: GroupMember[];
   existingUserIds: Set<string>;
 }) {
-  const B = useB();
+  const B = useC();
   const qc = useQueryClient();
   const [userId, setUserId] = useState('');
   const [amount, setAmount] = useState('');
@@ -124,17 +142,7 @@ function AddSalarySheet({
                   setUserId(m.userId);
                   setError('');
                 }}
-                icon={
-                  <View
-                    style={{
-                      width: 40, height: 40, borderRadius: 20,
-                      backgroundColor: B.accentSoft,
-                      alignItems: 'center', justifyContent: 'center',
-                    }}
-                  >
-                    <Type role="meta" color={B.accent}>{initialsOf(m.user?.name)}</Type>
-                  </View>
-                }
+                icon={initialsTile(B, m.user?.name)}
               />
             ))}
           </View>
@@ -183,11 +191,15 @@ function AddSalarySheet({
  * now the switch, plus a line of prose under the name saying when they were
  * paid. A switch is a familiar control that already means exactly this, so it
  * needs no colour vocabulary of its own.
+ *
+ * A salary is money going out, so it is red and carries its minus, as every
+ * outgoing amount in the app does. Someone who cannot edit sees the state as
+ * a word instead: Paid in green, Due in the warning tone.
  */
 function EmployeeRow({
   pal, record, month, year, canEdit, onToggle, onDelete,
 }: {
-  pal: BizPalette;
+  pal: Palette;
   record: SalaryRecord;
   month: number;
   year: number;
@@ -202,15 +214,7 @@ function EmployeeRow({
 
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', minHeight: 64, gap: 12 }}>
-      <View
-        style={{
-          width: 40, height: 40, borderRadius: 20,
-          backgroundColor: pal.accentSoft,
-          alignItems: 'center', justifyContent: 'center',
-        }}
-      >
-        <Type role="meta" color={pal.accent}>{initialsOf(record.user.name)}</Type>
-      </View>
+      {initialsTile(pal, record.user.name)}
 
       <View style={{ flex: 1 }}>
         <Type role="cardTitle" color={pal.ink} numberOfLines={1}>{record.user.name}</Type>
@@ -221,11 +225,12 @@ function EmployeeRow({
 
       <View style={{ alignItems: 'flex-end', gap: 6 }}>
         <Amount
-          value={record.amount}
+          value={-record.amount}
           format={formatCurrency}
           size={17}
           weight="semibold"
-          color={pal.ink}
+          color={pal.negative}
+          signed
         />
         {canEdit ? (
           <Switch
@@ -238,7 +243,7 @@ function EmployeeRow({
             style={{ transform: [{ scale: 0.85 }] }}
           />
         ) : (
-          <Type role="meta" color={paid ? pal.positive : pal.inkDim}>
+          <Type role="meta" color={paid ? pal.positive : pal.warning}>
             {paid ? t('businessPayroll.paidPill') : t('businessPayroll.duePill')}
           </Type>
         )}
@@ -268,7 +273,7 @@ function EmployeeRow({
  */
 export default function PayrollScreen({ embedded }: { embedded?: boolean } = {}) {
   const insets = useSafeAreaInsets();
-  const B = useB();
+  const B = useC();
   const qc = useQueryClient();
   const { data: session } = useSession();
 
@@ -367,31 +372,25 @@ export default function PayrollScreen({ embedded }: { embedded?: boolean } = {})
           </View>
         ) : (
           <>
-            {/* The one dark object (§1.1). Flat inkSoft — the old version was a
-                navy gradient carrying a glow, a bordered icon chip and three
-                differently-coloured figures, one of them the *personal*
-                profile's violet. Colour now says one thing here: paid or due. */}
+            {/* The screen's one espresso anchor. The old version was a navy
+                gradient carrying a glow, a bordered icon chip and three
+                differently-coloured figures. Now: off-white figures, and a
+                silver line for how much of the month is paid. The totals are
+                neutral figures, not movements, so they carry no red. */}
             <View style={{ paddingHorizontal: S.screen, marginTop: S.section }}>
-              <Card pal={B} padding={S.card + 2} style={{ backgroundColor: 'transparent' }}
-                contentStyle={{ backgroundColor: B.inkSoft }}>
-                <Type role="meta" color={B.onInk} style={{ opacity: 0.7 }}>
-                  {t('businessPayroll.total')}
-                </Type>
-                <Amount
-                  value={summary?.totalPayroll ?? 0}
-                  format={formatCurrency}
-                  size={40}
-                  color={B.onInk}
-                  style={{ marginTop: 6 }}
-                />
-
+              <BalanceCard
+                pal={B}
+                label={t('businessPayroll.total')}
+                amount={summary?.totalPayroll ?? 0}
+                format={formatCurrency}
+              >
                 {salaries.length > 0 ? (
                   <View
                     accessibilityRole="progressbar"
                     accessibilityValue={{ min: 0, max: 100, now: Math.round(paidRatio * 100) }}
                     style={{
-                      height: 6, borderRadius: 3, marginTop: 16, marginBottom: 16,
-                      backgroundColor: 'rgba(255,255,255,0.16)',
+                      height: 6, borderRadius: 3, marginTop: 16,
+                      backgroundColor: B.glassStrong,
                       overflow: 'hidden', flexDirection: 'row',
                     }}
                   >
@@ -399,21 +398,21 @@ export default function PayrollScreen({ embedded }: { embedded?: boolean } = {})
                       style={{
                         width: `${paidRatio * 100}%`,
                         borderRadius: 3,
-                        backgroundColor: B.accentGlow,
+                        backgroundColor: B.silver,
                       }}
                     />
                   </View>
                 ) : null}
 
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 16 }}>
                   <Stat
                     pal={B}
                     label={t('businessPayroll.paidCount', { count: paid.length })}
                     value={summary?.paidTotal ?? 0}
                     format={formatCurrency}
                     size={17}
-                    tone={B.onInk}
-                    labelTone={B.onInk}
+                    tone={B.onEspresso}
+                    labelTone={B.onEspressoDim}
                   />
                   <Stat
                     pal={B}
@@ -421,24 +420,28 @@ export default function PayrollScreen({ embedded }: { embedded?: boolean } = {})
                     value={summary?.unpaidTotal ?? 0}
                     format={formatCurrency}
                     size={17}
-                    tone={B.onInk}
-                    labelTone={B.onInk}
+                    tone={B.onEspresso}
+                    labelTone={B.onEspressoDim}
                     align="flex-end"
                   />
                 </View>
-              </Card>
+              </BalanceCard>
             </View>
 
             {salaries.length === 0 ? (
-              <Empty
-                pal={B}
-                icon={<Briefcase size={26} color={B.accent} strokeWidth={S.stroke} />}
-                title={t('businessPayroll.none')}
-                body={canEdit ? t('businessPayroll.tapAdd') : t('businessPayroll.notConfigured')}
-                actionLabel={canEdit ? t('businessPayroll.addButton') : undefined}
-                onAction={canEdit ? () => setShowAdd(true) : undefined}
-                style={{ marginTop: 64 }}
-              />
+              <>
+                <Empty
+                  pal={B}
+                  icon={<Briefcase size={26} color={B.accent} strokeWidth={S.stroke} />}
+                  title={t('businessPayroll.none')}
+                  body={canEdit ? t('businessPayroll.tapAdd') : t('businessPayroll.notConfigured')}
+                  actionLabel={canEdit ? t('businessPayroll.addButton') : undefined}
+                  onAction={() => setShowAdd(true)}
+                  // The payroll total above is already the screen's espresso anchor.
+                  actionVariant="secondary"
+                  style={{ marginTop: 64 }}
+                />
+              </>
             ) : (
               <View style={{ marginTop: S.section }}>
                 <SectionHeader

@@ -12,8 +12,7 @@ import {
   scanAndSaveSubscriptions,
 } from '@/lib/subscription-detection';
 import { formatCurrency } from '@/lib/calculations';
-import { categoryMarkIndex } from '@/lib/category-meta';
-import { S, useC } from '@/lib/design';
+import { R, S, useC } from '@/lib/design';
 import {
   BalanceCard,
   Card,
@@ -41,8 +40,9 @@ type SegmentKey = 'confirmed' | 'possible' | 'canceled';
  * *already* filtered the list to one status, so every row in view was the
  * same status as every other. The colour was carrying no information at all.
  *
- * It now says it once: the segment. Rows are a merchant, a cadence, when the
- * next charge lands, and a price. Confidence keeps its bar because it is the
+ * It now says it once: the segment. Rows are a merchant (its initial on a
+ * neutral sunk tile — a merchant is not a category, and a colour per merchant
+ * would be a rainbow), a cadence, when the next charge lands, and a price. Confidence keeps its bar because it is the
  * one number that varies inside a segment, and the bar is `accentMark` like
  * every other meter in the app rather than a traffic light.
  *
@@ -179,7 +179,6 @@ export default function SubscriptionsScreen() {
               {filtered.map((sub, i) => {
                 const next = sub.status === 'canceled' ? null : nextChargeLabel(sub.nextExpectedAt);
                 const meta = [t(`frequency.${sub.cadence}`), next].filter(Boolean).join(' · ');
-                const mark = C.cat[categoryMarkIndex(sub.merchantNormalized, C.cat.length)];
                 return (
                   <View
                     key={sub.id}
@@ -197,13 +196,14 @@ export default function SubscriptionsScreen() {
                           style={{
                             width: 40,
                             height: 40,
-                            borderRadius: 20,
-                            backgroundColor: mark,
+                            borderRadius: R.sm,
+                            borderCurve: 'continuous',
+                            backgroundColor: C.groundSunk,
                             alignItems: 'center',
                             justifyContent: 'center',
                           }}
                         >
-                          <Type role="cardTitle" color={C.groundAlt}>
+                          <Type role="cardTitle" color={C.ink}>
                             {sub.merchantDisplay.trim().charAt(0).toUpperCase() || '?'}
                           </Type>
                         </View>

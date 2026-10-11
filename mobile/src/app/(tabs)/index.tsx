@@ -4,7 +4,8 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { format } from 'date-fns';
-import { Camera, MessageCircle, PieChart, PlusSquare, TabIcons, Wallet } from '@/components/icons';
+import { Camera, MessageCircle, Repeat, Wallet } from '@/components/icons';
+import { categoryIcon } from '@/components/category-icon';
 import { getAccounts, getSettings, getTransactions } from '@/lib/db';
 import {
   calculateBalance,
@@ -17,7 +18,7 @@ import {
   getUnlockedBadges,
   hasScorableActivity,
 } from '@/lib/calculations';
-import { categoryLabel, categoryMarkIndex } from '@/lib/category-meta';
+import { categoryLabel } from '@/lib/category-meta';
 import { pickHomeInsight, type InsightAction } from '@/lib/home-insight';
 import { dayOfMonth, daysInMonth } from '@/lib/dates';
 import { useSession } from '@/lib/auth/use-session';
@@ -25,8 +26,8 @@ import { syncAchievements } from '@/lib/achievementsApi';
 import { presentBadgeEarned } from '@/lib/notifications';
 import { BAR, S, useC } from '@/lib/design';
 import {
+  AnchorBudget,
   BalanceCard,
-  BudgetLine,
   Card,
   CircleAction,
   Empty,
@@ -39,7 +40,17 @@ import {
   Type,
 } from '@/components/kit';
 import { t, getDateFnsLocale } from '@/lib/i18n/core';
+import { ELEVATION } from '@/lib/identity/tokens';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+/**
+ * How far the anchor's shadow reaches past the card, above and below. The
+ * balance pager clips to its own bounds, so it is padded by this much.
+ */
+const PAGER_BLEED = {
+  top: Math.max(...ELEVATION.anchor.map((l) => l.blur - l.y)),
+  bottom: Math.max(...ELEVATION.anchor.map((l) => l.y + l.blur)),
+};
 
 function greetingWord(): string {
   const hour = new Date().getHours();
@@ -140,6 +151,9 @@ export default function HomeScreen() {
     seeImpulse: '/analytics?tab=insights',
   };
 
+  // Good news gets the identity's self-drawing check; cautions do not.
+  const GOOD_NEWS = new Set(['saving', 'streak', 'steady', 'down', 'downWithGoal']);
+
   const budgetSentence = () => {
     if (monthlyBudget <= 0) return t('home.budgetNone');
     const remaining = monthlyBudget - monthSpent;
@@ -214,9 +228,17 @@ export default function HomeScreen() {
               showsHorizontalScrollIndicator={false}
               snapToInterval={cardWidth + 12}
               decelerationRate="fast"
-              // Horizontal ScrollViews fill their parent without this.
-              style={{ flexGrow: 0, marginTop: 24 }}
-              contentContainerStyle={{ paddingHorizontal: S.screen, gap: 12 }}
+              // Horizontal ScrollViews fill their parent without this. The
+              // pager clips to its bounds, so it is padded by the anchor's
+              // shadow and pulled back by the same amount: without that the
+              // shadow ended in a straight line under the card.
+              style={{ flexGrow: 0, marginTop: 24 - PAGER_BLEED.top, marginBottom: -PAGER_BLEED.bottom }}
+              contentContainerStyle={{
+                paddingHorizontal: S.screen,
+                paddingTop: PAGER_BLEED.top,
+                paddingBottom: PAGER_BLEED.bottom,
+                gap: 12,
+              }}
               onMomentumScrollEnd={(e) =>
                 setPage(Math.round(e.nativeEvent.contentOffset.x / (cardWidth + 12)))
               }
@@ -231,11 +253,30 @@ export default function HomeScreen() {
                   format={formatCurrency}
                   onPress={() => router.push('/accounts')}
                   style={{ width: cardWidth }}
-                  // One gradient moment per screen (§1.10): only the first card
-                  // carries the arc, so scrolling the carousel does not turn it
-                  // into a pattern.
-                  plain={i > 0}
-                />
+                >
+                  {/* The month's budget lives inside the total card, as in the
+                      identity's sample: a metallic silver line and the silver
+                      Remaining figure. The account cards carry only their own
+                      balance. */}
+                  {i === 0 ? (
+                    monthlyBudget > 0 ? (
+                      <AnchorBudget
+                        pal={C}
+                        spent={monthSpent}
+                        budget={monthlyBudget}
+                        format={formatCurrency}
+                        remainingLabel={t('bizStats.remaining')}
+                        budgetLabel={t('tabs.budget')}
+                        sentence={budgetSentence()}
+                        style={{ marginTop: 24 }}
+                      />
+                    ) : (
+                      <Type role="meta" color={C.onEspressoDim} style={{ marginTop: 16 }}>
+                        {budgetSentence()}
+                      </Type>
+                    )
+                  ) : null}
+                </BalanceCard>
               ))}
             </ScrollView>
 
@@ -244,23 +285,24 @@ export default function HomeScreen() {
                 {cards.map((c, i) => (
                   <View
                     key={c.key}
+                    // The current page is longer as well as darker, so it
+                    // does not rest on colour alone.
                     style={{
-                      width: 6,
+                      width: i === page ? 16 : 6,
                       height: 6,
                       borderRadius: 3,
-                      backgroundColor: i === page ? C.ink : C.groundSunk,
+                      backgroundColor: i === page ? C.ink : C.silver,
                     }}
                   />
                 ))}
               </View>
             ) : null}
 
-            {/* The four places people go straight from here.
-                §6.8 has had this component since the redesign and nothing
-                rendered it, so every one of these was two taps away behind a
-                tab. It sits at `S.group` from the balance because it belongs
-                to it — this whole block is "your money and what to do with
-                it" — and the next block is a full `S.section` away. */}
+            {/* Two shortcuts, neither of which the tab bar already gives.
+                Add and Insights are tabs, and Budgets is one tap from the
+                balance card, so the old four-tile row mostly duplicated the
+                bar. Scan Receipt and Subscriptions are the two places people
+                go straight from here that the bar does not reach. */}
             <View
               style={{
                 flexDirection: 'row',
@@ -271,70 +313,34 @@ export default function HomeScreen() {
             >
               <QuickAction
                 pal={C}
-                label={t('home.quickAdd')}
-                Icon={PlusSquare}
-                onPress={() => router.push('/(tabs)/add')}
-              />
-              <QuickAction
-                pal={C}
-                label={t('home.quickScan')}
+                label={t('receiptScan.title')}
                 Icon={Camera}
                 onPress={() => router.push('/receipt-scan')}
               />
-              {/* The bar's own Insights glyph, not `Sparkles`.
-
-                  Both open the same screen, and they were wearing different
-                  icons for it — a shortcut whose picture disagrees with the
-                  destination's is worse than no shortcut. Sparkles lost for the
-                  reason the generator already records for the tab: it says
-                  "AI", and the page is charts.
-
-                  Add is *not* held to the same rule, and the difference is the
-                  register rather than the subject. Sparkles and a bar chart are
-                  two different pictures of one page. `PlusSquare` and the bar's
-                  plus are the same mark twice: a hairline cross reads correctly
-                  in a bar of hairline glyphs and reads like a mistake in a row
-                  of solid ones. Matching the neighbours it is actually beside
-                  is what both choices come down to. */}
               <QuickAction
                 pal={C}
-                label={t('home.quickInsights')}
-                Icon={TabIcons.insights.fill}
-                onPress={() => router.push('/(tabs)/insights')}
-              />
-              <QuickAction
-                pal={C}
-                label={t('home.quickBudgets')}
-                Icon={PieChart}
-                onPress={() => router.push('/category-budgets')}
+                label={t('subscriptionsScreen.title')}
+                Icon={Repeat}
+                onPress={() => router.push('/subscriptions')}
               />
             </View>
 
-            {/* 2 — one budget line */}
-            <BudgetLine
-              pal={C}
-              sentence={budgetSentence()}
-              spent={monthSpent}
-              budget={monthlyBudget}
-              style={{ marginTop: S.section }}
-            />
-
-            {/* 3 — one insight, in plain English */}
+            {/* One insight, in plain English. The budget it would sit under
+                now lives inside the balance card. */}
             {insight ? (
               <Insight
                 pal={C}
+                check={GOOD_NEWS.has(insight.key)}
                 text={t(`home.insight.${insight.key}`, insight.params)}
                 actions={insight.actions.map((a) => ({
                   label: t(`home.action.${a}`),
                   onPress: () => router.push(ROUTES[a] as never),
                 }))}
-                // `group`, not `section`: the budget line and the sentence
-                // about it are one thought.
-                style={{ marginTop: S.group }}
+                style={{ marginTop: S.section }}
               />
             ) : null}
 
-            {/* 4 — recent activity */}
+            {/* Recent activity */}
             <View style={{ marginTop: S.section }}>
               <SectionHeader
                 pal={C}
@@ -356,7 +362,7 @@ export default function HomeScreen() {
                           meta={`${categoryLabel(tx.category)} · ${format(new Date(`${tx.dateISO}T12:00:00`), 'd MMM', { locale: getDateFnsLocale() })}`}
                           amount={tx.type === 'Income' ? tx.amount : -tx.amount}
                           format={formatCurrency}
-                          markColor={C.cat[categoryMarkIndex(tx.category, C.cat.length)]}
+                          icon={categoryIcon(tx.category, tx.type)}
                           onPress={() => router.push('/(tabs)/transactions')}
                         />
                       </View>

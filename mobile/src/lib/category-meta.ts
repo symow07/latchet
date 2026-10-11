@@ -23,13 +23,32 @@ export interface CategoryMeta {
   custom?: boolean;
 }
 
+/**
+ * The identity's warm light ramp (palettes.ts `C_LIGHT.cat`), espresso through
+ * platinum. Stored colours are always light-ramp values; a screen that draws
+ * one resolves it into the active scheme's `cat` ramp by index, the way
+ * accounts.tsx does. Never a rainbow (DESIGN-IDENTITY.md, "No category
+ * rainbow"): a category is identified by its glyph, not its colour.
+ */
+const WARM_RAMP = [
+  '#3B2A21', // espresso
+  '#6A4A38', // cocoa
+  '#8A5F45', // umber
+  '#9C6B3F', // caramel
+  '#7D6A4F', // bronze
+  '#6E6862', // stone
+  '#4F4A45', // graphite
+  '#84807A', // platinum
+] as const;
+
+/** Each built-in's colour is its slot in `BUILT_IN_MARK` below, so the two never disagree. */
 export const DEFAULT_CATEGORIES: CategoryMeta[] = [
-  { name: 'Food', icon: '🍔', color: '#fb923c' },
-  { name: 'Gym', icon: '💪', color: '#34d399' },
-  { name: 'Transport', icon: '🚗', color: '#60a5fa' },
-  { name: 'Shopping', icon: '🛍️', color: '#f472b6' },
-  { name: 'Subscriptions', icon: '📱', color: '#c084fc' },
-  { name: 'Other', icon: '📦', color: '#94a3b8' },
+  { name: 'Food', icon: '🍔', color: WARM_RAMP[5] },
+  { name: 'Gym', icon: '💪', color: WARM_RAMP[3] },
+  { name: 'Transport', icon: '🚗', color: WARM_RAMP[1] },
+  { name: 'Shopping', icon: '🛍️', color: WARM_RAMP[7] },
+  { name: 'Subscriptions', icon: '📱', color: WARM_RAMP[0] },
+  { name: 'Other', icon: '📦', color: WARM_RAMP[2] },
 ];
 
 const BUILT_IN_NAMES = new Set(DEFAULT_CATEGORIES.map((c) => c.name));
@@ -65,57 +84,58 @@ export function categoryMeta(name: string, all: CategoryMeta[]): CategoryMeta {
     DEFAULT_CATEGORIES.find((c) => c.name === name) ?? {
       name,
       icon: '🏷️',
-      color: '#94a3b8',
+      color: WARM_RAMP[7],
     }
   );
 }
 
-// Palettes offered when creating a new category.
+// Choices offered when creating a new category.
 export const CATEGORY_EMOJIS = [
   '🍔', '☕', '🛒', '🏠', '🚗', '✈️', '💊', '🎮', '🎬', '📚', '💡', '🐾',
   '👕', '💇', '🎁', '💰', '📈', '🏥', '⛽', '🍺', '🎵', '🏦', '🧾', '🏷️',
 ];
-export const CATEGORY_COLORS = [
-  '#fb923c', '#34d399', '#60a5fa', '#f472b6', '#c084fc', '#f59e0b',
-  '#22c55e', '#38bdf8', '#a78bfa', '#fb7185', '#2dd4bf', '#eab308',
-];
+/**
+ * Colours a new category can be saved with: the warm ramp, then its first four
+ * again (the list has always been twelve long). The add sheet draws the eight
+ * swatches from the active scheme's `cat` ramp and saves the light value at
+ * the same index, so what is stored never depends on the scheme it was picked in.
+ */
+export const CATEGORY_COLORS: string[] = [...WARM_RAMP, ...WARM_RAMP.slice(0, 4)];
 
 /**
  * Where each built-in sits in the eight-step ramp, by hand.
  *
- * The ramp runs violet, blue, teal, green, amber, orange, red, pink — so each
- * category keeps the hue `DEFAULT_CATEGORIES` above always gave it: Food was
- * `#fb923c` and is orange, Transport was `#60a5fa` and is blue, Shopping was
- * `#f472b6` and is pink. The ramp changed; what a category *means* did not.
+ * The ramp is the identity's warm one, espresso through platinum. The slots
+ * date from the old rainbow ramp and are kept so no category changes place;
+ * they now name tones of one warm family rather than hues.
  *
  * Assigned rather than hashed because six known names over eight buckets is
  * not a hashing problem, it is a list. FNV put them at 1/0/2/5/5/5: Shopping,
  * Subscriptions and Other all landed on slot 5, so half the rows in a six-row
- * list were the same orange while three of the eight colours went unused.
+ * list were the same tone while three of the eight went unused.
  */
 const BUILT_IN_MARK: Record<string, number> = {
-  Subscriptions: 0, // violet
-  Transport: 1,     // blue
-  Other: 2,         // teal
-  Gym: 3,           // green
-  Food: 5,          // orange
-  Shopping: 7,      // pink
+  Subscriptions: 0, // espresso
+  Transport: 1,     // cocoa
+  Other: 2,         // umber
+  Gym: 3,           // caramel
+  Food: 5,          // stone
+  Shopping: 7,      // platinum
 };
 
 /**
  * Which of the eight categorical marks a category gets.
  *
- * DESIGN-PROMPT.md §2.5 replaces the per-category brand colours above with one
- * eight-step ramp verified against both grounds — the old `#fb923c`/`#34d399`
- * set belongs to the loud direction and out-shouts the accent. The ramp is a
- * palette token, so this returns an index rather than a colour: the same
+ * The marks come from the eight-step `cat` palette token, the identity's warm
+ * ramp verified against both grounds, not from per-category brand colours.
+ * Because it is a token, this returns an index rather than a colour: the same
  * category then reads correctly in light and in dark.
  *
  * Built-ins take their assigned slot. Anything else — a category the user
  * invented, or a merchant name, which `subscriptions` and `accounts` also pass
  * through here — is hashed, so it gets a stable colour instead of whichever
  * slot it happened to be created in. A custom category can still land on the
- * same hue as a built-in; with eight slots that is unavoidable and it is not
+ * same tone as a built-in; with eight slots that is unavoidable and it is not
  * what made the old behaviour look broken.
  *
  * Changing the assignment moves existing rows to new colours. That is fine:

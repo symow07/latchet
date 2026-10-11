@@ -8,13 +8,15 @@ import * as Haptics from 'expo-haptics';
 import { getSettings, getTransactions } from '@/lib/db';
 import { api } from '@/lib/api/api';
 import { getCategories, DEFAULT_CATEGORIES } from '@/lib/categories';
-import { categoryLabel, categoryMarkIndex } from '@/lib/category-meta';
+import { categoryLabel } from '@/lib/category-meta';
 import { formatCurrency } from '@/lib/calculations';
 import { S, useC } from '@/lib/design';
 import { PressableScale } from '@/components/motion';
+import { categoryIcon } from '@/components/category-icon';
 import {
   Card,
   Field,
+  IconTile,
   InfoRow,
   Meter,
   PrimaryButton,
@@ -76,8 +78,10 @@ function currentMonthSpending(
  * **The month heading was `toLocaleString('default')` uppercased** — English
  * month names in every language, in the one type style §3 does not have.
  *
- * What is left is one line per category: a name, a sentence saying where you
- * are, one meter, and the limit. Tapping a line opens the sheet that sets it.
+ * What is left is one line per category: its glyph on a sunk tile (the
+ * identity marks a category by its glyph, never by a colour), a name, a
+ * sentence saying where you are, one meter, and the limit. Tapping a line
+ * opens the sheet that sets it.
  */
 export default function CategoryBudgetsScreen() {
   const C = useC();
@@ -174,6 +178,8 @@ export default function CategoryBudgetsScreen() {
                 const spent = spending[category.name] ?? 0;
                 const over = budget !== undefined && spent > budget.amount;
                 const ratio = budget && budget.amount > 0 ? spent / budget.amount : 0;
+                // A module-level glyph component, so the row keeps one identity.
+                const Glyph = categoryIcon(category.name);
 
                 const sentence = budget
                   ? over
@@ -201,19 +207,13 @@ export default function CategoryBudgetsScreen() {
                       amount={budget?.amount}
                       format={budget ? formatCurrency : undefined}
                       lead={
-                        <View
-                          style={{
-                            width: 10,
-                            height: 10,
-                            borderRadius: 5,
-                            backgroundColor:
-                              C.cat[categoryMarkIndex(category.name, C.cat.length)],
-                          }}
-                        />
+                        <IconTile pal={C} size={40} style={{ backgroundColor: C.groundSunk }}>
+                          <Glyph size={22} color={C.ink} />
+                        </IconTile>
                       }
                       trailing={
                         budget ? null : (
-                          <Type role="meta" color={C.inkFaint}>
+                          <Type role="meta" color={C.inkDim}>
                             {t('common.noLimit')}
                           </Type>
                         )

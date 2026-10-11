@@ -27,12 +27,18 @@ export default function Root({ children }: { children: React.ReactNode }) {
   );
 }
 
+// The identity's ground and ink (DESIGN-IDENTITY.md): the off-white page and
+// its warm near-black text, and the roasted espresso-black page in dark. This
+// is the one place they are written as hex — a static stylesheet cannot read
+// the palette hooks.
 const responsiveBackground = `
 body {
-  background-color: #fff;
+  background-color: #F6F3EF;
+  color: #24201C;
 }
 @media (prefers-color-scheme: dark) {
   body {
-    background-color: #000;
+    background-color: #14110E;
+    color: #F1ECE6;
   }
 }`;

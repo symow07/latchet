@@ -4,16 +4,17 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, parseISO, startOfMonth, endOfMonth } from 'date-fns';
 import { getTransactions, deleteTransaction, getSettings } from '@/lib/db';
-import { categoryLabel, categoryMarkIndex } from '@/lib/category-meta';
+import { categoryLabel } from '@/lib/category-meta';
 import { getCategories, DEFAULT_CATEGORIES } from '@/lib/categories';
 import { formatCurrency, formatTimeCost, calculateTimeCost } from '@/lib/calculations';
 import { Inbox, SlidersHorizontal } from '@/components/icons';
+import { categoryIcon } from '@/components/category-icon';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as Haptics from 'expo-haptics';
 import { BAR, S, useC } from '@/lib/design';
 import {
   Amount, Card, CircleAction, Empty, FilterChip, Header, PrimaryButton,
-  Screen, Sheet, SwipeRow, Type,
+  Row, Screen, Sheet, SwipeRow, Type,
 } from '@/components/kit';
 import { t, getDateFnsLocale } from '@/lib/i18n/core';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -166,7 +167,6 @@ export default function TransactionsScreen() {
               key={cat}
               pal={C}
               label={categoryLabel(cat, allCategories)}
-              mark={C.cat[categoryMarkIndex(cat, C.cat.length)]}
               active={filterCategory === cat}
               onPress={() => setFilterCategory((current) => (current === cat ? null : cat))}
             />
@@ -232,48 +232,18 @@ export default function TransactionsScreen() {
                           onDelete={() => handleDelete(tx.id)}
                           actionLabel={t('dialogs.delete')}
                         >
-                          <View
-                            style={{
-                              flexDirection: 'row',
-                              alignItems: 'center',
-                              gap: 12,
-                              minHeight: 60,
-                              paddingHorizontal: S.card,
-                            }}
-                          >
-                            <View
-                              style={{
-                                width: 40,
-                                height: 40,
-                                borderRadius: 20,
-                                backgroundColor: C.cat[categoryMarkIndex(tx.category, C.cat.length)],
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                              }}
-                            >
-                              <Type role="cardTitle" color={C.groundAlt}>
-                                {(tx.note?.trim() || categoryLabel(tx.category, allCategories))
-                                  .charAt(0)
-                                  .toUpperCase()}
-                              </Type>
-                            </View>
-                            <View style={{ flex: 1 }}>
-                              <Type role="cardTitle" color={C.ink} numberOfLines={1}>
-                                {tx.note?.trim() || categoryLabel(tx.category, allCategories)}
-                              </Type>
-                              <Type role="meta" color={C.inkDim} numberOfLines={1}>
-                                {meta}
-                              </Type>
-                            </View>
-                            <Amount
-                              value={tx.type === 'Expense' ? -tx.amount : tx.amount}
-                              format={formatCurrency}
-                              size={17}
-                              weight="semibold"
-                              signed
-                              color={tx.type === 'Expense' ? C.negative : C.positive}
-                            />
-                          </View>
+                          {/* The category reads as its glyph on a soft tile,
+                              never as a colour; the amount is signed and green
+                              in, red out (kit Row). */}
+                          <Row
+                            pal={C}
+                            icon={categoryIcon(tx.category, tx.type)}
+                            title={tx.note?.trim() || categoryLabel(tx.category, allCategories)}
+                            meta={meta}
+                            amount={tx.type === 'Expense' ? -tx.amount : tx.amount}
+                            format={formatCurrency}
+                            style={{ paddingHorizontal: S.card }}
+                          />
                         </SwipeRow>
                       </View>
                     );

@@ -24,6 +24,7 @@ import { formatCurrency } from '@/lib/calculations';
 // Categories are stored canonically in English and translated for display only —
 // the stored value and the wire format never change. See category-meta.ts.
 import { categoryLabel } from '@/lib/category-meta';
+import { categoryIcon } from '@/components/category-icon';
 import { S, useC } from '@/lib/design';
 import { PressableScale } from '@/components/motion';
 import {
@@ -34,6 +35,7 @@ import {
   Field,
   InfoRow,
   PrimaryButton,
+  Row,
   Screen,
   SectionHeader,
   Stat,
@@ -67,7 +69,7 @@ const LEVEL_META: Record<ShareLevel, { labelKey: string; descKey: string }> = {
   full: { labelKey: 'household.levelFull', descKey: 'household.levelFullDesc' },
 };
 
-/** Rows on one white card, hairline-separated. */
+/** Rows on one card, hairline-separated. */
 function Rows({
   pal,
   children,
@@ -242,10 +244,10 @@ export default function HouseholdScreen() {
           </>
         ) : (
           <>
-            {/* ── Combined totals ─────────────────────────────────────────── */}
+            {/* ── Combined totals: the screen's one espresso anchor ───────── */}
             <View style={{ paddingHorizontal: S.screen, marginTop: 24 }}>
-              <Card pal={C}>
-                <Type role="meta" color={C.inkDim}>
+              <Card pal={C} anchor>
+                <Type role="meta" color={C.onEspressoDim}>
                   {household!.household!.name}
                 </Type>
                 <View style={{ flexDirection: 'row', gap: 32, marginTop: 12 }}>
@@ -255,6 +257,8 @@ export default function HouseholdScreen() {
                     value={dashboard?.combined.totalIn ?? 0}
                     format={formatCurrency}
                     size={22}
+                    tone={C.onEspresso}
+                    labelTone={C.onEspressoDim}
                   />
                   <Stat
                     pal={C}
@@ -262,6 +266,8 @@ export default function HouseholdScreen() {
                     value={dashboard?.combined.totalOut ?? 0}
                     format={formatCurrency}
                     size={22}
+                    tone={C.onEspresso}
+                    labelTone={C.onEspressoDim}
                   />
                 </View>
               </Card>
@@ -378,19 +384,23 @@ export default function HouseholdScreen() {
                 })}
               </Rows>
 
-              {/* What the household actually sees from those accounts. */}
+              {/* What the household actually sees from those accounts. Money
+                  moving, so green in / red out with a sign, and the category
+                  marked by its glyph. Amounts arrive unsigned; `type` says
+                  which way they went. */}
               {(dashboard?.sharedTransactions?.length ?? 0) > 0 ? (
                 <View style={{ marginTop: 16 }}>
                   <SectionHeader pal={C} title={t('household.sharedActivity')} />
                   <Rows pal={C}>
                     {(dashboard?.sharedTransactions ?? []).slice(0, 10).map((tx) => (
-                      <InfoRow
+                      <Row
                         key={tx.id}
                         pal={C}
                         title={tx.note ?? categoryLabel(tx.category)}
                         meta={`${tx.dateISO} · ${categoryLabel(tx.category)}`}
-                        amount={tx.amount}
+                        amount={tx.type === 'Income' ? tx.amount : -tx.amount}
                         format={formatCurrency}
+                        icon={categoryIcon(tx.category, tx.type)}
                       />
                     ))}
                   </Rows>

@@ -1,24 +1,24 @@
 import { useColorScheme, type TextStyle } from 'react-native';
-import { C_DARK, C_LIGHT, B_DARK, B_LIGHT, type Palette, type BizPalette } from './palettes';
+import { P_DARK, P_LIGHT, type Palette, type BizPalette } from './palettes';
+import { ELEVATION, RADIUS, SPACE, TYPE } from './identity/tokens';
 import { resolveScheme, useThemeStore } from './theme-store';
 
 export { mix } from './palettes';
 
 /**
- * Shared design language — DESIGN-PROMPT.md §3 and §4.
+ * Shared design language — DESIGN-IDENTITY.md.
  *
- * One layout system, one type scale, one component set, one neutral ground.
- * The two profiles differ only in a quiet accent hue:
- *   C — personal, violet
- *   B — business, mint
+ * One identity for both profiles: an off-white ground, one espresso anchor
+ * per screen, ink for text, a warm platinum silver for the details. Personal
+ * and business used to differ by accent (violet, mint); they now read the
+ * same palette object, so nothing a screen does can drift between them.
  *
- * Both palettes expose the SAME keys, so a component reads `C.ink` without
- * caring which profile or scheme is active. Get the live palette from
- * useC()/useB(); the bare `C`/`B` exports are the *light* palettes, because
- * light is the app and dark is a derivation of it.
+ * Get the live palette from useC(). The bare `C` export is the light palette,
+ * for the few module-scope constants that cannot call a hook. Light is the
+ * app; dark is the same layouts with the ground swapped.
  *
- * Light first. Dark is the same layouts and the same spacing with the ground
- * swapped, and it inverts the one dark object into one light object.
+ * Radii, spacing, type and shadow here are the identity's tokens under the
+ * names the screens already use.
  */
 
 export type { Palette, BizPalette };
@@ -31,8 +31,9 @@ export type { Palette, BizPalette };
  * constant that never re-reads the scheme should default to light rather
  * than to the derivation.
  */
-export const C = C_LIGHT;
-export const B = B_LIGHT;
+export const C = P_LIGHT;
+/** @deprecated The same palette as `C`. */
+export const B = P_LIGHT;
 
 /**
  * The scheme actually being rendered.
@@ -46,14 +47,14 @@ export function useScheme(): 'light' | 'dark' {
   return resolveScheme(preference, useColorScheme());
 }
 
-/** The personal palette for the active scheme. */
+/** The palette for the active scheme: the one identity, both profiles. */
 export function useC(): Palette {
-  return useScheme() === 'light' ? C_LIGHT : C_DARK;
+  return useScheme() === 'light' ? P_LIGHT : P_DARK;
 }
 
-/** The business palette for the active scheme. */
+/** @deprecated Identical to useC(); kept so unconverted callers compile. */
 export function useB(): BizPalette {
-  return useScheme() === 'light' ? B_LIGHT : B_DARK;
+  return useC();
 }
 
 // ── Typography (§3) ──────────────────────────────────────────────────────────
@@ -82,31 +83,32 @@ export const F = {
   bold: { fontWeight: '700' },
 } as const satisfies Record<string, TextStyle>;
 
-// ── Radii (§4) ───────────────────────────────────────────────────────────────
+// ── Radii ────────────────────────────────────────────────────────────────────
 /**
- * chip/pill 999 · icon squircle 14 · card 22 · big card 24 · sheet 28.
- *
- * The old names are kept because ~200 sites read them; they now point at the
- * new values, so an un-migrated screen picks up the new shape for free.
+ * The identity's radii under the names ~200 sites already read. Every corner
+ * should also set `borderCurve: 'continuous'` (a squircle, not a quarter
+ * circle); kit components do.
  */
 export const R = {
-  /** Icon squircle. */
-  sm: 14,
+  /** Glyph tile. */
+  sm: RADIUS.tile,
   /** Card. */
-  md: 22,
-  /** Big card — the balance card. */
-  lg: 24,
+  md: RADIUS.card,
+  /** The anchor (the balance card). */
+  lg: RADIUS.anchor,
   /** Bottom sheet. */
-  xl: 28,
-  pill: 999,
+  xl: RADIUS.sheet,
+  /** Buttons, inputs, quick-action cards. */
+  control: RADIUS.control,
+  pill: RADIUS.pill,
 };
 
 // ── Layout (§4) ──────────────────────────────────────────────────────────────
 export const S = {
-  /** Screen padding, horizontal. */
-  screen: 20,
-  /** Between sections. Deliberately larger than feels necessary. */
-  section: 32,
+  /** Screen padding, horizontal: the identity's 24 gutter. */
+  screen: SPACE.gutter,
+  /** Between sections: three times the gap inside one. */
+  section: SPACE.section,
   /**
    * Between things that belong to each other inside one section.
    *
@@ -135,28 +137,25 @@ export const S = {
   tight: 8,
   /** Inside a card. */
   card: 20,
-  /** Icon stroke. Thin and rounded, never filled. */
-  stroke: 1.75,
+  /** Icon stroke. Ignored by icons.tsx (the set draws at its own 1.5). */
+  stroke: 1.5,
 };
 
 // ── Type scale (§3) ──────────────────────────────────────────────────────────
 /**
- * Eight sizes, no more. There is deliberately no uppercase caption style —
- * the references have none, and adding one makes the app look like a
- * dashboard.
- *
- * The brief states tracking as a percentage; React Native's letterSpacing is
- * in points, so each is converted against its own size (-2.0% of 40 = -0.8).
+ * Eight sizes, no more, on San Francisco. The identity's scale (TYPE in
+ * identity/tokens.ts) under the role names the screens use: semibold rather
+ * than bold, body at the HIG's 17, tracking only at display sizes.
  */
 export const T = {
-  display:  { fontSize: 40, lineHeight: 44, weight: 'bold', letterSpacing: -0.8 },
-  title:    { fontSize: 32, lineHeight: 38, weight: 'bold', letterSpacing: -0.48 },
-  headline: { fontSize: 28, lineHeight: 36, weight: 'bold', letterSpacing: -0.28 },
-  section:  { fontSize: 20, lineHeight: 26, weight: 'bold', letterSpacing: -0.1 },
-  cardTitle:{ fontSize: 17, lineHeight: 23, weight: 'semibold', letterSpacing: -0.05 },
-  body:     { fontSize: 16, lineHeight: 24, weight: 'regular', letterSpacing: 0 },
-  meta:     { fontSize: 13, lineHeight: 18, weight: 'medium', letterSpacing: 0 },
-  tab:      { fontSize: 11, lineHeight: 14, weight: 'medium', letterSpacing: 0.11 },
+  display:  { fontSize: TYPE.display.size, lineHeight: TYPE.display.line, weight: 'semibold', letterSpacing: TYPE.display.tracking },
+  title:    { fontSize: TYPE.largeTitle.size, lineHeight: TYPE.largeTitle.line, weight: 'semibold', letterSpacing: TYPE.largeTitle.tracking },
+  headline: { fontSize: 28, lineHeight: 34, weight: 'semibold', letterSpacing: -0.4 },
+  section:  { fontSize: TYPE.title.size, lineHeight: TYPE.title.line, weight: 'semibold', letterSpacing: TYPE.title.tracking },
+  cardTitle:{ fontSize: TYPE.headline.size, lineHeight: TYPE.headline.line, weight: 'semibold', letterSpacing: 0 },
+  body:     { fontSize: TYPE.body.size, lineHeight: TYPE.body.line, weight: 'regular', letterSpacing: 0 },
+  meta:     { fontSize: TYPE.footnote.size, lineHeight: TYPE.footnote.line, weight: 'medium', letterSpacing: 0 },
+  tab:      { fontSize: 11, lineHeight: 14, weight: 'medium', letterSpacing: 0.1 },
 } as const;
 
 // ── Shadow (§1.5, §7) ────────────────────────────────────────────────────────
@@ -180,36 +179,28 @@ export const T = {
  */
 export { BAR, capsuleInset, tabAt, tabCentre, travelInset } from './tab-bar';
 
+/**
+ * The identity's two shadow layers (ELEVATION.rest), warm espresso. A lifted
+ * surface nests both: `far` (ambient) outside, `near` (contact) inside. Kit
+ * components use `lift()` from components/identity/primitives.tsx, which also
+ * handles dark mode and the silver edge; these are for the few screens that
+ * place a shadow by hand.
+ */
 export const SHADOW = {
   near: {
-    shadowColor: '#12172B',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.09,
-    shadowRadius: 8,
+    shadowColor: '#3B2A21',
+    shadowOffset: { width: 0, height: ELEVATION.rest[0].y },
+    shadowOpacity: ELEVATION.rest[0].opacity,
+    shadowRadius: ELEVATION.rest[0].blur / 2,
     elevation: 2,
   },
   far: {
-    shadowColor: '#12172B',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.08,
-    shadowRadius: 24,
+    shadowColor: '#3B2A21',
+    shadowOffset: { width: 0, height: ELEVATION.rest[1].y },
+    shadowOpacity: ELEVATION.rest[1].opacity,
+    shadowRadius: ELEVATION.rest[1].blur / 2,
     elevation: 8,
   },
 } as const;
 
-/**
- * @deprecated The calm direction has no glows (§1, "what to leave behind").
- *
- * Kept only because ~18 sites still call it. `glowScale` is 0 in light, so
- * this already returns an invisible shadow there; new code must not call it.
- */
-export function glow(color: string = C.accent, opacity = 0.45, radius = 22, scale = 1) {
-  return {
-    shadowColor: color,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: opacity * scale,
-    shadowRadius: radius,
-    elevation: 10,
-  } as const;
-}
 

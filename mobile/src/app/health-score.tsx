@@ -14,12 +14,14 @@ import { Sparkles } from '@/components/icons';
 
 import { getSettings, getTransactions } from '@/lib/db';
 import { calculateHealthScore, type HealthScoreResult } from '@/lib/health-score';
-import { S, useC } from '@/lib/design';
+import { S, useC, type Palette } from '@/lib/design';
+import { EASE, MOTION } from '@/lib/identity/motion';
 import { CountUp } from '@/components/motion';
 import {
   Card,
   IconTile,
   LinkRow,
+  Meter,
   Screen,
   SectionHeader,
   SubHeader,
@@ -40,6 +42,22 @@ const STROKE = 12;
 const RADIUS = (RING - STROKE) / 2;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
+/** The identity's progress line: 280 ms, eased both ways, no overshoot. */
+const [IO_X1, IO_Y1, IO_X2, IO_Y2] = EASE.inOut;
+const easeInOut = Easing.bezier(IO_X1, IO_Y1, IO_X2, IO_Y2);
+
+/**
+ * The grade's colour, only where it says something: an A is good news, a C
+ * is a caution, a D or an F is bad news, and a B stays neutral. The grade is
+ * always spelled out beside it, so the colour is never the only signal.
+ */
+function gradeTone(pal: Palette, grade: HealthScoreResult['grade']): string {
+  if (grade.startsWith('A')) return pal.positive;
+  if (grade.startsWith('C')) return pal.warning;
+  if (grade === 'D' || grade === 'F') return pal.negative;
+  return pal.inkDim;
+}
+
 /**
  * Health score — DESIGN-PROMPT.md §19 and §6.15: one arc, one big number, one
  * plain-English verdict.
@@ -52,9 +70,10 @@ const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
  * one screen.
  *
  * All of it says the same thing the shape already says. The ring is now the
- * only large object, the five bars are all `accentMark` because they are five
- * measures of one quantity, and the advice is prose on a white card — §1.3,
- * prose over data.
+ * only large object — a tint arc on a silver track — the five bars are all
+ * `accentMark` because they are five measures of one quantity, and the advice
+ * is prose on a card — §1.3, prose over data. Green, amber and red come back
+ * only where they carry a judgement in words: the grade, and the week's trend.
  *
  * The count is the screen's one authored moment, and it now runs on the UI
  * thread. It used to be a `setInterval` firing `setState` 60 times, which
@@ -97,9 +116,11 @@ export default function HealthScoreScreen() {
     // value and an animation to the same shared value inside one synchronous
     // block makes the second write lose, and the cleanup fires on every
     // dependency change — between them the arc never left zero.
+    // The identity's progress line (MOTION.progress): 280 ms, inOut. The
+    // 900 ms sweep it replaces was the slowest thing in the app.
     sweep.value = withTiming(target / 100, {
-      duration: 900,
-      easing: Easing.out(Easing.exp),
+      duration: MOTION.progress.duration,
+      easing: easeInOut,
     });
   }, [health, target, reduced, sweep]);
 
@@ -107,6 +128,8 @@ export default function HealthScoreScreen() {
     strokeDashoffset: CIRCUMFERENCE * (1 - sweep.value),
   }));
 
+  const trendTone =
+    health?.trend === 'up' ? C.positive : health?.trend === 'down' ? C.negative : C.inkDim;
   const trendLine =
     health?.trend === 'up'
       ? t('healthScore.trendUp', { value: health.trendValue })
@@ -143,7 +166,7 @@ export default function HealthScoreScreen() {
                     cx={RING / 2}
                     cy={RING / 2}
                     r={RADIUS}
-                    stroke={C.groundSunk}
+                    stroke={C.silverSoft}
                     strokeWidth={STROKE}
                     fill="none"
                   />
@@ -151,7 +174,7 @@ export default function HealthScoreScreen() {
                     cx={RING / 2}
                     cy={RING / 2}
                     r={RADIUS}
-                    stroke={C.accentMark}
+                    stroke={C.tint}
                     strokeWidth={STROKE}
                     fill="none"
                     strokeDasharray={CIRCUMFERENCE}
@@ -176,10 +199,11 @@ export default function HealthScoreScreen() {
                   value={target}
                   format={scoreFormat}
                   size={44}
+                  weight="semibold"
                   color={C.ink}
                 />
                 {health ? (
-                  <Type role="meta" color={C.inkDim} style={{ marginTop: 2 }}>
+                  <Type role="meta" color={gradeTone(C, health.grade)} style={{ marginTop: 2 }}>
                     {t('healthScore.gradeLabel', { grade: health.grade })}
                   </Type>
                 ) : null}
@@ -200,7 +224,7 @@ export default function HealthScoreScreen() {
                 >
                   {t(`personality.${health.personalityType}.body`)}
                 </Type>
-                <Type role="meta" color={C.inkDim} style={{ marginTop: 12 }}>
+                <Type role="meta" color={trendTone} style={{ marginTop: 12 }}>
                   {trendLine}
                 </Type>
               </View>
@@ -246,26 +270,11 @@ export default function HealthScoreScreen() {
                           {`${item.score}/${item.maxPoints}`}
                         </Type>
                       </View>
-                      <View
-                        accessibilityRole="progressbar"
-                        accessibilityLabel={item.label}
-                        accessibilityValue={{ min: 0, max: item.maxPoints, now: item.score }}
-                        style={{
-                          height: 6,
-                          borderRadius: 3,
-                          backgroundColor: C.groundSunk,
-                          overflow: 'hidden',
-                          flexDirection: 'row',
-                        }}
-                      >
-                        <View
-                          style={{
-                            width: `${Math.min(100, (item.score / item.maxPoints) * 100)}%`,
-                            backgroundColor: C.accentMark,
-                            borderRadius: 3,
-                          }}
-                        />
-                      </View>
+                      <Meter
+                        pal={C}
+                        ratio={item.maxPoints > 0 ? item.score / item.maxPoints : 0}
+                        label={item.label}
+                      />
                     </View>
                   ))}
                 </Card>

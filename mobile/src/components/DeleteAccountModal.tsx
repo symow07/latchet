@@ -33,11 +33,17 @@ import {
  * and a single destructive button is too easy to hit by accident for
  * something with no undo.
  *
- * Every string in here was `#fff` or `rgba(255,255,255,…)`, painted on
- * `C.bgRaise`. That token now resolves to the white card surface, so the
- * entire dialog — the warning, the counts, the confirmation prompt, the
- * button label — was white text on a white sheet. On the one screen in the
- * app where the user has to read carefully before agreeing.
+ * Every string in here was once hard-coded white, painted on `C.bgRaise`.
+ * That token came to resolve to the light card surface, so the entire dialog
+ * — the warning, the counts, the confirmation prompt, the button label — was
+ * white text on a white sheet. On the one screen in the app where the user
+ * has to read carefully before agreeing.
+ *
+ * It stays a native page sheet rather than the kit's `Sheet`: it is a whole
+ * scrolling flow with a typed confirmation, not a short panel. The deletion
+ * itself is the one destructive control, so it is set in `negative` and says
+ * what it does in words — never an espresso primary button, which would make
+ * the irreversible choice the screen's anchor.
  */
 export function DeleteAccountModal({
   visible,
@@ -224,8 +230,12 @@ export function DeleteAccountModal({
 
               <FormError pal={C} message={deleteError} />
 
+              {/* The one destructive control: a red label on a lifted,
+                  card-coloured button once the typed email matches; the kit's
+                  sunk "off" pair until then. */}
               <PrimaryButton
                 pal={C}
+                variant="destructive"
                 label={t('deleteAccount.confirmButton')}
                 onPress={handleDelete}
                 disabled={!confirmed || deleting}

@@ -13,16 +13,18 @@ import { t } from '@/lib/i18n/core';
  * opens the guided forwarding setup and detected-invoice list
  * (`/email-inbox`).
  *
- * Shared by the personal subscriptions screen and the business tools screen,
- * so it takes the caller's accent rather than reaching for one. It used to be
- * a tinted gradient panel with an accent-tinted border; it is now the same
- * white card and feature row as every other entry point, which is the point —
- * two screens in different accents should reach the same feature through the
- * same-looking door.
+ * Shared by the personal subscriptions screen and the business tools screen.
+ * It used to be a tinted gradient panel with an accent-tinted border, and
+ * then a card whose glyph tile was washed in the caller's hue; it is now the
+ * same lifted card and feature row as every other entry point — a platinum
+ * tile with an ink glyph — which is the point: both screens reach the same
+ * feature through the same-looking door.
  */
-export function EmailScanCard({ accent }: { accent?: string }) {
+export function EmailScanCard(_props: {
+  /** @deprecated Ignored: one identity, so the tile no longer takes a hue. */
+  accent?: string;
+}) {
   const C = useC();
-  const hue = accent ?? C.accent;
   const router = useRouter();
 
   const { data: status, isLoading } = useQuery<EmailStatus>({
@@ -47,11 +49,11 @@ export function EmailScanCard({ accent }: { accent?: string }) {
         <LinkRow
           pal={C}
           icon={
-            <IconTile pal={C} style={{ backgroundColor: `${hue}1a` }}>
+            <IconTile pal={C}>
               {count > 0 ? (
-                <Inbox size={20} color={hue} strokeWidth={S.stroke} />
+                <Inbox size={20} color={C.ink} strokeWidth={S.stroke} />
               ) : (
-                <Mail size={20} color={hue} strokeWidth={S.stroke} />
+                <Mail size={20} color={C.ink} strokeWidth={S.stroke} />
               )}
             </IconTile>
           }

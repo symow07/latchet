@@ -44,11 +44,13 @@ const STEP_KEYS = [
 /**
  * Email forwarding — DESIGN-PROMPT.md board §31.
  *
- * Three tinted-glass card styles became white cards on bone: the address is a
- * sunk well with one copy button beside it, the Gmail confirmation code is a
- * feature row, and the detected invoices are ordinary rows with amounts set
- * by the shared formatter — they were `$${n.toFixed(2)}`, so a euro receipt
- * was labelled in dollars.
+ * Three tinted-glass card styles became cards lifted off the page: the
+ * address is a sunk well with one copy button beside it, the Gmail
+ * confirmation code is a feature row fronted by a platinum tile, and the
+ * detected invoices are ordinary rows with amounts set by the shared
+ * formatter — they were `$${n.toFixed(2)}`, so a euro receipt was labelled in
+ * dollars. An invoice is a price, not a movement, so its figure stays ink; the
+ * espresso anchor here is the one primary button.
  */
 export default function EmailInboxScreen() {
   const C = useC();
@@ -127,7 +129,7 @@ export default function EmailInboxScreen() {
             <Card pal={C}>
               <View style={{ flexDirection: 'row', gap: 12 }}>
                 <IconTile pal={C}>
-                  <Mail size={19} color={C.accent} strokeWidth={S.stroke} />
+                  <Mail size={19} color={C.ink} strokeWidth={S.stroke} />
                 </IconTile>
                 <View style={{ flex: 1 }}>
                   <Type role="cardTitle" color={C.ink}>
@@ -169,6 +171,7 @@ export default function EmailInboxScreen() {
                       justifyContent: 'center',
                       paddingHorizontal: 14,
                       borderRadius: R.sm,
+                      borderCurve: 'continuous',
                       backgroundColor: C.groundSunk,
                     }}
                   >
@@ -185,13 +188,14 @@ export default function EmailInboxScreen() {
                       width: 52,
                       height: 52,
                       borderRadius: R.sm,
+                      borderCurve: 'continuous',
                       alignItems: 'center',
                       justifyContent: 'center',
                       backgroundColor: copied ? C.accentSoft : C.groundSunk,
                     }}
                   >
                     {copied ? (
-                      <Check size={19} color={C.accent} strokeWidth={2.4} />
+                      <Check size={19} color={C.accent} strokeWidth={S.stroke} />
                     ) : (
                       <Copy size={19} color={C.inkDim} strokeWidth={S.stroke} />
                     )}
@@ -205,7 +209,7 @@ export default function EmailInboxScreen() {
                 <Card pal={C}>
                   <View style={{ flexDirection: 'row', gap: 12 }}>
                     <IconTile pal={C}>
-                      <KeyRound size={19} color={C.accent} strokeWidth={S.stroke} />
+                      <KeyRound size={19} color={C.ink} strokeWidth={S.stroke} />
                     </IconTile>
                     <View style={{ flex: 1 }}>
                       <Type role="cardTitle" color={C.ink}>
@@ -270,7 +274,7 @@ export default function EmailInboxScreen() {
                           format={formatCurrency}
                           lead={
                             <IconTile pal={C} size={40}>
-                              <Mail size={18} color={C.accent} strokeWidth={S.stroke} />
+                              <Mail size={18} color={C.ink} strokeWidth={S.stroke} />
                             </IconTile>
                           }
                         />
@@ -304,7 +308,8 @@ export default function EmailInboxScreen() {
                           style={{
                             width: 26,
                             height: 26,
-                            borderRadius: 13,
+                            borderRadius: R.pill,
+                            borderCurve: 'continuous',
                             backgroundColor: C.groundSunk,
                             alignItems: 'center',
                             justifyContent: 'center',

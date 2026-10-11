@@ -37,16 +37,17 @@ const THEME_OPTIONS: ThemePreference[] = ['system', 'light', 'dark'];
 /**
  * Settings — DESIGN-PROMPT.md §17.
  *
- * Grouped white cards on the bone ground. What this replaces was the same
+ * Grouped cards on the off-white ground. What this replaces was the same
  * information wearing eleven different colours: every row was a card tinted
  * and outlined in its own hue, its icon chip tinted to match, and the section
  * headings were 11px tracked-out caps in `lilac`. The destructive rows were
  * pink-on-pink; the save button was a green gradient with a glow.
  *
- * §1.6 gives feature rows one pale accent squircle, §1.5 separates surfaces
- * with shadow rather than borders, and §3 has no uppercase caption style at
- * all. Colour now appears exactly twice on this screen: the accent on the
- * icon tiles, and `negative` on the three things that destroy data.
+ * Feature rows get one platinum squircle (kit IconTile), surfaces separate by
+ * a soft shadow and a silver hairline rather than coloured outlines, and §3
+ * has no uppercase caption style at all. Colour now appears exactly twice on
+ * this screen: the tint on the icon tiles, and `negative` on the three things
+ * that destroy data, which also say so in words.
  */
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
@@ -182,9 +183,14 @@ export default function SettingsScreen() {
     ]);
   }
 
-  const tile = (Icon: React.ComponentType<{ size: number; color: string; strokeWidth: number }>) => (
+  // Every row's glyph sits on the same tile, so titles align down the screen.
+  // The destructive rows pass `negative`; everything else is the tint.
+  const tile = (
+    Icon: React.ComponentType<{ size: number; color: string; strokeWidth: number }>,
+    color: string = C.accent,
+  ) => (
     <IconTile pal={C}>
-      <Icon size={20} color={C.accent} strokeWidth={S.stroke} />
+      <Icon size={20} color={color} strokeWidth={S.stroke} />
     </IconTile>
   );
 
@@ -345,8 +351,8 @@ export default function SettingsScreen() {
               body={option === 'system' ? t('appearance.systemHint') : undefined}
               selected={themePreference === option}
               // No remount and no restart: every screen reads its palette
-              // through useC()/useB(), which subscribe to this store, so the
-              // whole app repaints on the next render.
+              // through useC(), which subscribes to this store, so the whole
+              // app repaints on the next render.
               onPress={() => chooseTheme(option)}
               icon={
                 option === 'light' ? <Sun size={20} color={C.inkDim} strokeWidth={S.stroke} />
@@ -424,14 +430,15 @@ export default function SettingsScreen() {
         <Group pal={C} title={t('settings.sections.features')} style={{ marginTop: S.section }}>
           {features.map((f) => (
             // No chevron and no press: these describe what the app does for
-            // you, they are not places to go.
+            // you, they are not places to go. Laid out like the kit's LinkRow
+            // and SwitchRow (InfoRow would clip the description to one line).
             <View
               key={f.label}
-              style={{ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56, paddingVertical: 6 }}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 14, minHeight: 56, paddingVertical: 6 }}
             >
               {tile(f.Icon)}
               <View style={{ flex: 1 }}>
-                <Type role="cardTitle" color={C.ink}>{f.label}</Type>
+                <Type role="body" color={C.ink}>{f.label}</Type>
                 <Type role="meta" color={C.inkDim}>{f.desc}</Type>
               </View>
             </View>
@@ -441,14 +448,14 @@ export default function SettingsScreen() {
         <Group pal={C} title={t('settings.sections.danger')} style={{ marginTop: S.section }}>
           <LinkRow
             pal={C}
-            icon={<RotateCcw size={20} color={C.negative} strokeWidth={S.stroke} />}
+            icon={tile(RotateCcw, C.negative)}
             title={t('common.reset')}
             body={t('common.resetHint')}
             onPress={handleReset}
           />
           <LinkRow
             pal={C}
-            icon={<Trash2 size={20} color={C.negative} strokeWidth={S.stroke} />}
+            icon={tile(Trash2, C.negative)}
             title={t('deleteAccount.entry')}
             body={t('deleteAccount.entryHint')}
             onPress={() => setShowDeleteAccount(true)}
@@ -469,9 +476,10 @@ export default function SettingsScreen() {
           </Touchable>
         </Group>
 
+        {/* inkDim, not inkFaint: inkFaint never carries text. */}
         <Type
           role="meta"
-          color={C.inkFaint}
+          color={C.inkDim}
           style={{ textAlign: 'center', marginTop: S.section }}
         >
           {t('settings.version')}

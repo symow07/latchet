@@ -7,7 +7,7 @@ import { Search } from '@/components/icons';
 import { getSettings, updateSettings } from '@/lib/db';
 import { CURRENCIES, type Currency } from '@/lib/currencies';
 import { setActiveCurrency } from '@/lib/calculations';
-import { S, useB } from '@/lib/design';
+import { S, useC } from '@/lib/design';
 import { ChoiceRow, Empty, Field, Screen, SubHeader, Type } from '@/components/kit';
 import { t } from '@/lib/i18n/core';
 
@@ -29,7 +29,7 @@ import { t } from '@/lib/i18n/core';
  * like two different controls.
  */
 export default function CurrencyScreen() {
-  const B = useB();
+  const B = useC();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const qc = useQueryClient();

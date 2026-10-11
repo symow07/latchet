@@ -11,7 +11,7 @@ import { getSettings } from '@/lib/db';
 import { formatCurrency } from '@/lib/calculations';
 import { categoryLabel } from '@/lib/category-meta';
 import { txTypeLabel } from '@/lib/tx-display';
-import { S, useC, type Palette } from '@/lib/design';
+import { R, S, useC, type Palette } from '@/lib/design';
 import { PressableScale } from '@/components/motion';
 import {
   Card,
@@ -302,9 +302,11 @@ function AddRecurringSheet({
  * "next run" strings and both section headings were hardcoded English in a
  * four-language app.
  *
- * Now the sign of the amount says the type, `Run now` and `Delete` come off
+ * Now the sign of the amount says the type — green and `+` in, red and `−`
+ * out, as in every list of money moving — `Run now` and `Delete` come off
  * every row (delete moves behind the same swipe Activity uses), and the two
- * monthly totals are plain stats rather than tiles floating on a gradient.
+ * monthly totals are plain stats on the screen's one espresso anchor rather
+ * than tiles floating on a gradient.
  */
 export default function RecurringScreen() {
   const C = useC();
@@ -427,17 +429,19 @@ export default function RecurringScreen() {
                     title={item.name}
                     meta={meta}
                     // Signed, which is the whole distinction the row used to
-                    // encode in a coloured spine and two tinted chips.
+                    // encode in a coloured spine and two tinted chips. A run
+                    // is money moving, so it is signed and coloured both ways.
                     amount={isExpense ? -item.amount : item.amount}
                     format={formatCurrency}
-                    tone={isExpense ? C.negative : C.positive}
+                    signed
                     onPress={() => toggleActiveMutation.mutate(item)}
                     lead={
                       <View
                         style={{
                           width: 8,
                           height: 8,
-                          borderRadius: 4,
+                          borderRadius: R.pill,
+                          borderCurve: 'continuous',
                           backgroundColor: urgencyDot(C, item.nextDate, item.isActive),
                         }}
                       />
@@ -456,7 +460,8 @@ export default function RecurringScreen() {
                             gap: 6,
                             minHeight: 36,
                             paddingHorizontal: 14,
-                            borderRadius: 999,
+                            borderRadius: R.pill,
+                            borderCurve: 'continuous',
                             marginTop: 8,
                             backgroundColor: C.groundSunk,
                           }}
@@ -499,9 +504,11 @@ export default function RecurringScreen() {
           }
         />
 
+        {/* The one espresso anchor: the two monthly totals. Totals are
+            figures, not movements, so they stay neutral on it. */}
         <View style={{ paddingHorizontal: S.screen, marginTop: 24 }}>
-          <Card pal={C}>
-            <Type role="meta" color={C.inkDim}>
+          <Card pal={C} anchor>
+            <Type role="meta" color={C.onEspressoDim}>
               {t('recurring.caption', { count: active.length })}
             </Type>
             <View style={{ flexDirection: 'row', gap: 32, marginTop: 12 }}>
@@ -511,6 +518,8 @@ export default function RecurringScreen() {
                 value={monthlyTotal(items, 'Expense')}
                 format={formatCurrency}
                 size={22}
+                tone={C.onEspresso}
+                labelTone={C.onEspressoDim}
               />
               <Stat
                 pal={C}
@@ -518,6 +527,8 @@ export default function RecurringScreen() {
                 value={monthlyTotal(items, 'Income')}
                 format={formatCurrency}
                 size={22}
+                tone={C.onEspresso}
+                labelTone={C.onEspressoDim}
               />
             </View>
           </Card>

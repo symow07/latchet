@@ -31,8 +31,8 @@ import { t } from '@/lib/i18n/core';
  * the old terms.
  *
  * It is the same trust pattern as the bank consent sheet (§6.10): a headline,
- * icon rows saying exactly what is and is not granted, one ink pill, legal
- * text beneath.
+ * icon rows saying exactly what is and is not granted, one espresso button,
+ * legal text beneath.
  */
 
 /** Module scope, so it is not a fresh component type on every render. */
@@ -40,9 +40,9 @@ function Line({ pal, ok, label }: { pal: Palette; ok: boolean; label: string }) 
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 8 }}>
       {ok ? (
-        <Check size={16} color={pal.positive} strokeWidth={2.2} />
+        <Check size={16} color={pal.accent} strokeWidth={S.stroke} />
       ) : (
-        <X size={16} color={pal.inkFaint} strokeWidth={2.2} />
+        <X size={16} color={pal.inkDim} strokeWidth={S.stroke} />
       )}
       <Type role="body" color={ok ? pal.ink : pal.inkDim} style={{ flex: 1 }}>
         {label}
@@ -148,7 +148,7 @@ export default function HouseholdJoinScreen() {
             <Card pal={C} style={{ marginTop: 12 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                 <IconTile pal={C}>
-                  <ShieldCheck size={19} color={C.accent} strokeWidth={S.stroke} />
+                  <ShieldCheck size={19} color={C.ink} strokeWidth={S.stroke} />
                 </IconTile>
                 <Type role="cardTitle" color={C.ink} style={{ flex: 1 }}>
                   {t('household.whatTheySee')}

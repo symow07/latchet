@@ -2,16 +2,7 @@ import { useState } from 'react';
 import { Alert, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  Building2,
-  Check,
-  CreditCard,
-  MoreHorizontal,
-  PiggyBank,
-  Plus,
-  TrendingUp,
-  Wallet,
-} from '@/components/icons';
+import { Building2, CreditCard, MoreHorizontal, PiggyBank, Plus, Tick, TrendingUp, Wallet } from '@/components/icons';
 import * as Haptics from 'expo-haptics';
 import {
   createAccount,
@@ -24,8 +15,8 @@ import {
 import { formatCurrencyAmount } from '@/lib/currencies';
 import { accountTypeLabel } from '@/lib/tx-display';
 import { categoryMarkIndex } from '@/lib/category-meta';
-import { S, useC } from '@/lib/design';
-import { C_LIGHT } from '@/lib/palettes';
+import { R, S, useC } from '@/lib/design';
+import { P_DARK, P_LIGHT } from '@/lib/palettes';
 import { PressableScale } from '@/components/motion';
 import {
   Amount,
@@ -55,10 +46,11 @@ import { t } from '@/lib/i18n/core';
  * more hue than the rest of the app put together. §1 is explicit about where
  * that comes from: if a decision traces back to "make it pop", reverse it.
  *
- * What is here now: the bone ground, one dark object — the total, which is
- * the number people opened this screen for — and a white card of rows whose
- * marks come from the category ramp (§2.5), which is muted on purpose and
- * verified at 3:1 against its own ground in both schemes.
+ * What is here now: the off-white page, one espresso anchor — the total, which
+ * is the number people opened this screen for — and a card of rows whose
+ * marks come from the palette's warm ramp (espresso through umber and bronze
+ * to platinum), never a rainbow, and every step clearing 3:1 on its own
+ * ground in both schemes.
  */
 
 /** The type choices. Built per call: `t()` at module scope freezes the
@@ -75,33 +67,62 @@ function accountTypes() {
 }
 
 /**
- * The stored form of an account's mark.
+ * The stored form of an account's mark: a position on the palette's ramp.
  *
- * A colour has to survive a scheme change, and the two ramps are different
- * hexes for the same eight marks — the light ramp is 3.8–5.1:1 on bone, the
- * dark one 7.3–9.6:1 on near-black, and neither is legible on the other's
- * ground. So the light ramp is the canonical value written to the database,
- * and `markColor` resolves it into whichever ramp is being rendered.
+ * The column holds a hex, so a position is written as the *light* ramp's
+ * colour at that position — the same convention the column has always used,
+ * so it means one thing whichever scheme saved it. It is only ever a key:
+ * what is drawn is the live palette's `cat` at the same position, so the mark
+ * follows the active scheme. Never render from this table.
  */
-const MARKS = C_LIGHT.cat;
+const STORED_MARKS = P_LIGHT.cat;
 
 /**
- * Resolve a stored mark into the active scheme's ramp.
+ * LEGACY — the retired category ramps (violet, blue, teal, green, amber,
+ * orange, red, pink), light then dark, from before the design identity.
  *
- * A colour saved before this screen existed belongs to neither ramp — the old
- * form auto-assigned one of `#22c55e`, `#3b82f6`, `#9333ea`, `#ef4444`,
- * `#f59e0b` by account *type*, or one of ten saturated picker swatches. Those
- * pass through as-is only if you decide they were a user's choice worth
- * preserving. They were not: nobody picked them, and one `#22c55e` disc on a
- * bone screen is louder than everything else on it put together.
- *
- * So an unrecognised colour is derived from the account's own name instead.
- * Deterministic, so a given account keeps one mark for good, and always from
- * the ramp §2.5 verified at 3:1 against both grounds.
+ * Accounts saved under them hold these exact hexes. They are kept only so an
+ * old value can be read back as the position it meant — a saved `#1E6FD9` is
+ * "the second mark", whatever the second mark looks like now. Nothing is ever
+ * rendered in these colours and nothing new is written with them. If the
+ * ramp changes again, the outgoing one belongs here too.
  */
-function markColor(stored: string, name: string, cat: readonly string[]): string {
-  const i = MARKS.indexOf(stored);
-  return cat[i >= 0 ? i : categoryMarkIndex(name, cat.length)]!;
+const LEGACY_MARKS: readonly (readonly string[])[] = [
+  ['#5B3FD9', '#1E6FD9', '#0D8577', '#2E8B4E', '#A87400', '#C25A18', '#CC3B33', '#C0357A'],
+  ['#A99BE8', '#7FB6E0', '#5FC4B4', '#7FC98D', '#D9B45C', '#E0996A', '#E58880', '#DB8FAF'],
+];
+
+/** Every ramp a saved value may come from: today's two, then the retired two. */
+const KNOWN_MARKS: readonly (readonly string[])[] = [P_LIGHT.cat, P_DARK.cat, ...LEGACY_MARKS];
+
+/**
+ * Resolve a stored mark to its position on the ramp.
+ *
+ * A value from today's ramp (either scheme) or a retired one maps to the
+ * position it was saved at, so a change of ramp never silently re-maps a
+ * saved account. Anything else — the old form auto-assigned `#22c55e`,
+ * `#3b82f6`, `#9333ea`, `#ef4444` or `#f59e0b` by account *type*, or one of
+ * ten saturated picker swatches, and nobody picked those — is derived from
+ * the account's own name instead. Deterministic, so a given account keeps one
+ * mark for good.
+ */
+function markIndex(stored: string, name: string): number {
+  const key = stored.trim().toUpperCase();
+  for (const ramp of KNOWN_MARKS) {
+    const i = ramp.findIndex((hex) => hex.toUpperCase() === key);
+    if (i >= 0) return i;
+  }
+  return categoryMarkIndex(name, STORED_MARKS.length);
+}
+
+/** The value written to the database for the mark at `index`. */
+function storedMark(index: number): string {
+  return STORED_MARKS[index % STORED_MARKS.length]!;
+}
+
+/** The mark at `index`, drawn from the live palette's ramp. */
+function markColor(cat: readonly string[], index: number): string {
+  return cat[index % cat.length]!;
 }
 
 export default function AccountsScreen() {
@@ -115,7 +136,8 @@ export default function AccountsScreen() {
   const [name, setName] = useState('');
   const [type, setType] = useState<string>('cash');
   const [balance, setBalance] = useState('');
-  const [color, setColor] = useState<string>(MARKS[0]!);
+  /** A position on the ramp; written to the database as storedMark(mark). */
+  const [mark, setMark] = useState<number>(0);
 
   const { data: accounts = [] } = useQuery({ queryKey: ['accounts'], queryFn: getAccounts });
   const { data: settings } = useQuery({ queryKey: ['settings'], queryFn: getSettings });
@@ -140,7 +162,7 @@ export default function AccountsScreen() {
     setName('');
     setType('cash');
     setBalance('');
-    setColor(MARKS[0]!);
+    setMark(0);
     setSheetOpen(true);
   };
 
@@ -149,7 +171,7 @@ export default function AccountsScreen() {
     setName(account.name);
     setType(account.type);
     setBalance(account.balance.toString());
-    setColor(account.color);
+    setMark(markIndex(account.color, account.name));
     setSheetOpen(true);
   };
 
@@ -161,7 +183,7 @@ export default function AccountsScreen() {
           name,
           type: type as Account['type'],
           balance: amount,
-          color,
+          color: storedMark(mark),
         });
       } else {
         await createAccount({
@@ -169,7 +191,7 @@ export default function AccountsScreen() {
           type,
           balance: amount,
           currency: currencyCode,
-          color,
+          color: storedMark(mark),
           icon: type,
         });
       }
@@ -220,7 +242,7 @@ export default function AccountsScreen() {
           }
         />
 
-        {/* The one dark object: the figure this screen exists to show. */}
+        {/* The one espresso anchor: the figure this screen exists to show. */}
         <BalanceCard
           pal={C}
           label={t('accounts.totalNetWorth')}
@@ -246,7 +268,7 @@ export default function AccountsScreen() {
               {accounts.map((account, i) => {
                 const spec = accountTypes().find((s) => s.id === account.type);
                 const Icon = spec?.Icon ?? Wallet;
-                const mark = markColor(account.color, account.name, C.cat);
+                const tone = markColor(C.cat, markIndex(account.color, account.name));
                 return (
                   <View
                     key={account.id}
@@ -263,17 +285,21 @@ export default function AccountsScreen() {
                         minHeight: 64,
                       }}
                     >
+                      {/* The glyph is drawn in the card's own surface colour: the
+                          ramp is dark in light mode and pale in dark, so the
+                          surface is what contrasts with it in both. */}
                       <View
                         style={{
                           width: 40,
                           height: 40,
-                          borderRadius: 20,
-                          backgroundColor: mark,
+                          borderRadius: R.sm,
+                          borderCurve: 'continuous',
+                          backgroundColor: tone,
                           alignItems: 'center',
                           justifyContent: 'center',
                         }}
                       >
-                        <Icon size={19} color={C.groundAlt} strokeWidth={S.stroke} />
+                        <Icon size={22} color={C.groundAlt} strokeWidth={S.stroke} />
                       </View>
                       <View style={{ flex: 1 }}>
                         <Type role="cardTitle" color={C.ink} numberOfLines={1}>
@@ -349,13 +375,13 @@ export default function AccountsScreen() {
           <Type role="meta" color={C.inkDim} style={{ marginTop: 16, marginBottom: 12 }}>
             {t('accounts.color')}
           </Type>
-          <View style={{ flexDirection: 'row', gap: 12 }}>
-            {MARKS.map((stored, i) => {
-              const selected = color === stored;
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
+            {C.cat.map((swatch, i) => {
+              const selected = mark === i;
               return (
                 <PressableScale
-                  key={stored}
-                  onPress={() => setColor(stored)}
+                  key={swatch}
+                  onPress={() => setMark(i)}
                   accessibilityRole="radio"
                   accessibilityState={{ selected }}
                   accessibilityLabel={`${t('accounts.color')} ${i + 1}`}
@@ -363,16 +389,17 @@ export default function AccountsScreen() {
                   style={{
                     width: 34,
                     height: 34,
-                    borderRadius: 17,
-                    backgroundColor: C.cat[i],
+                    borderRadius: R.sm,
+                    borderCurve: 'continuous',
+                    backgroundColor: swatch,
                     alignItems: 'center',
                     justifyContent: 'center',
                   }}
                 >
-                  {/* The check, not a white ring: a ring around a saturated
-                      circle reads as a second colour, and selection that is
-                      only a border is selection you have to look for. */}
-                  {selected ? <Check size={17} color={C.groundAlt} strokeWidth={2.4} /> : null}
+                  {/* The check, not a ring: a ring around a filled swatch
+                      reads as a second colour, and selection that is only a
+                      border is selection you have to look for. */}
+                  {selected ? <Tick size={17} color={C.groundAlt} strokeWidth={S.stroke} /> : null}
                 </PressableScale>
               );
             })}

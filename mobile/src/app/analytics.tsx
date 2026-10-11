@@ -11,7 +11,8 @@ import {
   generateAnalyticsSummary,
   type AnalyticsSummary,
 } from '@/lib/behavior-detection';
-import { S, useC } from '@/lib/design';
+import { R, S, useC } from '@/lib/design';
+import { categoryIcon } from '@/components/category-icon';
 import {
   BalanceCard,
   Card,
@@ -19,6 +20,7 @@ import {
   FilterChip,
   InfoRow,
   LinkRow,
+  Row,
   Screen,
   SectionHeader,
   SubHeader,
@@ -39,12 +41,13 @@ type TabType = 'overview' | 'subscriptions' | 'insights' | 'alerts';
  * has no style for on purpose: adding one is what makes an app look like a
  * dashboard, and "dashboard" is the first word in §1's anti-tone list.
  *
- * The rebuild keeps every finding and changes how they are said. One dark
- * object carries the number worth acting on — what you could save — and folds
+ * The rebuild keeps every finding and changes how they are said. One espresso
+ * anchor carries the number worth acting on — what you could save — and folds
  * the alert count into its caption, so the two competing stat tiles become
- * one. Everything below is white cards and rows on bone, and severity is
+ * one. Everything below is plain cards and rows on the page, and severity is
  * written in words rather than encoded in a border colour, which is the same
- * rule §3 applies to signed amounts.
+ * rule §3 applies to signed amounts. A flagged transaction is a transaction:
+ * its category's glyph, and its amount signed and in red.
  */
 
 /** Rows of a card, hairline-separated. Used four times here; it is not worth
@@ -144,7 +147,7 @@ export default function AnalyticsScreen() {
       >
         <SubHeader pal={C} title={t('analytics.title')} onBack={() => router.back()} />
 
-        {/* The one dark object. Two stat tiles became one card because only
+        {/* The one espresso anchor. Two stat tiles became one card because only
             one of the two numbers is something you can act on; the other is
             a count, and a count belongs in a caption. */}
         <BalanceCard
@@ -202,7 +205,8 @@ export default function AnalyticsScreen() {
                       style={{
                         width: 28,
                         height: 28,
-                        borderRadius: 14,
+                        borderRadius: R.pill,
+                        borderCurve: 'continuous',
                         backgroundColor: C.groundSunk,
                         alignItems: 'center',
                         justifyContent: 'center',
@@ -368,7 +372,7 @@ export default function AnalyticsScreen() {
                     <SectionHeader pal={C} title={t('analytics.unusualTransactions')} />
                     <Rows pal={C}>
                       {analytics.unusualTransactions.map((unusual) => (
-                        <InfoRow
+                        <Row
                           key={unusual.transaction.id}
                           pal={C}
                           title={
@@ -379,9 +383,11 @@ export default function AnalyticsScreen() {
                           // styles asked the reader to learn a colour
                           // vocabulary to find out which alert mattered.
                           meta={`${priority(unusual.severity)} · ${unusual.reason}`}
+                          // Only expenses are flagged, so the amount is money
+                          // out: signed and red, as in every transaction list.
                           amount={-unusual.transaction.amount}
                           format={formatCurrency}
-                          tone={C.negative}
+                          icon={categoryIcon(unusual.transaction.category, unusual.transaction.type)}
                         />
                       ))}
                     </Rows>

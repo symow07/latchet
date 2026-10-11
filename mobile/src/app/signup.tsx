@@ -147,8 +147,11 @@ export default function SignUpScreen() {
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={{ paddingHorizontal: S.screen, paddingTop: 32, paddingBottom: 40 }}
         >
+          {/* The plain page, a platinum tile with an ink glyph, and the
+              espresso button below as the screen's one anchor — the same
+              shape as sign-in. */}
           <IconTile pal={C} size={56} style={{ marginBottom: 24 }}>
-            <User size={26} color={C.accent} strokeWidth={S.stroke} />
+            <User size={26} color={C.ink} strokeWidth={S.stroke} />
           </IconTile>
 
           <Type role="title" color={C.ink}>{t('auth.createAccount')}</Type>

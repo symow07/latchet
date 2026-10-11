@@ -17,7 +17,7 @@ import {
 } from '@/lib/businessApi';
 import { receiptSource } from '@/lib/receipt-image';
 import { useSession } from '@/lib/auth/use-session';
-import { S, useB } from '@/lib/design';
+import { R, S, useC } from '@/lib/design';
 import { PressableScale } from '@/components/motion';
 import {
   Card,
@@ -46,7 +46,7 @@ import { t } from '@/lib/i18n/core';
  * deletions use.
  */
 export default function BusinessProfileScreen() {
-  const B = useB();
+  const B = useC();
   const router = useRouter();
   const qc = useQueryClient();
   const { data: session } = useSession();
@@ -165,7 +165,7 @@ export default function BusinessProfileScreen() {
           </View>
         ) : !business ? (
           <View style={{ paddingHorizontal: S.screen, marginTop: S.section, alignItems: 'center' }}>
-            <IconTile pal={B} size={64} style={{ borderRadius: 20 }}>
+            <IconTile pal={B} size={64} style={{ borderRadius: R.control }}>
               <Building2 size={28} color={B.accent} strokeWidth={S.stroke} />
             </IconTile>
             <Type role="section" color={B.ink} style={{ textAlign: 'center', marginTop: 16 }}>
@@ -191,7 +191,7 @@ export default function BusinessProfileScreen() {
               {business.logoUrl ? (
                 <Image
                   source={receiptSource(business.logoUrl)!}
-                  style={{ width: 84, height: 84, borderRadius: 24 }}
+                  style={{ width: 84, height: 84, borderRadius: R.md }}
                   contentFit="cover"
                   // The path never changes when the logo does, so a cached
                   // copy would survive a replacement. The updatedAt stamp is
@@ -199,7 +199,7 @@ export default function BusinessProfileScreen() {
                   cachePolicy="none"
                 />
               ) : (
-                <IconTile pal={B} size={84} style={{ borderRadius: 24 }}>
+                <IconTile pal={B} size={84} style={{ borderRadius: R.md }}>
                   <Building2 size={34} color={B.accent} strokeWidth={S.stroke} />
                 </IconTile>
               )}
@@ -220,7 +220,8 @@ export default function BusinessProfileScreen() {
                         gap: 7,
                         minHeight: 40,
                         paddingHorizontal: 16,
-                        borderRadius: 999,
+                        borderRadius: R.pill,
+                        borderCurve: 'continuous',
                         backgroundColor: B.groundSunk,
                         opacity: logo.isPending ? 0.6 : 1,
                       }}
@@ -243,7 +244,8 @@ export default function BusinessProfileScreen() {
                           gap: 7,
                           minHeight: 40,
                           paddingHorizontal: 16,
-                          borderRadius: 999,
+                          borderRadius: R.pill,
+                          borderCurve: 'continuous',
                           backgroundColor: B.groundSunk,
                           opacity: clearLogo.isPending ? 0.6 : 1,
                         }}

@@ -23,6 +23,8 @@ test('statuses translate for display', () => {
   expect(expenseStatusLabel('pending')).toBe('En attente');
   expect(expenseStatusLabel('approved')).toBe('Approuvée');
   setLocale('en');
+  // The filter row's "all" is labelled too, not shown as its key.
+  expect(expenseStatusLabel('all')).toBe('All');
 });
 
 test('the stored value is never what gets translated', () => {

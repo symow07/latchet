@@ -160,12 +160,14 @@ export default function LoginScreen() {
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={{ paddingHorizontal: S.screen, paddingTop: 32, paddingBottom: 40 }}
         >
-          {/* Content sits at the top and the bottom stays open (§1.4). The
-              old header was a hard-coded #0f0c29 → #302b63 gradient, which is
-              why this screen stayed purple through the retheme: it never read
-              a token. */}
+          {/* Content sits at the top and the bottom stays open (§1.4), on the
+              plain page: no gradient, no wash. The old header was a hard-coded
+              navy-to-violet gradient, which is why this screen stayed purple
+              through the retheme: it never read a token. The mark is the
+              identity's platinum tile with an ink glyph; the espresso button
+              below is the screen's one anchor. */}
           <IconTile pal={C} size={56} style={{ marginBottom: 24 }}>
-            <Wallet size={26} color={C.accent} strokeWidth={S.stroke} />
+            <Wallet size={26} color={C.ink} strokeWidth={S.stroke} />
           </IconTile>
 
           <Type role="title" color={C.ink}>{t('auth.welcomeBack')}</Type>

@@ -22,6 +22,12 @@ import { useC } from '@/lib/design';
  *   liquid meniscus   alive, and a great deal of machinery for a bead that
  *                     protruded further than anyone wanted
  *
+ * The current bar is clear glass with a capsule sliding behind the selected
+ * tab, in the identity's palette. Glyphs are outlines, never filled: each
+ * tab's `Fill` and `Line` are the same outline now, and the capsule (not a
+ * filled glyph) marks the selection. The two slots stay so LiquidTab's shape
+ * does not change.
+ *
  * `Add` keeps its route and sits on the bar as a plain destination.
  */
 

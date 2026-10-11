@@ -1,6 +1,6 @@
 import { test, expect, describe, it } from 'bun:test';
 import {
-  easeOutExpo, countAt, countDuration, BREATH_MIN, BREATH_MAX,
+  easeOutExpo, countAt, countDuration,
   currencyParts, formatWithParts, splitAmount,
   amountScale,
 } from './motion';
@@ -44,27 +44,18 @@ test('counting handles zero, negatives and a zero duration', () => {
   expect(countAt(42, 0, 0)).toBe(42);
 });
 
-test('duration scales with magnitude but stays bounded', () => {
-  // A fixed duration makes 12 feel sluggish and 4,000,000 feel rushed.
+test('a count-up takes the identity\'s 280 ms, under the 300 ms ceiling, at any size', () => {
   expect(countDuration(0)).toBe(0);
-  expect(countDuration(12)).toBeLessThan(countDuration(120000));
-  expect(countDuration(999999999)).toBeLessThanOrEqual(1100);
-  // Nobody should wait more than about a second to read their own balance.
-  for (const n of [1, 50, 4321, 1e9]) expect(countDuration(n)).toBeLessThanOrEqual(1100);
+  for (const n of [1, 50, 4321, 1e9, -12]) {
+    expect(countDuration(n)).toBe(280);
+    expect(countDuration(n)).toBeLessThan(300);
+  }
 });
 
 test('a negative target still gets a real duration', () => {
   expect(countDuration(-4321)).toBeGreaterThan(0);
 });
 
-test('the breath is wide enough to see and narrow enough not to flash', () => {
-  // Measured, not guessed: at 0.72 the peak pixel difference across half a
-  // cycle was 4/255 — real in the buffer and invisible to a person.
-  expect(BREATH_MAX - BREATH_MIN).toBeGreaterThan(0.35);
-  expect(BREATH_MAX - BREATH_MIN).toBeLessThan(0.7);
-  expect(BREATH_MIN).toBeGreaterThan(0.2);
-  expect(BREATH_MAX).toBeLessThanOrEqual(1);
-});
 
 // ── Locale-safe formatting ───────────────────────────────────────────────────
 

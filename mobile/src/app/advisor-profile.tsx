@@ -126,7 +126,7 @@ export default function AdvisorProfileScreen() {
           <Card pal={C}>
             <View style={{ flexDirection: 'row', gap: 12 }}>
               <IconTile pal={C}>
-                <Lock size={19} color={C.accent} strokeWidth={S.stroke} />
+                <Lock size={19} color={C.ink} strokeWidth={S.stroke} />
               </IconTile>
               <View style={{ flex: 1 }}>
                 <Type role="cardTitle" color={C.ink}>
@@ -212,7 +212,7 @@ export default function AdvisorProfileScreen() {
               pal={C}
               icon={
                 <IconTile pal={C}>
-                  <HeartPulse size={19} color={C.accent} strokeWidth={S.stroke} />
+                  <HeartPulse size={19} color={C.ink} strokeWidth={S.stroke} />
                 </IconTile>
               }
               title={t('advisorProfile.sensitiveTitle')}
@@ -248,7 +248,7 @@ export default function AdvisorProfileScreen() {
                 <View style={{ flexDirection: 'row', gap: 8, marginTop: 16 }}>
                   <ShieldCheck
                     size={16}
-                    color={C.positive}
+                    color={C.accent}
                     strokeWidth={S.stroke}
                     style={{ marginTop: 1 }}
                   />

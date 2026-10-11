@@ -124,10 +124,11 @@ export default function OnboardingScreen() {
 
   /**
    * One question per step, in the same shape every time: a headline, a
-   * sentence, then the choice. The old version wrapped each step in a purple
-   * gradient header and hard-coded `rgba(168, 85, 247, …)` selection washes,
-   * which is why it stayed purple through the retheme — none of it read a
-   * token.
+   * sentence, then the choice, on the plain page. The old version wrapped
+   * each step in a purple gradient header and hard-coded violet selection
+   * washes, which is why it stayed purple through the retheme — none of it
+   * read a token. Glyphs sit in ink on platinum tiles, and the espresso
+   * Continue button is the screen's one anchor.
    */
   const renderStep = () => {
     switch (STEPS[step]) {
@@ -147,7 +148,7 @@ export default function OnboardingScreen() {
               onPress={() => setShowCurrencyPicker((open) => !open)}
               icon={
                 <IconTile pal={C}>
-                  <Wallet size={20} color={C.accent} strokeWidth={S.stroke} />
+                  <Wallet size={20} color={C.ink} strokeWidth={S.stroke} />
                 </IconTile>
               }
             />
@@ -282,7 +283,7 @@ export default function OnboardingScreen() {
                     onPress={() => setSpendingStyle(style.id as typeof spendingStyle)}
                     icon={
                       <IconTile pal={C}>
-                        <Icon size={20} color={C.accent} strokeWidth={S.stroke} />
+                        <Icon size={20} color={C.ink} strokeWidth={S.stroke} />
                       </IconTile>
                     }
                   />

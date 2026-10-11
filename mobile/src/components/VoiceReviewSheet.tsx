@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { ActivityIndicator, ScrollView, TextInput, View } from 'react-native';
-import { ArrowDownLeft, ArrowUpRight, Check, Mic } from '@/components/icons';
+import { Mic, Tick } from '@/components/icons';
+import { categoryIcon } from '@/components/category-icon';
 import * as Haptics from 'expo-haptics';
-import { F, S, useC } from '@/lib/design';
+import { F, R, S, useC } from '@/lib/design';
 import { Card, Empty, PrimaryButton, Sheet, Touchable, Type } from '@/components/kit';
 import { t } from '@/lib/i18n/core';
 import { categoryLabel } from '@/lib/category-meta';
@@ -30,6 +31,11 @@ import {
  * It now uses the kit's `Sheet`, which means it can be dragged away and
  * flicked shut like every other sheet in the app, instead of only closing
  * through its own × button.
+ *
+ * Each row reads like a transaction row (kit `Row`): the category's glyph in
+ * ink on a soft tile, and the amount green in / red out with its sign, so the
+ * direction never rests on colour alone. It is hand-built rather than a `Row`
+ * only because the amount is an editable field.
  */
 export function VoiceReviewSheet({
   result,
@@ -93,6 +99,7 @@ export function VoiceReviewSheet({
                 {rows.map((row, i) => {
                   const income = row.type === 'Income';
                   const tone = income ? C.positive : C.negative;
+                  const Glyph = categoryIcon(row.category, row.type);
                   return (
                     <Touchable
                       key={row.key}
@@ -118,23 +125,20 @@ export function VoiceReviewSheet({
                     >
                       <View
                         style={{
-                          width: 34,
-                          height: 34,
-                          borderRadius: 12,
+                          width: 40,
+                          height: 40,
+                          borderRadius: R.sm,
+                          borderCurve: 'continuous',
                           alignItems: 'center',
                           justifyContent: 'center',
                           backgroundColor: C.groundSunk,
                         }}
                       >
-                        {income ? (
-                          <ArrowDownLeft size={17} color={tone} strokeWidth={S.stroke} />
-                        ) : (
-                          <ArrowUpRight size={17} color={tone} strokeWidth={S.stroke} />
-                        )}
+                        <Glyph size={22} color={C.ink} />
                       </View>
 
                       <View style={{ flex: 1 }}>
-                        <Type role="cardTitle" color={C.ink} numberOfLines={1}>
+                        <Type role="body" color={C.ink} numberOfLines={1}>
                           {row.note || categoryLabel(row.category)}
                         </Type>
                         <Type role="meta" color={C.inkDim} numberOfLines={1}>
@@ -143,11 +147,15 @@ export function VoiceReviewSheet({
                       </View>
 
                       {/* Editable in place: a misheard digit is the likely
-                          error, and re-recording to fix one is absurd. */}
+                          error, and re-recording to fix one is absurd. The
+                          figure carries its sign, so the direction never
+                          rests on colour; the sign is stripped before
+                          parsing and put back on the next render, so it
+                          cannot be edited away. */}
                       <TextInput
-                        value={row.amount ? String(row.amount) : ''}
+                        value={row.amount ? `${income ? '+' : '−'}${row.amount}` : ''}
                         onChangeText={(v) => {
-                          const n = Number(v.replace(',', '.'));
+                          const n = Number(v.replace(/[^0-9.,]/g, '').replace(',', '.'));
                           update(row.key, { amount: Number.isFinite(n) && n > 0 ? n : 0 });
                         }}
                         keyboardType="decimal-pad"
@@ -156,7 +164,7 @@ export function VoiceReviewSheet({
                         style={{
                           color: tone,
                           fontSize: 17,
-                          ...F.semibold,
+                          ...F.medium,
                           minWidth: 68,
                           textAlign: 'right',
                           paddingVertical: 4,
@@ -170,16 +178,17 @@ export function VoiceReviewSheet({
                         style={{
                           width: 26,
                           height: 26,
-                          borderRadius: 13,
+                          borderRadius: R.pill,
                           alignItems: 'center',
                           justifyContent: 'center',
-                          backgroundColor: row.include ? C.ink : 'transparent',
+                          // Selected is the tint, as every selected control is.
+                          backgroundColor: row.include ? C.accent : 'transparent',
                           borderWidth: row.include ? 0 : 1.5,
                           borderColor: C.inkFaint,
                         }}
                       >
                         {row.include ? (
-                          <Check size={14} color={C.onInk} strokeWidth={2.6} />
+                          <Tick size={14} color={C.onAccent} />
                         ) : null}
                       </View>
                     </Touchable>

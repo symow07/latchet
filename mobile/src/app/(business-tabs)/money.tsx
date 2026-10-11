@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { View } from 'react-native';
 import { Header, Screen, Segmented } from '@/components/kit';
-import { S, useB } from '@/lib/design';
+import { S, useC } from '@/lib/design';
 import { t } from '@/lib/i18n/core';
 import PayrollScreen from './subscriptions';
 import BudgetScreen from './insights';
@@ -19,17 +19,17 @@ import BudgetScreen from './insights';
  * the switch, and passes `embedded` so they do not draw their own.
  */
 export default function MoneyTab() {
-  const B = useB();
+  const B = useC();
   const [tab, setTab] = useState<'payroll' | 'budget'>('payroll');
 
   return (
     <Screen pal={B}>
       <Header pal={B} title={t('tabs.money')} style={{ paddingTop: 8 }} />
 
-      {/* §6.5 — the active segment is a solid ink pill that slides between
-          positions. It used to be a pale mint fill inside a 1.5px mint border,
-          which is the pattern §1.5 rules out and which made the switch compete
-          with the numbers underneath it. */}
+      {/* The kit's segmented control: a lifted pill with a silver edge that
+          slides between positions on a sunk track. It used to be a tinted fill
+          inside a 1.5px tinted border, which made the switch compete with the
+          numbers underneath it. */}
       <View style={{ paddingHorizontal: S.screen, marginTop: 16, marginBottom: 4 }}>
         <Segmented
           pal={B}

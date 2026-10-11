@@ -20,29 +20,51 @@ describe('the icon set', () => {
     expect(empty.map(([n]) => n)).toEqual([]);
   });
 
-  it('never lets a duotone\'s second tone fade below what reads at icon size', () => {
-    // The second tone is not decoration — strip it from `user` and you have an
-    // unlabelled circle — so it owes the 3:1 a meaningful shape owes. Solar
-    // ships it at 0.5, which is tuned for the size an icon set is *shown* at
-    // rather than the 20–26px it is used at here; measured against the tab
-    // bar's capsule and the tinted tiles, 0.5 lands at 2.2–2.5:1. The generator
-    // clamps to 0.7, the tightest floor that clears 3:1 in every case.
-    const faint = ALL.flatMap(([n, art]) =>
-      art.paths.filter((p) => p.opacity !== undefined && p.opacity < 0.7).map(() => n)
-    );
-    expect(faint).toEqual([]);
+  it('draws every glyph as a single-weight outline, never a fill', () => {
+    // The identity's icon rule: thin outlined glyphs, rounded, never filled or
+    // two-tone. A filled path or a faded second tone means a glyph from some
+    // other set slipped in.
+    const filled = ALL.flatMap(([n, art]) => art.paths.filter((p) => !p.stroke).map(() => n));
+    expect(filled).toEqual([]);
+    const toned = ALL.flatMap(([n, art]) => art.paths.filter((p) => p.opacity !== undefined).map(() => n));
+    expect(toned).toEqual([]);
+    // One weight: 1.5 on the 24 grid, and 2 only for the dot marks the
+    // reference uses as texture (a dot is a zero-length round-capped stroke).
+    const weights = new Set(ALL.flatMap(([, art]) => art.paths.map((p) => p.stroke ?? 0)));
+    for (const w of weights) expect([1.5, 2]).toContain(w);
   });
 
-  it('keeps the duotone actually two-toned', () => {
-    // The counterpart to the floor: if the clamp were ever raised to 1 the
-    // icons would silently become flat silhouettes, which is what they were
-    // when the generator dropped `opacity` altogether and duotone was written
-    // off as looking no different.
-    const twoToned = ALL.filter(([, art]) => art.paths.some((p) => p.opacity !== undefined));
-    expect(twoToned.length).toBeGreaterThan(0);
-    for (const [, art] of twoToned) {
+  it('never draws a square end or a sharp corner', () => {
+    // Paths that leave caps or joins unset are drawn round by icons.tsx; any
+    // that set them must set them round.
+    const sharp = ALL.flatMap(([n, art]) =>
+      art.paths.filter((p) => (p.cap && p.cap !== 'round') || (p.join && p.join !== 'round')).map(() => n)
+    );
+    expect(sharp).toEqual([]);
+    const renderer = readFileSync(join(import.meta.dir, '..', 'components', 'icons.tsx'), 'utf8');
+    expect(renderer).toContain("strokeLinecap={p.cap ?? 'round'}");
+    expect(renderer).toContain("strokeLinejoin={p.join ?? 'round'}");
+  });
+
+  it('comes from the reference family, Hugeicons stroke rounded', () => {
+    // The one exception is a glyph the family lacks, drawn in its grammar in
+    // scripts/generate-icons.mjs (DRAWN). It is named here so a second one is
+    // a decision, not a drift.
+    const DRAWN = ['drawn:backspace'];
+    const elsewhere = ALL.filter(
+      ([, art]) => !art.source.startsWith('hugeicons:') && !DRAWN.includes(art.source)
+    ).map(([n]) => n);
+    expect(elsewhere).toEqual([]);
+  });
+
+  it('draws its own glyphs at the family\'s single 1.5 stroke', () => {
+    const drawn = ALL.filter(([, art]) => art.source.startsWith('drawn:'));
+    expect(drawn.length).toBeGreaterThan(0);
+    for (const [, art] of drawn) {
       for (const p of art.paths) {
-        if (p.opacity !== undefined) expect(p.opacity).toBeLessThan(1);
+        expect(p.stroke).toBe(1.5);
+        expect(p.cap).toBe('round');
+        expect(p.join).toBe('round');
       }
     }
   });
@@ -54,13 +76,11 @@ describe('the icon set', () => {
     expect(unsourced.map(([n]) => n)).toEqual([]);
   });
 
-  it('gives every tab-bar icon both a solid and an outline form', () => {
-    // A bar marks the active destination by filling its glyph. An icon with
-    // only one form would show the same shape in both states, which reads as
-    // the bar being broken rather than as a style choice.
-    const solid = new Set([...Object.keys(ICON_PATHS), ...Object.keys(ICON_PATHS_BAR)]);
-    const orphans = Object.keys(ICON_PATHS_LINE).filter((n) => !solid.has(n));
-    expect(orphans).toEqual([]);
+  it('gives every tab-bar destination its glyph in both state maps', () => {
+    // The active tab is marked by the tint and a capsule, not by a filled
+    // glyph, so both maps carry the same outline; a destination missing from
+    // either would render nothing in that state.
+    expect(Object.keys(ICON_PATHS_LINE).sort()).toEqual(Object.keys(ICON_PATHS_BAR).sort());
   });
 
   it('is the only icon source in the app', () => {

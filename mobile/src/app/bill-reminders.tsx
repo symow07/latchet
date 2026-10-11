@@ -3,14 +3,14 @@ import { ActivityIndicator, Alert, ScrollView, View } from 'react-native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { format, parseISO } from 'date-fns';
-import { Bell, Check, Plus } from '@/components/icons';
+import { Bell, Plus, Tick } from '@/components/icons';
 import * as Haptics from 'expo-haptics';
 
 import { api } from '@/lib/api/api';
 import { getSettings } from '@/lib/db';
 import { formatCurrency } from '@/lib/calculations';
 import { categoryLabel } from '@/lib/category-meta';
-import { S, useC, type Palette } from '@/lib/design';
+import { R, S, useC, type Palette } from '@/lib/design';
 import { PressableScale } from '@/components/motion';
 import {
   BalanceCard,
@@ -98,9 +98,10 @@ function urgencyLabel(days: number): string {
  *
  * The old row said "how urgent" four times — a four-step colour scale on a
  * full-height accent bar, a tinted icon well, a tinted pill and the label
- * inside it. This is one 8px dot, and it is a redundant cue: `urgencyLabel`
- * already says "3d left" or "2d overdue" in words, which is what a reader who
- * cannot separate amber from red is left with otherwise.
+ * inside it. This is one 8px dot — red when due or overdue, amber when due
+ * within three days — and it is a redundant cue: `urgencyLabel` already says
+ * "3d left" or "2d overdue" in words, which is what a reader who cannot
+ * separate amber from red is left with otherwise.
  */
 function urgencyDot(pal: Palette, days: number, isPaid: boolean): string {
   if (isPaid) return pal.groundSunk;
@@ -130,7 +131,10 @@ function advanceByOneMonth(isoDate: string): string {
 
 // ─── Paid toggle ─────────────────────────────────────────────────────────────
 
-/** Ink-filled with a check when paid, an empty ring when not. */
+/**
+ * Filled in the tint with a check when paid (a selected control, so the
+ * accent and its own foreground), an empty ring when not.
+ */
 function PaidToggle({
   pal,
   isPaid,
@@ -153,15 +157,16 @@ function PaidToggle({
       style={{
         width: 28,
         height: 28,
-        borderRadius: 14,
+        borderRadius: R.pill,
+        borderCurve: 'continuous',
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: isPaid ? pal.ink : 'transparent',
+        backgroundColor: isPaid ? pal.accent : 'transparent',
         borderWidth: isPaid ? 0 : 1.5,
-        borderColor: pal.inkFaint,
+        borderColor: pal.inkDim,
       }}
     >
-      {isPaid ? <Check size={15} color={pal.onInk} strokeWidth={2.6} /> : null}
+      {isPaid ? <Tick size={16} color={pal.onAccent} strokeWidth={S.stroke} /> : null}
     </PressableScale>
   );
 }
@@ -306,6 +311,8 @@ function AddBillSheet({
  * The old screen opened on a violet gradient carrying three translucent stat
  * tiles, and closed with a violet gradient FAB throwing a violet glow. Between
  * them, each bill was a card with a four-step urgency colour said four ways.
+ * Now the monthly total is the one espresso anchor, each amount is a figure in
+ * ink (a bill is owed, not yet money moved), and urgency is said in words.
  *
  * Under that were four separate English strings a translated app cannot use:
  * `"UPCOMING"`, `"N upcoming · N total"`, `"overdue"`, `"paid"` — plus
@@ -417,7 +424,8 @@ export default function BillRemindersScreen() {
                         style={{
                           width: 8,
                           height: 8,
-                          borderRadius: 4,
+                          borderRadius: R.pill,
+                          borderCurve: 'continuous',
                           backgroundColor: urgencyDot(C, days, bill.isPaid),
                         }}
                       />

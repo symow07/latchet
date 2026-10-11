@@ -4,14 +4,14 @@ import { useLocaleStore } from '@/lib/i18n/locale-store';
 import { t } from '@/lib/i18n/core';
 import { TabIcons } from '@/components/icons';
 import { LiquidTabBar, type LiquidTab } from '@/components/LiquidTabBar';
-import { useB } from '@/lib/design';
+import { useC } from '@/lib/design';
 
 /**
  * The liquid bar, business side.
  *
- * Identical to the personal one except the palette it is handed, which is the
- * point: one layout system, one component set, differing only in accent. The
- * mechanics are documented there and in lib/tab-bar.ts.
+ * The same bar as the personal one, handed the same palette: one identity for
+ * both profiles, so the two bars differ only in their destinations, never in
+ * colour. The mechanics are documented in LiquidTabBar and lib/tab-bar.ts.
  */
 
 export default function BusinessTabLayout() {
@@ -19,7 +19,7 @@ export default function BusinessTabLayout() {
   // change triggers higher up does not reach these titles — the tab bar kept
   // the language the app started in. Keying the navigator forces it.
   const localeVersion = useLocaleStore((s) => s.version);
-  const B = useB();
+  const C = useC();
 
   // Built here rather than at module scope — see the personal layout for why.
   const tabs: Record<string, LiquidTab> = React.useMemo(
@@ -49,7 +49,7 @@ export default function BusinessTabLayout() {
   return (
     <Tabs
       key={localeVersion}
-      tabBar={(props) => <LiquidTabBar {...props} pal={B} tabs={tabs} />}
+      tabBar={(props) => <LiquidTabBar {...props} pal={C} tabs={tabs} />}
       screenOptions={{ headerShown: false }}
     >
       <Tabs.Screen name="index" />

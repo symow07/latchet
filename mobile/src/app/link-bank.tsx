@@ -29,7 +29,7 @@ import { formatCurrencyAmount } from '@/lib/currencies';
 import { accountTypeLabel } from '@/lib/tx-display';
 import { useEntitlement } from '@/lib/useEntitlement';
 import { isUpgradeRequired } from '@/lib/entitlementApi';
-import { S, useC, type Palette } from '@/lib/design';
+import { R, S, useC, type Palette } from '@/lib/design';
 import { PressableScale } from '@/components/motion';
 import {
   Card,
@@ -70,14 +70,15 @@ function ConsentRow({
  * Connect a bank — DESIGN-PROMPT.md board §30, the trust screen.
  *
  * This screen was the only place in the app painted **blue**. The header was a
- * `#3b82f6 → #2563eb → #1d4ed8` gradient, the add-bank affordance was a dashed
- * blue box, "Sync now" was a solid `bg-blue-600`, and the consent modal's
- * confirm button was another blue gradient — a third brand colour on the one
- * screen where the user is being asked to trust the app with their bank.
+ * three-stop blue gradient, the add-bank affordance was a dashed blue box,
+ * "Sync now" was a solid `bg-blue-600`, and the consent modal's confirm button
+ * was another blue gradient — a third brand colour on the one screen where the
+ * user is being asked to trust the app with their bank.
  *
  * §6.10 is specific about how this moment should look: icon rows, one headline
- * naming both parties, one black full-width pill, legal text beneath. The
- * consent sheet is now that, and the rest of the screen is white cards on bone.
+ * naming both parties, one full-width espresso button, legal text beneath. The
+ * consent sheet is now that, and the rest of the screen is cards lifted off the
+ * page, each feature row fronted by a platinum tile with an ink glyph.
  *
  * Two of the blue buttons also had `style={{ color: C.text }}` labels, which
  * after the retheme is near-black ink on a saturated blue fill.
@@ -258,7 +259,8 @@ export default function LinkBankScreen() {
                           style={{
                             width: 8,
                             height: 8,
-                            borderRadius: 4,
+                            borderRadius: R.pill,
+                            borderCurve: 'continuous',
                             // Said in words too, in the meta line above.
                             backgroundColor: expired
                               ? C.negative
@@ -308,7 +310,7 @@ export default function LinkBankScreen() {
             onPress={isLoading ? undefined : () => setShowConsent(true)}
             lead={
               <IconTile pal={C}>
-                <Building2 size={20} color={C.accent} strokeWidth={S.stroke} />
+                <Building2 size={20} color={C.ink} strokeWidth={S.stroke} />
               </IconTile>
             }
             trailing={isLoading ? <ActivityIndicator color={C.accent} /> : undefined}
@@ -333,7 +335,8 @@ export default function LinkBankScreen() {
                     style={{
                       width: 26,
                       height: 26,
-                      borderRadius: 13,
+                      borderRadius: R.pill,
+                      borderCurve: 'continuous',
                       backgroundColor: C.groundSunk,
                       alignItems: 'center',
                       justifyContent: 'center',
@@ -429,7 +432,8 @@ export default function LinkBankScreen() {
                         style={{
                           width: 36,
                           height: 36,
-                          borderRadius: 18,
+                          borderRadius: R.pill,
+                          borderCurve: 'continuous',
                           alignItems: 'center',
                           justifyContent: 'center',
                           backgroundColor: account.isEnabled ? C.accentSoft : C.groundSunk,
@@ -460,7 +464,7 @@ export default function LinkBankScreen() {
               <View style={{ gap: 8, marginTop: 12 }}>
                 {consent.dataAccessed.map((item) => (
                   <View key={item} style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                    <Check size={15} color={C.positive} strokeWidth={2.2} />
+                    <Check size={15} color={C.accent} strokeWidth={S.stroke} />
                     <Type role="body" color={C.inkDim} style={{ flex: 1 }}>
                       {item}
                     </Type>
@@ -491,12 +495,12 @@ export default function LinkBankScreen() {
       </ScrollView>
 
       {/* The trust moment — §6.10. One headline naming both parties, three
-          icon rows saying exactly what is and is not granted, one ink pill,
-          and the legal line beneath it. */}
+          icon rows saying exactly what is and is not granted, one espresso
+          button, and the legal line beneath it. */}
       <Sheet pal={C} visible={showConsent} onClose={() => setShowConsent(false)}>
         <View style={{ paddingHorizontal: S.card, paddingTop: 6 }}>
           <IconTile pal={C} size={56} style={{ alignSelf: 'center' }}>
-            <Building2 size={26} color={C.accent} strokeWidth={S.stroke} />
+            <Building2 size={26} color={C.ink} strokeWidth={S.stroke} />
           </IconTile>
 
           <Type role="section" color={C.ink} style={{ textAlign: 'center', marginTop: 16 }}>
@@ -512,17 +516,17 @@ export default function LinkBankScreen() {
           <View style={{ marginTop: 16 }}>
             <ConsentRow
               pal={C}
-              icon={<Check size={19} color={C.accent} strokeWidth={2.2} />}
+              icon={<Check size={19} color={C.ink} strokeWidth={S.stroke} />}
               label={t('bankExtra.viewBalances')}
             />
             <ConsentRow
               pal={C}
-              icon={<Check size={19} color={C.accent} strokeWidth={2.2} />}
+              icon={<Check size={19} color={C.ink} strokeWidth={S.stroke} />}
               label={t('bankExtra.readHistory')}
             />
             <ConsentRow
               pal={C}
-              icon={<AlertTriangle size={19} color={C.accent} strokeWidth={S.stroke} />}
+              icon={<AlertTriangle size={19} color={C.ink} strokeWidth={S.stroke} />}
               label={t('bankExtra.noPayments')}
             />
           </View>

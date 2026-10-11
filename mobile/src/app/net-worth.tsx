@@ -125,8 +125,9 @@ function longDate(dateStr: string): string {
  *
  * Net worth is the one series in the app that can go below zero, so this
  * cannot be `BarChart` from the kit: it needs a baseline and a second tone.
- * A negative bar is `negative`; everything else is `accentMark`, with the
- * most recent bar in `ink` so the eye lands on where you are now.
+ * A negative bar is `negative`. The rest come from the palette's warm ramp:
+ * the history in its quiet platinum end, the most recent bar in `accentMark`
+ * (the ramp's espresso end) so the eye lands on where you are now.
  */
 function HistoryChart({ pal, entries }: { pal: Palette; entries: NetWorthEntry[] }) {
   const data = useMemo(
@@ -138,6 +139,8 @@ function HistoryChart({ pal, entries }: { pal: Palette; entries: NetWorthEntry[]
   );
 
   const height = 120;
+  /** The ramp's platinum end: present, but quieter than the latest bar. */
+  const past = pal.cat[pal.cat.length - 1] ?? pal.accentMark;
   if (data.length < 2) {
     return (
       <View style={{ height, alignItems: 'center', justifyContent: 'center' }}>
@@ -168,6 +171,7 @@ function HistoryChart({ pal, entries }: { pal: Palette; entries: NetWorthEntry[]
                 style={{
                   height: barHeight,
                   borderRadius: 4,
+                  borderCurve: 'continuous',
                   // A negative bar hangs from the zero line rather than
                   // standing on the floor, which is the only way the sign
                   // reads without a legend.
@@ -175,8 +179,8 @@ function HistoryChart({ pal, entries }: { pal: Palette; entries: NetWorthEntry[]
                   backgroundColor: negative
                     ? pal.negative
                     : last
-                      ? pal.ink
-                      : pal.accentMark,
+                      ? pal.accentMark
+                      : past,
                 }}
               />
             </View>
@@ -247,7 +251,8 @@ function AmountRow({
           gap: 6,
           minWidth: 128,
           paddingHorizontal: 14,
-          borderRadius: R.sm,
+          borderRadius: R.control,
+          borderCurve: 'continuous',
           backgroundColor: pal.groundSunk,
         }}
       >
@@ -442,15 +447,16 @@ function AddSnapshot({
  * hues from no palette. Under it were two tinted stat tiles, a chart in
  * `#22c55e`/`#ef4444`, a breakdown in the same two colours, a snapshot list
  * where every row carried a coloured spine, and a blue gradient FAB with a
- * blue glow — on a screen whose accent is violet.
+ * blue glow — on a screen whose accent was violet.
  *
  * Every amount was also `$`, hardcoded, in five different local formatters,
  * two of which called `toLocaleString('en-US')`. A user in euros read their
  * net worth in dollars.
  *
- * Now: one dark card with the figure, assets and liabilities as two plain
- * stats beneath it, and the sign carried by the number's own minus sign and
- * `negative` — not by the room's lighting.
+ * Now: one espresso anchor with the figure, assets and liabilities as two
+ * plain stats beneath it, and the sign carried by the number's own minus sign
+ * and `negative` — not by the room's lighting. A change between snapshots is
+ * a delta, so it is signed and coloured: green up, red down.
  */
 export default function NetWorthScreen() {
   const C = useC();
@@ -629,14 +635,12 @@ export default function NetWorthScreen() {
                   const meta = [
                     `${t('netWorth.assets')} ${formatCurrency(entry.assets)}`,
                     `${t('netWorth.liabilities')} ${formatCurrency(entry.liabilities)}`,
-                    step !== null
-                      ? t('netWorth.sinceLast', {
-                          delta: `${step >= 0 ? '+' : '−'}${formatCurrency(Math.abs(step))}`,
-                        })
-                      : null,
-                  ]
-                    .filter(Boolean)
-                    .join(' · ');
+                  ].join(' · ');
+                  // The change since the snapshot before: its own line, so it
+                  // can carry its colour — and its sign, so colour is never
+                  // the only thing saying which way it went.
+                  const stepTone =
+                    step === null || step === 0 ? C.inkDim : step > 0 ? C.positive : C.negative;
 
                   return (
                     <View
@@ -650,6 +654,15 @@ export default function NetWorthScreen() {
                         amount={entry.netWorth}
                         format={formatCurrency}
                         tone={entry.netWorth < 0 ? C.negative : C.ink}
+                        footer={
+                          step !== null ? (
+                            <Type role="meta" color={stepTone} numberOfLines={1}>
+                              {t('netWorth.sinceLast', {
+                                delta: `${step >= 0 ? '+' : '−'}${formatCurrency(Math.abs(step))}`,
+                              })}
+                            </Type>
+                          ) : null
+                        }
                       />
                     </View>
                   );

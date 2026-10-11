@@ -1,6 +1,7 @@
 import Svg, { Path } from 'react-native-svg';
 import type { StyleProp, ViewStyle } from 'react-native';
 import { ICON_PATHS, ICON_PATHS_BAR, ICON_PATHS_LINE, type IconArt } from '@/lib/icon-paths';
+import { LIGHT } from '@/lib/identity/tokens';
 
 /**
  * The app's icons.
@@ -9,22 +10,20 @@ import { ICON_PATHS, ICON_PATHS_BAR, ICON_PATHS_LINE, type IconArt } from '@/lib
  * package — see scripts/generate-icons.mjs for how that file is produced and
  * why. Nothing is fetched at runtime and no font is loaded.
  *
- * The exported names are the ones the app has always used, so all 178 call
- * sites across 42 screens are untouched by the change of icon set. Swapping a
- * single glyph is one line in the generator; swapping the whole set is the
- * generator's `FILL` map.
+ * The set is Hugeicons stroke rounded, the design identity's reference: every
+ * glyph a single-weight outline with round caps and joins, never filled.
+ *
+ * The exported names are the ones the app has always used, so the call sites
+ * across every screen are untouched by the change of icon set. Swapping a
+ * single glyph is one line in the generator.
  */
 export interface IconProps {
   size?: number;
   color?: string;
   /**
-   * Ignored.
-   *
-   * Every call site passes `S.stroke` because the app's first icon set was a
-   * hairline outline one. These glyphs are filled shapes with no stroke to set,
-   * and dropping the prop would have meant editing 178 lines to delete
-   * something harmless. It stays so those call sites keep compiling — and so a
-   * future set that does take a stroke has somewhere to put it.
+   * Ignored. Every glyph draws at the set's own weight (see `stroke` below),
+   * so the identity holds one weight everywhere. Call sites still pass
+   * `S.stroke` from when weight was set per call; it stays so they compile.
    */
   strokeWidth?: number;
   style?: StyleProp<ViewStyle>;
@@ -36,23 +35,39 @@ export interface IconProps {
  */
 const GRID = 24;
 
+/** The thinnest a glyph's stroke may render, in points, at any size. */
+export const MIN_ICON_STROKE_PT = 1.1;
+
+/**
+ * A path's stroke in viewBox units at `size`: the set's own weight, held at
+ * MIN_ICON_STROKE_PT so an 18pt glyph does not go hairline beside its
+ * neighbours.
+ */
+export function iconStroke(stroke: number, size: number): number {
+  return Math.max(stroke, (MIN_ICON_STROKE_PT * GRID) / size);
+}
+
+/** The identity's ink, so an icon with no colour passed is never pure black. */
+const DEFAULT_INK = LIGHT.ink;
+
 function draw(art: IconArt, label: string) {
-  function Icon({ size = 24, color = '#000', style }: IconProps) {
+  function Icon({ size = 24, color = DEFAULT_INK, style }: IconProps) {
     return (
       <Svg width={size} height={size} viewBox={`0 0 ${GRID} ${GRID}`} style={style}>
         {art.paths.map((p, i) =>
           // A stroked path and a filled one need opposite props. The outline
           // artwork is `fill="none"` with a stroke; painting it as a fill turns
-          // the glyph into unrecognisable blobs.
+          // the glyph into unrecognisable blobs. Caps and joins default to
+          // round: the identity draws nothing with a square end or corner.
           p.stroke ? (
             <Path
               key={i}
               d={p.d}
               fill="none"
               stroke={color}
-              strokeWidth={p.stroke}
-              strokeLinecap={p.cap}
-              strokeLinejoin={p.join}
+              strokeWidth={iconStroke(p.stroke, size)}
+              strokeLinecap={p.cap ?? 'round'}
+              strokeLinejoin={p.join ?? 'round'}
               opacity={p.opacity}
             />
           ) : (
@@ -132,6 +147,7 @@ export const Smartphone = draw(ICON_PATHS.Smartphone, 'Smartphone');
 export const Sparkles = draw(ICON_PATHS.Sparkles, 'Sparkles');
 export const Sun = draw(ICON_PATHS.Sun, 'Sun');
 export const Target = draw(ICON_PATHS.Target, 'Target');
+export const Tick = draw(ICON_PATHS.Tick, 'Tick');
 export const Trash2 = draw(ICON_PATHS.Trash2, 'Trash2');
 export const TrendingUp = draw(ICON_PATHS.TrendingUp, 'TrendingUp');
 export const Upload = draw(ICON_PATHS.Upload, 'Upload');
@@ -145,12 +161,26 @@ export const X = draw(ICON_PATHS.X, 'X');
 export const XCircle = draw(ICON_PATHS.XCircle, 'XCircle');
 export const Zap = draw(ICON_PATHS.Zap, 'Zap');
 
+// Category marks: the identity marks a category by its glyph on a tile.
+export const Airplane = draw(ICON_PATHS.Airplane, 'Airplane');
+export const Car = draw(ICON_PATHS.Car, 'Car');
+export const Dumbbell = draw(ICON_PATHS.Dumbbell, 'Dumbbell');
+export const Laptop = draw(ICON_PATHS.Laptop, 'Laptop');
+export const MoneyIn = draw(ICON_PATHS.MoneyIn, 'MoneyIn');
+export const Package = draw(ICON_PATHS.Package, 'Package');
+export const ShoppingBag = draw(ICON_PATHS.ShoppingBag, 'ShoppingBag');
+export const Tag = draw(ICON_PATHS.Tag, 'Tag');
+export const Utensils = draw(ICON_PATHS.Utensils, 'Utensils');
+
+export type IconComponent = ReturnType<typeof draw>;
+
 /**
- * The tab bars' set, solid and outline.
+ * The tab bars' set.
  *
- * A bar marks the active destination by filling its glyph, so each of these
- * needs both forms. They are also chosen to be read with **no label under
- * them** — see scripts/generate-icons.mjs for which ones changed and why.
+ * `fill` and `line` are the same outline now: the identity marks the active
+ * tab with the tint and a soft capsule, never by filling the glyph. Both keys
+ * stay so the tab layouts read them unchanged. They are chosen to be read with
+ * **no label under them**.
  */
 export const TabIcons = {
   home: { fill: draw(ICON_PATHS_BAR.Home, 'TabHome'), line: draw(ICON_PATHS_LINE.Home, 'TabHomeLine') },

@@ -16,7 +16,7 @@ import {
 } from '@/lib/db';
 import { findCancelEntry, getCancelLink } from '@/lib/cancel-directory';
 import { formatCurrency } from '@/lib/calculations';
-import { S, useC } from '@/lib/design';
+import { R, S, useC } from '@/lib/design';
 import {
   Card,
   Field,
@@ -39,8 +39,8 @@ import { t, getDateFnsLocale } from '@/lib/i18n/core';
  * The old screen stacked four action buttons in four different tints — a
  * solid `#ef4444`, a green translucent one, a red translucent one and a violet
  * translucent one — under a violet gradient header carrying three glass stat
- * tiles. There is one thing you come here to do, so there is now one dark
- * button, and everything else is secondary or a row.
+ * tiles. There is one thing you come here to do, so there is now one espresso
+ * button — the screen's anchor — and everything else is secondary or a row.
  *
  * Two of those buttons had a real bug behind the styling: their labels were
  * `style={{ color: C.text }}`, which after the retheme is near-black ink — so
@@ -242,7 +242,7 @@ export default function SubscriptionDetailScreen() {
             </View>
           ) : null}
 
-          {/* One dark object, and it is the thing you came here to do. */}
+          {/* The one espresso anchor, and it is the thing you came here to do. */}
           {subscription.status !== 'canceled' ? (
             <>
               <PrimaryButton
@@ -289,7 +289,7 @@ export default function SubscriptionDetailScreen() {
                 pal={C}
                 title={t('subscriptionDetail.howToCancel')}
                 onPress={() => setSheetOpen(true)}
-                trailing={<ExternalLink size={17} color={C.inkFaint} strokeWidth={S.stroke} />}
+                trailing={<ExternalLink size={18} color={C.inkDim} strokeWidth={S.stroke} />}
               />
             </Card>
           </View>
@@ -384,7 +384,8 @@ export default function SubscriptionDetailScreen() {
                       style={{
                         width: 24,
                         height: 24,
-                        borderRadius: 12,
+                        borderRadius: R.pill,
+                        borderCurve: 'continuous',
                         backgroundColor: C.groundSunk,
                         alignItems: 'center',
                         justifyContent: 'center',

@@ -14,9 +14,9 @@ import {
   Empty,
   FilterChip,
   IconTile,
-  InfoRow,
   LinkRow,
   PrimaryButton,
+  Row,
   Screen,
   SectionHeader,
   SubHeader,
@@ -49,6 +49,7 @@ import { isUpgradeRequired } from '@/lib/entitlementApi';
 import { api } from '@/lib/api/api';
 import { t } from '@/lib/i18n/core';
 import { categoryLabel } from '@/lib/category-meta';
+import { categoryIcon } from '@/components/category-icon';
 
 /** One transaction as returned by /api/ai/analyze-statement. */
 interface StatementRow {
@@ -98,8 +99,9 @@ function SIGN_OPTIONS(): readonly { value: SignConvention; label: string; hint: 
   ];
 }
 
-/** A choice in a row of choices: a label, a sample beneath it, ink when
- *  chosen. Replaces four different blue-tinted bordered boxes. */
+/** A choice in a row of choices: a label, a sample beneath it, filled with
+ *  the tint when chosen (the same "on" pair as FilterChip). Replaces four
+ *  different blue-tinted bordered boxes. */
 function OptionTile({
   pal,
   label,
@@ -125,15 +127,16 @@ function OptionTile({
         justifyContent: 'center',
         paddingHorizontal: 12,
         borderRadius: R.sm,
-        backgroundColor: active ? pal.ink : pal.groundSunk,
+        borderCurve: 'continuous',
+        backgroundColor: active ? pal.accent : pal.groundSunk,
       }}
     >
-      <Type role="meta" color={active ? pal.onInk : pal.ink} numberOfLines={1}>
+      <Type role="meta" color={active ? pal.onAccent : pal.ink} numberOfLines={1}>
         {label}
       </Type>
       <Type
         role="meta"
-        color={active ? pal.onInk : pal.inkDim}
+        color={active ? pal.onAccent : pal.inkDim}
         numberOfLines={1}
         style={{ opacity: active ? 0.7 : 1 }}
       >
@@ -573,7 +576,7 @@ export default function ImportScreen() {
         <View style={{ paddingHorizontal: S.screen, marginTop: 16 }}>
           <View style={{ flexDirection: 'row', gap: 12 }}>
             <IconTile pal={C}>
-              <Shield size={19} color={C.accent} strokeWidth={S.stroke} />
+              <Shield size={19} color={C.ink} strokeWidth={S.stroke} />
             </IconTile>
             <View style={{ flex: 1 }}>
               <Type role="cardTitle" color={C.ink}>{t('importExtra.privateTitle')}</Type>
@@ -600,7 +603,7 @@ export default function ImportScreen() {
                         pal={C}
                         icon={
                           <IconTile pal={C}>
-                            <Upload size={19} color={C.accent} strokeWidth={S.stroke} />
+                            <Upload size={19} color={C.ink} strokeWidth={S.stroke} />
                           </IconTile>
                         }
                         title={s.title}
@@ -696,12 +699,13 @@ export default function ImportScreen() {
                             justifyContent: 'center',
                             paddingHorizontal: 14,
                             borderRadius: R.sm,
-                            backgroundColor: active ? C.ink : C.groundSunk,
+                            borderCurve: 'continuous',
+                            backgroundColor: active ? C.accent : C.groundSunk,
                           }}
                         >
                           <Type
                             role="meta"
-                            color={active ? C.onInk : C.ink}
+                            color={active ? C.onAccent : C.ink}
                             numberOfLines={1}
                           >
                             {header || t('import.columnN', { n: idx + 1 })}
@@ -709,7 +713,7 @@ export default function ImportScreen() {
                           {sample ? (
                             <Type
                               role="meta"
-                              color={active ? C.onInk : C.inkDim}
+                              color={active ? C.onAccent : C.inkDim}
                               numberOfLines={1}
                               style={{ opacity: active ? 0.7 : 1 }}
                             >
@@ -748,6 +752,10 @@ export default function ImportScreen() {
         {/* ── Preview ────────────────────────────────────────────────────── */}
         {step === 'preview' && preview ? (
           <>
+            {/* Totals are figures, not movements, so they stay ink; the
+                words beside them say which way the money went. The pinned
+                import button is this step's one espresso anchor, so the
+                summary stays a plain card. */}
             <View style={{ paddingHorizontal: S.screen, marginTop: S.section }}>
               <Card pal={C}>
                 <Type role="cardTitle" color={C.ink} style={{ marginBottom: 12 }}>
@@ -760,14 +768,14 @@ export default function ImportScreen() {
                     value: money(
                       transactions.filter((x) => x.type === 'Expense').reduce((s, x) => s + x.amount, 0)
                     ),
-                    tone: C.negative,
+                    tone: C.ink,
                   },
                   {
                     label: t('import.totalIncome'),
                     value: money(
                       transactions.filter((x) => x.type === 'Income').reduce((s, x) => s + x.amount, 0)
                     ),
-                    tone: C.positive,
+                    tone: C.ink,
                   },
                   ...(preview.duplicatesFound > 0
                     ? [{
@@ -858,7 +866,10 @@ export default function ImportScreen() {
                         key={tx.id}
                         style={i > 0 ? { borderTopWidth: 1, borderTopColor: C.hairline } : undefined}
                       >
-                        <InfoRow
+                        {/* A parsed transaction is money moving: kit Row
+                            signs it and colours it green in / red out, and
+                            marks the category by its glyph. */}
+                        <Row
                           pal={C}
                           title={tx.description}
                           meta={[
@@ -870,7 +881,7 @@ export default function ImportScreen() {
                             .join(' · ')}
                           amount={tx.type === 'Expense' ? -tx.amount : tx.amount}
                           format={money}
-                          tone={tx.type === 'Expense' ? C.negative : C.positive}
+                          icon={categoryIcon(tx.suggestedCategory, tx.type)}
                           onPress={() => setExpandedTx(open ? null : tx.id)}
                         />
 
@@ -910,15 +921,16 @@ export default function ImportScreen() {
                                   justifyContent: 'center',
                                   gap: 8,
                                   borderRadius: R.pill,
-                                  backgroundColor: tx.isImpulse ? C.ink : C.groundSunk,
+                                  borderCurve: 'continuous',
+                                  backgroundColor: tx.isImpulse ? C.accent : C.groundSunk,
                                 }}
                               >
                                 <Edit3
                                   size={15}
-                                  color={tx.isImpulse ? C.onInk : C.inkDim}
+                                  color={tx.isImpulse ? C.onAccent : C.inkDim}
                                   strokeWidth={S.stroke}
                                 />
-                                <Type role="meta" color={tx.isImpulse ? C.onInk : C.ink}>
+                                <Type role="meta" color={tx.isImpulse ? C.onAccent : C.ink}>
                                   {tx.isImpulse ? t('import.impulse') : t('import.markImpulse')}
                                 </Type>
                               </PressableScale>
@@ -931,7 +943,8 @@ export default function ImportScreen() {
                                 style={{
                                   width: 44,
                                   height: 44,
-                                  borderRadius: 22,
+                                  borderRadius: R.pill,
+                                  borderCurve: 'continuous',
                                   alignItems: 'center',
                                   justifyContent: 'center',
                                   backgroundColor: C.groundSunk,
@@ -955,7 +968,7 @@ export default function ImportScreen() {
         {step === 'success' ? (
           <Empty
             pal={C}
-            icon={<Check size={26} color={C.accent} strokeWidth={2.4} />}
+            icon={<Check size={26} color={C.accent} strokeWidth={S.stroke} />}
             title={t('importExtra.complete')}
             body={t('import.successBody', { count: importedCount })}
             actionLabel={t('importExtra.goToDashboard')}

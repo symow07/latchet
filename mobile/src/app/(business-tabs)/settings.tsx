@@ -18,7 +18,7 @@ import { isBiometricAvailable } from '@/lib/biometric';
 import {
   scheduleStreakReminder, cancelStreakReminder, isStreakReminderScheduled,
 } from '@/lib/notifications';
-import { BAR, S, useB } from '@/lib/design';
+import { BAR, R, S, useC } from '@/lib/design';
 import {
   Card, ChoiceRow, Group, Header, IconTile, LinkRow, Screen, SwitchRow, Touchable, Type,
 } from '@/components/kit';
@@ -32,19 +32,19 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 const THEME_OPTIONS: ThemePreference[] = ['system', 'light', 'dark'];
 
 /**
- * Business settings — DESIGN-PROMPT.md §17, mint side.
+ * Business settings — DESIGN-PROMPT.md §17, in the one identity both profiles
+ * share.
  *
  * Two things changed beyond the surface. The section headings were being run
  * through `.toUpperCase()` in code, which §3 rules out — there is no uppercase
  * caption style, and a screen of tracked-out small caps is the single clearest
  * tell of a dashboard. And every row carried its own hardcoded icon hue: seven
- * unrelated colours down one screen, two of them the *personal* profile's
- * violet. §6.9 gives feature rows one pale accent squircle, so that is what
- * they have.
+ * unrelated colours down one screen. Feature rows now share one platinum
+ * squircle with a tint glyph, so that is what they have.
  */
 export default function BusinessSettingsScreen() {
   const insets = useSafeAreaInsets();
-  const B = useB();
+  const B = useC();
   const { data: session } = useSession();
   const locale = useLocaleStore((s) => s.locale);
   const chooseLanguage = useLocaleStore((s) => s.choose);
@@ -131,13 +131,13 @@ export default function BusinessSettingsScreen() {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingTop: 8, paddingBottom: BAR.clearance(insets.bottom) }}>
         <Header pal={B} title={t('businessSettings.title')} />
 
-        {/* The one dark object: who you are signed in as. */}
+        {/* The screen's one espresso anchor: who you are signed in as. The
+            glyph sits on a translucent silver tile, never a white one. */}
         <View style={{ paddingHorizontal: S.screen, marginTop: 24 }}>
           <Card
             pal={B}
-            radius={24}
+            anchor
             contentStyle={{
-              backgroundColor: B.inkSoft,
               flexDirection: 'row',
               alignItems: 'center',
               gap: 12,
@@ -145,18 +145,18 @@ export default function BusinessSettingsScreen() {
           >
             <View
               style={{
-                width: 48, height: 48, borderRadius: 16,
-                backgroundColor: 'rgba(255,255,255,0.12)',
+                width: 48, height: 48, borderRadius: R.sm, borderCurve: 'continuous',
+                backgroundColor: B.glassStrong,
                 alignItems: 'center', justifyContent: 'center',
               }}
             >
-              <Briefcase size={22} color={B.onInk} strokeWidth={S.stroke} />
+              <Briefcase size={22} color={B.onEspresso} strokeWidth={S.stroke} />
             </View>
             <View style={{ flex: 1 }}>
-              <Type role="cardTitle" color={B.onInk} numberOfLines={1}>
+              <Type role="cardTitle" color={B.onEspresso} numberOfLines={1}>
                 {session?.user?.name ?? t('bizSettings.businessAccount')}
               </Type>
-              <Type role="meta" color={B.onInk} numberOfLines={1} style={{ opacity: 0.7 }}>
+              <Type role="meta" color={B.onEspressoDim} numberOfLines={1}>
                 {session?.user?.email ?? t('business.label')}
               </Type>
             </View>

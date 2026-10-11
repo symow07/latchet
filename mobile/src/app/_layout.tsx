@@ -1,12 +1,12 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
+import { DarkTheme, DefaultTheme, ThemeProvider, type Theme } from '@react-navigation/native';
 import { Stack, useRouter } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
-import { useEffect, useState, useCallback, useRef } from 'react';
-import { View, Text, Pressable, ActivityIndicator, AppState } from 'react-native';
+import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
+import { View, Pressable, ActivityIndicator, AppState } from 'react-native';
 import { initializeDatabase } from '@/lib/db';
 import { startCloudSync } from '@/lib/cloud-sync';
 import { loadRates } from '@/lib/rates';
@@ -20,7 +20,8 @@ import { useSafeAreaInsets, SafeAreaProvider } from 'react-native-safe-area-cont
 import { useAccountTypeStore, type AccountTypeStore } from '@/lib/account-type-store';
 import { registerForPushNotifications, scheduleStreakReminder } from '@/lib/notifications';
 import { setUserId, logoutUser } from '@/lib/revenuecatClient';
-import { F, R, S, useC, useScheme } from '@/lib/design';
+import { S, useC, useScheme, type Palette } from '@/lib/design';
+import { IconTile, PrimaryButton, Type } from '@/components/kit';
 import { t } from '@/lib/i18n/core';
 import { Lock } from '@/components/icons';
 import { drainPendingCaptures } from '@/lib/pending-drain';
@@ -67,17 +68,40 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise
   });
 }
 
+/**
+ * React Navigation's chrome in the identity's colours rather than its stock
+ * themes, whose iOS-blue primary and near-black dark background would show
+ * behind every screen transition and in any system header.
+ */
+function navigationTheme(C: Palette, dark: boolean): Theme {
+  const base = dark ? DarkTheme : DefaultTheme;
+  return {
+    ...base,
+    dark,
+    colors: {
+      ...base.colors,
+      background: C.ground,
+      card: C.groundAlt,
+      text: C.ink,
+      border: C.hairline,
+      primary: C.accent,
+      notification: C.negative,
+    },
+  };
+}
+
+/** The first thing painted after the splash: the page, a tint spinner, ink. */
 function StartupScreen({ stage }: { stage: string }) {
   const C = useC();
   return (
-    <View style={{ flex: 1, backgroundColor: C.ground, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+    <View style={{ flex: 1, backgroundColor: C.ground, alignItems: 'center', justifyContent: 'center', padding: S.screen }}>
       <ActivityIndicator size="large" color={C.accent} />
-      <Text style={{ color: C.text, fontSize: 18, fontWeight: '600', marginTop: 24 }}>
+      <Type role="cardTitle" color={C.ink} style={{ marginTop: 24 }}>
         {t('startup.starting')}
-      </Text>
-      <Text style={{ color: C.textDim, fontSize: 13, marginTop: 8 }}>
+      </Type>
+      <Type role="meta" color={C.inkDim} style={{ marginTop: 8 }}>
         {stage}
-      </Text>
+      </Type>
     </View>
   );
 }
@@ -102,10 +126,11 @@ function LockScreen({ onUnlock }: { onUnlock: () => void }) {
     tryAuthenticate();
   }, []);
 
-  // The same bone ground as everything behind it. This used to be a brown
-  // gradient with an amber lock and amber outlined button — a colour scheme
-  // that appears nowhere else in the product, on the first screen a returning
-  // user sees. §1: one ground, and the accent is the profile's own.
+  // The same off-white ground as everything behind it. This used to be a
+  // brown gradient with an amber lock and amber outlined button — a colour
+  // scheme that appears nowhere else in the product, on the first screen a
+  // returning user sees. Now: the page, a platinum tile with an ink lock, and
+  // the espresso button as the screen's one anchor.
   return (
     <View
       style={{
@@ -119,45 +144,31 @@ function LockScreen({ onUnlock }: { onUnlock: () => void }) {
       }}
     >
       <View style={{ alignItems: 'center', marginBottom: 44 }}>
-        <View style={{
-          width: 64, height: 64, borderRadius: 20,
-          backgroundColor: C.accentSoft,
-          alignItems: 'center', justifyContent: 'center',
-          marginBottom: 16,
-        }}>
-          <Lock size={26} color={C.accent} strokeWidth={S.stroke} />
-        </View>
-        <Text style={{ ...F.bold, color: C.ink, fontSize: 28, lineHeight: 36, letterSpacing: -0.28, marginBottom: 6 }}>
+        <IconTile pal={C} size={56} style={{ marginBottom: 16 }}>
+          <Lock size={26} color={C.ink} strokeWidth={S.stroke} />
+        </IconTile>
+        <Type role="headline" color={C.ink} style={{ marginBottom: 6 }}>
           Budget
-        </Text>
-        <Text style={{ ...F.regular, color: C.inkDim, fontSize: 16, lineHeight: 24, textAlign: 'center' }}>
+        </Type>
+        <Type role="body" color={C.inkDim} style={{ textAlign: 'center' }}>
           {t('startup.authenticate')}
-        </Text>
+        </Type>
       </View>
 
-      <Pressable
+      <PrimaryButton
+        pal={C}
+        label={authenticating ? t('startup.authenticating') : t('startup.unlockBiometrics')}
         onPress={tryAuthenticate}
-        accessibilityRole="button"
-        style={({ pressed }: { pressed: boolean }) => ({
-          opacity: pressed ? 0.85 : 1,
-          alignSelf: 'stretch',
-          height: 56,
-          borderRadius: R.pill,
-          backgroundColor: C.ink,
-          alignItems: 'center',
-          justifyContent: 'center',
-        })}
-      >
-        <Text style={{ ...F.semibold, color: C.onInk, fontSize: 17 }}>
-          {authenticating ? t('startup.authenticating') : t('startup.unlockBiometrics')}
-        </Text>
-      </Pressable>
+        style={{ alignSelf: 'stretch' }}
+      />
     </View>
   );
 }
 
 function RootLayoutNav({ colorScheme }: { colorScheme: 'light' | 'dark' | null | undefined }) {
   const C = useC();
+  // Memoised so the navigation context only changes when the scheme does.
+  const navTheme = useMemo(() => navigationTheme(C, colorScheme === 'dark'), [C, colorScheme]);
   const { data: session, isLoading: sessionLoading, error: sessionError } = useSession();
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -280,24 +291,25 @@ function RootLayoutNav({ colorScheme }: { colorScheme: 'light' | 'dark' | null |
   // as the final escape hatch ("Continue offline" → fall through to public stack).
   if (!sessionLoading && sessionError && !sessionTimedOut) {
     return (
-      <View style={{ flex: 1, backgroundColor: C.ground, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-        <Text style={{ ...F.bold, color: C.negative, fontSize: 20, marginBottom: 8 }}>
+      <View style={{ flex: 1, backgroundColor: C.ground, alignItems: 'center', justifyContent: 'center', padding: S.screen }}>
+        <Type role="section" color={C.negative} style={{ marginBottom: 8, textAlign: 'center' }}>
           {t('startup.serverUnreachable')}
-        </Text>
-        <Text style={{ color: C.textDim, fontSize: 14, textAlign: 'center', marginBottom: 24 }}>
+        </Type>
+        <Type role="meta" color={C.inkDim} style={{ textAlign: 'center', marginBottom: 24 }}>
           {sessionError instanceof Error ? sessionError.message : t('errors.unknown')}
-        </Text>
-        <Pressable
+        </Type>
+        <PrimaryButton
+          pal={C}
+          label={t('startup.retry')}
           onPress={() => queryClient.invalidateQueries({ queryKey: SESSION_QUERY_KEY })}
-          style={{ paddingHorizontal: 32, height: 56, justifyContent: 'center', borderRadius: R.pill, backgroundColor: C.ink }}
-        >
-          <Text style={{ ...F.semibold, color: C.onInk, fontSize: 17 }}>{t('startup.retry')}</Text>
-        </Pressable>
+          style={{ alignSelf: 'stretch' }}
+        />
         <Pressable
           onPress={() => setSessionTimedOut(true)}
+          accessibilityRole="button"
           style={{ marginTop: 12, paddingHorizontal: 32, paddingVertical: 14 }}
         >
-          <Text style={{ color: C.textFaint, fontSize: 14 }}>{t('startup.continueOffline')}</Text>
+          <Type role="meta" color={C.accent}>{t('startup.continueOffline')}</Type>
         </Pressable>
       </View>
     );
@@ -306,7 +318,7 @@ function RootLayoutNav({ colorScheme }: { colorScheme: 'light' | 'dark' | null |
   if (sessionLoading && !sessionTimedOut) return <StartupScreen stage="Checking session…" />;
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+    <ThemeProvider value={navTheme}>
       <Stack screenOptions={{ headerShown: false }}>
         {/* Protected: only accessible when signed in */}
         <Stack.Protected guard={!!session?.user}>
@@ -543,19 +555,14 @@ export default function RootLayout() {
   if (dbError) {
     return (
       <SafeAreaProvider>
-        <View style={{ flex: 1, backgroundColor: C.ground, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-          <Text style={{ ...F.bold, color: C.negative, fontSize: 20, marginBottom: 12 }}>
+        <View style={{ flex: 1, backgroundColor: C.ground, alignItems: 'center', justifyContent: 'center', padding: S.screen }}>
+          <Type role="section" color={C.negative} style={{ marginBottom: 12, textAlign: 'center' }}>
             {t('startup.errorTitle')}
-          </Text>
-          <Text style={{ color: C.textDim, fontSize: 14, textAlign: 'center', marginBottom: 24 }}>
+          </Type>
+          <Type role="meta" color={C.inkDim} style={{ textAlign: 'center', marginBottom: 24 }}>
             {dbError}
-          </Text>
-          <Pressable
-            onPress={initApp}
-            style={{ paddingHorizontal: 32, height: 56, justifyContent: 'center', borderRadius: R.pill, backgroundColor: C.ink }}
-          >
-            <Text style={{ ...F.semibold, color: C.onInk, fontSize: 17 }}>{t('startup.retry')}</Text>
-          </Pressable>
+          </Type>
+          <PrimaryButton pal={C} label={t('startup.retry')} onPress={initApp} style={{ alignSelf: 'stretch' }} />
         </View>
       </SafeAreaProvider>
     );

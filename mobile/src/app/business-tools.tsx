@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { router, useFocusEffect } from 'expo-router';
 import { format, parseISO } from 'date-fns';
 import { ChevronDown, ChevronUp, Wrench } from '@/components/icons';
+import { categoryIcon } from '@/components/category-icon';
 
 import { getExpenses } from '@/lib/expenseApi';
 import {
@@ -15,11 +16,12 @@ import { getEmailDetectedForBusiness } from '@/lib/emailSubscriptionApi';
 import { EmailScanCard } from '@/components/EmailScanCard';
 import { formatCurrency } from '@/lib/calculations';
 import { categoryLabel } from '@/lib/category-meta';
-import { S, useB, type BizPalette } from '@/lib/design';
+import { R, S, useC, type Palette } from '@/lib/design';
 import {
   BalanceCard,
   Card,
   Empty,
+  IconTile,
   InfoRow,
   PrimaryButton,
   Screen,
@@ -41,7 +43,7 @@ function CancelGuideSheet({
   sub,
   onClose,
 }: {
-  pal: BizPalette;
+  pal: Palette;
   sub: DetectedSubscription | null;
   onClose: () => void;
 }) {
@@ -88,7 +90,8 @@ function CancelGuideSheet({
                 style={{
                   width: 26,
                   height: 26,
-                  borderRadius: 13,
+                  borderRadius: R.pill,
+                  borderCurve: 'continuous',
                   backgroundColor: pal.groundSunk,
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -142,13 +145,16 @@ function ToolRow({
   sub,
   onCancelGuide,
 }: {
-  pal: BizPalette;
+  pal: Palette;
   sub: DetectedSubscription;
   onCancelGuide: (sub: DetectedSubscription) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const days = Math.round((readDate(sub.nextChargeDate).getTime() - Date.now()) / 86_400_000);
-  const dot = days < 0 ? pal.negative : days <= 7 ? pal.warning : pal.accentMark;
+  // Led by the category's glyph on a sunk tile, as every row is. It used to be
+  // a coloured dot for how soon the charge falls, which was colour carrying a
+  // meaning on its own; the meta line already says it in words ("Overdue",
+  // "In 3 days").
+  const Glyph = categoryIcon(sub.category);
 
   const meta = [
     categoryLabel(sub.category),
@@ -167,7 +173,11 @@ function ToolRow({
         amount={sub.amount}
         format={formatCurrency}
         onPress={() => setExpanded((v) => !v)}
-        lead={<View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: dot }} />}
+        lead={
+          <IconTile pal={pal} size={40} style={{ backgroundColor: pal.groundSunk }}>
+            <Glyph size={22} color={pal.ink} />
+          </IconTile>
+        }
         trailing={
           expanded ? (
             <ChevronUp size={17} color={pal.inkFaint} strokeWidth={S.stroke} />
@@ -223,9 +233,9 @@ function ToolRow({
 /**
  * Detected SaaS spend — DESIGN-PROMPT.md board §38.
  *
- * The old screen was three tinted panels deep: a mint gradient hero with a
+ * The old screen was three tinted panels deep: a tinted gradient hero with a
  * glow and three glass stat tiles inside it, an amber-tinted "upcoming" card
- * with amber dividers, and a mint-tinted tip card, plus per-tool cards that
+ * with amber dividers, and a tinted tip card, plus per-tool cards that
  * turned amber when a charge was near. Six section labels were 9–11px
  * uppercase tracked out to 1.2pt.
  *
@@ -236,7 +246,7 @@ function ToolRow({
  * French or Arabic business owner uses to decide what to cancel.
  */
 export default function BusinessToolsScreen() {
-  const B = useB();
+  const B = useC();
   const [cancelSub, setCancelSub] = useState<DetectedSubscription | null>(null);
 
   const { data: allExpenses = [], isLoading, refetch, isRefetching } = useQuery({
@@ -281,14 +291,18 @@ export default function BusinessToolsScreen() {
       >
         <SubHeader pal={B} title={t('businessTools.title')} onBack={() => router.back()} />
 
-        <BalanceCard
-          pal={B}
-          label={t('businessTools.monthlySpend')}
-          amount={monthlyTotal}
-          format={formatCurrency}
-          caption={t('businessTools.perYear', { amount: formatCurrency(monthlyTotal * 12) })}
-          style={{ paddingHorizontal: S.screen, marginTop: 24 }}
-        />
+        {/* The screen's one espresso anchor. The gutter sits on a wrapper:
+            the card's own outer layer carries the espresso fill, so padding
+            there would widen the anchor instead of insetting it. */}
+        <View style={{ paddingHorizontal: S.screen, marginTop: 24 }}>
+          <BalanceCard
+            pal={B}
+            label={t('businessTools.monthlySpend')}
+            amount={monthlyTotal}
+            format={formatCurrency}
+            caption={t('businessTools.perYear', { amount: formatCurrency(monthlyTotal * 12) })}
+          />
+        </View>
 
         <View
           style={{ flexDirection: 'row', gap: 24, paddingHorizontal: S.screen, marginTop: 16 }}
@@ -315,7 +329,8 @@ export default function BusinessToolsScreen() {
         </View>
 
         <View style={{ marginTop: S.section }}>
-          <EmailScanCard accent={B.accent} />
+          {/* No accent handed in: both profiles share the one tint now. */}
+          <EmailScanCard />
         </View>
 
         {isLoading ? (

@@ -6,6 +6,7 @@ import { format } from 'date-fns';
 import {
   Receipt, Plus, Check, XCircle, Clock, Camera, ImageIcon,
 } from '@/components/icons';
+import { categoryIcon } from '@/components/category-icon';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
@@ -20,10 +21,10 @@ import { getBusiness } from '@/lib/businessApi';
 import { roleOf } from '@/lib/group-members';
 import { useSession } from '@/lib/auth/use-session';
 import { formatCurrency } from '@/lib/calculations';
-import { BAR, R, S, useB, type BizPalette } from '@/lib/design';
+import { BAR, R, S, useC, type Palette } from '@/lib/design';
 import {
-  Amount, Card, CircleAction, Empty, Field, FilterChip, FormError,
-  Header, PrimaryButton, Screen, Sheet, Stat, Touchable, Type,
+  Amount, BalanceCard, Card, CircleAction, Empty, Field, FilterChip, FormError,
+  Header, IconTile, PrimaryButton, Screen, Sheet, Stat, Touchable, Type,
 } from '@/components/kit';
 import { t, getDateFnsLocale } from '@/lib/i18n/core';
 import { expenseCategoryLabel, expenseStatusLabel } from '@/lib/expense-meta';
@@ -34,19 +35,14 @@ const CATEGORIES: ExpenseCategory[] = ['Travel', 'Software', 'Meals', 'Transport
 const STATUS_FILTERS: (ExpenseStatus | 'all')[] = ['all', 'pending', 'approved', 'rejected'];
 
 /**
- * A category's mark, from the palette's own ramp.
+ * A review state's tone. It always travels with its word (approved, rejected,
+ * pending), so the state never rests on telling two tints apart.
  *
- * These used to be six hardcoded hexes — indigo, teal, amber, blue, pink and,
- * on the *business* screen, the personal profile's violet. §2.5 supplies a
- * muted eight-step ramp that clears 3:1 on each ground and is verified in both
- * schemes, and it exists precisely so screens stop inventing colours.
+ * Categories have no colour at all any more: the identity marks a category by
+ * its glyph on a sunk tile, never by a swatch (DESIGN-IDENTITY.md, "No category
+ * rainbow").
  */
-function catColor(pal: BizPalette, category: string): string {
-  const index = CATEGORIES.indexOf(category as ExpenseCategory);
-  return pal.cat[(index < 0 ? CATEGORIES.length - 1 : index) % pal.cat.length]!;
-}
-
-function statusTone(pal: BizPalette, status: ExpenseStatus): string {
+function statusTone(pal: Palette, status: ExpenseStatus): string {
   return status === 'approved' ? pal.positive : status === 'rejected' ? pal.negative : pal.warning;
 }
 
@@ -59,7 +55,7 @@ function SubmitSheet({
   onClose: () => void;
   onDone: () => void;
 }) {
-  const B = useB();
+  const B = useC();
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState<ExpenseCategory>('Other');
@@ -163,7 +159,6 @@ function SubmitSheet({
               key={c}
               pal={B}
               label={expenseCategoryLabel(c)}
-              mark={catColor(B, c)}
               active={category === c}
               onPress={() => setCategory(c)}
             />
@@ -204,7 +199,8 @@ function SubmitSheet({
                 accessibilityLabel={label}
                 style={{
                   flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-                  gap: 8, minHeight: 52, borderRadius: R.pill, backgroundColor: B.groundSunk,
+                  gap: 8, minHeight: 52, borderRadius: R.pill, borderCurve: 'continuous',
+                  overflow: 'hidden', backgroundColor: B.groundSunk,
                 }}
               >
                 <Icon size={17} color={B.ink} strokeWidth={S.stroke} />
@@ -235,7 +231,7 @@ function SubmitSheet({
 function ExpenseCard({
   pal, expense, canReview, onApprove, onReject,
 }: {
-  pal: BizPalette;
+  pal: Palette;
   expense: Expense;
   canReview: boolean;
   onApprove: (id: string) => void;
@@ -243,21 +239,16 @@ function ExpenseCard({
 }) {
   const [showImage, setShowImage] = useState(false);
   const date = format(new Date(expense.submittedAt), 'd MMM', { locale: getDateFnsLocale() });
+  const Glyph = categoryIcon(expense.category);
 
   return (
     <Card pal={pal}>
       <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12 }}>
-        <View
-          style={{
-            width: 40, height: 40, borderRadius: 20,
-            backgroundColor: catColor(pal, expense.category),
-            alignItems: 'center', justifyContent: 'center',
-          }}
-        >
-          <Type role="cardTitle" color={pal.groundAlt}>
-            {expenseCategoryLabel(expense.category).charAt(0).toUpperCase()}
-          </Type>
-        </View>
+        {/* The category's glyph on a sunk tile, as every transaction row
+            draws it. */}
+        <IconTile pal={pal} size={40} style={{ backgroundColor: pal.groundSunk }}>
+          <Glyph size={22} color={pal.ink} />
+        </IconTile>
         <View style={{ flex: 1 }}>
           <Type role="cardTitle" color={pal.ink} numberOfLines={2}>{expense.description}</Type>
           <Type role="meta" color={pal.inkDim} numberOfLines={1}>
@@ -265,12 +256,15 @@ function ExpenseCard({
           </Type>
         </View>
         <View style={{ alignItems: 'flex-end', gap: 4 }}>
+          {/* Money out: red, and signed, so the direction never rests on
+              colour alone. */}
           <Amount
-            value={expense.amount}
+            value={-expense.amount}
             format={formatCurrency}
             size={17}
             weight="semibold"
-            color={pal.ink}
+            color={pal.negative}
+            signed
           />
           {/* Sentence case, not `status.toUpperCase()`. The status also has a
               word, so it never depends on telling two tints apart. */}
@@ -313,9 +307,11 @@ function ExpenseCard({
         </Type>
       ) : null}
 
-      {/* §6.18 — a filled positive pill and an outlined negative one. Approve
-          is the expected outcome and carries the weight; reject is available
-          without being equally inviting. */}
+      {/* §6.18 — approve is the expected outcome and carries the weight: the
+          tint on its own wash, as a selected chip is drawn. Reject is
+          available without being equally inviting: red words on a quiet sunk
+          pill. Neither is espresso, which belongs to the summary above — a
+          screen of pending expenses would otherwise be a stack of anchors. */}
       {canReview && expense.status === 'pending' ? (
         <View style={{ flexDirection: 'row', gap: 12, marginTop: 16 }}>
           <Touchable
@@ -325,11 +321,12 @@ function ExpenseCard({
             accessibilityLabel={t('businessExpenses.approve')}
             style={{
               flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-              gap: 7, minHeight: 46, borderRadius: R.pill, backgroundColor: pal.positive,
+              gap: 7, minHeight: 46, borderRadius: R.pill, borderCurve: 'continuous',
+              overflow: 'hidden', backgroundColor: pal.accentSoft,
             }}
           >
-            <Check size={16} color={pal.groundAlt} strokeWidth={2.4} />
-            <Type role="meta" color={pal.groundAlt}>{t('businessExpenses.approve')}</Type>
+            <Check size={16} color={pal.accent} strokeWidth={S.stroke} />
+            <Type role="meta" color={pal.accent}>{t('businessExpenses.approve')}</Type>
           </Touchable>
           <Touchable
             pal={pal}
@@ -338,8 +335,8 @@ function ExpenseCard({
             accessibilityLabel={t('businessExpenses.reject')}
             style={{
               flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-              gap: 7, minHeight: 46, borderRadius: R.pill,
-              borderWidth: 1, borderColor: pal.negative,
+              gap: 7, minHeight: 46, borderRadius: R.pill, borderCurve: 'continuous',
+              overflow: 'hidden', backgroundColor: pal.groundSunk,
             }}
           >
             <XCircle size={16} color={pal.negative} strokeWidth={S.stroke} />
@@ -358,13 +355,14 @@ function ExpenseCard({
  *
  * The two summary boxes at the top used to be a pink-tinted card beside a
  * green-tinted one, each outlined in its own hue and captioned in tracked-out
- * caps. §1.1 allows one dark object per screen and §1.5 separates surfaces
- * with shadow, so the pair became a single ink card with two figures on it —
- * which is also the only honest reading, since one is a subset of the other.
+ * caps. The identity allows one espresso anchor per screen and separates
+ * surfaces with shadow, so the pair became a single anchor with two figures on
+ * it — which is also the only honest reading, since one is a subset of the
+ * other.
  */
 export default function ExpensesScreen() {
   const insets = useSafeAreaInsets();
-  const B = useB();
+  const B = useC();
   const qc = useQueryClient();
   const { data: session } = useSession();
 
@@ -417,22 +415,16 @@ export default function ExpensesScreen() {
           }
         />
 
+        {/* The screen's one espresso anchor. Totals are neutral figures, so
+            they are set in the anchor's own off-white rather than red. */}
         <View style={{ paddingHorizontal: S.screen, marginTop: 24 }}>
-          <Card pal={B} radius={24} padding={S.card + 2} contentStyle={{ backgroundColor: B.inkSoft }}>
-            <Type role="meta" color={B.onInk} style={{ opacity: 0.7 }}>
-              {t('businessExpenses.total')}
-            </Type>
-            <Amount
-              value={total}
-              format={formatCurrency}
-              size={40}
-              color={B.onInk}
-              style={{ marginTop: 6 }}
-            />
-            <Type role="meta" color={B.onInk} style={{ opacity: 0.7, marginTop: 6 }}>
-              {t('businessExpenses.expenseCount', { count: expenses.length })}
-            </Type>
-
+          <BalanceCard
+            pal={B}
+            label={t('businessExpenses.total')}
+            amount={total}
+            format={formatCurrency}
+            caption={t('businessExpenses.expenseCount', { count: expenses.length })}
+          >
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 16 }}>
               <Stat
                 pal={B}
@@ -440,8 +432,8 @@ export default function ExpensesScreen() {
                 value={approved}
                 format={formatCurrency}
                 size={17}
-                tone={B.onInk}
-                labelTone={B.onInk}
+                tone={B.onEspresso}
+                labelTone={B.onEspressoDim}
               />
               <Stat
                 pal={B}
@@ -451,12 +443,12 @@ export default function ExpensesScreen() {
                 value={total - approved}
                 format={formatCurrency}
                 size={17}
-                tone={B.onInk}
-                labelTone={B.onInk}
+                tone={B.onEspresso}
+                labelTone={B.onEspressoDim}
                 align="flex-end"
               />
             </View>
-          </Card>
+          </BalanceCard>
         </View>
 
         <ScrollView
@@ -481,23 +473,27 @@ export default function ExpensesScreen() {
             <ActivityIndicator color={B.accent} />
           </View>
         ) : expenses.length === 0 ? (
-          <Empty
-            pal={B}
-            icon={
-              filter === 'pending'
-                ? <Clock size={26} color={B.accent} strokeWidth={S.stroke} />
-                : <Receipt size={26} color={B.accent} strokeWidth={S.stroke} />
-            }
-            title={filter === 'pending'
-              ? t('businessExpenses.noPending')
-              : t('businessExpenses.noneYet')}
-            body={filter === 'pending'
-              ? t('businessExpenses.allCaughtUp')
-              : t('businessExpenses.tapAddFirst')}
-            actionLabel={filter === 'pending' ? undefined : t('businessExpenses.add')}
-            onAction={filter === 'pending' ? undefined : () => setShowSubmit(true)}
-            style={{ marginTop: 64 }}
-          />
+          <>
+            <Empty
+              pal={B}
+              icon={
+                filter === 'pending'
+                  ? <Clock size={26} color={B.accent} strokeWidth={S.stroke} />
+                  : <Receipt size={26} color={B.accent} strokeWidth={S.stroke} />
+              }
+              title={filter === 'pending'
+                ? t('businessExpenses.noPending')
+                : t('businessExpenses.noneYet')}
+              body={filter === 'pending'
+                ? t('businessExpenses.allCaughtUp')
+                : t('businessExpenses.tapAddFirst')}
+              actionLabel={filter === 'pending' ? undefined : t('businessExpenses.add')}
+              onAction={() => setShowSubmit(true)}
+              // The summary above is already the screen's espresso anchor.
+              actionVariant="secondary"
+              style={{ marginTop: 64 }}
+            />
+          </>
         ) : (
           <View style={{ paddingHorizontal: S.screen, gap: 12, marginTop: S.section }}>
             {expenses.map((expense) => (

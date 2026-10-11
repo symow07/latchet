@@ -25,7 +25,7 @@
       ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#7c3aed"
+        "backgroundColor": "#3B2A21"
       }
     },
     "plugins": [
@@ -35,10 +35,10 @@
           "image": "./assets/splash-icon-light.png",
           "imageWidth": 180,
           "resizeMode": "contain",
-          "backgroundColor": "#F7F5F1",
+          "backgroundColor": "#F6F3EF",
           "dark": {
             "image": "./assets/splash-icon.png",
-            "backgroundColor": "#0E1119"
+            "backgroundColor": "#14110E"
           }
         }
       ],

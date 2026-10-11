@@ -1,11 +1,11 @@
 /**
- * The component set — DESIGN-PROMPT.md §6.
+ * The component set, in the design identity (DESIGN-IDENTITY.md).
  *
- * This is the calm direction: one neutral ground, white cards separated by
- * soft shadow rather than borders, one dark object per screen, prose over
- * data. Both profiles share every component here and differ only in the
- * accent they are handed, so a screen reads `useC()` or `useB()` and passes
- * the palette down without any component knowing which profile is active.
+ * An off-white page; cards lifted off it by two layered warm shadows and a
+ * hairline silver edge; one espresso anchor per screen; ink for text; soft
+ * continuous corners; motion that is timed, eased and under 300 ms with
+ * nothing that springs. Personal and business share every component and the
+ * one palette, so nothing here knows which profile is active.
  *
  * Every screen imports from here. The previous set, ui.tsx, was deleted once
  * the last screen moved off it.
@@ -13,7 +13,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   I18nManager,
-  Image,
   StyleSheet,
   KeyboardAvoidingView,
   Modal,
@@ -32,63 +31,38 @@ import {
 import Animated, {
   Easing,
   Extrapolation,
-  cancelAnimation,
   interpolate,
   runOnJS,
   useAnimatedStyle,
   useReducedMotion,
   useSharedValue,
-  withRepeat,
-  withSpring,
   withTiming,
 } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import * as Haptics from 'expo-haptics';
-import { LinearGradient } from 'expo-linear-gradient';
-import Svg, { Circle, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Check, ChevronLeft, ChevronRight, Delete, Trash2 } from '@/components/icons';
+import { Check, ChevronLeft, ChevronRight, Delete, Trash2, type IconComponent } from '@/components/icons';
 import {
-  SPRING_FLICK,
-  SPRING_MOVE,
-  SPRING_SHEET,
-  TILE_GLINT_MS,
   amountScale,
   currencyParts,
   project,
   rubberband,
   splitAmount,
 } from '@/lib/motion';
-import { PressableScale } from '@/components/motion';
-import { F, R, S, T, SHADOW, type Palette, type BizPalette } from '@/lib/design';
-import { MESH_ALPHA, TILE_PRESS_ALPHA } from '@/lib/palettes';
+import { CountUp, PressableScale } from '@/components/motion';
+import { DrawCheck, lift, shadow } from '@/components/identity/primitives';
+import { DARK as ON_ESPRESSO, ELEVATION, RADIUS } from '@/lib/identity/tokens';
+import { EASE, MOTION, type EaseName, type Tween } from '@/lib/identity/motion';
+import { F, R, S, T, type Palette } from '@/lib/design';
+import { t } from '@/lib/i18n/core';
 
-/** Either profile's palette. Every component here takes one and asks nothing else. */
-export type Pal = Palette | BizPalette;
+/** Either profile's palette — one and the same object now. */
+export type Pal = Palette;
 
-/**
- * A tiling film grain, laid over a coloured surface.
- *
- * This is the difference between a gradient and a material. A three-stop ramp
- * interpolated by the GPU is mathematically smooth, and mathematically smooth
- * is exactly what reads as cheap: flat, plasticky, and on a wide surface
- * visibly banded. Every expensive-looking gradient in the references has grain
- * over it, and it is doing most of the work.
- *
- * Bidirectional — the texture carries both white and black pixels — so it
- * breaks the ramp up in both directions rather than fogging it with a haze.
- * 128px and purely high-frequency, so it tiles without a seam.
- */
-const GRAIN = require('../../assets/grain.png');
-
-function Grain({ opacity, radius }: { opacity: number; radius?: number }) {
-  return (
-    <Image
-      source={GRAIN}
-      resizeMode="repeat"
-      style={[StyleSheet.absoluteFill, { opacity, borderRadius: radius }]}
-    />
-  );
+/** An identity tween as a Reanimated timing config. No springs anywhere here. */
+function timed(tween: Tween) {
+  const [x1, y1, x2, y2] = EASE[tween.ease as EaseName];
+  return { duration: tween.duration, easing: Easing.bezier(x1, y1, x2, y2) };
 }
 
 /** `#RRGGBB` plus an alpha channel, as the 8-digit hex RN accepts. */
@@ -96,7 +70,6 @@ function withAlpha(hex: string, alpha: number): string {
   return `${hex}${Math.round(Math.min(1, Math.max(0, alpha)) * 255).toString(16).padStart(2, '0')}`;
 }
 
-/** Mirror a directional glyph under RTL (§7 — all chevrons must mirror). */
 /**
  * Mirror a directional glyph under RTL (§7 — all chevrons must mirror).
  *
@@ -157,78 +130,51 @@ export function Type({
 // ── Surfaces ─────────────────────────────────────────────────────────────────
 
 /**
- * The screen. A flat bone ground and nothing else — no gradient wash, no
- * bloom, no grain (§1, "what to leave behind").
+ * The screen: the calm off-white page (roasted espresso-black in dark), and
+ * nothing else — no wash, no bloom, no grain. Depth comes from what is lifted
+ * off it, not from the page itself.
  */
 export function Screen({
   pal,
   children,
-  plain = false,
+  plain: _plain = false,
   style,
 }: {
   pal: Pal;
   children?: React.ReactNode;
-  /** Drop the ambient wash, for a screen that is already carrying a large
-   *  coloured surface of its own. */
+  /** No longer does anything: the page has no ambient wash to drop. */
   plain?: boolean;
   style?: StyleProp<ViewStyle>;
 }) {
   const insets = useSafeAreaInsets();
   return (
     <View style={[{ flex: 1, backgroundColor: pal.ground, paddingTop: insets.top }, style]}>
-      {/* Two blooms, no shapes.
-          A flat bone field reads as paper stock; these give it somewhere for
-          light to be coming from, which is most of what "cosy" means on a
-          light ground. They are full-bleed linear gradients rather than
-          circles on purpose — a `borderRadius` blob always ends on a visible
-          arc, and an edge is exactly what an atmosphere must not have.
-          Each fades to nothing well before the middle, so the strength lives
-          in the corners and the region that carries text stays near-bone. */}
-      {plain ? null : (
-        <>
-          <LinearGradient
-            colors={[withAlpha(pal.mesh[0], MESH_ALPHA[0]), withAlpha(pal.mesh[0], 0)] as const}
-            locations={[0, 0.45]}
-            start={{ x: 1, y: 0 }}
-            end={{ x: 0.1, y: 0.75 }}
-            pointerEvents="none"
-            style={StyleSheet.absoluteFill}
-          />
-          <LinearGradient
-            colors={[withAlpha(pal.mesh[1], MESH_ALPHA[1]), withAlpha(pal.mesh[1], 0)] as const}
-            locations={[0, 0.42]}
-            start={{ x: 0, y: 1 }}
-            end={{ x: 0.85, y: 0.25 }}
-            pointerEvents="none"
-            style={StyleSheet.absoluteFill}
-          />
-        </>
-      )}
-      {/* The same texture at a whisper. A bone field with nothing in it is
-          the other half of why this read as flat — paper has tooth. */}
-      {plain ? null : <Grain opacity={0.035} />}
       {children}
     </View>
   );
 }
 
 /**
- * A white card floating on the ground.
+ * A card lifted off the page: two layered warm shadows (the wide ambient one
+ * on the outer view, the tight contact one on the inner) and a hairline silver
+ * edge. In dark mode the shadows deepen and the edge does most of the work.
  *
- * React Native paints one shadow per view, and §1.5 specifies two. The outer
- * view carries the far shadow and the inner the near one; the fill sits on
- * the inner so the two shadows stack around a single visible edge.
+ * `anchor` makes it the screen's one espresso block, lifted and edged exactly
+ * as BalanceCard is: the anchor elevation, the anchor radius and a half-silver
+ * edge. Text on it is `onEspresso`, secondary text `onEspressoDim`.
  */
 export function Card({
   pal,
   children,
-  radius = R.md,
+  anchor = false,
+  radius = anchor ? R.lg : R.md,
   padding = S.card,
   style,
   contentStyle,
 }: {
   pal: Pal;
   children?: React.ReactNode;
+  anchor?: boolean;
   radius?: number;
   padding?: number;
   /** Positions the card. Applied to the outer wrapper. */
@@ -240,25 +186,18 @@ export function Card({
    */
   contentStyle?: StyleProp<ViewStyle>;
 }) {
+  const { outer, inner } = anchor
+    ? lift(pal, ELEVATION.anchor, pal.espresso, radius, withAlpha(pal.silver, 0.5))
+    : lift(pal, ELEVATION.rest, pal.groundAlt, radius);
   return (
-    <View style={[SHADOW.far, { borderRadius: radius }, style]}>
+    <View style={[outer, style]}>
       <View
         style={[
-          SHADOW.near,
+          inner,
           {
-            backgroundColor: pal.groundAlt,
-            borderRadius: radius,
             padding,
-            // §1.5 reserves borders for where two white surfaces touch, and
-            // that rule is why these looked soft. `groundAlt` is #FFFFFF and
-            // the ground is #F7F5F1 — a three percent step. A shadow alone
-            // cannot define an edge across that little luminance, so the cards
-            // read as blurred patches rather than as objects sitting on
-            // something. One hairline is what turns a patch into a card.
-            borderWidth: StyleSheet.hairlineWidth,
-            borderColor: pal.hairline,
             // Clips a row's press wash to the card's corners. Only the inner
-            // view clips; the shadows live on the wrapper outside it.
+            // view clips; the ambient shadow lives on the wrapper outside it.
             overflow: 'hidden',
           },
           contentStyle,
@@ -293,7 +232,7 @@ export function Amount({
   size: requested = 40,
   color,
   signed = false,
-  weight = 'bold',
+  weight = 'semibold',
   maxChars = 11,
   style,
 }: {
@@ -366,7 +305,10 @@ export function Amount({
 
 // ── Header (§6.12) ───────────────────────────────────────────────────────────
 
-/** A 40px white circle carrying one thin-stroke icon. */
+/**
+ * A lifted squircle carrying one outline glyph: the advisor, back, next.
+ * Same lift and silver edge as a card, at button size.
+ */
 export function CircleAction({
   pal,
   children,
@@ -389,21 +331,16 @@ export function CircleAction({
       // §7: ≥44×44pt. The circle is 40, so the hit box is widened rather than
       // the circle, which would break the header's rhythm.
       hitSlop={Math.max(0, (44 - size) / 2)}
-      style={[
-        SHADOW.near,
-        {
-          width: size,
-          height: size,
-          borderRadius: size / 2,
-          backgroundColor: pal.groundAlt,
-          borderWidth: StyleSheet.hairlineWidth,
-          borderColor: pal.hairline,
-          alignItems: 'center',
-          justifyContent: 'center',
-        },
-      ]}
+      style={[lift(pal, ELEVATION.rest, pal.groundAlt, RADIUS.tile).outer, { width: size, height: size }]}
     >
-      {children}
+      <View
+        style={[
+          lift(pal, ELEVATION.rest, pal.groundAlt, RADIUS.tile).inner,
+          { flex: 1, alignItems: 'center', justifyContent: 'center' },
+        ]}
+      >
+        {children}
+      </View>
     </PressableScale>
   );
 }
@@ -460,7 +397,7 @@ export function Header({
         ) : null}
         <Type
           role={role}
-          color={role === 'section' ? pal.inkDim : pal.ink}
+          color={pal.ink}
           // A demoted greeting wraps to two lines on a long name and pushes the
           // hero down the screen; it is the one line here that may be clipped.
           numberOfLines={role === 'section' ? 1 : undefined}
@@ -473,7 +410,7 @@ export function Header({
   );
 }
 
-/** A 20px bold section header, sitting directly on the ground. */
+/** A section header on the page: 17 semibold, a tint link with a chevron. */
 export function SectionHeader({
   pal,
   title,
@@ -500,14 +437,20 @@ export function SectionHeader({
         style,
       ]}
     >
-      <Type role="section" color={pal.ink}>
+      <Type role="cardTitle" color={pal.ink}>
         {title}
       </Type>
       {actionLabel && onAction ? (
-        <Pressable onPress={onAction} hitSlop={12} accessibilityRole="button">
-          <Type role="meta" color={pal.accent}>
+        <Pressable
+          onPress={onAction}
+          hitSlop={12}
+          accessibilityRole="button"
+          style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}
+        >
+          <Type role="meta" color={pal.accent} style={{ fontSize: 15, lineHeight: 20 }}>
             {actionLabel}
           </Type>
+          <ChevronRight size={16} color={pal.accent} style={mirror} />
         </Pressable>
       ) : null}
     </View>
@@ -517,10 +460,10 @@ export function SectionHeader({
 // ── Buttons (§6.11) ──────────────────────────────────────────────────────────
 
 /**
- * Full-width ink pill, 56pt tall.
- *
- * `accent` fills with the profile's accent instead of ink — for the one place
- * a screen wants the CTA to carry the hue rather than the neutral.
+ * Full-width primary button, 56pt tall: espresso, the identity's signature,
+ * with off-white text. `accent` fills with the tint instead (espresso in light,
+ * latte in dark); `secondary` is a lifted card-coloured button with a silver
+ * edge.
  */
 export function PrimaryButton({
   pal,
@@ -533,10 +476,16 @@ export function PrimaryButton({
   pal: Pal;
   label: string;
   onPress?: () => void;
-  variant?: 'ink' | 'accent' | 'secondary';
+  /**
+   * `destructive` is the one control that loses something: a red label on a
+   * lifted card-coloured pill, never a red fill, so it reads as a warning
+   * rather than as the screen's call to action.
+   */
+  variant?: 'ink' | 'accent' | 'secondary' | 'destructive';
   disabled?: boolean;
   style?: StyleProp<ViewStyle>;
 }) {
+  const quiet = variant === 'secondary' || variant === 'destructive';
   /**
    * Disabled is its own pair of tokens, not the enabled pair at 40% opacity.
    *
@@ -550,18 +499,20 @@ export function PrimaryButton({
    */
   const fill = disabled
     ? pal.groundSunk
-    : variant === 'secondary'
+    : quiet
       ? pal.groundAlt
       : variant === 'accent'
         ? pal.accent
-        : pal.ink;
+        : pal.espresso;
   const label_ = disabled
-    ? pal.inkFaint
-    : variant === 'secondary'
-      ? pal.ink
-      : variant === 'accent'
-        ? pal.onAccent
-        : pal.onInk;
+    ? pal.inkDim
+    : variant === 'destructive'
+      ? pal.negative
+      : variant === 'secondary'
+        ? pal.ink
+        : variant === 'accent'
+          ? pal.onAccent
+          : pal.onEspresso;
   // The caller's layout goes on a plain View, not on the PressableScale.
   // PressableScale wraps its Pressable in an Animated.View that carries only
   // the press transform, so a width, a flex or an alignSelf passed to it lands
@@ -571,21 +522,23 @@ export function PrimaryButton({
   return (
     <View style={style}>
       <PressableScale
-        onPress={disabled ? undefined : onPress}
+        onPress={onPress}
+        disabled={disabled}
         haptic="light"
         accessibilityRole="button"
         accessibilityLabel={label}
         accessibilityState={{ disabled }}
         style={[
-          SHADOW.near,
+          disabled ? null : shadow(pal, ELEVATION.rest[0]),
           {
             height: 56,
-            borderRadius: R.pill,
+            borderRadius: R.control,
+            borderCurve: 'continuous',
             backgroundColor: fill,
             alignItems: 'center',
             justifyContent: 'center',
-            borderWidth: variant === 'secondary' && !disabled ? 1 : 0,
-            borderColor: pal.hairline,
+            borderWidth: quiet && !disabled ? StyleSheet.hairlineWidth * 2 : 0,
+            borderColor: pal.silverEdge,
           },
         ]}
       >
@@ -598,8 +551,8 @@ export function PrimaryButton({
 }
 
 /**
- * A white pill with a hairline — the suggested reply, and the action chip
- * under an insight (§6.4).
+ * A soft tint pill: the suggested reply, and the action chip under an
+ * insight. The label is the tint on its own wash, as in the identity sample.
  */
 export function Chip({
   pal,
@@ -617,21 +570,20 @@ export function Chip({
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={label}
+      // 40 tall to sit quietly under a sentence; the slop makes the target 44.
+      hitSlop={2}
       style={[
-        SHADOW.near,
         {
-          minHeight: 44, // §7 touch target
+          minHeight: 40,
           justifyContent: 'center',
           paddingHorizontal: 16,
           borderRadius: R.pill,
-          backgroundColor: pal.groundAlt,
-          borderWidth: 1,
-          borderColor: pal.hairline,
+          backgroundColor: pal.accentSoft,
         },
         style,
       ]}
     >
-      <Type role="meta" color={pal.ink}>
+      <Type role="meta" color={pal.accent} style={{ fontSize: 15, lineHeight: 20 }}>
         {label}
       </Type>
     </PressableScale>
@@ -639,27 +591,26 @@ export function Chip({
 }
 
 /**
- * Segmented toggle (§6.5). Active is a solid ink pill with a soft shadow;
- * inactive is plain text on the ground with no chrome at all.
+ * Segmented toggle. A sunk track; the active segment is a lifted card-coloured
+ * pill with a silver edge, ink label; inactive labels are inkDim.
  *
  * The pill *slides*. A control whose highlight teleports between positions
  * tells you the selection changed; one that travels tells you which way it
  * went, and that is the whole difference between a toggle you have to read
- * and one you can feel. It is also the cheapest place in the app to spend a
- * spring — one transform, on the compositor, on a control people tap
- * constantly.
+ * and one you can feel. It is one transform, on the compositor, on a control
+ * people tap constantly.
  *
- * Critically damped, because a tap carries no momentum. Apple's rule is that
- * overshoot is earned by a gesture that threw something — a flick, a drag
- * release — and a discrete tap threw nothing, so bounce here would read as a
- * tic rather than as physics. (DESIGN-PROMPT §4 asked for damping 20 /
- * stiffness 250, a ratio of 0.63; the brief predates this rule and the rule
- * wins.)
+ * Timed, not sprung: 200 ms ease-in-out (MOTION.slide), arriving without
+ * overshoot. A tap carries no momentum, so bounce here would read as a tic
+ * rather than as physics, and the identity has no springs at all.
  *
  * The pill is measured, not laid out: it is one absolutely-positioned view
  * translated across the row, so there is a single element moving rather than
  * n backgrounds cross-fading.
  */
+/** The track's inset around the sliding pill. */
+const SEG_PAD = 3;
+
 export function Segmented<Key extends string>({
   pal,
   options,
@@ -681,7 +632,8 @@ export function Segmented<Key extends string>({
   const placed = useRef(false);
 
   const index = Math.max(0, options.findIndex((o) => o.key === value));
-  const seg = width > 0 ? width / options.length : 0;
+  // The track is inset by SEG_PAD on every side; the pill travels inside it.
+  const seg = width > 0 ? (width - SEG_PAD * 2) / options.length : 0;
   // translateX is not mirrored by the layout engine the way `flexDirection`
   // is, so under RTL the pill has to travel the other way itself (§7).
   const dir = I18nManager.isRTL ? -1 : 1;
@@ -694,7 +646,8 @@ export function Segmented<Key extends string>({
       x.value = target;
       return;
     }
-    x.value = withSpring(target, SPRING_MOVE);
+    // Timed, not sprung: the identity has no springs (200 ms, ease-in-out).
+    x.value = withTiming(target, timed(MOTION.slide));
   }, [index, seg, dir, reduced, x]);
 
   const pillStyle = useAnimatedStyle(() => ({ transform: [{ translateX: x.value }] }));
@@ -702,21 +655,26 @@ export function Segmented<Key extends string>({
   return (
     <View
       onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
-      style={[{ flexDirection: 'row' }, style]}
+      style={[
+        { flexDirection: 'row', padding: SEG_PAD, borderRadius: R.pill, backgroundColor: pal.groundSunk },
+        style,
+      ]}
     >
       {seg > 0 ? (
         <Animated.View
           pointerEvents="none"
           style={[
-            SHADOW.near,
+            shadow(pal, ELEVATION.rest[0]),
             {
               position: 'absolute',
-              top: 0,
-              bottom: 0,
-              start: 0,
+              top: SEG_PAD,
+              bottom: SEG_PAD,
+              start: SEG_PAD,
               width: seg,
               borderRadius: R.pill,
-              backgroundColor: pal.ink,
+              backgroundColor: pal.groundAlt,
+              borderWidth: StyleSheet.hairlineWidth * 2,
+              borderColor: pal.silverEdge,
             },
             pillStyle,
           ]}
@@ -735,12 +693,12 @@ export function Segmented<Key extends string>({
             accessibilityState={{ selected: active }}
             style={{
               flex: 1,
-              minHeight: 44,
+              minHeight: 40,
               alignItems: 'center',
               justifyContent: 'center',
             }}
           >
-            <Type role="meta" color={active ? pal.onInk : pal.inkDim} numberOfLines={1}>
+            <Type role="meta" color={active ? pal.ink : pal.inkDim} numberOfLines={1}>
               {o.label}
             </Type>
           </Pressable>
@@ -796,7 +754,8 @@ export function Field({
           gap: 12,
           minHeight: input.multiline ? 96 : 56,
           paddingHorizontal: 16,
-          borderRadius: R.md,
+          borderRadius: R.control,
+          borderCurve: 'continuous',
           backgroundColor: pal.groundSunk,
         }}
       >
@@ -808,7 +767,7 @@ export function Field({
           style={{
             flex: 1,
             ...F.regular,
-            fontSize: 16,
+            fontSize: 17,
             color: pal.ink,
             // Without this the field is ~20pt tall on Android and the icon
             // floats beside a text box that is not there.
@@ -834,19 +793,13 @@ export function FormError({ pal, message }: { pal: Pal; message: string }) {
   );
 }
 
-// ── Balance card (§6.1) ──────────────────────────────────────────────────────
+// ── Balance card: the anchor ─────────────────────────────────────────────────
 
 /**
- * The one dark object.
- *
- * Everything else on the screen is white, bone or grey; this is where the eye
- * lands (§1.1). It carries the single gradient moment, which bleeds off a
- * corner and never sits behind text — and which lives here rather than on the
- * ground because `accentGlow` is 1.60:1 (mint) against bone and would simply
- * not be visible there (§2.3.1).
- *
- * In dark mode `inkSoft` is a bone colour and `onInk` is near-black, so the
- * same component becomes the one *light* object without a branch.
+ * The screen's one anchor: espresso, lifted highest, with a silver edge. The
+ * balance counts up in 280 ms; whatever the caller passes as `children` (the
+ * month's budget, on Home) sits beneath it inside the card, as in the
+ * identity's sample. No gradient, no sheen, no grain.
  */
 export function BalanceCard({
   pal,
@@ -856,7 +809,8 @@ export function BalanceCard({
   caption,
   badge,
   onPress,
-  plain = false,
+  plain: _plain = false,
+  children,
   style,
 }: {
   pal: Pal;
@@ -867,102 +821,115 @@ export function BalanceCard({
   /** The small brand mark in the corner. */
   badge?: React.ReactNode;
   onPress?: () => void;
-  /**
-   * Drop the gradient arc. §1.10 allows one gradient moment per screen, so in
-   * a carousel only the first card carries it — repeating it on every card
-   * turns the one moment into a pattern.
-   */
+  /** No longer does anything: the anchor carries no gradient arc to drop. */
   plain?: boolean;
+  /** Extra content inside the card, under the caption. */
+  children?: React.ReactNode;
   style?: StyleProp<ViewStyle>;
 }) {
+  const { outer, inner } = lift(pal, ELEVATION.anchor, pal.espresso, R.lg, withAlpha(pal.silver, 0.5));
+  // The figure shrinks rather than clipping past about twelve characters.
+  const size = 44 * amountScale(format(amount).length, 12);
   const body = (
-    <LinearGradient
-      colors={pal.heroGradient as unknown as readonly [string, string, string]}
-      // Along the diagonal, deep end under the text. The label, the amount and
-      // the caption all live top-left; the vivid end is thrown to the far
-      // corner where nothing is written — and held to the last quarter, so it
-      // reads as light falling on a dark surface rather than as a purple card.
-      locations={[0, 0.74, 1]}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-      style={[
-        SHADOW.far,
-        {
-          borderRadius: R.lg,
-          padding: S.card + 2,
-          overflow: 'hidden',
-          // §12: "a bright top edge = light catching the material". The brief
-          // asked for this and nothing had implemented it. One hairline is the
-          // whole difference between a coloured rectangle and an object with a
-          // lit surface.
-          borderTopWidth: 1,
-          borderTopColor: 'rgba(255,255,255,0.22)',
-        },
-      ]}
-    >
-      {/* Sheen, then grain — in that order, so the texture sits over both the
-          ramp and the highlight rather than under one of them. */}
-      <LinearGradient
-        colors={['rgba(255,255,255,0.16)', 'rgba(255,255,255,0.00)'] as const}
-        locations={[0, 0.55]}
-        start={{ x: 0.15, y: 0 }}
-        end={{ x: 0.5, y: 1 }}
-        pointerEvents="none"
-        style={StyleSheet.absoluteFill}
-      />
-      <Grain opacity={0.09} />
-      {/* The gradient moment: one arc, clipped by the card's corner,
-          decorative, never behind the number.
-
-          The first stop is the gradient's own first colour at zero alpha, so
-          the disc dissolves into the card instead of ending on a circular
-          edge. Without it the arc reads as a solid half-circle stamped on the
-          corner — the shape is only "an arc bleeding off" (§1.10) if the side
-          facing the card has no edge at all. The dense end sits off the
-          top-right corner, where `overflow: hidden` cuts it. */}
-      {plain ? null : <LinearGradient
-        // Ordered corner-first: the brightest stop sits off the top-right and
-        // the last one is the darkest stop at zero alpha, so the wash reaches
-        // nothing before it gets anywhere near the number on the left.
-        colors={[pal.gradient[2], pal.gradient[1], `${pal.gradient[0]}00`] as const}
-        // Wound tight to the corner. The card is far wider than it is tall, so
-        // a diagonal covers a lot of width per unit of progress — at even a
-        // third of the way across, the wash stops being a moment and becomes a
-        // second surface.
-        locations={[0, 0.06, 0.28]}
-        start={{ x: 1, y: 0 }}
-        end={{ x: 0, y: 1 }}
-        pointerEvents="none"
-        style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, opacity: 0.75 }}
-      />}
+    <View style={[inner, { padding: S.card + 4 }]}>
       <View
         style={{
           flexDirection: 'row',
           alignItems: 'center',
           justifyContent: 'space-between',
-          marginBottom: 14,
+          marginBottom: 8,
         }}
       >
-        <Type role="meta" color={pal.onHero} style={{ opacity: 0.78 }}>
+        <Type role="meta" color={pal.onEspressoDim} style={{ fontSize: 15, lineHeight: 20 }}>
           {label}
         </Type>
         {badge}
       </View>
-      <Amount value={amount} format={format} size={40} color={pal.onHero} />
+      <CountUp value={amount} format={format} size={size} weight="semibold" color={pal.onEspresso} />
       {caption ? (
-        <Type role="meta" color={pal.onHero} style={{ opacity: 0.78, marginTop: 6 }}>
+        <Type role="meta" color={pal.onEspressoDim} style={{ marginTop: 4 }}>
           {caption}
         </Type>
       ) : null}
-    </LinearGradient>
+      {children}
+    </View>
   );
 
-  if (!onPress) return <View style={style}>{body}</View>;
+  if (!onPress) return <View style={[outer, style]}>{body}</View>;
   return (
     <View style={style}>
-      <PressableScale onPress={onPress} accessibilityRole="button">
+      <PressableScale onPress={onPress} accessibilityRole="button" style={outer}>
         {body}
       </PressableScale>
+    </View>
+  );
+}
+
+/**
+ * The month's budget, inside the anchor, as in the identity's sample: a
+ * metallic silver line and the silver "Remaining" figure (counting up) beside
+ * the budget. Close to or over the budget the line and figure turn warning and
+ * red — the dark scheme's tones, which are the ones that read on espresso.
+ * `sentence` is the screen-reader summary; the figures say the same thing.
+ */
+export function AnchorBudget({
+  pal,
+  spent,
+  budget,
+  format,
+  remainingLabel,
+  budgetLabel,
+  sentence,
+  style,
+}: {
+  pal: Pal;
+  spent: number;
+  budget: number;
+  format: (n: number) => string;
+  remainingLabel: string;
+  budgetLabel: string;
+  sentence: string;
+  style?: StyleProp<ViewStyle>;
+}) {
+  const ratio = budget > 0 ? Math.min(1, Math.max(0, spent / budget)) : 0;
+  const remaining = budget - spent;
+  const state = remaining < 0 ? 'over' : ratio > 0.85 ? 'close' : 'comfortable';
+  const tone =
+    state === 'over' ? ON_ESPRESSO.negative : state === 'close' ? ON_ESPRESSO.warning : pal.silver;
+  return (
+    <View style={style} accessible accessibilityLabel={sentence}>
+      <View
+        style={{
+          height: 8,
+          borderRadius: 4,
+          backgroundColor: withAlpha(pal.silver, 0.22),
+          overflow: 'hidden',
+          flexDirection: 'row',
+        }}
+      >
+        <View style={{ width: `${ratio * 100}%`, backgroundColor: tone, borderRadius: 4, overflow: 'hidden' }}>
+          {state === 'comfortable' ? (
+            <View style={{ height: '45%', backgroundColor: withAlpha(pal.silverHi, 0.7) }} />
+          ) : null}
+        </View>
+      </View>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: 16 }}>
+        <View style={{ flex: 1 }}>
+          <Type role="meta" color={pal.onEspressoDim}>
+            {remainingLabel}
+          </Type>
+          <CountUp value={remaining} format={format} size={22} weight="semibold" color={tone} style={{ marginTop: 2 }} />
+        </View>
+        <View style={{ alignItems: 'flex-end' }}>
+          <Type role="meta" color={pal.onEspressoDim}>
+            {budgetLabel}
+          </Type>
+          {/* 2 + (28 − 20): this figure's foot sits on the silver figure's. */}
+          <Type role="meta" color={pal.onEspressoDim} style={{ marginTop: 10, fontSize: 15, lineHeight: 20, fontVariant: ['tabular-nums'] }}>
+            {format(budget)}
+          </Type>
+        </View>
+      </View>
     </View>
   );
 }
@@ -970,17 +937,19 @@ export function BalanceCard({
 // ── Budget line (§6.2) ───────────────────────────────────────────────────────
 
 /**
- * One sentence and one 6px track. No segments, no percentage ring.
+ * One sentence and one track. No segments, no percentage ring.
  *
- * The three states are the whole point: `comfortable` reads in the accent,
- * `close` in warning, `over` in negative — but the sentence says which it is
- * too, so the state does not depend on telling the colours apart.
+ * `comfortable` fills in the tint, `close` in warning, `over` in negative —
+ * and the sentence says which it is too, so the state never depends on
+ * telling colours apart. On espresso (`onAnchor`) the track turns metallic
+ * silver, as in the identity's balance card.
  */
 export function BudgetLine({
   pal,
   sentence,
   spent,
   budget,
+  onAnchor = false,
   style,
 }: {
   pal: Pal;
@@ -988,33 +957,57 @@ export function BudgetLine({
   sentence: string;
   spent: number;
   budget: number;
+  /** Drawn inside the espresso anchor: silver on espresso, no side padding. */
+  onAnchor?: boolean;
   style?: StyleProp<ViewStyle>;
 }) {
   const ratio = budget > 0 ? Math.min(1, Math.max(0, spent / budget)) : 0;
   const state = budget > 0 && spent > budget ? 'over' : ratio > 0.85 ? 'close' : 'comfortable';
-  const fill =
-    state === 'over' ? pal.negative : state === 'close' ? pal.warning : pal.accentMark;
+  const fill = onAnchor
+    ? state === 'comfortable'
+      ? pal.silver
+      : state === 'over'
+        ? pal.negative
+        : pal.warning
+    : state === 'over'
+      ? pal.negative
+      : state === 'close'
+        ? pal.warning
+        : pal.accentMark;
 
   return (
-    <View style={[{ paddingHorizontal: S.screen }, style]}>
-      <Type role="body" color={pal.ink} style={{ marginBottom: 12 }}>
-        {sentence}
-      </Type>
+    <View style={[{ paddingHorizontal: onAnchor ? 0 : S.screen }, style]}>
+      {onAnchor ? null : (
+        <Type role="body" color={pal.ink} style={{ marginBottom: 12 }}>
+          {sentence}
+        </Type>
+      )}
       <View
         accessibilityRole="progressbar"
+        accessibilityLabel={sentence}
         accessibilityValue={{ min: 0, max: 100, now: Math.round(ratio * 100) }}
         style={{
-          height: 6,
-          borderRadius: 3,
-          backgroundColor: pal.groundSunk,
+          height: onAnchor ? 8 : 6,
+          borderRadius: 4,
+          backgroundColor: onAnchor ? withAlpha(pal.silver, 0.22) : pal.groundSunk,
           overflow: 'hidden',
           // The track fills from the reading direction, so it mirrors in
-          // Arabic rather than draining backwards (§7).
+          // Arabic rather than draining backwards.
           flexDirection: 'row',
         }}
       >
-        <View style={{ width: `${ratio * 100}%`, backgroundColor: fill, borderRadius: 3 }} />
+        <View style={{ width: `${ratio * 100}%`, backgroundColor: fill, borderRadius: 4, overflow: 'hidden' }}>
+          {/* Silver's metallic sheen: the bright end at the top of the fill. */}
+          {onAnchor && state === 'comfortable' ? (
+            <View style={{ height: '45%', backgroundColor: withAlpha(pal.silverHi, 0.7) }} />
+          ) : null}
+        </View>
       </View>
+      {onAnchor ? (
+        <Type role="meta" color={pal.onEspressoDim} style={{ marginTop: 12 }}>
+          {sentence}
+        </Type>
+      ) : null}
     </View>
   );
 }
@@ -1022,35 +1015,53 @@ export function BudgetLine({
 // ── Insight (§6.3) ───────────────────────────────────────────────────────────
 
 /**
- * Prose on the ground, with up to two chips beneath. No icon, no card.
- *
- * This is the Milo idea at small scale, and it is the reason the home screen
- * can drop a dashboard's worth of widgets: one sentence of plain English says
- * more than a health score, a streak and a sparkline together.
+ * One sentence of plain English on a lifted card, with up to two chips
+ * beneath. When the news is good (`check`), the sentence is led by the
+ * identity's self-drawing check.
  */
 export function Insight({
   pal,
   text,
   actions = [],
+  check = false,
   style,
 }: {
   pal: Pal;
   text: string;
   actions?: readonly { label: string; onPress: () => void }[];
+  /** Lead with the self-drawing check: the insight is good news. */
+  check?: boolean;
   style?: StyleProp<ViewStyle>;
 }) {
   return (
     <View style={[{ paddingHorizontal: S.screen }, style]}>
-      <Type role="body" color={pal.ink}>
-        {text}
-      </Type>
-      {actions.length > 0 ? (
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 14 }}>
-          {actions.slice(0, 2).map((a) => (
-            <Chip key={a.label} pal={pal} label={a.label} onPress={a.onPress} />
-          ))}
+      <Card pal={pal} padding={S.card}>
+        <View style={{ flexDirection: 'row', gap: 12 }}>
+          {check ? (
+            <View style={{ paddingTop: 1 }}>
+              <DrawCheck P={pal} size={22} delay={MOTION.settle.tween.duration} />
+            </View>
+          ) : null}
+          <Type role="body" color={pal.ink} style={{ flex: 1 }}>
+            {text}
+          </Type>
         </View>
-      ) : null}
+        {actions.length > 0 ? (
+          <View
+            style={{
+              flexDirection: 'row',
+              flexWrap: 'wrap',
+              gap: 8,
+              marginTop: 16,
+              marginStart: check ? 34 : 0,
+            }}
+          >
+            {actions.slice(0, 2).map((a) => (
+              <Chip key={a.label} pal={pal} label={a.label} onPress={a.onPress} />
+            ))}
+          </View>
+        ) : null}
+      </Card>
     </View>
   );
 }
@@ -1104,7 +1115,7 @@ export function Touchable({
         on.value = 1;
       }}
       onPressOut={() => {
-        on.value = withTiming(0, { duration: 240 });
+        on.value = withTiming(0, timed(MOTION.press.out));
       }}
       accessibilityRole={accessibilityRole}
       accessibilityLabel={accessibilityLabel}
@@ -1132,11 +1143,12 @@ export function Touchable({
 // ── Rows (§6.7) ──────────────────────────────────────────────────────────────
 
 /**
- * A transaction. 40px mark, title at 17, date at 13, signed amount right.
+ * A transaction. A 40px glyph tile, title at 17, date at 13, signed amount
+ * right — green in, red out, and always with its sign.
  *
- * The mark is a category-coloured circle carrying an initial; a real merchant
- * logo replaces it where one is known (§2.5), which is why `mark` is a slot
- * rather than a colour.
+ * The identity marks a category by its glyph on a soft tile (`icon`), not by a
+ * colour. `markColor` (a coloured circle with an initial) remains for callers
+ * that have no glyph; a merchant logo goes in `mark`.
  */
 export function Row({
   pal,
@@ -1146,6 +1158,7 @@ export function Row({
   format,
   mark,
   markColor,
+  icon: Glyph,
   onPress,
   style,
 }: {
@@ -1154,39 +1167,59 @@ export function Row({
   meta?: string;
   amount: number;
   format: (n: number) => string;
-  /** Overrides the coloured initial — a merchant logo, when we have one. */
+  /** Overrides the tile — a merchant logo, when we have one. */
   mark?: React.ReactNode;
   markColor?: string;
+  /** The category's glyph, drawn on a soft tile. */
+  icon?: IconComponent;
   onPress?: () => void;
   style?: StyleProp<ViewStyle>;
 }) {
+  // Green in, red out: the convention kept on purpose. The sign carries it
+  // too, so colour is never the only signal.
   const tone = amount < 0 ? pal.negative : pal.positive;
   const initial = title.trim().charAt(0).toUpperCase() || '?';
+  const tile = Glyph ? (
+    <View
+      style={{
+        width: 40,
+        height: 40,
+        borderRadius: RADIUS.tile,
+        borderCurve: 'continuous',
+        backgroundColor: pal.groundSunk,
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      <Glyph size={22} color={pal.ink} />
+    </View>
+  ) : null;
   const inner = (
     <View
       style={[
-        { flexDirection: 'row', alignItems: 'center', minHeight: 56, gap: 12 },
+        { flexDirection: 'row', alignItems: 'center', minHeight: 60, gap: 12 },
         style,
       ]}
     >
-      {mark ?? (
+      {mark ?? tile ?? (
         <View
           style={{
             width: 40,
             height: 40,
-            borderRadius: 20,
+            borderRadius: RADIUS.tile,
+            borderCurve: 'continuous',
             backgroundColor: markColor ?? pal.groundSunk,
             alignItems: 'center',
             justifyContent: 'center',
           }}
         >
-          <RNText style={{ ...F.semibold, fontSize: 15, color: pal.groundAlt }}>
+          <RNText style={{ ...F.semibold, fontSize: 15, color: markColor ? pal.groundAlt : pal.ink }}>
             {initial}
           </RNText>
         </View>
       )}
       <View style={{ flex: 1 }}>
-        <Type role="cardTitle" color={pal.ink} numberOfLines={1}>
+        <Type role="body" color={pal.ink} numberOfLines={1}>
           {title}
         </Type>
         {meta ? (
@@ -1195,7 +1228,7 @@ export function Row({
           </Type>
         ) : null}
       </View>
-      <Amount value={amount} format={format} size={17} color={tone} signed weight="semibold" />
+      <Amount value={amount} format={format} size={17} color={tone} signed weight="medium" />
     </View>
   );
 
@@ -1226,6 +1259,7 @@ export function InfoRow({
   amount,
   format,
   tone,
+  signed = false,
   lead,
   trailing,
   footer,
@@ -1239,6 +1273,11 @@ export function InfoRow({
   format?: (n: number) => string;
   /** Defaults to `ink`. A figure is not red unless something is wrong. */
   tone?: string;
+  /**
+   * The amount is money moving rather than a figure: it carries its + or −
+   * and takes the money colours, green in and red out (DESIGN-IDENTITY.md).
+   */
+  signed?: boolean;
   lead?: React.ReactNode;
   trailing?: React.ReactNode;
   /** A meter, a confidence track — anything that spans the row's full width. */
@@ -1251,7 +1290,7 @@ export function InfoRow({
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 44 }}>
         {lead}
         <View style={{ flex: 1 }}>
-          <Type role="cardTitle" color={pal.ink} numberOfLines={1}>
+          <Type role="body" color={pal.ink} numberOfLines={1}>
             {title}
           </Type>
           {meta ? (
@@ -1265,8 +1304,9 @@ export function InfoRow({
             value={amount}
             format={format}
             size={17}
-            weight="semibold"
-            color={tone ?? pal.ink}
+            weight="medium"
+            color={tone ?? (signed ? (amount < 0 ? pal.negative : pal.positive) : pal.ink)}
+            signed={signed}
           />
         ) : null}
         {trailing}
@@ -1359,7 +1399,7 @@ export function LinkRow({
     >
       {icon}
       <View style={{ flex: 1 }}>
-        <Type role="cardTitle" color={pal.ink}>
+        <Type role="body" color={pal.ink}>
           {title}
         </Type>
         {body ? (
@@ -1373,7 +1413,7 @@ export function LinkRow({
   );
 }
 
-/** The 44px pale squircle that fronts a feature or permission row (§6.9). */
+/** The 44px platinum squircle that fronts a feature or permission row. */
 export function IconTile({
   pal,
   children,
@@ -1392,7 +1432,8 @@ export function IconTile({
           width: size,
           height: size,
           borderRadius: R.sm,
-          backgroundColor: pal.accentSoft,
+          borderCurve: 'continuous',
+          backgroundColor: pal.silverSoft,
           alignItems: 'center',
           justifyContent: 'center',
         },
@@ -1404,37 +1445,13 @@ export function IconTile({
   );
 }
 
-// ── Quick actions (§6.8) ─────────────────────────────────────────────────────
-
-/**
- * The tile.
- *
- * 56, up from 48. The row is four columns of ~81pt on this handset, so the
- * limit was never space — 48 was simply the number §6.6 wrote down when the
- * chrome was white circles holding hairline strokes. A filled duotone glyph
- * needs more room around it than a stroke does, and at 48 the tiles read as
- * small buttons rather than as the four places the screen sends you.
- */
-const TILE = 56;
-/**
- * The glyph inside it — 46% of the tile.
- *
- * It was 21-in-48 (44%), passed by hand at all eight call sites, which is how
- * a row ends up with one icon at a different weight from its neighbours and
- * nobody notices. The size and the colour both live here now; the call sites
- * pass a component, not a rendered node.
- */
-const TILE_GLYPH = 26;
+// ── Quick actions ────────────────────────────────────────────────────────────
 
 export interface QuickActionProps {
   pal: Pal;
   /**
-   * The glyph, as a component rather than an element.
-   *
-   * Deliberate: an `icon` node let each call site choose its own size and
-   * colour, and on the home screen they diverged — a 21px hairline plus beside
-   * three solid duotone shapes, and mint's glyph left at `accent`, which is
-   * 4.31:1 on its own tile. Handing over the component lets the tile paint it.
+   * The glyph, as a component rather than an element, so the tile owns its
+   * size and colour and a row of these can never drift apart.
    */
   Icon: React.ComponentType<{ size?: number; color?: string }>;
   label: string;
@@ -1443,158 +1460,37 @@ export interface QuickActionProps {
 }
 
 /**
- * A 56px accent-tinted circle with a 12px label beneath.
- *
- * **The glyph is neutral and the tile carries the colour.** It was the accent
- * in both, which made four saturated marks on four saturated discs — the tint
- * and the thing on it competing to be the coloured object. `inkDim` is the
- * app's secondary ink and it is what a mark on a tinted ground should be: the
- * tile is the colour, the glyph is just legible on it. That measures 6.53:1 on
- * lavender and 7.19:1 on mint, better than the accent managed on either.
- *
- * Note this is *not* a return to §6.6's original — those were grey glyphs on
- * **white** discs, which is what made the row the largest neutral block on a
- * screen whose only colour was the hero. The colour did not leave; it moved
- * from the 26px mark to the 56px surface, which is more of it, not less.
- *
- * **It moves in two ways, and only one of them is idle.** Held, the tile takes
- * on `TILE_PRESS_ALPHA` of the accent and its highlight rolls off, the way
- * light leaves a surface pushed in. At rest the highlight drifts, slowly and by
- * very little — see TILE_DRIFT_MS for why it is as slow as it is.
+ * A shortcut, as in the identity's sample: a lifted card with a silver edge,
+ * a platinum glyph tile at its top, the label beneath. Laid out in a row,
+ * each takes an equal share of the width. The glyph sits above the label so a
+ * long label (French, Arabic) wraps by word rather than breaking mid-word.
  */
 export function QuickAction({ pal, Icon, label, onPress, style }: QuickActionProps) {
-  const reduced = useReducedMotion();
-  const press = useSharedValue(0);
-  const spin = useSharedValue(0);
-
-  useEffect(() => {
-    if (reduced) {
-      spin.value = 0;
-      return;
-    }
-    spin.value = withRepeat(
-      // Linear, and it has to be: an eased rotation would visibly slow at the
-      // ends of each turn, which reads as a stutter rather than as a glint
-      // going round.
-      withTiming(360, { duration: TILE_GLINT_MS, easing: Easing.linear }),
-      -1,
-      false
-    );
-    return () => cancelAnimation(spin);
-  }, [reduced, spin]);
-
-  // Both worklets read `.value` directly. Hoisting either read into a helper
-  // leaves the worklet subscribed to nothing and it runs exactly once — see
-  // CLAUDE.md; this codebase has lost an animation to that already.
-  const glintStyle = useAnimatedStyle(() => ({
-    transform: [{ rotate: `${spin.value}deg` }],
-    // The glint goes out under a finger along with the sheen: the tile is
-    // pressed in, so nothing is catching light on its edge.
-    opacity: 1 - press.value,
-  }));
-  const sheenStyle = useAnimatedStyle(() => ({ opacity: 1 - press.value * 0.7 }));
-  const washStyle = useAnimatedStyle(() => ({ opacity: press.value }));
-
-  const radius = TILE / 2;
-
-  // The `flex: 1` goes on a plain View, not on the PressableScale — the same
-  // trap `PrimaryButton` documents. PressableScale wraps its Pressable in an
-  // Animated.View carrying only the press transform, so a flex handed to it
-  // lands on the inner element inside a parent that has already shrink-wrapped,
-  // and a row of these bunches up against the left edge instead of spreading.
+  const { outer, inner } = lift(pal, ELEVATION.rest, pal.groundAlt, R.control);
+  // The `flex: 1` goes on a plain View, not on the PressableScale: its
+  // Animated.View wrapper carries only the press transform, and a flex handed
+  // to it lands inside a parent that has already shrink-wrapped.
   return (
     <View style={[{ flex: 1 }, style]}>
-      <PressableScale
-        onPress={onPress}
-        onPressIn={() => {
-          press.value = withTiming(1, { duration: 110 });
-        }}
-        onPressOut={() => {
-          press.value = withSpring(0, SPRING_MOVE);
-        }}
-        accessibilityRole="button"
-        accessibilityLabel={label}
-        style={{ alignItems: 'center', gap: 8 }}
-      >
-        <View
-          style={[
-            SHADOW.near,
-            {
-              width: TILE,
-              height: TILE,
-              borderRadius: radius,
-              // The pale accent wash, not white. On a screen whose only colour
-              // was the hero, four grey glyphs on four white discs were the
-              // largest neutral block on it — and the references carry colour
-              // right through the layout rather than parking it in one object.
-              backgroundColor: pal.accentSoft,
-              // A lit ring, not the neutral hairline this used to carry. A grey
-              // line on a lavender disc describes a cut-out; a light one
-              // describes an edge the light has reached. §12, and the same move
-              // the hero card makes with `borderTopColor`.
-              //
-              // Every layer below rounds itself to the tile rather than being
-              // clipped by it: `overflow: hidden` sets `masksToBounds` on the
-              // iOS layer, which would take this view's shadow with it.
-              borderWidth: 1,
-              borderColor: pal.tileRim,
+      <PressableScale onPress={onPress} accessibilityRole="button" accessibilityLabel={label} style={outer}>
+        <View style={[inner, { padding: 16 }]}>
+          <View
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: RADIUS.tile,
+              borderCurve: 'continuous',
+              backgroundColor: pal.silverSoft,
               alignItems: 'center',
               justifyContent: 'center',
-            },
-          ]}
-        >
-          {/* The press wash, under the light: the accent comes up through the
-              surface rather than being painted over the highlight. */}
-          <Animated.View
-            pointerEvents="none"
-            style={[
-              StyleSheet.absoluteFill,
-              { borderRadius: radius, backgroundColor: withAlpha(pal.accent, TILE_PRESS_ALPHA) },
-              washStyle,
-            ]}
-          />
-          {/*
-            The sheen. It stops at 0.62 — a highlight that reaches the bottom is
-            a lighter flat disc, not a lit one. The glyph sits at the centre,
-            under about half of the alpha; the token is measured at the full
-            first stop anyway, which is the conservative end.
-          */}
-          <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, sheenStyle]}>
-            <LinearGradient
-              colors={[pal.tileSheen, 'rgba(255,255,255,0)'] as const}
-              locations={[0, 0.62]}
-              start={{ x: 0.35, y: 0 }}
-              end={{ x: 0.65, y: 1 }}
-              style={[StyleSheet.absoluteFill, { borderRadius: radius }]}
-            />
-          </Animated.View>
-          {/*
-            The glint: a bright arc that travels round the rim.
-
-            Drawn as an SVG stroke rather than a border because a border cannot
-            be a gradient. The gradient is defined in the circle's own space, so
-            rotating this view carries the bright arc round the ring while the
-            ring itself — being a circle — maps onto itself and appears not to
-            move at all.
-          */}
-          <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, glintStyle]}>
-            <Svg width="100%" height="100%" viewBox="0 0 100 100">
-              <Defs>
-                <SvgGradient id="tileGlint" x1="0.5" y1="0" x2="0.5" y2="1">
-                  <Stop offset="0" stopColor={pal.tileGlint} />
-                  {/* Gone by a third of the way down, so what travels is an arc
-                      and not a lit half of the ring. */}
-                  <Stop offset="0.34" stopColor={pal.tileGlint} stopOpacity={0} />
-                </SvgGradient>
-              </Defs>
-              <Circle cx="50" cy="50" r="49" fill="none" stroke="url(#tileGlint)" strokeWidth="2.5" />
-            </Svg>
-          </Animated.View>
-          <Icon size={TILE_GLYPH} color={pal.inkDim} />
+            }}
+          >
+            <Icon size={22} color={pal.ink} />
+          </View>
+          <Type role="meta" color={pal.ink} numberOfLines={2} style={{ fontSize: 15, lineHeight: 20, marginTop: 12 }}>
+            {label}
+          </Type>
         </View>
-        <RNText numberOfLines={1} style={{ ...F.medium, fontSize: 12, color: pal.inkDim }}>
-          {label}
-        </RNText>
       </PressableScale>
     </View>
   );
@@ -1607,22 +1503,34 @@ export function QuickAction({ pal, Icon, label, onPress, style }: QuickActionPro
  * the last — the shape is the point, and a reader who needs the exact figure
  * for a Tuesday is on the wrong screen.
  *
- * Bars are drawn in `accentMark`, not `accentGlow`: §2.3.1 is explicit that
- * the glow colours are 1.60:1 (mint) and 2.50:1 (violet) against the bone
- * ground and may never carry a mark whose shape has to be read.
+ * Bars are drawn in `accentMark` (espresso in light, latte in dark), a mark
+ * whose shape has to be read; silver is about 1.6:1 on the page and may not
+ * carry one. On the anchor (`onAnchor`) the roles swap: espresso would vanish
+ * there and silver reads at 7.75:1.
  */
 export function BarChart({
   pal,
   data,
   height = 120,
+  onAnchor = false,
   style,
 }: {
   pal: Pal;
   /** Oldest first. `label` is shown only for the first and last bar. */
   data: readonly { value: number; label: string }[];
   height?: number;
+  /**
+   * Drawn inside the espresso anchor. The bars are `accentMark`, espresso in
+   * light, which would vanish there, so on the anchor they take its own fill:
+   * silver bars, a silver sliver at low alpha for an empty day, and
+   * `onEspressoDim` labels.
+   */
+  onAnchor?: boolean;
   style?: StyleProp<ViewStyle>;
 }) {
+  const bar = onAnchor ? pal.silver : pal.accentMark;
+  const empty = onAnchor ? pal.glassStrong : pal.groundSunk;
+  const labelColor = onAnchor ? pal.onEspressoDim : pal.inkDim;
   const max = Math.max(...data.map((d) => d.value), 1);
   const first = data[0];
   const last = data[data.length - 1];
@@ -1638,15 +1546,16 @@ export function BarChart({
               // days with nothing spent rather than as missing data.
               height: Math.max(3, (d.value / max) * height),
               borderRadius: 4,
-              backgroundColor: d.value > 0 ? pal.accentMark : pal.groundSunk,
+              borderCurve: 'continuous',
+              backgroundColor: d.value > 0 ? bar : empty,
             }}
           />
         ))}
       </View>
       {first && last ? (
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 }}>
-          <Type role="meta" color={pal.inkDim}>{first.label}</Type>
-          <Type role="meta" color={pal.inkDim}>{last.label}</Type>
+          <Type role="meta" color={labelColor}>{first.label}</Type>
+          <Type role="meta" color={labelColor}>{last.label}</Type>
         </View>
       ) : null}
     </View>
@@ -1731,23 +1640,11 @@ export function ChoiceRow({
     >
       {icon}
       <View style={{ flex: 1 }}>
-        <Type role="cardTitle" color={selected ? pal.accent : pal.ink}>{title}</Type>
+        <Type role="body" color={selected ? pal.accent : pal.ink}>{title}</Type>
         {body ? <Type role="meta" color={pal.inkDim}>{body}</Type> : null}
       </View>
-      {selected ? (
-        <View
-          style={{
-            width: 24,
-            height: 24,
-            borderRadius: 12,
-            backgroundColor: pal.accent,
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <Check size={14} color={pal.groundAlt} strokeWidth={2.5} />
-        </View>
-      ) : null}
+      {/* The outline check in the tint: never a filled disc. */}
+      {selected ? <Check size={24} color={pal.accent} /> : null}
     </PressableScale>
   );
 }
@@ -1784,7 +1681,7 @@ export function StepProgress({
             flex: 1,
             height: 4,
             borderRadius: 2,
-            backgroundColor: i <= current ? pal.ink : pal.groundSunk,
+            backgroundColor: i <= current ? pal.accent : pal.groundSunk,
           }}
         />
       ))}
@@ -1808,6 +1705,7 @@ export function Empty({
   body,
   actionLabel,
   onAction,
+  actionVariant = 'ink',
   style,
 }: {
   pal: Pal;
@@ -1816,6 +1714,12 @@ export function Empty({
   body?: string;
   actionLabel?: string;
   onAction?: () => void;
+  /**
+   * `secondary` when the screen already has its espresso anchor above the
+   * empty state: one espresso block per screen, so the action steps down to
+   * the lifted card-coloured button.
+   */
+  actionVariant?: 'ink' | 'secondary';
   style?: StyleProp<ViewStyle>;
 }) {
   return (
@@ -1825,7 +1729,8 @@ export function Empty({
           width: 64,
           height: 64,
           borderRadius: 20,
-          backgroundColor: pal.accentSoft,
+          borderCurve: 'continuous',
+          backgroundColor: pal.silverSoft,
           alignItems: 'center',
           justifyContent: 'center',
           marginBottom: 18,
@@ -1846,6 +1751,7 @@ export function Empty({
           pal={pal}
           label={actionLabel}
           onPress={onAction}
+          variant={actionVariant}
           style={{ marginTop: 22, alignSelf: 'stretch' }}
         />
       ) : null}
@@ -1947,7 +1853,7 @@ export function Stat({
       ) : (
         <RNText
           style={{
-            ...F.bold,
+            ...F.semibold,
             fontSize: size,
             lineHeight: size * 1.15,
             letterSpacing: size * -0.02,
@@ -1968,7 +1874,8 @@ export function Stat({
 // ── Filter chips (§6.6) ──────────────────────────────────────────────────────
 
 /**
- * A filter. Inactive is a `groundSunk` pill; active fills with ink.
+ * A filter. Inactive is a `groundSunk` pill; active fills with the tint
+ * (espresso in light, latte in dark).
  *
  * Not a tinted fill behind a 1.5px coloured border — that pattern reads as
  * eight competing buttons, and §1.5 reserves borders for where two white
@@ -2005,7 +1912,7 @@ export function FilterChip({
           gap: 7,
           paddingHorizontal: 16,
           borderRadius: R.pill,
-          backgroundColor: active ? pal.ink : pal.groundSunk,
+          backgroundColor: active ? pal.accent : pal.groundSunk,
         },
         style,
       ]}
@@ -2013,7 +1920,7 @@ export function FilterChip({
       {mark ? (
         <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: mark }} />
       ) : null}
-      <Type role="meta" color={active ? pal.onInk : pal.inkDim} numberOfLines={1}>
+      <Type role="meta" color={active ? pal.onAccent : pal.inkDim} numberOfLines={1}>
         {label}
       </Type>
     </PressableScale>
@@ -2041,9 +1948,8 @@ export function FilterChip({
  *   scrolling uses. So a fast flick opens the row from barely a centimetre,
  *   which is what makes a flick feel like a throw rather than a short drag.
  *
- *   **Velocity handoff.** The settling spring starts at the finger's exact
- *   release speed, so there is no seam between dragging and animating. This
- *   is the single detail that separates fluid from merely fine.
+ *   **A soft landing.** From wherever the finger lets go, the row settles
+ *   on the identity's 200 ms ease-out (MOTION.settle), with no overshoot.
  *
  * It replaces a delete button parked on every row. A destructive control that
  * is permanently one tap away from the amount you are reading is both noise
@@ -2078,7 +1984,7 @@ export function SwipeRow({
   }, []);
 
   const close = useCallback(() => {
-    reveal.value = withSpring(0, SPRING_MOVE);
+    reveal.value = withTiming(0, timed(MOTION.settle.tween));
     setOpen(false);
   }, [reveal]);
 
@@ -2106,12 +2012,10 @@ export function SwipeRow({
       const velocity = -e.velocityX * dir;
       const projected = reveal.value + project(velocity);
       const target = projected > actionWidth / 2 ? actionWidth : 0;
-      reveal.value = withSpring(target, {
-        // Bounce is earned here: the finger threw the row. Under reduced
-        // motion it settles flat instead.
-        ...(reduced ? SPRING_MOVE : SPRING_FLICK),
-        velocity,
-      });
+      // Settles on a timed ease-out, not a spring: the identity never
+      // overshoots. The projection above still lets a flick decide the
+      // outcome from a short throw.
+      reveal.value = withTiming(target, timed(reduced ? MOTION.crossfade : MOTION.settle.tween));
       runOnJS(setOpen)(target > 0);
       // The tick fires on the decision, not on arrival — the haptic has to
       // land on the same frame as the commit or it reads as a second event.
@@ -2190,7 +2094,7 @@ export function SwipeRow({
 // ── Bottom sheet (§6.21) ─────────────────────────────────────────────────────
 
 /**
- * A sheet that springs from the bottom edge and can be thrown back to it.
+ * A sheet that rises from the bottom edge and can be thrown back to it.
  *
  * Two rules shape it. **Spatial consistency**: it arrives from the bottom and
  * leaves to the bottom, along the same path, so where it went is never a
@@ -2199,10 +2103,10 @@ export function SwipeRow({
  * use translucency and no scrim, and this is not one.
  *
  * The drag is the same physics as `SwipeRow`: 1:1 tracking, resistance past
- * the top, a decision made on the *projected* resting point rather than the
- * release point, and the settling spring seeded with the release velocity. A
- * sheet you can flick away with a short fast gesture feels like an object; one
- * that demands you drag it 40% of the way down feels like a form.
+ * the top, and a decision made on the *projected* resting point rather than
+ * the release point. A sheet you can flick away with a short fast gesture
+ * feels like an object; one that demands you drag it 40% of the way down
+ * feels like a form. It rises in 280 ms and leaves in 200 (MOTION.sheet).
  *
  * The backdrop tracks the sheet's live position rather than fading on a timer,
  * so an interrupted dismissal has a correct backdrop at every instant.
@@ -2240,14 +2144,15 @@ export function Sheet({
     if (visible && !entered.current) {
       entered.current = true;
       y.value = height;
-      y.value = reduced ? withTiming(0, { duration: 180 }) : withSpring(0, SPRING_SHEET);
+      // Rises in 280 ms on the identity's ease-out; no spring, no overshoot.
+      y.value = withTiming(0, timed(reduced ? MOTION.crossfade : MOTION.sheet.open));
     }
   }, [mounted, height, visible, reduced, y]);
 
   useEffect(() => {
     if (visible || !mounted || height === 0) return;
     entered.current = false;
-    y.value = withSpring(height, SPRING_SHEET, (finished) => {
+    y.value = withTiming(height, timed(MOTION.sheet.close), (finished) => {
       if (finished) runOnJS(setMounted)(false);
     });
   }, [visible, mounted, height, y]);
@@ -2265,11 +2170,11 @@ export function Sheet({
     .onEnd((e) => {
       const projected = y.value + project(e.velocityY);
       if (projected > height * 0.4) {
-        y.value = withSpring(height, { ...SPRING_SHEET, velocity: e.velocityY }, (finished) => {
+        y.value = withTiming(height, timed(MOTION.sheet.close), (finished) => {
           if (finished) runOnJS(onClose)();
         });
       } else {
-        y.value = withSpring(0, { ...SPRING_SHEET, velocity: e.velocityY });
+        y.value = withTiming(0, timed(MOTION.settle.tween));
       }
     });
 
@@ -2288,7 +2193,9 @@ export function Sheet({
             onPress={onClose}
             accessibilityRole="button"
             accessibilityLabel={title ?? ''}
-            style={{ flex: 1, backgroundColor: 'rgba(18,23,43,0.4)' }}
+            // The dark scheme's ground at 40%, a roasted espresso-black
+            // rather than a cold navy, so the scrim stays warm in both schemes.
+            style={{ flex: 1, backgroundColor: withAlpha(ON_ESPRESSO.ground, 0.4) }}
           />
         </Animated.View>
 
@@ -2301,6 +2208,7 @@ export function Sheet({
                 backgroundColor: pal.groundAlt,
                 borderTopLeftRadius: R.xl,
                 borderTopRightRadius: R.xl,
+                borderCurve: 'continuous',
                 paddingBottom: insets.bottom + 12,
                 maxHeight: screenHeight * 0.86,
               },
@@ -2363,7 +2271,7 @@ export function SwitchRow({
     >
       {icon}
       <View style={{ flex: 1 }}>
-        <Type role="cardTitle" color={pal.ink}>
+        <Type role="body" color={pal.ink}>
           {title}
         </Type>
         {body ? (
@@ -2409,7 +2317,7 @@ export function Group({
   return (
     <View style={[{ paddingHorizontal: S.screen }, style]}>
       {title ? (
-        <Type role="section" color={pal.ink} style={{ marginBottom: 12 }}>
+        <Type role="cardTitle" color={pal.ink} style={{ marginBottom: 12 }}>
           {title}
         </Type>
       ) : null}
@@ -2417,7 +2325,7 @@ export function Group({
         {items.map((child, i) => (
           <View
             key={i}
-            style={i > 0 ? { borderTopWidth: 1, borderTopColor: pal.hairline } : undefined}
+            style={i > 0 ? { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: pal.hairline } : undefined}
           >
             {child}
           </View>
@@ -2456,53 +2364,63 @@ export function Keypad({
   decimalSeparator?: string;
   style?: StyleProp<ViewStyle>;
 }) {
-  const keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'decimal', '0', 'back'] as const;
+  // Four rows of three equal keys, each a flex cell. Two things this replaces
+  // did nothing on this build: `width: '33.333%'` in one wrapping row, and
+  // any style given to Pressable as a function — NativeWind's JSX wrapper
+  // (react-native-css-interop) drops a function `style`, so the keys lost
+  // their width and height and collapsed into one line of text,
+  // "123456789.0", with the backspace after it. Static styles only.
+  const rows = [
+    ['1', '2', '3'],
+    ['4', '5', '6'],
+    ['7', '8', '9'],
+    ['decimal', '0', 'back'],
+  ] as const;
 
   return (
-    <View style={[{ flexDirection: 'row', flexWrap: 'wrap' }, style]}>
-      {keys.map((key) => {
-        const isBack = key === 'back';
-        const isDecimal = key === 'decimal';
-        const label = isDecimal ? decimalSeparator : key;
-        return (
-          <Pressable
-            key={key}
-            onPress={() => {
-              Haptics.selectionAsync();
-              if (isBack) onBackspace();
-              else if (isDecimal) onDecimal();
-              else onDigit(key);
-            }}
-            onLongPress={isBack ? onBackspace : undefined}
-            accessibilityRole="button"
-            accessibilityLabel={label}
-            style={({ pressed }) => ({
-              width: '33.333%',
-              height: 62,
-              alignItems: 'center',
-              justifyContent: 'center',
-              // Feedback the instant the finger lands, not on release.
-              opacity: pressed ? 0.35 : 1,
-            })}
-          >
-            {isBack ? (
-              <Delete size={24} color={pal.inkDim} strokeWidth={S.stroke} style={mirror} />
-            ) : (
-              <RNText
-                style={{
-                  ...F.medium,
-                  fontSize: 28,
-                  lineHeight: 34,
-                  color: pal.ink,
-                  fontVariant: ['tabular-nums'],
-                }}
-              >
-                {label}
-              </RNText>
-            )}
-          </Pressable>
-        );
-      })}
+    <View style={style}>
+      {rows.map((row) => (
+        <View key={row.join('')} style={{ flexDirection: 'row' }}>
+          {row.map((key) => {
+            const isBack = key === 'back';
+            const isDecimal = key === 'decimal';
+            const label = isDecimal ? decimalSeparator : key;
+            return (
+              <View key={key} style={{ flex: 1 }}>
+                {/* The identity's press: a 0.97 scale and a selection tick
+                    (PressableScale), not a fade, which reads as disabled. */}
+                <PressableScale
+                  onPress={() => {
+                    if (isBack) onBackspace();
+                    else if (isDecimal) onDecimal();
+                    else onDigit(key);
+                  }}
+                  onLongPress={isBack ? onBackspace : undefined}
+                  accessibilityRole="button"
+                  accessibilityLabel={isBack ? t('dialogs.delete') : label}
+                  style={{ height: 62, alignItems: 'center', justifyContent: 'center' }}
+                >
+                  {isBack ? (
+                    <Delete size={24} color={pal.inkDim} strokeWidth={S.stroke} style={mirror} />
+                  ) : (
+                    <RNText
+                      style={{
+                        ...F.medium,
+                        fontSize: 28,
+                        lineHeight: 34,
+                        color: pal.ink,
+                        fontVariant: ['tabular-nums'],
+                      }}
+                    >
+                      {label}
+                    </RNText>
+                  )}
+                </PressableScale>
+              </View>
+            );
+          })}
+        </View>
+      ))}
     </View>
   );
 }

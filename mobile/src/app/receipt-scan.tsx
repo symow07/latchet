@@ -42,6 +42,18 @@ interface ExtractedData {
 
 const CATEGORIES: Category[] = ['Food', 'Transport', 'Shopping', 'Gym', 'Subscriptions', 'Other'];
 
+/**
+ * The receipt photo's frame. The image sits in a clipping view rather than
+ * carrying its own radius, so its corners get the identity's continuous curve
+ * (an Image style has no `borderCurve`). The sunk fill shows while it decodes.
+ */
+const photoFrame = {
+  width: '100%',
+  borderRadius: R.md,
+  borderCurve: 'continuous',
+  overflow: 'hidden',
+} as const;
+
 // Routes receipt OCR through the backend AI proxy (POST /api/ai/analyze-receipt)
 // so the OpenAI Vision key stays server-side. The endpoint returns the same
 // ExtractedData shape the review form expects.
@@ -257,8 +269,8 @@ export default function ReceiptScanScreen() {
         {/* ── Pick ───────────────────────────────────────────────────────── */}
         {step === 'pick' ? (
           <View style={{ paddingHorizontal: S.screen, marginTop: S.section }}>
-            <IconTile pal={C} size={64} style={{ borderRadius: 20 }}>
-              <Sparkles size={28} color={C.accent} strokeWidth={S.stroke} />
+            <IconTile pal={C} size={64} style={{ borderRadius: R.control }}>
+              <Sparkles size={28} color={C.ink} strokeWidth={S.stroke} />
             </IconTile>
             <Type role="headline" color={C.ink} style={{ marginTop: 16 }}>
               {t('receiptScan.heroTitle')}
@@ -294,7 +306,8 @@ export default function ReceiptScanScreen() {
                           style={{
                             width: 24,
                             height: 24,
-                            borderRadius: 12,
+                            borderRadius: R.pill,
+                            borderCurve: 'continuous',
                             backgroundColor: C.groundSunk,
                             alignItems: 'center',
                             justifyContent: 'center',
@@ -317,11 +330,9 @@ export default function ReceiptScanScreen() {
         {step === 'analyzing' ? (
           <View style={{ paddingHorizontal: S.screen, marginTop: S.section }}>
             {imageUri ? (
-              <Image
-                source={{ uri: imageUri }}
-                style={{ width: '100%', height: 220, borderRadius: R.md }}
-                contentFit="cover"
-              />
+              <View style={[photoFrame, { backgroundColor: C.groundSunk }]}>
+                <Image source={{ uri: imageUri }} style={{ width: '100%', height: 220 }} contentFit="cover" />
+              </View>
             ) : null}
 
             <View style={{ alignItems: 'center', marginTop: 24 }}>
@@ -355,11 +366,9 @@ export default function ReceiptScanScreen() {
           <View style={{ paddingHorizontal: S.screen, marginTop: 24 }}>
             {imageUri ? (
               <>
-                <Image
-                  source={{ uri: imageUri }}
-                  style={{ width: '100%', height: 150, borderRadius: R.md }}
-                  contentFit="cover"
-                />
+                <View style={[photoFrame, { backgroundColor: C.groundSunk }]}>
+                  <Image source={{ uri: imageUri }} style={{ width: '100%', height: 150 }} contentFit="cover" />
+                </View>
                 <View
                   style={{ flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 12 }}
                 >
@@ -444,7 +453,7 @@ export default function ReceiptScanScreen() {
                 pal={C}
                 icon={
                   <IconTile pal={C}>
-                    <Zap size={19} color={C.accent} strokeWidth={S.stroke} />
+                    <Zap size={19} color={C.ink} strokeWidth={S.stroke} />
                   </IconTile>
                 }
                 title={t('receiptScan.impulseBuy')}
@@ -461,7 +470,7 @@ export default function ReceiptScanScreen() {
           <>
             <Empty
               pal={C}
-              icon={<Check size={26} color={C.accent} strokeWidth={2.4} />}
+              icon={<Check size={26} color={C.accent} strokeWidth={S.stroke} />}
               title={t('receiptScan.savedTitle')}
               body={t('receiptScan.savedBody')}
               actionLabel={t('receiptScan.goToDashboard')}

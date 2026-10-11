@@ -1,18 +1,27 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect } from 'react';
 import { Pressable, TextInput, type PressableProps, type StyleProp, type TextStyle, type ViewStyle } from 'react-native';
 import Animated, {
-  useSharedValue, useAnimatedStyle, useAnimatedProps, withSpring, withTiming,
-  withRepeat, withSequence, Easing, useDerivedValue, interpolate, cancelAnimation,
+  useSharedValue, useAnimatedStyle, useAnimatedProps, withTiming,
+  withSequence, Easing, useDerivedValue, cancelAnimation,
   useReducedMotion,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
-import {
-  PRESS_SCALE, SPRING, BREATH_MS, BREATH_MIN, BREATH_MAX, countDuration,
-  currencyParts, formatWithParts,
-} from '@/lib/motion';
+import { PRESS_SCALE, countDuration, currencyParts, formatWithParts } from '@/lib/motion';
+import { EASE, MOTION } from '@/lib/identity/motion';
 import { F } from '@/lib/design';
 
 const AnimatedTextInput = Animated.createAnimatedComponent(TextInput);
+
+// Reanimated writes a prop from the UI thread only if it is allow-listed, and
+// a TextInput's `text` is not. Without this the count's shared value animated
+// and the label never changed — the failure this file's CountUp used to
+// document and fail safe around. Idempotent; identity/primitives does the same.
+Animated.addWhitelistedNativeProps({ text: true });
+
+const [OUT_X1, OUT_Y1, OUT_X2, OUT_Y2] = EASE.out;
+const [PRESS_X1, PRESS_Y1, PRESS_X2, PRESS_Y2] = EASE.press;
+const easeOut = Easing.bezier(OUT_X1, OUT_Y1, OUT_X2, OUT_Y2);
+const easePress = Easing.bezier(PRESS_X1, PRESS_Y1, PRESS_X2, PRESS_Y2);
 
 /**
  * A number that counts to its value.
@@ -45,7 +54,11 @@ export function CountUp({
   const progress = useSharedValue(reduced ? 1 : 0);
   // Derived once per formatter, on the JS thread, because Intl cannot run in a
   // worklet — see currencyParts.
-  const parts = useMemo(() => currencyParts(format), [format]);
+  // Derived every render, not memoised on `format`: the app's formatCurrency
+  // is one module function whose currency changes underneath it (onboarding,
+  // Settings), and a cache keyed on the function kept counting in the old
+  // currency — "CN¥" beside a "$" balance. It is a handful of format() calls.
+  const parts = currencyParts(format);
 
   useEffect(() => {
     if (reduced) { progress.value = 1; return; }
@@ -59,9 +72,9 @@ export function CountUp({
     progress.value = withSequence(
       withTiming(0, { duration: 0 }),
       withTiming(1, {
+        // The identity's count-up: 280 ms, ease-out-quint.
         duration: countDuration(value),
-        // Exponential ease-out: arrives fast, settles long.
-        easing: Easing.out(Easing.exp),
+        easing: easeOut,
       })
     );
     return () => cancelAnimation(progress);
@@ -111,7 +124,9 @@ export function CountUp({
  *
  * Not decoration — this is the only thing that tells a finger the tap landed
  * before the screen changes. Scale rather than opacity, because a dimming
- * surface reads as "disabled" and a shrinking one reads as "pressed".
+ * surface reads as "disabled" and a shrinking one reads as "pressed". With
+ * Reduce Motion on, nothing may move, so the surface dims a little instead
+ * (DESIGN-IDENTITY.md §Motion), the same as the identity's own `Press`.
  */
 export function PressableScale({
   children,
@@ -131,89 +146,43 @@ export function PressableScale({
   style?: StyleProp<ViewStyle>;
 }) {
   const reduced = useReducedMotion();
-  const scale = useSharedValue(1);
-  const animatedStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+  // 0 at rest, 1 while held: a scale normally, a slight dim under Reduce Motion.
+  const held = useSharedValue(0);
+  const animatedStyle = useAnimatedStyle(() =>
+    reduced
+      ? { opacity: 1 - 0.18 * held.value }
+      : { transform: [{ scale: 1 - (1 - PRESS_SCALE) * held.value }] }
+  );
+  // Nothing to do, so nothing to acknowledge. A disabled button, or one whose
+  // caller passes `onPress={busy ? undefined : run}`, used to shrink and buzz
+  // anyway, because the haptic lived in this component's own onPress, which
+  // was always set. A press that does nothing should feel like nothing.
+  const inert = !!rest.disabled || (!onPress && !rest.onLongPress);
 
   return (
     <Animated.View style={animatedStyle}>
       <Pressable
         {...rest}
         style={style}
-        onPressIn={(e) => { if (!reduced) scale.value = withSpring(PRESS_SCALE, SPRING); onPressIn?.(e); }}
-        onPressOut={(e) => { if (!reduced) scale.value = withSpring(1, SPRING); onPressOut?.(e); }}
+        // Timed, not sprung: 90 ms in, 160 ms out, no overshoot (MOTION.press).
+        onPressIn={(e) => {
+          if (!inert) held.value = withTiming(1, { duration: MOTION.press.in.duration, easing: easePress });
+          onPressIn?.(e);
+        }}
+        onPressOut={(e) => {
+          held.value = withTiming(0, { duration: MOTION.press.out.duration, easing: easeOut });
+          onPressOut?.(e);
+        }}
         onPress={(e) => {
+          if (inert || !onPress) return;
           if (haptic === 'selection') Haptics.selectionAsync();
           else if (haptic === 'light') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          onPress?.(e);
+          onPress(e);
         }}
       >
         {children}
       </Pressable>
     </Animated.View>
-  );
-}
-
-/**
- * A light that breathes, inside the card.
- *
- * The first version of this animated the card's outer shadow. It worked, in
- * the sense that the pixels changed — and measured a peak difference of 6/255
- * against the near-black background, which is to say nobody would ever see
- * it. An outer shadow has no luminance to trade on a dark theme.
- *
- * So the breath moved inside, onto a pale blob sitting on the hero's gradient,
- * where there is contrast to work with. The card still does not move: a hero
- * that pulses in size is a distraction on a screen you read numbers off.
- */
-export function BreathingLight({
-  color,
-  size = 160,
-  top = -40,
-  right = -30,
-  peakOpacity = 1,
-}: {
-  /** The blob's colour — pale, against the card's own gradient. */
-  color: string;
-  size?: number;
-  top?: number;
-  right?: number;
-  peakOpacity?: number;
-}) {
-  const reduced = useReducedMotion();
-  const phase = useSharedValue(1);
-
-  useEffect(() => {
-    if (reduced) { phase.value = 1; return; }
-    phase.value = withRepeat(
-      withSequence(
-        withTiming(BREATH_MIN, { duration: BREATH_MS / 2, easing: Easing.inOut(Easing.sin) }),
-        withTiming(BREATH_MAX, { duration: BREATH_MS / 2, easing: Easing.inOut(Easing.sin) })
-      ),
-      -1,
-      false
-    );
-    return () => cancelAnimation(phase);
-  }, [reduced, phase]);
-
-  const lightStyle = useAnimatedStyle(() => ({
-    opacity: peakOpacity * phase.value,
-    transform: [{ scale: interpolate(phase.value, [BREATH_MIN, BREATH_MAX], [0.88, 1.06]) }],
-  }));
-
-  return (
-    <Animated.View
-      pointerEvents="none"
-      style={[
-        {
-          position: 'absolute',
-          top, right,
-          width: size, height: size,
-          borderRadius: size / 2,
-          backgroundColor: color,
-        },
-        lightStyle,
-      ]}
-    />
   );
 }
 

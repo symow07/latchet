@@ -25,7 +25,7 @@ import {
   updateMemberRole,
   type GroupMember,
 } from '@/lib/businessApi';
-import { R, S, useB, type BizPalette } from '@/lib/design';
+import { R, S, useC, type Palette } from '@/lib/design';
 import { PressableScale } from '@/components/motion';
 import {
   BalanceCard,
@@ -47,7 +47,7 @@ type Role = 'owner' | 'manager' | 'employee';
 
 /** Icon per role. The label comes from `roles.*`, which is where the three
  *  hardcoded English words used to live — inside a `ROLE_META` table that
- *  also assigned each role an off-system colour (amber, blue, teal). */
+ *  also assigned each role an off-system colour. Roles have no colour now. */
 const ROLE_ICON: Record<Role, React.ComponentType<{ size: number; color: string; strokeWidth?: number }>> = {
   owner: Crown,
   manager: Shield,
@@ -59,7 +59,7 @@ const roleLabel = (role: string) =>
 
 // ─── Invite code ─────────────────────────────────────────────────────────────
 
-function InviteCodePanel({ pal }: { pal: BizPalette }) {
+function InviteCodePanel({ pal }: { pal: Palette }) {
   const qc = useQueryClient();
   const [copied, setCopied] = useState(false);
   const { data, isLoading } = useQuery({ queryKey: ['invite-code'], queryFn: getInviteCode });
@@ -93,6 +93,7 @@ function InviteCodePanel({ pal }: { pal: BizPalette }) {
                 minHeight: 52,
                 justifyContent: 'center',
                 borderRadius: R.sm,
+                borderCurve: 'continuous',
                 backgroundColor: pal.groundSunk,
               }}
             >
@@ -115,7 +116,7 @@ function InviteCodePanel({ pal }: { pal: BizPalette }) {
               onPress={handleCopy}
             >
               {copied ? (
-                <Check size={18} color={pal.accent} strokeWidth={2.4} />
+                <Check size={18} color={pal.accent} strokeWidth={S.stroke} />
               ) : (
                 <Copy size={18} color={pal.ink} strokeWidth={S.stroke} />
               )}
@@ -147,7 +148,7 @@ function JoinSheet({
   onClose,
   onJoined,
 }: {
-  pal: BizPalette;
+  pal: Palette;
   visible: boolean;
   onClose: () => void;
   onJoined: () => void;
@@ -220,7 +221,7 @@ function MemberRow({
   onRemove,
   onChangeRole,
 }: {
-  pal: BizPalette;
+  pal: Palette;
   member: GroupMember;
   isMe: boolean;
   isOwner: boolean;
@@ -240,17 +241,20 @@ function MemberRow({
   return (
     <View style={{ paddingVertical: 10 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56 }}>
+        {/* Initials on a sunk squircle: the tile every row in the app leads
+            with, rather than a circle of its own. */}
         <View
           style={{
             width: 44,
             height: 44,
-            borderRadius: 22,
+            borderRadius: R.sm,
+            borderCurve: 'continuous',
             backgroundColor: pal.groundSunk,
             alignItems: 'center',
             justifyContent: 'center',
           }}
         >
-          <Type role="cardTitle" color={pal.inkDim}>
+          <Type role="cardTitle" color={pal.ink}>
             {initials}
           </Type>
         </View>
@@ -282,6 +286,7 @@ function MemberRow({
               minHeight: 34,
               paddingHorizontal: 12,
               borderRadius: R.pill,
+              borderCurve: 'continuous',
               backgroundColor: pal.groundSunk,
             }}
           >
@@ -298,6 +303,7 @@ function MemberRow({
           style={{
             marginTop: 12,
             borderRadius: R.sm,
+            borderCurve: 'continuous',
             backgroundColor: pal.groundSunk,
             overflow: 'hidden',
           }}
@@ -331,7 +337,7 @@ function MemberRow({
                   </Type>
                 </View>
                 {member.role === r ? (
-                  <Check size={16} color={pal.accent} strokeWidth={2.4} />
+                  <Check size={16} color={pal.accent} strokeWidth={S.stroke} />
                 ) : null}
               </PressableScale>
             );
@@ -367,19 +373,19 @@ function MemberRow({
 /**
  * The team — DESIGN-PROMPT.md board §35.
  *
- * The hero was a mint gradient slab carrying a glow, and its caption was
- * `rgba(255,255,255,0.5)`. In dark mode the "one dark object" inverts to a
- * *bone* card, so that caption was white text on a bone surface — the label
- * telling you what the big number counts, invisible.
+ * The hero was a tinted gradient slab carrying a glow, with its caption in
+ * translucent white — which vanished whenever the card behind it turned
+ * light. It is the kit's espresso anchor now, with the caption in the
+ * anchor's own silver text tone.
  *
  * Roles were the other problem: `ROLE_META` held three hardcoded English
- * words and three colours from no palette (`#f59e0b`, `#3b82f6`, `#14b8a6`),
- * so a French user saw "Manager" in a blue pill they had to decode. §6.19
- * asks for a member row to be an avatar, a name, and the role in `inkDim` —
- * which is what it is now, in the reader's own language.
+ * words and three colours from no palette, so a French user saw "Manager" in
+ * a blue pill they had to decode. §6.19 asks for a member row to be an
+ * avatar, a name, and the role in `inkDim` — which is what it is now, in the
+ * reader's own language.
  */
 export default function TeamScreen() {
-  const B = useB();
+  const B = useC();
   const qc = useQueryClient();
   const router = useRouter();
   const { data: session } = useSession();
@@ -458,29 +464,37 @@ export default function TeamScreen() {
           }
         />
 
-        <BalanceCard
-          pal={B}
-          label={t('businessTeam.members')}
-          amount={members.length}
-          format={(n) => String(Math.round(n))}
-          caption={
-            business?.name ?? (bizLoading ? t('businessTeam.loading') : t('businessTeam.noBusiness'))
-          }
-          style={{ paddingHorizontal: S.screen, marginTop: 24 }}
-        />
+        {/* The screen's one espresso anchor. The gutter sits on a wrapper:
+            the card's own outer layer carries the espresso fill, so padding
+            there would widen the anchor instead of insetting it. */}
+        <View style={{ paddingHorizontal: S.screen, marginTop: 24 }}>
+          <BalanceCard
+            pal={B}
+            label={t('businessTeam.members')}
+            amount={members.length}
+            format={(n) => String(Math.round(n))}
+            caption={
+              business?.name ?? (bizLoading ? t('businessTeam.loading') : t('businessTeam.noBusiness'))
+            }
+          />
+        </View>
 
         {isOwner && business ? <InviteCodePanel pal={B} /> : null}
 
         {!isInBusiness && !bizLoading ? (
-          <Empty
-            pal={B}
-            icon={<UserPlus size={26} color={B.accent} strokeWidth={S.stroke} />}
-            title={t('businessTeam.joinBusiness')}
-            body={t('businessTeam.enterCode')}
-            actionLabel={t('businessTeam.joinButton')}
-            onAction={() => setShowJoin(true)}
-            style={{ marginTop: S.section }}
-          />
+          <>
+            <Empty
+              pal={B}
+              icon={<UserPlus size={26} color={B.accent} strokeWidth={S.stroke} />}
+              title={t('businessTeam.joinBusiness')}
+              body={t('businessTeam.enterCode')}
+              actionLabel={t('businessTeam.joinButton')}
+              onAction={() => setShowJoin(true)}
+              // The member count above is already the screen's espresso anchor.
+              actionVariant="secondary"
+              style={{ marginTop: S.section }}
+            />
+          </>
         ) : null}
 
         {members.length > 0 ? (

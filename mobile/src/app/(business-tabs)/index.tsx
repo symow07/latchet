@@ -1,29 +1,33 @@
 import { ActivityIndicator, ScrollView, View } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
-import { Briefcase, ClipboardCheck, PlusSquare, Receipt, Users, Wrench } from '@/components/icons';
+import { Briefcase, Receipt, Users, Wrench } from '@/components/icons';
+import { categoryIcon } from '@/components/category-icon';
 import { useSession } from '@/lib/auth/use-session';
 import { getExpenses } from '@/lib/expenseApi';
 import { getBusiness } from '@/lib/businessApi';
 import { getBudget } from '@/lib/budgetApi';
 import { roleOf } from '@/lib/group-members';
 import { detectSubscriptions } from '@/lib/business-subscription-detection';
-import { expenseCategoryLabel } from '@/lib/expense-meta';
+import { expenseCategoryLabel, expenseStatusLabel } from '@/lib/expense-meta';
 import { pickBizInsight, type BizInsightAction } from '@/lib/biz-insight';
 import { formatCurrency } from '@/lib/calculations';
-import { BAR, S, useB } from '@/lib/design';
+import { BAR, S, useC, type Palette } from '@/lib/design';
 import {
+  Amount,
+  AnchorBudget,
   BalanceCard,
-  BudgetLine,
   Card,
   CircleAction,
   Empty,
   Header,
+  IconTile,
+  InfoRow,
   Insight,
   QuickAction,
-  Row,
   Screen,
   SectionHeader,
+  Type,
 } from '@/components/kit';
 import { t } from '@/lib/i18n/core';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -37,19 +41,32 @@ function greetingWord(): string {
 }
 
 /**
+ * An expense's review state, as a colour that always travels with its word:
+ * approved is green, rejected red, pending the warning tone.
+ */
+function statusTone(pal: Palette, status: string): string {
+  return status === 'approved' ? pal.positive : status === 'rejected' ? pal.negative : pal.warning;
+}
+
+/** Good news earns the identity's self-drawing check; a queue or a warning does not. */
+const GOOD_NEWS = new Set(['steady']);
+
+/**
  * Business home — DESIGN-PROMPT.md §32.
  *
  * The direct counterpart to personal home: the same skeleton, the same
- * spacing, the same components, mint instead of violet. A user switching
- * profiles should feel they changed rooms, not apps (§0), and the way to earn
- * that is for these two files to differ only in what they are about.
+ * spacing, the same components and the same identity. The profile changes the
+ * content, never the colours. A user switching profiles should feel they
+ * changed rooms, not apps (§0), and the way to earn that is for these two
+ * files to differ only in what they are about.
  *
- * The approved total is the one dark object; the pending queue is the insight
- * (see biz-insight for why it is folded in rather than given its own block).
+ * The approved total is the espresso anchor, with the month's budget folded
+ * into it as on personal home; the pending queue is the insight (see
+ * biz-insight for why it is folded in rather than given its own block).
  */
 export default function BusinessHomeScreen() {
   const insets = useSafeAreaInsets();
-  const B = useB();
+  const B = useC();
   const { data: session } = useSession();
 
   const { data: allExpenses = [], isLoading } = useQuery({
@@ -151,7 +168,9 @@ export default function BusinessHomeScreen() {
           />
         ) : (
           <>
-            {/* 1 — the approved total, as the one dark object */}
+            {/* 1 — the approved total: the screen's one espresso anchor, with
+                the month's budget inside it as on personal home — a metallic
+                silver line and the silver Remaining figure. */}
             <View style={{ paddingHorizontal: S.screen, marginTop: 24 }}>
               <BalanceCard
                 pal={B}
@@ -160,31 +179,36 @@ export default function BusinessHomeScreen() {
                 caption={t('bizHome.approvedCaption', { count: approved.length })}
                 format={formatCurrency}
                 onPress={() => router.push('/(business-tabs)/expenses')}
-              />
+              >
+                {monthlyBudget > 0 ? (
+                  <AnchorBudget
+                    pal={B}
+                    spent={approvedSpend}
+                    budget={monthlyBudget}
+                    format={formatCurrency}
+                    remainingLabel={t('bizStats.remaining')}
+                    budgetLabel={t('businessInsights.budgetLabel')}
+                    sentence={budgetSentence()}
+                    style={{ marginTop: 24 }}
+                  />
+                ) : (
+                  <Type role="meta" color={B.onEspressoDim} style={{ marginTop: 16 }}>
+                    {budgetSentence()}
+                  </Type>
+                )}
+              </BalanceCard>
             </View>
 
-            {/* The four places people go straight from here. Mirrors the
-                personal home — the two are a designed pair, so the rhythm and
-                the affordances match and only the accent differs. */}
+            {/* Two shortcuts, neither of which the tab bar already gives,
+                mirroring the personal home: the two are a designed pair. Add
+                and Review used to sit here too, and both only opened the
+                Expenses tab, one tap away in the bar (Add is that screen's
+                +, and the insight below carries "Review them"). Four tiles
+                also left each too narrow for its label: "Review" broke
+                mid-word. */}
             <View
-              style={{ flexDirection: 'row', paddingHorizontal: S.screen, gap: 12, marginTop: S.group }}
+              style={{ flexDirection: 'row', paddingHorizontal: S.screen, gap: 12, marginTop: 24 }}
             >
-              <QuickAction
-                pal={B}
-                label={t('bizHome.quickAdd')}
-                Icon={PlusSquare}
-                onPress={() => router.push('/(business-tabs)/expenses')}
-              />
-              {/* A clipboard with a tick, not the double tick.
-                  `CheckCheck` is a utility mark and stays a hairline one — this
-                  row had two of them among two solid pictures, which is the
-                  same mismatch the personal row had once. */}
-              <QuickAction
-                pal={B}
-                label={t('bizHome.quickReview')}
-                Icon={ClipboardCheck}
-                onPress={() => router.push('/(business-tabs)/expenses')}
-              />
               <QuickAction
                 pal={B}
                 label={t('bizHome.quickTools')}
@@ -199,27 +223,23 @@ export default function BusinessHomeScreen() {
               />
             </View>
 
-            {/* 2 — one budget line */}
-            <BudgetLine
-              pal={B}
-              sentence={budgetSentence()}
-              spent={approvedSpend}
-              budget={monthlyBudget}
-              style={{ marginTop: S.section }}
-            />
-
-            {/* 3 — one insight, which is where the pending count lives */}
+            {/* 2 — one insight, which is where the pending count lives. The
+                budget it used to sit under now lives inside the anchor. */}
             <Insight
               pal={B}
+              check={GOOD_NEWS.has(insight.key)}
               text={t(`bizHome.${insight.key}`, insight.params)}
               actions={insight.actions.map((a) => ({
                 label: t(a === 'review' ? 'bizHome.review' : a === 'tools' ? 'bizHome.tools' : 'home.action.setBudget'),
                 onPress: () => router.push(ROUTES[a] as never),
               }))}
-              style={{ marginTop: S.group }}
+              style={{ marginTop: S.section }}
             />
 
-            {/* 4 — recent expenses */}
+            {/* 3 — recent expenses. Each is money out, so its amount is red
+                with a minus; its review state is a word in its own tone
+                (approved green, rejected red, pending amber), so the state
+                never rests on colour alone. */}
             <View style={{ marginTop: S.section }}>
               <SectionHeader
                 pal={B}
@@ -229,28 +249,42 @@ export default function BusinessHomeScreen() {
               />
               <View style={{ paddingHorizontal: S.screen }}>
                 <Card pal={B} padding={0} contentStyle={{ paddingHorizontal: S.card }}>
-                  {recent.map((e, i) => (
-                    <View
-                      key={e.id}
-                      style={i > 0 ? { borderTopWidth: 1, borderTopColor: B.hairline } : undefined}
-                    >
-                      <Row
-                        pal={B}
-                        title={e.description}
-                        meta={`${e.submitter.name} · ${expenseCategoryLabel(e.category)}`}
-                        amount={-e.amount}
-                        format={formatCurrency}
-                        markColor={
-                          e.status === 'approved'
-                            ? B.positive
-                            : e.status === 'rejected'
-                              ? B.negative
-                              : B.warning
-                        }
-                        onPress={() => router.push('/(business-tabs)/expenses')}
-                      />
-                    </View>
-                  ))}
+                  {recent.map((e, i) => {
+                    const Glyph = categoryIcon(e.category);
+                    return (
+                      <View
+                        key={e.id}
+                        style={i > 0 ? { borderTopWidth: 1, borderTopColor: B.hairline } : undefined}
+                      >
+                        <InfoRow
+                          pal={B}
+                          title={e.description}
+                          meta={`${e.submitter.name} · ${expenseCategoryLabel(e.category)}`}
+                          lead={
+                            <IconTile pal={B} size={40} style={{ backgroundColor: B.groundSunk }}>
+                              <Glyph size={22} color={B.ink} />
+                            </IconTile>
+                          }
+                          trailing={
+                            <View style={{ alignItems: 'flex-end' }}>
+                              <Amount
+                                value={-e.amount}
+                                format={formatCurrency}
+                                size={17}
+                                weight="medium"
+                                color={B.negative}
+                                signed
+                              />
+                              <Type role="meta" color={statusTone(B, e.status)}>
+                                {expenseStatusLabel(e.status)}
+                              </Type>
+                            </View>
+                          }
+                          onPress={() => router.push('/(business-tabs)/expenses')}
+                        />
+                      </View>
+                    );
+                  })}
                 </Card>
               </View>
             </View>

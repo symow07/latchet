@@ -3,15 +3,19 @@ import { I18nManager, Pressable, StyleSheet, View, useWindowDimensions } from 'r
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
+  Easing,
   useAnimatedStyle,
   useReducedMotion,
   useSharedValue,
-  withSpring,
+  withTiming,
 } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import { BAR, S, capsuleInset, tabCentre, travelInset } from '@/lib/design';
 import type { Pal } from '@/components/kit';
+import { shadow } from '@/components/identity/primitives';
+import { BAR_BLUR, ELEVATION, GLYPH } from '@/lib/identity/tokens';
+import { EASE, MOTION } from '@/lib/identity/motion';
 
 /**
  * The tab bar.
@@ -71,12 +75,11 @@ const CAPSULE_MAX = BAR.height - 12;
 const CAPSULE_GUTTER = 4;
 
 /**
- * The slide.
- *
- * Lightly under-damped: it arrives and settles rather than gliding to a
- * mathematical stop, which is what gives it any weight at all.
+ * The slide: the identity's 200 ms ease-in-out (MOTION.slide). It used to be a
+ * lightly under-damped spring; the identity never overshoots.
  */
-const SLIDE = { damping: 18, stiffness: 210, mass: 0.85 } as const;
+const [SX1, SY1, SX2, SY2] = EASE[MOTION.slide.ease];
+const SLIDE = { duration: MOTION.slide.duration, easing: Easing.bezier(SX1, SY1, SX2, SY2) };
 
 export interface LiquidTab {
   /**
@@ -85,7 +88,7 @@ export interface LiquidTab {
    * the tab has, for VoiceOver and for the accessibility tree.
    */
   label: string;
-  /** Solid when selected, outline when not. */
+  /** The selected tab's glyph (the same outline as `Line` in the identity). */
   Fill: React.ComponentType<{ size?: number; color?: string }>;
   Line: React.ComponentType<{ size?: number; color?: string }>;
 }
@@ -128,7 +131,7 @@ export function LiquidTabBar({
 
   useEffect(() => {
     const to = tabCentre(width, pad, slot, active, rtl);
-    x.value = reduced ? to : withSpring(to, SLIDE);
+    x.value = reduced ? to : withTiming(to, SLIDE);
   }, [active, width, pad, slot, rtl, reduced, x]);
 
   const capsule = useAnimatedStyle(() => ({
@@ -168,37 +171,41 @@ export function LiquidTabBar({
   return (
     <View
       pointerEvents="box-none"
-      style={{
-        position: 'absolute',
-        left: S.screen,
-        right: S.screen,
-        bottom: BAR.lift(insets.bottom),
-        height: BAR.height,
-        borderRadius: BAR.height / 2,
-        // Clipping the blur to the bar is why this is simple now: a pill is a
-        // rounded rectangle, and `overflow` describes it. The shape it replaces
-        // had a moving bump on top and needed a mask.
-        overflow: 'hidden',
-      }}
+      style={[
+        {
+          position: 'absolute',
+          left: S.screen,
+          right: S.screen,
+          bottom: BAR.lift(insets.bottom),
+          height: BAR.height,
+          borderRadius: BAR.height / 2,
+        },
+        // Lifted like every surface in the identity: the wide ambient layer
+        // here, the tight contact layer on the frame inside. Neither view may
+        // clip, or it would clip its own shadow — the glass clips one level in.
+        shadow(pal, ELEVATION.raised[1]),
+      ]}
     >
-      <BlurView
-        intensity={44}
-        tint={pal.scheme === 'dark' ? 'dark' : 'light'}
-        style={StyleSheet.absoluteFill}
-      />
-      <View style={[StyleSheet.absoluteFill, { backgroundColor: pal.barTint }]} />
-      {/* A lit rim, so the glass has an edge where the light catches it. */}
       <View
         pointerEvents="none"
-        style={[
-          StyleSheet.absoluteFill,
-          {
-            borderRadius: BAR.height / 2,
-            borderWidth: StyleSheet.hairlineWidth,
-            borderColor: pal.scheme === 'dark' ? 'rgba(255,255,255,0.18)' : 'rgba(18,23,43,0.10)',
-          },
-        ]}
-      />
+        style={[StyleSheet.absoluteFill, { borderRadius: BAR.height / 2 }, shadow(pal, ELEVATION.raised[0])]}
+      >
+        <View style={[StyleSheet.absoluteFill, { borderRadius: BAR.height / 2, overflow: 'hidden' }]}>
+          <BlurView intensity={60} tint={BAR_BLUR[pal.scheme]} style={StyleSheet.absoluteFill} />
+          <View style={[StyleSheet.absoluteFill, { backgroundColor: pal.barTint }]} />
+          {/* The silver edge every lifted surface wears. */}
+          <View
+            style={[
+              StyleSheet.absoluteFill,
+              {
+                borderRadius: BAR.height / 2,
+                borderWidth: StyleSheet.hairlineWidth * 2,
+                borderColor: pal.silverEdge,
+              },
+            ]}
+          />
+        </View>
+      </View>
 
       {/* See `order` — the interior is pinned to one writing direction. */}
       <View style={{ flex: 1, direction: 'ltr' }}>
@@ -240,7 +247,7 @@ export function LiquidTabBar({
                 accessibilityLabel={tab.label}
                 style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
               >
-                <Glyph size={28} color={isActive ? pal.onBarActive : pal.onBar} />
+                <Glyph size={GLYPH.sizes.nav} color={isActive ? pal.onBarActive : pal.onBar} />
               </Pressable>
             );
           })}

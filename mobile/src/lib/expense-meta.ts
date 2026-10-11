@@ -45,5 +45,8 @@ export function expenseCategoryLabel(category: string): string {
 /** Display label for an expense's review status. */
 export function expenseStatusLabel(status: string): string {
   if (!status) return status;
+  // The filter row's "all" is not a stored status but has a label; without
+  // this it printed as the raw key, a lowercase "all" before "Pending".
+  if (status === 'all') return t('expenseStatuses.all');
   return STATUS_NAMES.has(status) ? t(`expenseStatuses.${status}`) : status;
 }

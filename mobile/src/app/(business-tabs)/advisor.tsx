@@ -26,7 +26,7 @@ import { localeInstruction } from '@/lib/prompt-budget';
 import { api } from '@/lib/api/api';
 import { useEntitlement } from '@/lib/useEntitlement';
 import { readMembers } from '@/lib/group-members';
-import { BAR, F, R, S, SHADOW, useB } from '@/lib/design';
+import { BAR, F, R, S, useC } from '@/lib/design';
 import { Card, Chip, Screen, Type } from '@/components/kit';
 import { t, getLocale } from '@/lib/i18n/core';
 
@@ -42,14 +42,17 @@ import { t, getLocale } from '@/lib/i18n/core';
  * constraints in lib/advisor-safety.ts apply here too without this screen
  * restating them.
  *
- * It now also *looks* like the personal one: the question is an ink bubble,
- * the answer is prose on the ground, and the field, mic slot and send button
- * share one pill. Two chat screens in one app that disagree about what a
- * message looks like is the kind of thing §16.4 calls a familiarity failure.
+ * It now also *looks* like the personal one: the question is a bubble in the
+ * tint's soft wash, the answer is prose on the ground, and the field, mic slot
+ * and send button share one pill. Two chat screens in one app that disagree
+ * about what a message looks like is the kind of thing §16.4 calls a
+ * familiarity failure.
  *
- * The send icon was `'#fff'` on `B.accent`. In dark mode that accent is bright
- * mint and white on it measures 1.74:1 — the arrow was invisible in exactly
- * the state where it means "you can send this".
+ * The send button is the screen's one espresso surface, as the primary action
+ * on a form is. Its arrow used to be a hard-coded white on the accent, which
+ * in dark mode measured 1.74:1 — invisible in exactly the state where it
+ * means "you can send this". It is `onEspresso` now, the pair the identity
+ * measures.
  */
 
 interface Msg {
@@ -59,7 +62,7 @@ interface Msg {
 }
 
 export default function BusinessAdvisorScreen() {
-  const B = useB();
+  const B = useC();
   const insets = useSafeAreaInsets();
   const scrollRef = useRef<ScrollView>(null);
   const { handleUpgradeRequired } = useEntitlement();
@@ -204,9 +207,10 @@ export default function BusinessAdvisorScreen() {
             </>
           ) : null}
 
-          {/* A conversation, not two kinds of card. The question is an ink
-              bubble — the screen's one dark object — and the answer is prose
-              on the ground, because that is what it is. */}
+          {/* A conversation, not two kinds of card. The question is a bubble
+              in the tint's soft wash, and the answer is prose on the ground,
+              because that is what it is. The bubble is not espresso: a
+              conversation would otherwise be a column of anchors. */}
           {messages.map((m) => (
             <View
               key={m.id}
@@ -215,28 +219,39 @@ export default function BusinessAdvisorScreen() {
                 alignItems: m.role === 'user' ? 'flex-end' : 'flex-start',
               }}
             >
+              {/* Your words on the soft tint wash, the advisor's on a card:
+                  the same pair as the personal advisor. */}
               {m.role === 'user' ? (
                 <View
-                  style={[
-                    SHADOW.near,
-                    {
-                      maxWidth: '86%',
-                      backgroundColor: B.ink,
-                      borderRadius: R.md,
-                      borderBottomEndRadius: 8,
-                      paddingHorizontal: 16,
-                      paddingVertical: 12,
-                    },
-                  ]}
+                  style={{
+                    maxWidth: '86%',
+                    backgroundColor: B.accentSoft,
+                    borderRadius: R.md,
+                    borderBottomEndRadius: R.sm,
+                    borderCurve: 'continuous',
+                    paddingHorizontal: 16,
+                    paddingVertical: 12,
+                  }}
                 >
-                  <Type role="body" color={B.onInk}>
+                  <Type role="body" color={B.ink}>
                     {m.content}
                   </Type>
                 </View>
               ) : (
-                <Type role="body" color={B.ink} style={{ maxWidth: '96%' }}>
-                  {m.content}
-                </Type>
+                <Card
+                  pal={B}
+                  padding={0}
+                  style={{ maxWidth: '96%' }}
+                  contentStyle={{
+                    borderBottomStartRadius: R.sm,
+                    paddingHorizontal: 16,
+                    paddingVertical: 12,
+                  }}
+                >
+                  <Type role="body" color={B.ink}>
+                    {m.content}
+                  </Type>
+                </Card>
               )}
             </View>
           ))}
@@ -306,10 +321,11 @@ export default function BusinessAdvisorScreen() {
                 style={{
                   width: 44,
                   height: 44,
-                  borderRadius: 22,
+                  borderRadius: R.pill,
+                  borderCurve: 'continuous',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  backgroundColor: canSend ? B.ink : B.groundSunk,
+                  backgroundColor: canSend ? B.espresso : B.groundSunk,
                 }}
               >
                 {ask.isPending ? (
@@ -317,7 +333,7 @@ export default function BusinessAdvisorScreen() {
                 ) : (
                   <Send
                     size={18}
-                    color={canSend ? B.onInk : B.inkFaint}
+                    color={canSend ? B.onEspresso : B.inkFaint}
                     strokeWidth={S.stroke}
                   />
                 )}

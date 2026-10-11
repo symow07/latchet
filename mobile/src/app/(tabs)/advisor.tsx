@@ -25,7 +25,7 @@ import {
   sendAdvisorMessage,
   type SpendingAnalysis,
 } from '@/lib/ai-analysis';
-import { F, R, S, SHADOW, useC } from '@/lib/design';
+import { F, R, S, useC } from '@/lib/design';
 import { Card, Chip, CircleAction, Screen, Type, mirror } from '@/components/kit';
 import { useEntitlement } from '@/lib/useEntitlement';
 import { isUpgradeRequired } from '@/lib/entitlementApi';
@@ -259,9 +259,10 @@ export default function AdvisorTab() {
             </>
           ) : null}
 
-          {/* A conversation, not two kinds of card. The question is an ink
-              bubble — the screen's one dark object — and the answer is prose
-              on the ground, because that is what it is. */}
+          {/* A conversation. The question is the user's own bubble, filled
+              with the tint; the answer sits on a lifted card surface with the
+              silver edge, so the two voices read apart without a second
+              colour. Each bubble's tail is the smaller corner on its own side. */}
           {messages.map((message) => (
             <View
               key={message.id}
@@ -270,26 +271,36 @@ export default function AdvisorTab() {
                 alignItems: message.role === 'user' ? 'flex-end' : 'flex-start',
               }}
             >
+              {/* Your words on the soft tint wash, the advisor's on a card.
+                  Not an espresso bubble: a long chat would otherwise be a
+                  column of anchors. Business draws the same pair. */}
               {message.role === 'user' ? (
                 <View
-                  style={[
-                    SHADOW.near,
-                    {
-                      maxWidth: '86%',
-                      backgroundColor: C.ink,
-                      borderRadius: R.md,
-                      borderBottomEndRadius: 8,
-                      paddingHorizontal: 16,
-                      paddingVertical: 12,
-                    },
-                  ]}
+                  style={{
+                    maxWidth: '86%',
+                    backgroundColor: C.accentSoft,
+                    borderRadius: R.md,
+                    borderBottomEndRadius: R.sm,
+                    borderCurve: 'continuous',
+                    paddingHorizontal: 16,
+                    paddingVertical: 12,
+                  }}
                 >
-                  <Type role="body" color={C.onInk}>{message.content}</Type>
+                  <Type role="body" color={C.ink}>{message.content}</Type>
                 </View>
               ) : (
-                <Type role="body" color={C.ink} style={{ maxWidth: '96%' }}>
-                  {message.content}
-                </Type>
+                <Card
+                  pal={C}
+                  padding={0}
+                  style={{ maxWidth: '96%' }}
+                  contentStyle={{
+                    borderBottomStartRadius: R.sm,
+                    paddingHorizontal: 16,
+                    paddingVertical: 12,
+                  }}
+                >
+                  <Type role="body" color={C.ink}>{message.content}</Type>
+                </Card>
               )}
             </View>
           ))}
@@ -367,13 +378,15 @@ export default function AdvisorTab() {
                 style={{
                   width: 44,
                   height: 44,
-                  borderRadius: 22,
+                  borderRadius: R.pill,
+                  borderCurve: 'continuous',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  backgroundColor: canSend ? C.ink : C.groundSunk,
+                  // The primary action: espresso, the identity's signature.
+                  backgroundColor: canSend ? C.espresso : C.groundSunk,
                 }}
               >
-                <Send size={18} color={canSend ? C.onInk : C.inkFaint} strokeWidth={S.stroke} />
+                <Send size={18} color={canSend ? C.onEspresso : C.inkFaint} strokeWidth={S.stroke} />
               </Pressable>
             </View>
           </Card>
