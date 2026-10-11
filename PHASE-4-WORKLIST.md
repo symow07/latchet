@@ -1,53 +1,51 @@
 # Phase 4 — finish features: the work list
 
-_Written 11 October 2026, before Phase 3 began, so nothing found along the way gets lost. The first list is Phase 4 exactly as the master revival prompt sets it out; the second is what Phases 1–3 found and added to it. Every item is required; none is optional._
+_Written 11 October 2026, before Phase 3 began, so nothing found along the way gets lost; closed out 12 October 2026 at the end of Phase 4. The first list is Phase 4 exactly as the master revival prompt sets it out; the second is what Phases 1–4 found and added to it. Every item is done, or marked HANDOFF with who does what._
 
 ## From the master prompt
 
-- [ ] **Password reset, end to end, front and back.** The launch blocker. The email transport it needs was kept for this in Phase 1 (`backend/src/lib/email.ts`, `sendEmail`).
-- [ ] **Make email verification reachable.**
-- [ ] **Restore bank linking's entry point.** The redesign removed it from Home, and now nothing in the app navigates to `mobile/src/app/link-bank.tsx` at all; its only reference is its route registration (`mobile/src/app/_layout.tsx:332`).
-- [ ] **Create the Pro store products** so the RevenueCat paywall has something to sell. The simulator logs it today: "there are no Test Store products registered in the RevenueCat dashboard for your offerings."
-- [x] **Fix the three dark-mode bugs on business screens** (translucent white on the dark cards). Done in Phase 2, Step 2b (`de128ae`): the white overlays on the business anchors are now silver on espresso, and `conventions.test.ts` fails on any `rgba(`, `'white'` or hex colour in a screen. Seen in dark on the simulator: business Settings and Money (payroll).
-- [ ] **Give the four server-only screens offline support:** bill reminders, recurring, net worth, category budgets. (Phase 3's two-way sync is the foundation this builds on.)
-- [ ] **Add tests for the health score logic and the behaviour-detection / alerts.**
-- [ ] **Replace the US-centric categorisation fallback table** with something appropriate for non-US users.
-- [ ] Typecheck, test, commit. Stop and report.
+- [x] **Password reset, end to end, front and back.** Done in `72135fe`: "Forgot password?" on sign-in, an emailed link that opens the app's reset screen, single-use tokens, every session revoked on reset; the request never reveals whether an account exists. Checked on the simulator against the local backend.
+- [x] **Make email verification reachable.** Done in `72135fe`: a link on sign-up, Verified / Not verified with a resend in both Settings screens, and a landing screen for the link. Offered, not required to sign in.
+- [ ] HANDOFF (you): **Production mail.** Reset and verification work in production, but no mail goes out until `RESEND_API_KEY` (and a verified `EMAIL_FROM` domain) is set on the Railway Budget service. DEPLOYMENT.md §2–§3.
+- [x] **Restore bank linking's entry point.** Done in `419b6f1`: Settings → Accounts and the Accounts screen open `/link-bank`, with a Pro badge for free users.
+- [ ] HANDOFF (you): **Create the Pro store products.** They live in App Store Connect / Play Console and RevenueCat, which only you can reach. The app needs no product ids: attach the products to the entitlement `pro`, put them in an offering marked Current with a paywall, add Test Store products for development, and point the webhook at the backend. Step by step in DEPLOYMENT.md §3.
+- [x] **Fix the three dark-mode bugs on business screens** (translucent white on the dark cards). Done in Phase 2, Step 2b (`de128ae`).
+- [x] **Give the four server-only screens offline support:** bill reminders, recurring, net worth, category budgets. Server in `c71cc7b`, phone in `61ca96a`: they read and write the phone's database and sync both ways. Checked on the simulator with the backend stopped.
+- [x] **Add tests for the health score logic and the behaviour-detection / alerts.** Done in `378c50b`: 40 health-score and 46 behaviour tests, and the scoring bugs they found fixed.
+- [x] **Replace the US-centric categorisation fallback table.** Done in `9a81d9b`: plain words in four languages, regional brands by currency (US/Canada, euro area, UK, Morocco, China), whole-word matching.
+- [x] Typecheck, test, commit and push as each piece landed. Stop and report before Phase 5.
 
-## Added from Phases 1–3
+Also done first, as the top priority: **sheets froze on drag-to-dismiss** (`8c4b195`; `timed()` lacked its worklet directive, and a test now checks every UI-thread call).
+
+## Added from Phases 1–4
 
 ### 1. Approve is offered on your own expense
-Business → Expenses shows **Approve** and **Reject** on every pending expense to an owner or manager (`mobile/src/app/(business-tabs)/expenses.tsx:379` sets `canReview` from the role alone; `:315` draws the buttons), including the ones they submitted themselves. The server correctly refuses (`backend/src/routes/expenses.ts:204`, "Cannot approve your own expense", 403), so the person taps a button that can only fail and gets a "Something went wrong" dialog. Found on the simulator in Step 2b.
-**Fix:** don't offer review on your own expense (compare `expense.submitterId` with the signed-in user), and say why, e.g. "Waiting for another approver". Test it.
+**Done** in `419b6f1`: Approve/Reject appear only on expenses you did not submit; your own say "Waiting for another approver". Business Home counts only what waits on you. Tested.
 
 ### 2. Count strings that don't pluralise
-- "1 expenses" under the Expenses anchor: `businessExpenses.expenseCount` is a flat string (`mobile/src/lib/i18n/locales/en.json:531`, "%{count} expenses"), used at `(business-tabs)/expenses.tsx:426`. The same flat shape is at `en.json:1096` and `bizStats.expensesWaiting` at `en.json:1094`.
-- "1 records found" on History: `transactionsScreen.recordsFound` (`en.json:798`, "%{count} records found"), used at `mobile/src/app/(tabs)/transactions.tsx:131`.
-
-The app already has proper plural rules for en, fr, ar and zh (`mobile/src/lib/i18n/core.ts:67–95`), and other keys use them (`en.json:111–113` is a `one`/`other` pair). These keys need converting to that shape in all four locales, plus a test that no `%{count}` string is a flat string.
+**Done** in `419b6f1`: every count string is a plural in all four locales (six Arabic forms); unused count keys removed; a test fails on any flat count string.
 
 ### 3. Hard-coded English in Receipt Scan
-Four user-visible strings in `mobile/src/app/receipt-scan.tsx` bypass i18n:
-- `:121` "Camera permission is required to take photos."
-- `:134` "Photo library permission is required to choose photos."
-- `:150` "Could not read image data. Please try again."
-- `:199` "Enter a valid amount greater than 0."
-
-Move them to the locale files in all four languages. The hard-coded-English convention test (`mobile/src/lib/i18n/i18n.test.ts`) missed them; find out why and close the gap.
+**Done** in `419b6f1`: the four messages are in the locales, and the scan now catches strings passed to calls and reads the library modules whose text reaches the screen (it missed them because it only read JSX text, attributes and object properties, and never read `src/lib`).
 
 ### 4. Recurring bookings land on no account
-A recurring item has no account field (the form in `mobile/src/app/recurring.tsx` never asks for one), so every booking — run-now and the server job alike — is written with `accountId` null. Home's total counts it while the account card does not: on the simulator in Phase 3, a €25 run-now left "Total balance −€37.34" above a Cash account at −€12.34. This predates Phase 3 (the old run-now posted without an account too); Phase 3 only made it visible, because the booking now comes from the server (`backend/src/jobs/recurring-booking.ts`, which books onto `rec.accountId` when it is set).
-**Fix:** let a recurring item choose its account, defaulting to the user's default account, and book onto it. Test that a booking moves that account's balance.
+**Done**: the server books onto the series' account, else the default account (`c71cc7b`); the form has an account picker defaulting to the default account (`61ca96a`). Tested end to end and on the simulator (run-now moved the default account by −35.50 on server and phone).
 
 ### 5. Found while mapping Phase 4
-- [ ] The net-worth breakdown never shows: the server stores it as a JSON string and the screen reads it as an object (`mobile/src/app/net-worth.tsx:502-507`). Its "today" is the UTC date (`:108-110`).
-- [ ] The New Recurring form keeps the last name and amount after a create (`recurring.tsx:169-177`, `:327-331`).
-- [ ] `behavior-detection.ts` reads weekdays from `new Date(dateISO)` (a day off west of UTC, `:192`, `:197`), hard-codes `$` (`:252`) and English month names (`:245`).
-- [ ] The health-score suggestions (`health-score.ts:293-333`) and the advisor's quick insights (`ai-analysis.ts:586-620`) are hard-coded English shown on screen.
-- [ ] Business Home counts your own pending expenses as awaiting your review (`(business-tabs)/index.tsx:93-103`).
+- [x] The net-worth breakdown never showed, and "today" was the UTC date — fixed in `61ca96a`.
+- [x] The New Recurring form kept the last values after a create — fixed in `61ca96a`.
+- [x] `behavior-detection.ts` read weekdays from a UTC parse (`378c50b`), hard-coded `$` and English month names (`419b6f1`) — fixed.
+- [x] Health-score suggestions and the advisor's quick insights were hard-coded English — fixed in `419b6f1`.
+- [x] Business Home counted your own pending expenses — fixed in `419b6f1`.
+- [x] A bill due today was counted as overdue; net worth with one snapshot asked for your first; Business Tools counted a yearly tool as monthly — fixed in `419b6f1`.
 
-### Smaller notes, same rule: fix or consciously drop
-- `mobile/src/app/business-tools.tsx` labels business categories with the personal `categoryLabel`, so "Software", "Travel", "Meals" and "Office" are not translated there; `expense-meta.ts` has `expenseCategoryLabel` for this (noted by the Step 2b business agent).
-- The Advisor disclaimer reads "Budget guidance only — not medical, nutritional or financial advice." Medical and nutritional look like leftovers from another app.
-- `bizHome.quickAdd` and `bizHome.quickReview` are unused since the business shortcuts became Tools and Team; remove them from the four locales.
-- One lint warning predates the revival: `mobile/src/app/_layout.tsx` LockScreen's mount-only `useEffect` (react-hooks/exhaustive-deps). Adding the dependency naively could re-prompt Face ID on every parent render; fix it deliberately or document the exemption.
+### 6. Left for Phase 5 (found during Phase 4, outside its scope)
+- **Recurring bookings are dated by the server's UTC day.** A series run just after local midnight is booked on the previous date (seen on 12 Oct, booked 11 Oct). A proper fix needs the user's timezone on the server — a small schema change; your call.
+- **English still built in three places:** `mobile/src/lib/notifications.ts` (the lock-screen action labels and the streak nudge), `emailSubscriptionApi.ts`'s fallback cancel instructions, and the `*Api.ts` modules' "Failed to…" errors that screens show through `e.message`.
+- **The import screen never passes the user's categorisation history** to the parser (only the currency), so history-based suggestions don't apply to CSV imports.
+
+### Smaller notes
+- [x] `business-tools.tsx` labels business categories with `expenseCategoryLabel` (`419b6f1`).
+- [x] The Advisor disclaimer: kept medical/nutritional on the personal advisor (it collects health data for the advisor profile), gave the business advisor its own, and the Arabic now says financial (`419b6f1`).
+- [x] `bizHome.quickAdd` / `bizHome.quickReview` removed from all four locales (`419b6f1`).
+- [x] The LockScreen effect: `onUnlock` held in a ref, dependencies complete, still prompts once; lint reports no problems at all (`419b6f1`).
