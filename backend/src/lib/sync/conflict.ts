@@ -33,8 +33,10 @@ export function decide(
   userId: string
 ): { status: Exclude<SyncStatus, "invalid">; next: KeyState } {
   const { live, tomb } = state;
-  // Ids are global for transactions and accounts: one that exists for another
-  // user is theirs, whatever the timestamps say.
+  // Ids are global for accounts, transactions, recurring series, bill
+  // reminders and net-worth snapshots: one that exists for another user is
+  // theirs, whatever the timestamps say. (Settings, categories, subscriptions
+  // and category budgets are keyed within the caller's own rows.)
   if (live && live.owner !== userId) return { status: "forbidden", next: state };
 
   const current = live ? live.cu : tomb;

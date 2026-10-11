@@ -869,3 +869,38 @@ describe("the phone's transport against the real server", () => {
     expect(await serverTransactionIds(user.id)).toEqual([kept]);
   }, TIMEOUT);
 });
+
+describe("a phone that predates the Phase 4 entities", () => {
+  // The server syncs nine entities since Phase 4; phones already installed
+  // know five. Their pull keeps working: rows of an entity they do not know
+  // are skipped, a deletion of one is reported as an apply error (logged on
+  // the phone) and passed over, and nothing of theirs changes. Once the phone
+  // knows the entity (Phase 4, leaf 4.5) there is no error at all.
+  test("recurring series, bills, budgets and net worth written and deleted on the server never stop its sync", async () => {
+    const user = await newUser("e2e-p4-old-phone");
+    const p = await phone(user, "phone");
+    await p.write.addTransaction(spending({ amount: 8 }));
+    await synced(p);
+    const before = await p.view();
+
+    // What the app's REST screens do today.
+    const post = (path: string, body: unknown) => request(app, user.session, "POST", path, body);
+    const rec = await post("/api/v1/recurring", {
+      name: "Gym", amount: 30, category: "Health", type: "Expense", frequency: "weekly", startDate: "2026-10-01", nextDate: "2099-01-01",
+    });
+    const bill = await post("/api/v1/bill-reminders", { name: "Water", amount: 20, dueDay: 12, nextDueDate: "2099-01-12" });
+    const budget = await post("/api/v1/category-budgets", { category: "Food", amount: 300 });
+    const nw = await post("/api/v1/net-worth", { date: "2026-10-11", assets: 10, liabilities: 2 });
+    expect([rec.status, bill.status, budget.status, nw.status]).toEqual([201, 201, 200, 201]);
+    expect((await request(app, user.session, "DELETE", `/api/v1/bill-reminders/${bill.json.id}`)).status).toBe(200);
+    expect((await request(app, user.session, "DELETE", `/api/v1/category-budgets/${budget.json.id}`)).status).toBe(200);
+
+    const r = await p.sync();
+    expect(r.report.pulled.complete).toBe(true);
+    expect(r.report.errors.every((e) => /deletion of unknown entity (billReminders|categoryBudgets)/.test(e))).toBe(true);
+    // The server did send them, under their own keys.
+    expect(r.pulls.flatMap((x) => (x.response.changes as Record<string, { id: string }[]>).recurring ?? []).map((x) => x.id)).toContain(rec.json.id);
+    expect(await p.view()).toEqual(before);
+    expect(await p.pending()).toEqual({ dirty: [], tombstones: [] });
+  }, TIMEOUT);
+});

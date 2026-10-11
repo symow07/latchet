@@ -2,6 +2,7 @@ import { prisma } from "../prisma";
 import { sendPushToUser } from "../lib/expo-push";
 import { advanceMonth } from "../lib/recurrence";
 import { withJobLease } from "../lib/distributed/lease";
+import { dbNow } from "../lib/distributed/clock";
 
 export { advanceMonth };
 
@@ -24,6 +25,19 @@ export function shouldNotify(
 ): boolean {
   if (!lastNotifiedAt) return true;
   return lastNotifiedAt.getTime() < startOfDayUTC(nextDueDate).getTime();
+}
+
+/**
+ * Whether a user's edit re-arms the notifier (clears lastNotifiedAt): only
+ * when it moves the bill to a later due date. Moving it back to a date it
+ * already fired for, or saving the same date again (marking it unpaid, a
+ * rename), must not fire it a second time. lastNotifiedAt is the server's
+ * own and never on the sync wire, so this is decided here for every write:
+ * PUT /bill-reminders and a sync push (lib/sync/push.ts, the same comparison
+ * in SQL). Dates are YYYY-MM-DD, so string order is date order.
+ */
+export function rearmsNotifier(storedNextDueDate: string, newNextDueDate: string | undefined): boolean {
+  return newNextDueDate !== undefined && newNextDueDate > storedNextDueDate;
 }
 
 export interface DueBill {
@@ -51,6 +65,10 @@ export interface BillReminderDeps {
    * recurring bill on, but only if the row still has the lastNotifiedAt and
    * nextDueDate this run read. True when this run made the change and should
    * send the push; false when another run (another instance) got there first.
+   *
+   * A server write to a synced row: it stamps clientUpdatedAt from the
+   * database clock (Phase 4 decision 4), so a phone's copy edited before it
+   * loses, and every phone pulls the moved bill.
    */
   claimNotification(
     bill: DueBill,
@@ -98,7 +116,7 @@ export const billReminderDeps: BillReminderDeps = {
         nextDueDate: bill.nextDueDate,
         lastNotifiedAt: bill.lastNotifiedAt,
       },
-      data: { lastNotifiedAt: notifiedAt, nextDueDate, isPaid: false },
+      data: { lastNotifiedAt: notifiedAt, nextDueDate, isPaid: false, clientUpdatedAt: await dbNow() },
     });
     return count === 1;
   },

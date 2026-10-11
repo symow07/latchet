@@ -16,9 +16,26 @@
  * Concurrency. A per-user advisory lock queues two pushes from the same
  * account (two devices), and the stored rows and tombstones are read FOR
  * UPDATE (in key order, so two pushes queue rather than deadlock), so a REST
- * write or a bank sync cannot change them between the decision and the write. Two different users can still race on a brand-new
- * global id; the loser fails on the primary key and the whole push is retried,
- * when it sees the other user's row and gets `forbidden`.
+ * write, a bank sync, the recurring job or the bill checker cannot change them
+ * between the decision and the write. Two different users can still race on a
+ * brand-new global id (or one user's REST route and push on a new category
+ * budget); the loser fails on the unique key and the whole push is retried,
+ * when it sees the other row and gets `forbidden` (or decides against it).
+ *
+ * Lock order against the recurring booking (jobs/recurring-booking.ts), which
+ * takes its account FOR KEY SHARE and then claims (updates) the series row.
+ * The push takes, in entity order, the accounts it writes FOR UPDATE before
+ * any series row, and the accounts its transactions and series only name FOR
+ * KEY SHARE after them (lockOwnAccounts). The one conflicting pair is its FOR
+ * UPDATE against the booking's KEY SHARE, and the push holds no series row
+ * while it waits there, so the booking never waits on a push that waits on
+ * it. KEY SHARE conflicts with neither KEY SHARE nor the NO KEY UPDATE the
+ * balance trigger takes, so the rest of either side's locks cannot close a
+ * cycle.
+ *
+ * Server writes win (Phase 4 decision 4): every server-side write to a synced
+ * row stamps clientUpdatedAt from the database clock, so a phone's copy made
+ * before it is answered `stale` here like any older edit.
  */
 import { Prisma } from "@prisma/client";
 import { prisma } from "../../prisma";
@@ -57,12 +74,21 @@ interface EntityStore<E extends SyncEntity> {
 type InsertOrUpdate<E extends SyncEntity> = Extract<WriteOp<SyncRowValues<E>>, { kind: "insert" | "update" }>;
 
 interface WriteContext {
-  /** The caller's accounts once this push's accounts are applied. */
+  /**
+   * The caller's accounts once this push's accounts are applied, among those
+   * the push's transactions and recurring series name.
+   */
   ownAccounts: ReadonlySet<string>;
 }
 
 const at = (ms: number) => new Date(ms);
 const cuOf = (column: string) => sqlMillis(Prisma.raw(`"${column}"`));
+/**
+ * Column `col` of the jsonb_to_recordset row `v`, epoch milliseconds, as a
+ * UTC timestamp(3) — never through a JS Date (sql.ts). NULL stays NULL.
+ */
+const recordMs = (col: string) =>
+  Prisma.sql`(TIMESTAMP '1970-01-01 00:00:00' + v.${Prisma.raw(`"${col}"`)} * INTERVAL '1 millisecond')`;
 
 function liveRows(rows: { id: string; owner: string; cu: bigint }[]): LiveRows {
   return new Map(rows.map((r) => [r.id, { owner: r.owner, cu: Number(r.cu) }]));
@@ -193,12 +219,11 @@ const STORES: { [E in SyncEntity]: EntityStore<E> } = {
         type: v.type, isImpulse: v.isImpulse, note: v.note, dateISO: v.dateISO, currency: v.currency,
         createdAt: v.createdAt, cu,
       })));
-      const ms = (col: string) => Prisma.sql`(TIMESTAMP '1970-01-01 00:00:00' + v.${Prisma.raw(`"${col}"`)} * INTERVAL '1 millisecond')`;
       await tx.$executeRaw`
         UPDATE "Transaction" AS t SET
           "accountId" = v."accountId", "amount" = v."amount", "category" = v."category", "type" = v."type",
           "isImpulse" = v."isImpulse", "note" = v."note", "dateISO" = v."dateISO", "currency" = v."currency",
-          "createdAt" = ${ms("createdAt")}, "clientUpdatedAt" = ${ms("cu")}, "updatedAt" = ${SQL_NOW}
+          "createdAt" = ${recordMs("createdAt")}, "clientUpdatedAt" = ${recordMs("cu")}, "updatedAt" = ${SQL_NOW}
           FROM jsonb_to_recordset(${json}::jsonb) AS v(
             "id" text, "accountId" text, "amount" double precision, "category" text, "type" text,
             "isImpulse" boolean, "note" text, "dateISO" text, "currency" text,
@@ -246,7 +271,208 @@ const STORES: { [E in SyncEntity]: EntityStore<E> } = {
          WHERE "userId" = ${userId} AND "syncId" = ANY(${ids}::text[])`;
     },
   },
+
+  recurring: {
+    async lockLive(tx, _userId, ids) {
+      // By id alone: ids are global (rec_…, minted by a phone or by
+      // POST /recurring), and another user's must be seen to be refused.
+      return liveRows(await tx.$queryRaw`
+        SELECT "id" AS id, "userId" AS owner, ${cuOf("clientUpdatedAt")} AS cu
+          FROM "RecurringTransaction" WHERE "id" = ANY(${ids}::text[]) ORDER BY "id" FOR UPDATE`);
+    },
+    async insert(tx, userId, ops, { ownAccounts }) {
+      await tx.recurringTransaction.createMany({
+        data: ops.map(({ id, cu, values: v }) => ({
+          id, userId, accountId: resolveAccountId(v.accountId, ownAccounts), name: v.name, amount: v.amount,
+          category: v.category, type: v.type, isImpulse: v.isImpulse, frequency: v.frequency,
+          startDate: v.startDate, nextDate: v.nextDate, lastCreated: v.lastCreated, isActive: v.isActive,
+          currency: v.currency, createdAt: at(v.createdAt), clientUpdatedAt: at(cu),
+        })),
+      });
+    },
+    async update(tx, userId, ops, { ownAccounts }) {
+      if (ops.length === 0) return;
+      // The booking state (nextDate, lastCreated) is the server's as much as
+      // the phone's: the job and run-now move it, stamping the database
+      // clock. A phone that edits a series before pulling that booking still
+      // carries the older state, and its edit can be the later one. Applied
+      // as sent, it would move the series back to a date already booked and
+      // the job would book the next day again. So when the row says it has
+      // booked later than the phone knows (lastCreated behind the stored
+      // one, or null), the stored nextDate and lastCreated are kept and
+      // the rest of the edit applies. The phone pulls the merged row, since
+      // this write moves its serverUpdatedAt. routes/recurring.ts applies
+      // the same rule (keepsBookingState).
+      const json = JSON.stringify(ops.map(({ id, cu, values: v }) => ({
+        id, accountId: resolveAccountId(v.accountId, ownAccounts), name: v.name, amount: v.amount,
+        category: v.category, type: v.type, isImpulse: v.isImpulse, frequency: v.frequency,
+        startDate: v.startDate, nextDate: v.nextDate, lastCreated: v.lastCreated, isActive: v.isActive,
+        currency: v.currency, createdAt: v.createdAt, cu,
+      })));
+      const behind = Prisma.sql`(r."lastCreated" IS NOT NULL AND
+        (v."lastCreated" IS NULL OR v."lastCreated" COLLATE "C" < r."lastCreated" COLLATE "C"))`;
+      await tx.$executeRaw`
+        UPDATE "RecurringTransaction" AS r SET
+          "accountId" = v."accountId", "name" = v."name", "amount" = v."amount", "category" = v."category",
+          "type" = v."type", "isImpulse" = v."isImpulse", "frequency" = v."frequency", "startDate" = v."startDate",
+          "nextDate" = CASE WHEN ${behind} THEN r."nextDate" ELSE v."nextDate" END,
+          "lastCreated" = CASE WHEN ${behind} THEN r."lastCreated" ELSE v."lastCreated" END,
+          "isActive" = v."isActive", "currency" = v."currency",
+          "createdAt" = ${recordMs("createdAt")}, "clientUpdatedAt" = ${recordMs("cu")}, "updatedAt" = ${SQL_NOW}
+          FROM jsonb_to_recordset(${json}::jsonb) AS v(
+            "id" text, "accountId" text, "name" text, "amount" double precision, "category" text,
+            "type" text, "isImpulse" boolean, "frequency" text, "startDate" text, "nextDate" text,
+            "lastCreated" text, "isActive" boolean, "currency" text,
+            "createdAt" double precision, "cu" double precision)
+         WHERE r."id" = v."id" AND r."userId" = ${userId}`;
+    },
+    async remove(tx, userId, ids) {
+      // Occurrences already booked stay in the ledger: they are transactions.
+      await tx.recurringTransaction.deleteMany({ where: { userId, id: { in: ids } } });
+    },
+    async touch(tx, userId, ids) {
+      await tx.$executeRaw`
+        UPDATE "RecurringTransaction" SET "serverUpdatedAt" = "serverUpdatedAt"
+         WHERE "userId" = ${userId} AND "id" = ANY(${ids}::text[])`;
+    },
+  },
+
+  billReminders: {
+    async lockLive(tx, _userId, ids) {
+      return liveRows(await tx.$queryRaw`
+        SELECT "id" AS id, "userId" AS owner, ${cuOf("clientUpdatedAt")} AS cu
+          FROM "BillReminder" WHERE "id" = ANY(${ids}::text[]) ORDER BY "id" FOR UPDATE`);
+    },
+    async insert(tx, userId, ops) {
+      // lastNotifiedAt starts unset: a new bill notifies when it falls due.
+      await tx.billReminder.createMany({
+        data: ops.map(({ id, cu, values: v }) => ({
+          id, userId, name: v.name, amount: v.amount, dueDay: v.dueDay, category: v.category,
+          isRecurring: v.isRecurring, isPaid: v.isPaid, paidAt: v.paidAt === null ? null : at(v.paidAt),
+          nextDueDate: v.nextDueDate, createdAt: at(v.createdAt), clientUpdatedAt: at(cu),
+        })),
+      });
+    },
+    async update(tx, userId, ops) {
+      if (ops.length === 0) return;
+      // lastNotifiedAt is the server's (not on the wire). An edit that moves
+      // nextDueDate later re-arms the notifier for the new date; any other
+      // edit keeps it, so moving a bill back to a date it already fired for,
+      // or re-sending the same date, does not fire it again. The REST route
+      // applies the same rule (rearmsNotifier in jobs/bill-reminder-checker).
+      const json = JSON.stringify(ops.map(({ id, cu, values: v }) => ({
+        id, name: v.name, amount: v.amount, dueDay: v.dueDay, category: v.category, isRecurring: v.isRecurring,
+        isPaid: v.isPaid, paidAt: v.paidAt, nextDueDate: v.nextDueDate, createdAt: v.createdAt, cu,
+      })));
+      await tx.$executeRaw`
+        UPDATE "BillReminder" AS b SET
+          "name" = v."name", "amount" = v."amount", "dueDay" = v."dueDay", "category" = v."category",
+          "isRecurring" = v."isRecurring", "isPaid" = v."isPaid", "paidAt" = ${recordMs("paidAt")},
+          "lastNotifiedAt" = CASE WHEN v."nextDueDate" COLLATE "C" > b."nextDueDate" COLLATE "C"
+                                  THEN NULL ELSE b."lastNotifiedAt" END,
+          "nextDueDate" = v."nextDueDate",
+          "createdAt" = ${recordMs("createdAt")}, "clientUpdatedAt" = ${recordMs("cu")}, "updatedAt" = ${SQL_NOW}
+          FROM jsonb_to_recordset(${json}::jsonb) AS v(
+            "id" text, "name" text, "amount" double precision, "dueDay" integer, "category" text,
+            "isRecurring" boolean, "isPaid" boolean, "paidAt" double precision, "nextDueDate" text,
+            "createdAt" double precision, "cu" double precision)
+         WHERE b."id" = v."id" AND b."userId" = ${userId}`;
+    },
+    async remove(tx, userId, ids) {
+      await tx.billReminder.deleteMany({ where: { userId, id: { in: ids } } });
+    },
+    async touch(tx, userId, ids) {
+      await tx.$executeRaw`
+        UPDATE "BillReminder" SET "serverUpdatedAt" = "serverUpdatedAt"
+         WHERE "userId" = ${userId} AND "id" = ANY(${ids}::text[])`;
+    },
+  },
+
+  categoryBudgets: {
+    async lockLive(tx, userId, ids) {
+      // Keyed by category within the caller's rows: two users' "Food" budgets
+      // are two rows, as with category names.
+      return liveRows(await tx.$queryRaw`
+        SELECT "category" AS id, "userId" AS owner, ${cuOf("clientUpdatedAt")} AS cu
+          FROM "CategoryBudget" WHERE "userId" = ${userId} AND "category" = ANY(${ids}::text[])
+         ORDER BY "category" FOR UPDATE`);
+    },
+    async insert(tx, userId, ops) {
+      // The row id is the server's own and never on the wire.
+      await tx.categoryBudget.createMany({
+        data: ops.map(({ id, cu, values: v }) => ({
+          id: newCategoryBudgetId(), userId, category: id, amount: v.amount, period: v.period,
+          createdAt: at(v.createdAt), clientUpdatedAt: at(cu),
+        })),
+      });
+    },
+    async update(tx, userId, ops) {
+      for (const { id, cu, values: v } of ops) {
+        await tx.categoryBudget.update({
+          where: { userId_category: { userId, category: id } },
+          data: { amount: v.amount, period: v.period, createdAt: at(v.createdAt), clientUpdatedAt: at(cu) },
+        });
+      }
+    },
+    async remove(tx, userId, ids) {
+      await tx.categoryBudget.deleteMany({ where: { userId, category: { in: ids } } });
+    },
+    async touch(tx, userId, ids) {
+      await tx.$executeRaw`
+        UPDATE "CategoryBudget" SET "serverUpdatedAt" = "serverUpdatedAt"
+         WHERE "userId" = ${userId} AND "category" = ANY(${ids}::text[])`;
+    },
+  },
+
+  netWorth: {
+    async lockLive(tx, _userId, ids) {
+      return liveRows(await tx.$queryRaw`
+        SELECT "id" AS id, "userId" AS owner, ${cuOf("clientUpdatedAt")} AS cu
+          FROM "NetWorthEntry" WHERE "id" = ANY(${ids}::text[]) ORDER BY "id" FOR UPDATE`);
+    },
+    async insert(tx, userId, ops) {
+      await tx.netWorthEntry.createMany({
+        data: ops.map(({ id, cu, values: v }) => ({
+          id, userId, ...netWorthColumns(v), createdAt: at(v.createdAt), clientUpdatedAt: at(cu),
+        })),
+      });
+    },
+    async update(tx, userId, ops) {
+      for (const { id, cu, values: v } of ops) {
+        await tx.netWorthEntry.update({
+          where: { id, userId },
+          data: { ...netWorthColumns(v), createdAt: at(v.createdAt), clientUpdatedAt: at(cu) },
+        });
+      }
+    },
+    async remove(tx, userId, ids) {
+      await tx.netWorthEntry.deleteMany({ where: { userId, id: { in: ids } } });
+    },
+    async touch(tx, userId, ids) {
+      await tx.$executeRaw`
+        UPDATE "NetWorthEntry" SET "serverUpdatedAt" = "serverUpdatedAt"
+         WHERE "userId" = ${userId} AND "id" = ANY(${ids}::text[])`;
+    },
+  },
 };
+
+/** A category budget's row id: the server's own, never on the wire. */
+export function newCategoryBudgetId(): string {
+  return `catbud_${crypto.randomUUID()}`;
+}
+
+/** A net-worth snapshot's stored columns: netWorth is always assets − liabilities. */
+function netWorthColumns(v: SyncRowValues<"netWorth">) {
+  return {
+    date: v.date, assets: v.assets, liabilities: v.liabilities,
+    netWorth: v.assets - v.liabilities, breakdown: v.breakdown,
+  };
+}
+
+/** The account ids that a batch's upserts name. */
+function accountRefs(ops: readonly WriteOp<{ accountId: string | null }>[]): string[] {
+  return ops.flatMap((op) => (op.kind === "insert" || op.kind === "update") && op.values.accountId ? [op.values.accountId] : []);
+}
 
 /** The caller's tombstones of `ids` for one entity, locked. */
 async function lockTombstones(tx: Tx, userId: string, entity: SyncEntity, ids: string[]): Promise<Map<string, number>> {
@@ -361,8 +587,9 @@ export async function applyPush(
             resend[entity] = winnersToResend(plan, initial);
           }
 
-          const referenced = [...new Set(plans.transactions.ops.flatMap((op) =>
-            (op.kind === "insert" || op.kind === "update") && op.values.accountId ? [op.values.accountId] : []))];
+          const referenced = [...new Set([
+            ...accountRefs(plans.transactions.ops), ...accountRefs(plans.recurring.ops),
+          ])];
           const ctx: WriteContext = {
             ownAccounts: accountsAfter(await lockOwnAccounts(tx, userId, referenced), plans.accounts.ops),
           };

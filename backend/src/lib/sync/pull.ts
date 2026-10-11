@@ -89,6 +89,48 @@ const SOURCES: Record<SyncEntity, { table: Prisma.Sql; key: Prisma.Sql; fields: 
       'createdAt', ${sqlMillis(Prisma.sql`x."createdAt"`)},
       'clientUpdatedAt', ${sqlMillis(Prisma.sql`x."clientUpdatedAt"`)})`,
   },
+  // The four Phase 4 entities (I-WIRE-4): booleans as booleans, dates as
+  // YYYY-MM-DD, paidAt as ISO or null, breakdown as the stored JSON text.
+  recurring: {
+    table: Prisma.sql`"RecurringTransaction"`,
+    key: Prisma.sql`x."id"`,
+    fields: Prisma.sql`jsonb_build_object(
+      'accountId', x."accountId", 'name', x."name", 'amount', x."amount", 'category', x."category",
+      'type', x."type", 'isImpulse', x."isImpulse", 'frequency', x."frequency",
+      'startDate', x."startDate", 'nextDate', x."nextDate", 'lastCreated', x."lastCreated",
+      'isActive', x."isActive", 'currency', x."currency",
+      'createdAt', ${sqlMillis(Prisma.sql`x."createdAt"`)},
+      'clientUpdatedAt', ${sqlMillis(Prisma.sql`x."clientUpdatedAt"`)})`,
+  },
+  billReminders: {
+    // lastNotifiedAt stays on the server: it is the notifier's, not the user's.
+    table: Prisma.sql`"BillReminder"`,
+    key: Prisma.sql`x."id"`,
+    fields: Prisma.sql`jsonb_build_object(
+      'name', x."name", 'amount', x."amount", 'dueDay', x."dueDay", 'category', x."category",
+      'isRecurring', x."isRecurring", 'isPaid', x."isPaid",
+      'paidAt', ${sqlMillis(Prisma.sql`x."paidAt"`)}, 'nextDueDate', x."nextDueDate",
+      'createdAt', ${sqlMillis(Prisma.sql`x."createdAt"`)},
+      'clientUpdatedAt', ${sqlMillis(Prisma.sql`x."clientUpdatedAt"`)})`,
+  },
+  categoryBudgets: {
+    // Keyed by category; the row's own id never leaves the server.
+    table: Prisma.sql`"CategoryBudget"`,
+    key: Prisma.sql`x."category"`,
+    fields: Prisma.sql`jsonb_build_object(
+      'amount', x."amount", 'period', x."period",
+      'createdAt', ${sqlMillis(Prisma.sql`x."createdAt"`)},
+      'clientUpdatedAt', ${sqlMillis(Prisma.sql`x."clientUpdatedAt"`)})`,
+  },
+  netWorth: {
+    table: Prisma.sql`"NetWorthEntry"`,
+    key: Prisma.sql`x."id"`,
+    fields: Prisma.sql`jsonb_build_object(
+      'date', x."date", 'assets', x."assets", 'liabilities', x."liabilities",
+      'netWorth', x."netWorth", 'breakdown', x."breakdown",
+      'createdAt', ${sqlMillis(Prisma.sql`x."createdAt"`)},
+      'clientUpdatedAt', ${sqlMillis(Prisma.sql`x."clientUpdatedAt"`)})`,
+  },
 };
 
 /** Whether a live row with the tombstone's sync id exists, per entity. */
@@ -98,6 +140,10 @@ const LIVE_FOR_TOMBSTONE: Record<SyncEntity, Prisma.Sql> = {
   accounts: Prisma.sql`SELECT 1 FROM "BankAccount" x WHERE x."userId" = s."userId" AND x."id" = s."syncId"`,
   transactions: Prisma.sql`SELECT 1 FROM "Transaction" x WHERE x."userId" = s."userId" AND x."id" = s."syncId"`,
   subscriptions: Prisma.sql`SELECT 1 FROM "Subscription" x WHERE x."userId" = s."userId" AND x."syncId" = s."syncId"`,
+  recurring: Prisma.sql`SELECT 1 FROM "RecurringTransaction" x WHERE x."userId" = s."userId" AND x."id" = s."syncId"`,
+  billReminders: Prisma.sql`SELECT 1 FROM "BillReminder" x WHERE x."userId" = s."userId" AND x."id" = s."syncId"`,
+  categoryBudgets: Prisma.sql`SELECT 1 FROM "CategoryBudget" x WHERE x."userId" = s."userId" AND x."category" = s."syncId"`,
+  netWorth: Prisma.sql`SELECT 1 FROM "NetWorthEntry" x WHERE x."userId" = s."userId" AND x."id" = s."syncId"`,
 };
 
 /**
@@ -165,15 +211,21 @@ async function readItems(db: Db, userId: string, plan: PullPlan, n: number): Pro
   return rows.map((r) => ({ t: Number(r.t), e: r.e, k: r.k, deleted: r.d, data: r.data }));
 }
 
+/**
+ * The wire fields read as epoch milliseconds (sqlMillis) and sent as ISO
+ * timestamps; null stays null.
+ */
+const TIMESTAMP_FIELDS = ["createdAt", "paidAt"] as const;
+
 /** A row as the phone receives it: sync id, ISO timestamps. */
 function toWireRow(item: Item): WireRow {
-  const { clientUpdatedAt, createdAt, ...fields } = item.data as { clientUpdatedAt: number; createdAt?: number };
-  return {
-    id: item.k,
-    clientUpdatedAt: toWireTimestamp(Number(clientUpdatedAt)),
-    ...fields,
-    ...(createdAt === undefined ? {} : { createdAt: toWireTimestamp(Number(createdAt)) }),
-  };
+  const { clientUpdatedAt, ...fields } = item.data as { clientUpdatedAt: number } & Record<string, unknown>;
+  for (const field of TIMESTAMP_FIELDS) {
+    if (!(field in fields)) continue;
+    const ms = fields[field];
+    fields[field] = ms === null ? null : toWireTimestamp(Number(ms));
+  }
+  return { id: item.k, clientUpdatedAt: toWireTimestamp(Number(clientUpdatedAt)), ...fields };
 }
 
 /**

@@ -4,6 +4,7 @@ import {
   billReminderDeps,
   advanceMonth,
   shouldNotify,
+  rearmsNotifier,
   checkBillReminders,
   type BillReminderDeps,
   type DueBill,
@@ -32,6 +33,17 @@ test("shouldNotify does not re-fire for a due date already notified", () => {
 
 test("shouldNotify re-arms once the due date advances past the last send", () => {
   expect(shouldNotify(new Date("2026-08-18T09:00:00Z"), "2026-09-18")).toBe(true);
+});
+
+test("an edit re-arms the notifier only when it moves the due date later", () => {
+  expect(rearmsNotifier("2026-08-18", "2026-09-18")).toBe(true);
+  expect(rearmsNotifier("2026-08-18", "2026-08-19")).toBe(true);
+  // Saved again unchanged (a rename, marked unpaid), moved back, or not sent.
+  expect(rearmsNotifier("2026-08-18", "2026-08-18")).toBe(false);
+  expect(rearmsNotifier("2026-08-18", "2026-08-01")).toBe(false);
+  expect(rearmsNotifier("2026-08-18", undefined)).toBe(false);
+  // Across a year boundary, string order is still date order.
+  expect(rearmsNotifier("2026-12-31", "2027-01-01")).toBe(true);
 });
 
 /**
@@ -172,4 +184,8 @@ test("two instances checking at once notify a due bill once, through the real cl
   const after = await prisma.billReminder.findUnique({ where: { id: `${U}_rent` } });
   expect(after!.nextDueDate > today).toBe(true);
   expect(after!.lastNotifiedAt).not.toBeNull();
+  // The claim is a server write to a synced row: stamped by the database
+  // clock, so it beats a phone copy edited before it (Phase 4 decision 4).
+  expect(after!.clientUpdatedAt.getTime()).toBeGreaterThanOrEqual(now.getTime() - 1_000);
+  expect(after!.clientUpdatedAt.getTime()).toBeLessThanOrEqual(after!.serverUpdatedAt.getTime());
 });

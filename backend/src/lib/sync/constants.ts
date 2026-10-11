@@ -5,10 +5,17 @@
 
 /**
  * The entities the phone syncs, in the order a push is applied: settings and
- * categories first, accounts before the transactions that reference them,
- * subscriptions last.
+ * categories first, accounts before the transactions and recurring series
+ * that reference them, then subscriptions, and the four Phase 4 entities
+ * (Phase 4 decision 1, I-WIRE-4) after the five of Phase 3.
+ *
+ * A phone that predates an entity ignores its rows in a pull; a deletion of
+ * one it reports as an apply error and moves on (the cursor still advances).
  */
-export const SYNC_ENTITIES = ['settings', 'categories', 'accounts', 'transactions', 'subscriptions'] as const;
+export const SYNC_ENTITIES = [
+  'settings', 'categories', 'accounts', 'transactions', 'subscriptions',
+  'recurring', 'billReminders', 'categoryBudgets', 'netWorth',
+] as const;
 
 export type SyncEntity = (typeof SYNC_ENTITIES)[number];
 

@@ -6,9 +6,15 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { app } from "../index";
 import { prisma } from "../prisma";
-import { EPOCH_ISO, MAX_SYNC_ROWS, PULL_SAFETY_LAG_MS } from "../lib/sync/constants";
+import { EPOCH_ISO, MAX_SYNC_ROWS, PULL_SAFETY_LAG_MS, SYNC_ENTITIES } from "../lib/sync/constants";
 import { CURSOR_MAX_AGE_MS, decodeCursor, encodeCursor, userTag } from "../lib/sync/cursor";
+import { databaseNowMs } from "../lib/sync/sql";
 import { client, createTestUser, deleteTestUsers, type TestUser } from "../lib/sync/testing";
+import { processRecurring } from "../jobs/recurring-processor";
+import { occurrenceId } from "../jobs/recurring-booking";
+import { billReminderDeps, checkBillReminders, type BillReminderDeps } from "../jobs/bill-reminder-checker";
+import { dbToday } from "../lib/distributed/clock";
+import { advanceDays, anchorDayOf, computeNextDate } from "../lib/recurrence";
 
 const users: TestUser[] = [];
 async function newUser(label: string) {
@@ -39,6 +45,23 @@ const subRow = (id: string, cu: string) => ({
   id, clientUpdatedAt: cu, merchantDisplay: "Netflix", merchantNormalized: "netflix", cadence: "monthly",
   typicalAmount: 13.99, currency: "EUR", confidenceScore: 80, lastChargedAt: "2026-10-01", nextExpectedAt: "2026-11-01",
   status: "confirmed", cancelUrl: null, cancelNotes: null, source: "transaction", createdAt: cu,
+});
+// The four Phase 4 entities, in their wire shape (I-WIRE-4).
+const recRow = (id: string, cu: string, over: Record<string, unknown> = {}) => ({
+  id, clientUpdatedAt: cu, accountId: null, name: "Rent", amount: 900, category: "Housing", type: "Expense",
+  isImpulse: false, frequency: "monthly", startDate: "2026-10-01", nextDate: "2026-11-01", lastCreated: null,
+  isActive: true, currency: "EUR", createdAt: cu, ...over,
+});
+const billRow = (id: string, cu: string, over: Record<string, unknown> = {}) => ({
+  id, clientUpdatedAt: cu, name: "Power", amount: 60.5, dueDay: 5, category: "Bills", isRecurring: true,
+  isPaid: false, paidAt: null, nextDueDate: "2026-11-05", createdAt: cu, ...over,
+});
+const budgetRow = (category: string, cu: string, over: Record<string, unknown> = {}) => ({
+  id: category, clientUpdatedAt: cu, amount: 400, period: "monthly", createdAt: cu, ...over,
+});
+const nwRow = (id: string, cu: string, over: Record<string, unknown> = {}) => ({
+  id, clientUpdatedAt: cu, date: "2026-10-11", assets: 1000, liabilities: 250, netWorth: 750,
+  breakdown: '{"cash":1000,"card":-250}', createdAt: cu, ...over,
 });
 
 type Api = ReturnType<typeof client>;
@@ -90,6 +113,10 @@ describe("push", () => {
       accounts: [accRow(uid("acc"), t0, { isDefault: true })],
       transactions: [txRow(uid("tx"), t0, { accountId: uid("acc") })],
       subscriptions: [subRow("sub_netflix", t0)],
+      recurring: [recRow(uid("rec"), t0, { accountId: uid("acc") })],
+      billReminders: [billRow(uid("bill"), t0, { isPaid: true, paidAt: "2026-10-05T09:30:00.123Z" })],
+      categoryBudgets: [budgetRow("Food", t0)],
+      netWorth: [nwRow(uid("nw"), t0)],
     } });
     expect(push.status).toBe(200);
     expect(push.json.results).toEqual({
@@ -98,6 +125,10 @@ describe("push", () => {
       accounts: [{ id: uid("acc"), status: "applied" }],
       transactions: [{ id: uid("tx"), status: "applied" }],
       subscriptions: [{ id: "sub_netflix", status: "applied" }],
+      recurring: [{ id: uid("rec"), status: "applied" }],
+      billReminders: [{ id: uid("bill"), status: "applied" }],
+      categoryBudgets: [{ id: "Food", status: "applied" }],
+      netWorth: [{ id: uid("nw"), status: "applied" }],
     });
     expect(push.json.serverTime).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
 
@@ -109,6 +140,11 @@ describe("push", () => {
     expect(snap.json.changes.accounts).toEqual([accRow(uid("acc"), t0, { isDefault: true })]);
     expect(snap.json.changes.transactions).toEqual([txRow(uid("tx"), t0, { accountId: uid("acc") })]);
     expect(snap.json.changes.subscriptions).toEqual([subRow("sub_netflix", t0)]);
+    expect(snap.json.changes.recurring).toEqual([recRow(uid("rec"), t0, { accountId: uid("acc") })]);
+    expect(snap.json.changes.billReminders).toEqual([billRow(uid("bill"), t0, { isPaid: true, paidAt: "2026-10-05T09:30:00.123Z" })]);
+    expect(snap.json.changes.categoryBudgets).toEqual([budgetRow("Food", t0)]);
+    expect(snap.json.changes.netWorth).toEqual([nwRow(uid("nw"), t0)]);
+    expect(Object.keys(snap.json.changes)).toEqual([...SYNC_ENTITIES]);
     // Accounts travel with openingBalance only; balance is derived on the server...
     expect("balance" in snap.json.changes.accounts[0]).toBe(false);
     const stored = await prisma.bankAccount.findUniqueOrThrow({ where: { id: uid("acc") } });
@@ -545,5 +581,564 @@ describe("REST writes follow the sync model", () => {
     expect(tomb.clientUpdatedAt.getTime()).toBeGreaterThan(Date.parse(deviceEdit));
     const res = await A.api.post("/api/v1/sync/push", { changes: { transactions: [txRow(tx.json.id, deviceEdit)] } });
     expect(status(res, "transactions", tx.json.id)).toBe("stale");
+  });
+});
+
+// ─── Phase 4: recurring, bill reminders, category budgets, net worth ─────────
+
+/** A resting cursor past everything written so far: a pull from it carries only what changes next. */
+async function settled(user: TestUser): Promise<string> {
+  await Bun.sleep(5);
+  return encodeCursor({ mode: "rest", user: userTag(user.id), t: await databaseNowMs(prisma) });
+}
+
+type RowMaker = (id: string, cu: string, over?: Record<string, unknown>) => Record<string, unknown>;
+
+/**
+ * One entity's life on a phone, seen by a second device that is in sync:
+ * create, edit, delete, each pulled exactly; an older copy loses to each;
+ * a newer one resurrects the deleted row.
+ */
+async function roundTrip(label: string, entity: string, idOf: (uid: (s: string) => string) => string, make: RowMaker, edit: Record<string, unknown>) {
+  const { user, api, uid } = await newUser(label);
+  const id = idOf(uid);
+  const push = (rows: unknown[]) => api.post("/api/v1/sync/push", { changes: { [entity]: rows } });
+  const pull = async (cursor: string) => (await pullAll(api, cursor)).pages;
+
+  const c0 = await settled(user);
+  const t1 = iso(30_000);
+  expect(status(await push([make(id, t1)]), entity, id)).toBe("applied");
+  const created = await pull(c0);
+  expect(rowsOf(created, entity)).toEqual([make(id, t1)]);
+  // Only this entity moved; the other eight carry nothing.
+  expect(SYNC_ENTITIES.filter((e) => e !== entity).flatMap((e) => created.flatMap((p) => p.changes[e]))).toEqual([]);
+
+  const c1 = await settled(user);
+  const t2 = iso(20_000);
+  expect(status(await push([make(id, t2, edit)]), entity, id)).toBe("applied");
+  expect(rowsOf(await pull(c1), entity)).toEqual([make(id, t2, edit)]);
+  expect(status(await push([make(id, iso(25_000))]), entity, id)).toBe("stale");
+
+  const c2 = await settled(user);
+  const t3 = iso(10_000);
+  expect(status(await push([{ id, clientUpdatedAt: t3, deleted: true }]), entity, id)).toBe("applied");
+  const deleted = await pull(c2);
+  expect(rowsOf(deleted, entity)).toEqual([]);
+  expect(deleted.flatMap((p) => p.deletions)).toEqual([{ entity, id, clientUpdatedAt: t3 }]);
+  expect(await prisma.syncTombstone.count({ where: { userId: user.id, entity, syncId: id } })).toBe(1);
+
+  // An edit made before the delete cannot bring it back; one made after does.
+  expect(status(await push([make(id, iso(15_000), edit)]), entity, id)).toBe("stale");
+  const t4 = iso(5_000);
+  expect(status(await push([make(id, t4, edit)]), entity, id)).toBe("applied");
+  expect(await prisma.syncTombstone.count({ where: { userId: user.id, entity, syncId: id } })).toBe(0);
+  return { user, api, uid, id, t4 };
+}
+
+describe("phase4 sync: each new entity both ways", () => {
+  test("recurring: a series created, edited and deleted on a phone reaches the other device, the delete as a tombstone", async () => {
+    const { user, id } = await roundTrip("p4-rec", "recurring", (uid) => uid("rec"), recRow,
+      { name: "Rent (new flat)", amount: 950.25, frequency: "weekly", isActive: false, isImpulse: true, lastCreated: "2026-10-01" });
+    expect(await prisma.recurringTransaction.findUniqueOrThrow({ where: { id } })).toMatchObject({
+      userId: user.id, name: "Rent (new flat)", amount: 950.25, frequency: "weekly", isActive: false, lastCreated: "2026-10-01",
+    });
+  });
+
+  test("billReminders: a bill created, paid and deleted on a phone reaches the other device; paidAt travels as ISO", async () => {
+    const { id } = await roundTrip("p4-bill", "billReminders", (uid) => uid("bill"), billRow,
+      { isPaid: true, paidAt: "2026-10-06T10:00:00.250Z", nextDueDate: "2026-12-05", amount: 61 });
+    const stored = await prisma.billReminder.findUniqueOrThrow({ where: { id } });
+    expect([stored.isPaid, stored.paidAt?.toISOString(), stored.nextDueDate]).toEqual([true, "2026-10-06T10:00:00.250Z", "2026-12-05"]);
+  });
+
+  test("categoryBudgets: a budget is keyed by its category; created, changed and deleted it reaches the other device", async () => {
+    const { user } = await roundTrip("p4-budget", "categoryBudgets", () => "Food", budgetRow, { amount: 450, period: "weekly" });
+    const rows = await prisma.categoryBudget.findMany({ where: { userId: user.id } });
+    expect(rows.map((r) => [r.category, r.amount, r.period])).toEqual([["Food", 450, "weekly"]]);
+    // The row id is the server's own and never travels.
+    expect(rows[0]!.id).toStartWith("catbud_");
+  });
+
+  test("netWorth: a snapshot created, corrected and deleted reaches the other device; breakdown is JSON text", async () => {
+    const { id } = await roundTrip("p4-nw", "netWorth", (uid) => uid("nw"), nwRow,
+      { assets: 2000, liabilities: 300, netWorth: 1700, breakdown: null });
+    const stored = await prisma.netWorthEntry.findUniqueOrThrow({ where: { id } });
+    expect([stored.assets, stored.netWorth, stored.breakdown]).toEqual([2000, 1700, null]);
+  });
+});
+
+describe("phase4 sync: ownership and keys", () => {
+  test("another user's recurring, bill and net-worth ids are forbidden, to edit and to delete", async () => {
+    const A = await newUser("p4-iso-a");
+    const B = await newUser("p4-iso-b");
+    const t0 = iso(60_000);
+    await A.api.post("/api/v1/sync/push", { changes: {
+      recurring: [recRow(A.uid("rec"), t0)], billReminders: [billRow(A.uid("bill"), t0)], netWorth: [nwRow(A.uid("nw"), t0)],
+    } });
+
+    const hijack = await B.api.post("/api/v1/sync/push", { changes: {
+      recurring: [recRow(A.uid("rec"), iso(), { amount: 1 })],
+      billReminders: [{ id: A.uid("bill"), clientUpdatedAt: iso(), deleted: true }],
+      netWorth: [nwRow(A.uid("nw"), iso(), { assets: 1, liabilities: 0, netWorth: 1 })],
+    } });
+    expect([status(hijack, "recurring", A.uid("rec")), status(hijack, "billReminders", A.uid("bill")), status(hijack, "netWorth", A.uid("nw"))])
+      .toEqual(["forbidden", "forbidden", "forbidden"]);
+    expect((await prisma.recurringTransaction.findUniqueOrThrow({ where: { id: A.uid("rec") } })).amount).toBe(900);
+    expect(await prisma.billReminder.count({ where: { id: A.uid("bill") } })).toBe(1);
+    expect((await prisma.netWorthEntry.findUniqueOrThrow({ where: { id: A.uid("nw") } })).assets).toBe(1000);
+    expect(await prisma.syncTombstone.count({ where: { userId: B.user.id } })).toBe(0);
+
+    // B's snapshot holds none of A's rows.
+    const { pages } = await pullAll(B.api, null);
+    for (const entity of ["recurring", "billReminders", "netWorth"]) expect(rowsOf(pages, entity)).toEqual([]);
+  });
+
+  test("category budgets are per user by category: the same category is each user's own row", async () => {
+    const A = await newUser("p4-cat-a");
+    const B = await newUser("p4-cat-b");
+    await A.api.post("/api/v1/sync/push", { changes: { categoryBudgets: [budgetRow("Food", iso(60_000), { amount: 100 })] } });
+    const b = await B.api.post("/api/v1/sync/push", { changes: { categoryBudgets: [budgetRow("Food", iso(), { amount: 999 })] } });
+    expect(status(b, "categoryBudgets", "Food")).toBe("applied");
+    expect(await prisma.categoryBudget.findMany({ where: { userId: { in: [A.user.id, B.user.id] } }, orderBy: { amount: "asc" } }))
+      .toMatchObject([{ userId: A.user.id, category: "Food", amount: 100 }, { userId: B.user.id, category: "Food", amount: 999 }]);
+
+    // B deleting "Food" deletes B's, and only B's devices hear of it.
+    await B.api.post("/api/v1/sync/push", { changes: { categoryBudgets: [{ id: "Food", clientUpdatedAt: iso(), deleted: true }] } });
+    expect(await prisma.categoryBudget.count({ where: { userId: A.user.id, category: "Food" } })).toBe(1);
+    expect(rowsOf((await pullAll(A.api, null)).pages, "categoryBudgets").map((r) => [r.id, r.amount])).toEqual([["Food", 100]]);
+    const aIncremental = await pullAll(A.api, restingCursor(A.user, 60_000));
+    expect(aIncremental.pages.flatMap((p) => p.deletions)).toEqual([]);
+
+    // REST and sync write the one row per category: a REST upsert of the
+    // same category updates the synced row, and sync answers for it.
+    await A.api.post("/api/v1/category-budgets", { category: "Food", amount: 150 });
+    expect(await prisma.categoryBudget.count({ where: { userId: A.user.id } })).toBe(1);
+    await Bun.sleep(5);
+    const again = await A.api.post("/api/v1/sync/push", { changes: { categoryBudgets: [budgetRow("Food", iso(), { amount: 175 })] } });
+    expect(status(again, "categoryBudgets", "Food")).toBe("applied");
+    expect(await prisma.categoryBudget.findMany({ where: { userId: A.user.id } })).toMatchObject([{ category: "Food", amount: 175 }]);
+  });
+
+  test("a series names only the caller's accounts: its own (even one in the same push) linked, any other stored null", async () => {
+    const A = await newUser("p4-acc-a");
+    const B = await newUser("p4-acc-b");
+    await B.api.post("/api/v1/sync/push", { changes: { accounts: [accRow(B.uid("acc"), iso(60_000))] } });
+    const t = iso(30_000);
+    const res = await A.api.post("/api/v1/sync/push", { changes: {
+      // Sent before the account on purpose: accounts are applied first anyway.
+      recurring: [
+        recRow(A.uid("own"), t, { accountId: A.uid("acc") }),
+        recRow(A.uid("theirs"), t, { accountId: B.uid("acc") }),
+        recRow(A.uid("nowhere"), t, { accountId: "acc_nowhere" }),
+      ],
+      accounts: [accRow(A.uid("acc"), t)],
+    } });
+    expect(res.json.results.recurring.map((r: any) => r.status)).toEqual(["applied", "applied", "applied"]);
+    const stored = await prisma.recurringTransaction.findMany({ where: { userId: A.user.id }, orderBy: { id: "asc" } });
+    expect(Object.fromEntries(stored.map((r) => [r.id, r.accountId])))
+      .toEqual({ [A.uid("own")]: A.uid("acc"), [A.uid("theirs")]: null, [A.uid("nowhere")]: null });
+    // The phone pulls what was stored.
+    const pulled = rowsOf((await pullAll(A.api, null)).pages, "recurring");
+    expect(Object.fromEntries(pulled.map((r) => [r.id, r.accountId])))
+      .toEqual({ [A.uid("own")]: A.uid("acc"), [A.uid("theirs")]: null, [A.uid("nowhere")]: null });
+
+    // Deleting the account unlinks the series, and devices pull it unlinked.
+    const c = await settled(A.user);
+    await A.api.post("/api/v1/sync/push", { changes: { accounts: [{ id: A.uid("acc"), clientUpdatedAt: iso(), deleted: true }] } });
+    const after = await pullAll(A.api, c);
+    expect(rowsOf(after.pages, "recurring")).toEqual([expect.objectContaining({ id: A.uid("own"), accountId: null })]);
+    expect(after.pages.flatMap((p) => p.deletions)).toContainEqual(expect.objectContaining({ entity: "accounts", id: A.uid("acc") }));
+  });
+
+  test("invalid rows of the new entities are answered invalid and write nothing", async () => {
+    const { user, api, uid } = await newUser("p4-invalid");
+    const t = iso();
+    const res = await api.post("/api/v1/sync/push", { changes: {
+      recurring: [recRow(uid("r1"), t, { nextDate: "2026-02-30" }), recRow("r".repeat(101), t), recRow(uid("r2"), t, { frequency: "hourly" })],
+      billReminders: [billRow(uid("b1"), t, { dueDay: 0 }), billRow(uid("b2"), t, { paidAt: "yesterday" }), billRow(uid("b3"), t, { isPaid: "yes" })],
+      categoryBudgets: [budgetRow("Food", t, { period: "daily" }), budgetRow("x".repeat(51), t), budgetRow("Fun", t, { amount: -5 })],
+      netWorth: [nwRow(uid("n1"), t, { breakdown: '{"cash":"lots"}' }), nwRow(uid("n2"), t, { breakdown: { cash: 1 } }), nwRow(uid("n3"), t, { date: "11/10/2026" })],
+    } });
+    expect(res.status).toBe(200);
+    for (const entity of ["recurring", "billReminders", "categoryBudgets", "netWorth"]) {
+      expect(res.json.results[entity].map((r: any) => r.status)).toEqual(["invalid", "invalid", "invalid"]);
+    }
+    const counts = await Promise.all([
+      prisma.recurringTransaction.count({ where: { userId: user.id } }), prisma.billReminder.count({ where: { userId: user.id } }),
+      prisma.categoryBudget.count({ where: { userId: user.id } }), prisma.netWorthEntry.count({ where: { userId: user.id } }),
+    ]);
+    expect(counts).toEqual([0, 0, 0, 0]);
+  });
+
+  test("a REST breakdown must fit the 10,000 characters a push accepts, so every snapshot a phone pulls it can push back", async () => {
+    const { api } = await newUser("p4-nw-cap");
+    // {"k0000":1,"k0001":1,…}: 10 characters an entry with its comma, plus
+    // the braces less one comma, so 999 entries are 9,991 characters; a last
+    // amount of 1.23456789 (9 more characters than 1) makes exactly 10,000.
+    const atCap: Record<string, number> = Object.fromEntries(Array.from({ length: 999 }, (_, i) => [`k${String(i).padStart(4, "0")}`, 1]));
+    atCap.k0998 = 1.23456789;
+    expect(JSON.stringify(atCap).length).toBe(10_000);
+    const over = { ...atCap, k0998: 1.234567891 };
+    expect(JSON.stringify(over).length).toBe(10_001);
+
+    const refused = await api.post("/api/v1/net-worth", { date: "2026-10-11", assets: 1, liabilities: 0, breakdown: over });
+    expect(refused.status).toBe(400);
+    const kept = await api.post("/api/v1/net-worth", { date: "2026-10-11", assets: 1, liabilities: 0, breakdown: atCap });
+    expect(kept.status).toBe(201);
+
+    const pulled = rowsOf((await pullAll(api, null)).pages, "netWorth");
+    expect(pulled.map((r) => r.breakdown.length)).toEqual([10_000]);
+    await Bun.sleep(5);
+    const back = await api.post("/api/v1/sync/push", { changes: { netWorth: [{ ...pulled[0], assets: 2, netWorth: 2, clientUpdatedAt: iso() }] } });
+    expect(status(back, "netWorth", kept.json.id)).toBe("applied");
+  });
+
+  test("netWorth is stored as assets − liabilities whatever the phone computed, and pulled as stored", async () => {
+    const { api, uid } = await newUser("p4-nw-math");
+    await api.post("/api/v1/sync/push", { changes: { netWorth: [nwRow(uid("nw"), iso(), { assets: 1200.5, liabilities: 200.25, netWorth: 7 })] } });
+    expect((await prisma.netWorthEntry.findUniqueOrThrow({ where: { id: uid("nw") } })).netWorth).toBe(1000.25);
+    expect(rowsOf((await pullAll(api, null)).pages, "netWorth")[0].netWorth).toBe(1000.25);
+  });
+});
+
+describe("phase4 sync: rows written outside the sync", () => {
+  test("rows written through the old REST routes appear in the pull, in the wire shape", async () => {
+    const { user, api, uid } = await newUser("p4-rest");
+    const c0 = await settled(user);
+    await api.post("/api/v1/accounts", { id: uid("acc"), name: "Main", type: "checking" });
+    const rec = (await api.post("/api/v1/recurring", {
+      accountId: uid("acc"), name: "Gym", amount: 30, category: "Health", type: "Expense", frequency: "weekly",
+      startDate: "2026-10-01", nextDate: "2026-10-15",
+    })).json;
+    const bill = (await api.post("/api/v1/bill-reminders", { name: "Water", amount: 20, dueDay: 12, nextDueDate: "2026-10-12" })).json;
+    const budget = (await api.post("/api/v1/category-budgets", { category: "Food", amount: 300 })).json;
+    const nw = (await api.post("/api/v1/net-worth", {
+      date: "2026-10-11", assets: 5000, liabilities: 1200, breakdown: { savings: 5000, card: -1200 },
+    })).json;
+
+    const { pages } = await pullAll(api, c0);
+    expect(rowsOf(pages, "recurring")).toEqual([{
+      id: rec.id, clientUpdatedAt: rec.clientUpdatedAt, accountId: uid("acc"), name: "Gym", amount: 30, category: "Health",
+      type: "Expense", isImpulse: false, frequency: "weekly", startDate: "2026-10-01", nextDate: "2026-10-15",
+      lastCreated: null, isActive: true, currency: "USD", createdAt: rec.createdAt,
+    }]);
+    expect(rowsOf(pages, "billReminders")).toEqual([{
+      id: bill.id, clientUpdatedAt: bill.clientUpdatedAt, name: "Water", amount: 20, dueDay: 12, category: "Other",
+      isRecurring: true, isPaid: false, paidAt: null, nextDueDate: "2026-10-12", createdAt: bill.createdAt,
+    }]);
+    expect(rowsOf(pages, "categoryBudgets")).toEqual([
+      { id: "Food", clientUpdatedAt: budget.clientUpdatedAt, amount: 300, period: "monthly", createdAt: budget.createdAt },
+    ]);
+    expect(rowsOf(pages, "netWorth")).toEqual([{
+      id: nw.id, clientUpdatedAt: nw.clientUpdatedAt, date: "2026-10-11", assets: 5000, liabilities: 1200, netWorth: 3800,
+      breakdown: JSON.stringify({ savings: 5000, card: -1200 }), createdAt: nw.createdAt,
+    }]);
+
+    // A REST edit reaches devices too: paid, with the server's paidAt.
+    const c1 = await settled(user);
+    const paid = (await api.put(`/api/v1/bill-reminders/${bill.id}`, { isPaid: true })).json;
+    const after = rowsOf((await pullAll(api, c1)).pages, "billReminders");
+    expect(after).toEqual([expect.objectContaining({ id: bill.id, isPaid: true, paidAt: paid.paidAt, clientUpdatedAt: paid.clientUpdatedAt })]);
+    expect("lastNotifiedAt" in after[0]).toBe(false);
+  });
+
+  test("REST deletes reach devices as tombstones carrying the delete's time, so an older phone edit cannot undo them", async () => {
+    const { user, api } = await newUser("p4-rest-del");
+    const rec = (await api.post("/api/v1/recurring", {
+      name: "Gym", amount: 30, category: "Health", type: "Expense", frequency: "weekly", startDate: "2026-10-01", nextDate: "2026-10-15",
+    })).json;
+    const bill = (await api.post("/api/v1/bill-reminders", { name: "Water", amount: 20, dueDay: 12, nextDueDate: "2026-10-12" })).json;
+    const budget = (await api.post("/api/v1/category-budgets", { category: "Food", amount: 300 })).json;
+
+    const c = await settled(user);
+    const deviceEdit = iso();
+    await Bun.sleep(5);
+    expect((await api.del(`/api/v1/recurring/${rec.id}`)).status).toBe(200);
+    expect((await api.del(`/api/v1/bill-reminders/${bill.id}`)).status).toBe(200);
+    expect((await api.del(`/api/v1/category-budgets/${budget.id}`)).status).toBe(200);
+    expect((await api.del(`/api/v1/category-budgets/${budget.id}`)).status).toBe(404);
+
+    const deletions = (await pullAll(api, c)).pages.flatMap((p) => p.deletions);
+    expect(deletions.map((d: any) => `${d.entity}:${d.id}`).sort())
+      .toEqual([`billReminders:${bill.id}`, "categoryBudgets:Food", `recurring:${rec.id}`]);
+    for (const d of deletions) expect(Date.parse(d.clientUpdatedAt)).toBeGreaterThan(Date.parse(deviceEdit));
+
+    const late = await api.post("/api/v1/sync/push", { changes: {
+      recurring: [recRow(rec.id, deviceEdit)], billReminders: [billRow(bill.id, deviceEdit)], categoryBudgets: [budgetRow("Food", deviceEdit)],
+    } });
+    expect([status(late, "recurring", rec.id), status(late, "billReminders", bill.id), status(late, "categoryBudgets", "Food")])
+      .toEqual(["stale", "stale", "stale"]);
+  });
+
+  test("a budget moved to another category reaches devices as the new category and the old one's deletion", async () => {
+    const { user, api } = await newUser("p4-rekey");
+    await api.post("/api/v1/sync/push", { changes: { categoryBudgets: [budgetRow("Food", iso(60_000))] } });
+    const c = await settled(user);
+    // No route does this today; whatever does, the old key must not linger on phones.
+    await prisma.categoryBudget.update({
+      where: { userId_category: { userId: user.id, category: "Food" } },
+      data: { category: "Groceries", clientUpdatedAt: new Date() },
+    });
+    const { pages } = await pullAll(api, c);
+    expect(rowsOf(pages, "categoryBudgets").map((r) => r.id)).toEqual(["Groceries"]);
+    expect(pages.flatMap((p) => p.deletions).map((d: any) => `${d.entity}:${d.id}`)).toEqual(["categoryBudgets:Food"]);
+  });
+
+  test("a snapshot and an incremental pull page across all nine entities without losing or repeating an item", async () => {
+    const { user, api, uid } = await newUser("p4-pages");
+    const cursor = restingCursor(user, 1_000);
+    const t = iso(5_000);
+    await api.post("/api/v1/sync/push", { changes: {
+      settings: [settingsRow(t)],
+      transactions: [txRow(uid("t1"), t), txRow(uid("t2"), t)],
+      recurring: [1, 2, 3].map((i) => recRow(uid(`r${i}`), t)),
+      billReminders: [1, 2, 3].map((i) => billRow(uid(`b${i}`), t)),
+      categoryBudgets: ["Food", "Fun", "Gym"].map((c) => budgetRow(c, t)),
+      netWorth: [1, 2, 3].map((i) => nwRow(uid(`n${i}`), t)),
+    } });
+    await api.post("/api/v1/sync/push", { changes: {
+      recurring: [{ id: uid("r2"), clientUpdatedAt: iso(), deleted: true }],
+      billReminders: [{ id: uid("b1"), clientUpdatedAt: iso(), deleted: true }],
+      categoryBudgets: [{ id: "Fun", clientUpdatedAt: iso(), deleted: true }],
+      netWorth: [{ id: uid("n3"), clientUpdatedAt: iso(), deleted: true }],
+    } });
+
+    const live = new Set(["settings", uid("t1"), uid("t2"), uid("r1"), uid("r3"), uid("b2"), uid("b3"), "Food", "Gym", uid("n1"), uid("n2")]);
+    const gone = new Set([`recurring:${uid("r2")}`, `billReminders:${uid("b1")}`, "categoryBudgets:Fun", `netWorth:${uid("n3")}`]);
+    for (const limit of [1, 2, 5, 1000]) {
+      const inc = (await pullAll(api, cursor, limit)).pages;
+      const ids = inc.flatMap((p) => Object.values(p.changes).flat().map((r: any) => r.id));
+      const dels = inc.flatMap((p) => p.deletions.map((d: any) => `${d.entity}:${d.id}`));
+      expect([new Set(ids), ids.length]).toEqual([live, live.size]);
+      expect([new Set(dels), dels.length]).toEqual([gone, gone.size]);
+
+      const snap = (await pullAll(api, null, limit)).pages;
+      const snapIds = snap.flatMap((p) => Object.values(p.changes).flat().map((r: any) => r.id));
+      expect([new Set(snapIds), snapIds.length]).toEqual([live, live.size]);
+      expect(snap.every((p) => p.fullResync && p.deletions.length === 0)).toBe(true);
+    }
+  });
+});
+
+// ─── Server writes win (Phase 4 decision 4) ─────────────────────────────────
+
+/**
+ * A server write's stamp: the database clock at the write, so at most the
+ * row's own serverUpdatedAt (the trigger reads the same clock moments later),
+ * and later than the phone edit it must beat.
+ */
+function expectServerStamp(row: { clientUpdatedAt: Date; serverUpdatedAt: Date }, beats: string) {
+  const cu = row.clientUpdatedAt.getTime();
+  expect(cu).toBeGreaterThan(Date.parse(beats));
+  expect(cu).toBeLessThanOrEqual(row.serverUpdatedAt.getTime());
+  expect(row.serverUpdatedAt.getTime() - cu).toBeLessThan(5_000);
+  expect(Math.abs(cu - Date.now())).toBeLessThan(60_000);
+}
+
+/** The bill checker's real deps, scoped to one user (the database is shared), pushes recorded. */
+function checkerFor(userId: string, sent: string[]): BillReminderDeps {
+  return {
+    ...billReminderDeps,
+    findDueBills: async (t, s) => (await billReminderDeps.findDueBills(t, s)).filter((b) => b.userId === userId),
+    sendPush: async (_u, _title, body) => {
+      sent.push(body);
+    },
+  };
+}
+
+describe("server writes win", () => {
+  test("the recurring job's claim stamps the database clock: an older phone edit is stale and the pull returns the booked series", async () => {
+    const { user, api, uid } = await newUser("sw-job");
+    const today = await dbToday();
+    const id = uid("rec");
+    const t0 = iso(60_000);
+    await api.post("/api/v1/sync/push", { changes: { recurring: [recRow(id, t0, { startDate: today, nextDate: today })] } });
+    // Edited on a phone before the booking, pushed after it.
+    const phoneEdit = recRow(id, iso(30_000), { name: "Rent (edited)", startDate: today, nextDate: today, createdAt: t0 });
+
+    expect(await processRecurring({ userIds: [user.id] })).toBe(1);
+    const booked = await prisma.recurringTransaction.findUniqueOrThrow({ where: { id } });
+    expect([booked.lastCreated, booked.nextDate]).toEqual([today, computeNextDate(today, "monthly", anchorDayOf(today))]);
+    expectServerStamp(booked, phoneEdit.clientUpdatedAt);
+
+    const c = await settled(user);
+    expect(status(await api.post("/api/v1/sync/push", { changes: { recurring: [phoneEdit] } }), "recurring", id)).toBe("stale");
+    const { pages } = await pullAll(api, c);
+    expect(rowsOf(pages, "recurring")).toEqual([recRow(id, booked.clientUpdatedAt.toISOString(), {
+      startDate: today, nextDate: booked.nextDate, lastCreated: today, createdAt: t0,
+    })]);
+    expect((await prisma.recurringTransaction.findUniqueOrThrow({ where: { id } })).name).toBe("Rent");
+  });
+
+  test("run-now stamps the database clock the same way, booking and finishing an overdue series' move alike", async () => {
+    const { user, api, uid } = await newUser("sw-run");
+    const today = await dbToday();
+    const notDue = uid("gym");
+    const overdue = uid("old");
+    const past = advanceDays(today, -45);
+    await api.post("/api/v1/sync/push", { changes: { recurring: [
+      recRow(notDue, iso(60_000), { frequency: "weekly", startDate: today, nextDate: advanceDays(today, 3) }),
+      recRow(overdue, iso(60_000), { frequency: "weekly", startDate: past, nextDate: past }),
+    ] } });
+    const edits = [
+      recRow(notDue, iso(30_000), { name: "edited", frequency: "weekly", startDate: today, nextDate: advanceDays(today, 3) }),
+      recRow(overdue, iso(30_000), { name: "edited", frequency: "weekly", startDate: past, nextDate: past }),
+    ];
+
+    expect((await api.post(`/api/v1/recurring/${notDue}/run`)).status).toBe(201);
+    // The job books the overdue one a step; run-now then only moves it on (200).
+    await processRecurring({ userIds: [user.id] });
+    await Bun.sleep(5);
+    const beforeMove = Date.now();
+    const moved = await api.post(`/api/v1/recurring/${overdue}/run`);
+    expect([moved.status, moved.json.nextDate]).toEqual([200, advanceDays(today, 7)]);
+
+    for (const id of [notDue, overdue]) {
+      expectServerStamp(await prisma.recurringTransaction.findUniqueOrThrow({ where: { id } }), edits[0]!.clientUpdatedAt as string);
+    }
+    expect((await prisma.recurringTransaction.findUniqueOrThrow({ where: { id: overdue } })).clientUpdatedAt.getTime())
+      .toBeGreaterThanOrEqual(beforeMove - 5);
+
+    const c = await settled(user);
+    const res = await api.post("/api/v1/sync/push", { changes: { recurring: edits } });
+    expect([status(res, "recurring", notDue), status(res, "recurring", overdue)]).toEqual(["stale", "stale"]);
+    const pulled = rowsOf((await pullAll(api, c)).pages, "recurring");
+    expect(Object.fromEntries(pulled.map((r) => [r.id, [r.name, r.lastCreated, r.nextDate]]))).toEqual({
+      [notDue]: ["Rent", today, advanceDays(today, 7)],
+      [overdue]: ["Rent", today, advanceDays(today, 7)],
+    });
+    expect(await prisma.transaction.count({ where: { id: { in: [occurrenceId(notDue, today), occurrenceId(overdue, today)] } } })).toBe(2);
+  });
+
+  test("the bill checker's claim stamps the database clock: an older phone edit is stale and the pull returns the moved bill", async () => {
+    const { user, api, uid } = await newUser("sw-bill");
+    const today = new Date().toISOString().slice(0, 10);
+    const id = uid("bill");
+    const due = { nextDueDate: today, dueDay: Number(today.slice(8, 10)), isRecurring: true };
+    await api.post("/api/v1/sync/push", { changes: { billReminders: [billRow(id, iso(60_000), due)] } });
+    const phoneEdit = billRow(id, iso(30_000), { ...due, name: "Power (edited)" });
+
+    const sent: string[] = [];
+    await checkBillReminders(checkerFor(user.id, sent));
+    expect(sent).toHaveLength(1);
+    const claimed = await prisma.billReminder.findUniqueOrThrow({ where: { id } });
+    expect(claimed.nextDueDate > today).toBe(true);
+    expectServerStamp(claimed, phoneEdit.clientUpdatedAt as string);
+
+    const c = await settled(user);
+    expect(status(await api.post("/api/v1/sync/push", { changes: { billReminders: [phoneEdit] } }), "billReminders", id)).toBe("stale");
+    const pulled = rowsOf((await pullAll(api, c)).pages, "billReminders");
+    expect(pulled).toEqual([expect.objectContaining({
+      id, name: "Power", nextDueDate: claimed.nextDueDate, clientUpdatedAt: claimed.clientUpdatedAt.toISOString(),
+    })]);
+    expect("lastNotifiedAt" in pulled[0]).toBe(false);
+  });
+
+  test("REST writes of all four stamp the database clock: older phone edits are stale and the pull returns the server's rows", async () => {
+    const { user, api, uid } = await newUser("sw-rest");
+    const t0 = iso(60_000);
+    await api.post("/api/v1/sync/push", { changes: {
+      recurring: [recRow(uid("rec"), t0)], billReminders: [billRow(uid("bill"), t0)], categoryBudgets: [budgetRow("Food", t0)],
+    } });
+    const before = iso(30_000);
+
+    expect((await api.put(`/api/v1/recurring/${uid("rec")}`, { name: "Rent (REST)" })).status).toBe(200);
+    expect((await api.put(`/api/v1/bill-reminders/${uid("bill")}`, { amount: 70 })).status).toBe(200);
+    expect((await api.post("/api/v1/category-budgets", { category: "Food", amount: 500 })).status).toBe(200);
+    const nw = await api.post("/api/v1/net-worth", { date: "2026-10-11", assets: 10, liabilities: 0 });
+    expect(nw.status).toBe(201);
+
+    const [rec, bill, budget, snapshot] = await Promise.all([
+      prisma.recurringTransaction.findUniqueOrThrow({ where: { id: uid("rec") } }),
+      prisma.billReminder.findUniqueOrThrow({ where: { id: uid("bill") } }),
+      prisma.categoryBudget.findUniqueOrThrow({ where: { userId_category: { userId: user.id, category: "Food" } } }),
+      prisma.netWorthEntry.findUniqueOrThrow({ where: { id: nw.json.id } }),
+    ]);
+    for (const row of [rec, bill, budget, snapshot]) expectServerStamp(row, before);
+
+    const c = await settled(user);
+    const res = await api.post("/api/v1/sync/push", { changes: {
+      recurring: [recRow(uid("rec"), before, { name: "phone" })], billReminders: [billRow(uid("bill"), before, { amount: 1 })],
+      categoryBudgets: [budgetRow("Food", before, { amount: 1 })], netWorth: [nwRow(nw.json.id, before, { assets: 1, liabilities: 0, netWorth: 1 })],
+    } });
+    expect([status(res, "recurring", uid("rec")), status(res, "billReminders", uid("bill")),
+      status(res, "categoryBudgets", "Food"), status(res, "netWorth", nw.json.id)]).toEqual(["stale", "stale", "stale", "stale"]);
+    const { pages } = await pullAll(api, c);
+    expect([rowsOf(pages, "recurring")[0].name, rowsOf(pages, "billReminders")[0].amount,
+      rowsOf(pages, "categoryBudgets")[0].amount, rowsOf(pages, "netWorth")[0].assets]).toEqual(["Rent (REST)", 70, 500, 10]);
+  });
+
+  test("a pushed bill update re-arms the notifier only when it moves nextDueDate later; REST follows the same rule", async () => {
+    const { user, api, uid } = await newUser("sw-rearm");
+    const today = new Date().toISOString().slice(0, 10);
+    const id = uid("bill");
+    const oneOff = { nextDueDate: today, dueDay: Number(today.slice(8, 10)), isRecurring: false };
+    await api.post("/api/v1/sync/push", { changes: { billReminders: [billRow(id, iso(60_000), oneOff)] } });
+    const sent: string[] = [];
+    const check = () => checkBillReminders(checkerFor(user.id, sent));
+    await check();
+    expect(sent).toHaveLength(1);
+    const notifiedAt = (await prisma.billReminder.findUniqueOrThrow({ where: { id } })).lastNotifiedAt;
+    expect(notifiedAt).not.toBeNull();
+    const armed = async () => (await prisma.billReminder.findUniqueOrThrow({ where: { id } })).lastNotifiedAt === null;
+
+    const push = async (over: Record<string, unknown>) => {
+      await Bun.sleep(5);
+      const res = await api.post("/api/v1/sync/push", { changes: { billReminders: [billRow(id, iso(), { ...oneOff, ...over })] } });
+      expect(status(res, "billReminders", id)).toBe("applied");
+    };
+    // The same date (a rename, marking it unpaid again): still spent.
+    await push({ name: "Power (renamed)" });
+    expect(await armed()).toBe(false);
+    // An earlier date, one it already fired for: still spent.
+    await push({ nextDueDate: advanceDays(today, -1) });
+    expect(await armed()).toBe(false);
+    await check();
+    expect(sent).toHaveLength(1);
+    // A later date: re-armed for it.
+    await push({ nextDueDate: advanceDays(today, 30) });
+    expect(await armed()).toBe(true);
+
+    // REST: notified again for today, then the same rule.
+    await prisma.billReminder.update({ where: { id }, data: { nextDueDate: today, lastNotifiedAt: notifiedAt } });
+    expect((await api.put(`/api/v1/bill-reminders/${id}`, { isPaid: false, nextDueDate: today })).status).toBe(200);
+    expect(await armed()).toBe(false);
+    expect((await api.put(`/api/v1/bill-reminders/${id}`, { nextDueDate: advanceDays(today, -2) })).status).toBe(200);
+    expect(await armed()).toBe(false);
+    expect((await api.put(`/api/v1/bill-reminders/${id}`, { nextDueDate: advanceDays(today, 31) })).status).toBe(200);
+    expect(await armed()).toBe(true);
+  });
+
+  test("a newer edit that has not seen the latest booking keeps the server's nextDate and lastCreated, by push and by REST", async () => {
+    const { user, api, uid } = await newUser("sw-stale-next");
+    const today = await dbToday();
+    const id = uid("rec");
+    const series = { startDate: today, nextDate: today, lastCreated: null };
+    await api.post("/api/v1/sync/push", { changes: { recurring: [recRow(id, iso(60_000), series)] } });
+    expect(await processRecurring({ userIds: [user.id] })).toBe(1);
+    const next = computeNextDate(today, "monthly", anchorDayOf(today));
+
+    // An old copy edited after the booking (so it wins) but read before it.
+    await Bun.sleep(5);
+    const res = await api.post("/api/v1/sync/push", { changes: { recurring: [recRow(id, iso(), { ...series, name: "Renamed" })] } });
+    expect(status(res, "recurring", id)).toBe("applied");
+    const kept = await prisma.recurringTransaction.findUniqueOrThrow({ where: { id } });
+    expect([kept.name, kept.lastCreated, kept.nextDate]).toEqual(["Renamed", today, next]);
+    // So the job does not book again, and the phone pulls the merged row.
+    expect(await processRecurring({ userIds: [user.id] })).toBe(0);
+    expect(rowsOf((await pullAll(api, null)).pages, "recurring")[0]).toMatchObject({ name: "Renamed", lastCreated: today, nextDate: next });
+
+    // A copy that has seen the booking moves nextDate as asked.
+    await Bun.sleep(5);
+    const later = advanceDays(next, 3);
+    await api.post("/api/v1/sync/push", { changes: { recurring: [recRow(id, iso(), { ...series, lastCreated: today, nextDate: later })] } });
+    expect((await prisma.recurringTransaction.findUniqueOrThrow({ where: { id } })).nextDate).toBe(later);
+
+    // REST: the whole row read before the booking (lastCreated null) keeps it;
+    // a PUT that names only nextDate means it.
+    const stale = await api.put(`/api/v1/recurring/${id}`, { ...series, isActive: false });
+    expect([stale.status, stale.json.isActive, stale.json.lastCreated, stale.json.nextDate]).toEqual([200, false, today, later]);
+    const meant = await api.put(`/api/v1/recurring/${id}`, { nextDate: next });
+    expect([meant.json.lastCreated, meant.json.nextDate]).toEqual([today, next]);
   });
 });

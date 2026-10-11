@@ -8,8 +8,9 @@ datasource db {
 }
 
 // ─── Sync columns ────────────────────────────────────────────────────────────
-// The five tables the phone syncs (Transaction, BankAccount, UserSettings,
-// CustomCategory, Subscription) carry two timestamps:
+// The nine tables the phone syncs (Transaction, BankAccount, UserSettings,
+// CustomCategory, Subscription; since Phase 4 RecurringTransaction,
+// BillReminder, CategoryBudget, NetWorthEntry) carry two timestamps:
 //
 //   clientUpdatedAt  When the change was made on a client (server-created rows
 //                    use the server's time). Last writer wins by this value.
@@ -19,9 +20,14 @@ datasource db {
 //                    app: @updatedAt is each instance's own clock, and two
 //                    instances' clocks cannot order one ledger.
 //
-// The triggers live in the init migration (prisma/migrations/*_postgres_init):
-// serverUpdatedAt, BankAccount.balance derived from the ledger, and a
-// SyncTombstone row for every delete of a synced row, however it happened.
+// The triggers live in the init migration (prisma/migrations/*_postgres_init)
+// and, for the Phase 4 tables, in *_phase4_offline_sync: serverUpdatedAt,
+// BankAccount.balance derived from the ledger, and a SyncTombstone row for
+// every delete of a synced row, however it happened.
+//
+// Server-side writes to a synced row (a REST route, the recurring job, the
+// bill checker) set clientUpdatedAt from the database clock, so the server's
+// change wins over an older phone copy (Phase 4 decision 4).
 
 model User {
   id                    String                 @id
@@ -103,33 +109,34 @@ model Verification {
 }
 
 model BankAccount {
-  id                String        @id
-  userId            String
-  user              User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name              String
-  type              String // cash|checking|savings|credit|investment|other
+  id                    String                 @id
+  userId                String
+  user                  User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name                  String
+  type                  String // cash|checking|savings|credit|investment|other
   /// The balance before any transaction in the ledger. The one balance input.
-  openingBalance    Float         @default(0)
+  openingBalance        Float                  @default(0)
   /// Derived, never written by the app: a trigger keeps it equal to
   /// openingBalance + Σ Income − Σ Expense of this account's transactions,
   /// on every transaction insert, update and delete and on every write of
   /// openingBalance. The phone derives it the same way and never sends it.
-  balance           Float         @default(0)
-  currency          String        @default("USD")
-  color             String        @default("#a855f7")
-  icon              String        @default("wallet")
-  isDefault         Boolean       @default(false)
+  balance               Float                  @default(0)
+  currency              String                 @default("USD")
+  color                 String                 @default("#a855f7")
+  icon                  String                 @default("wallet")
+  isDefault             Boolean                @default(false)
   /// Opt-in: when set, this account is visible IN FULL to that group,
   /// regardless of the owner's shareLevel. This is how a couple share a
   /// joint account without the app inventing joint ownership.
-  sharedWithGroupId String?
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
-  clientUpdatedAt   DateTime      @default(now())
+  sharedWithGroupId     String?
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  clientUpdatedAt       DateTime               @default(now())
   /// Set by trigger (clock_timestamp()); see the sync note at the top.
-  serverUpdatedAt   DateTime      @default(now())
-  transactions      Transaction[]
-  sharedWithGroup   Group?        @relation(fields: [sharedWithGroupId], references: [id], onDelete: SetNull)
+  serverUpdatedAt       DateTime               @default(now())
+  transactions          Transaction[]
+  recurringTransactions RecurringTransaction[]
+  sharedWithGroup       Group?                 @relation(fields: [sharedWithGroupId], references: [id], onDelete: SetNull)
 
   @@index([sharedWithGroupId])
   @@index([userId, serverUpdatedAt])
@@ -187,74 +194,98 @@ model UserSettings {
 }
 
 model BillReminder {
-  id             String    @id
-  userId         String
-  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name           String
-  amount         Float
-  dueDay         Int // day of month (1-31)
-  category       String    @default("Other")
-  isRecurring    Boolean   @default(true)
-  isPaid         Boolean   @default(false)
-  paidAt         DateTime?
-  nextDueDate    String // YYYY-MM-DD
+  id              String    @id
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name            String
+  amount          Float
+  dueDay          Int // day of month (1-31)
+  category        String    @default("Other")
+  isRecurring     Boolean   @default(true)
+  isPaid          Boolean   @default(false)
+  paidAt          DateTime?
+  nextDueDate     String // YYYY-MM-DD
   // Last push sent for the *current* nextDueDate. Guards the 5-minute checker
   // against re-notifying a bill that has already fired for this due date —
   // non-recurring bills never advance nextDueDate, so without this they match
-  // the due query on every tick forever.
-  lastNotifiedAt DateTime?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  // the due query on every tick forever. Server-only: not on the sync wire. A
+  // write that moves nextDueDate later re-arms it (sets it null).
+  lastNotifiedAt  DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  clientUpdatedAt DateTime  @default(now())
+  /// Set by trigger (clock_timestamp()); see the sync note at the top.
+  serverUpdatedAt DateTime  @default(now())
 
   @@index([userId, nextDueDate])
+  @@index([userId, serverUpdatedAt])
 }
 
 model RecurringTransaction {
-  id          String   @id
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  accountId   String?
-  name        String
-  amount      Float
-  category    String
-  type        String // Expense|Income
-  isImpulse   Boolean  @default(false)
-  frequency   String // daily|weekly|biweekly|monthly|yearly
-  startDate   String // YYYY-MM-DD
-  nextDate    String // YYYY-MM-DD
-  lastCreated String? // YYYY-MM-DD
-  isActive    Boolean  @default(true)
-  currency    String   @default("USD")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id              String       @id
+  userId          String
+  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Where occurrences are booked: always one of the owner's accounts, or
+  /// null (then the owner's default account). Unlinked when it is deleted.
+  accountId       String?
+  account         BankAccount? @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  name            String
+  amount          Float
+  category        String
+  type            String // Expense|Income
+  isImpulse       Boolean      @default(false)
+  frequency       String // daily|weekly|biweekly|monthly|yearly
+  startDate       String // YYYY-MM-DD
+  nextDate        String // YYYY-MM-DD
+  lastCreated     String? // YYYY-MM-DD
+  isActive        Boolean      @default(true)
+  currency        String       @default("USD")
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  clientUpdatedAt DateTime     @default(now())
+  /// Set by trigger (clock_timestamp()); see the sync note at the top.
+  serverUpdatedAt DateTime     @default(now())
 
   @@index([userId])
   @@index([isActive, nextDate])
+  @@index([userId, serverUpdatedAt])
+  @@index([accountId])
 }
 
 model NetWorthEntry {
-  id          String   @id
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  date        String // YYYY-MM-DD
-  assets      Float    @default(0)
-  liabilities Float    @default(0)
-  netWorth    Float    @default(0)
-  breakdown   String? // JSON string
-  createdAt   DateTime @default(now())
+  id              String   @id
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date            String // YYYY-MM-DD
+  assets          Float    @default(0)
+  liabilities     Float    @default(0)
+  netWorth        Float    @default(0)
+  breakdown       String? // JSON string
+  createdAt       DateTime @default(now())
+  clientUpdatedAt DateTime @default(now())
+  /// Set by trigger (clock_timestamp()); see the sync note at the top.
+  serverUpdatedAt DateTime @default(now())
+
+  @@index([userId, serverUpdatedAt])
 }
 
+// Synced by category (the phone's sync id), not by id: one budget per
+// category per user.
 model CategoryBudget {
-  id        String   @id
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  category  String
-  amount    Float
-  period    String   @default("monthly")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id              String   @id
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category        String
+  amount          Float
+  period          String   @default("monthly")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  clientUpdatedAt DateTime @default(now())
+  /// Set by trigger (clock_timestamp()); see the sync note at the top.
+  serverUpdatedAt DateTime @default(now())
 
   @@unique([userId, category])
+  @@index([userId, serverUpdatedAt])
 }
 
 // Persisted gamification: a badge stays earned even after the underlying
@@ -554,9 +585,12 @@ model Subscription {
 // Written by an AFTER DELETE trigger on each synced table, which catches every
 // delete path (REST, sync push, cascades, bank unlink) without each route
 // remembering to. entity: transactions|accounts|settings|categories|
-// subscriptions. syncId is the row's sync id: `id` for transactions and
-// accounts, "settings" for the settings row, `name` for a category, `syncId`
-// for a subscription.
+// subscriptions|recurring|billReminders|categoryBudgets|netWorth. syncId is
+// the row's sync id: `id` for transactions, accounts, recurring series, bill
+// reminders and net-worth snapshots, "settings" for the settings row, `name`
+// for a category, `category` for a category budget, `syncId` for a
+// subscription. A category budget moved to another category also leaves one
+// for its old category (an AFTER UPDATE trigger).
 //
 // Deliberately no relation to User: deleting a user cascades into the synced
 // tables, whose triggers then write here, and a foreign key back to the user

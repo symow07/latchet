@@ -3,7 +3,8 @@
  * REST routes share with them.
  *
  * One definition per field, used twice: the REST routes (transactions.ts,
- * accounts.ts, settings.ts) wrap these with their own optional/default
+ * accounts.ts, settings.ts, recurring.ts, bill-reminders.ts,
+ * category-budgets.ts, net-worth.ts) wrap these with their own optional/default
  * handling, and SYNC_ROW_SCHEMAS requires every field, since a sync row is a
  * whole row and replaces the stored one. A rule changed here changes both.
  *
@@ -12,7 +13,7 @@
  * here may pull in Prisma, auth or env.
  */
 import { z } from "zod";
-import { isoDate, transactionType, accountType, MAX_MONEY } from "../schemas";
+import { isoDate, transactionType, accountType, money, signedMoney, recurrenceFrequency, MAX_MONEY } from "../schemas";
 import type { SyncEntity } from "./constants";
 
 /** Half of a UTF-16 surrogate pair with no other half: not encodable as UTF-8. */
@@ -68,6 +69,43 @@ export const isoTimestamp = z
 export function toWireTimestamp(ms: number): string {
   return new Date(ms).toISOString();
 }
+
+/**
+ * A YYYY-MM-DD date that exists on the calendar. The recurring job and the
+ * bill checker do date arithmetic on these, and 2026-02-31 would send a
+ * series somewhere nobody asked for.
+ */
+export const calendarDate = isoDate.refine((s) => parseIsoTimestamp(s) !== null, "Not a calendar date");
+
+/** The most a net-worth breakdown may hold, as JSON text, however it is written. */
+export const MAX_BREAKDOWN_CHARS = 10_000;
+
+/** A net-worth breakdown: amounts by name. */
+export const breakdownObject = z.record(z.string(), signedMoney);
+
+/**
+ * A breakdown as POST /net-worth accepts it: an object, stored as its JSON
+ * text, which must fit what a push accepts (breakdownText) — or a phone that
+ * pulled it could never push the snapshot back.
+ */
+export const breakdownInput = breakdownObject.refine(
+  (b) => JSON.stringify(b).length <= MAX_BREAKDOWN_CHARS,
+  `A breakdown may be at most ${MAX_BREAKDOWN_CHARS} characters as JSON`
+);
+
+/**
+ * A net-worth breakdown on the wire: the JSON text of a breakdownObject, as
+ * the column stores it (the phone parses it), or null.
+ */
+export const breakdownText = storableText(2, MAX_BREAKDOWN_CHARS)
+  .refine((s) => {
+    try {
+      return breakdownObject.safeParse(JSON.parse(s)).success;
+    } catch {
+      return false;
+    }
+  }, "Expected the JSON text of an object of amounts")
+  .nullable();
 
 // ─── Field rules ─────────────────────────────────────────────────────────────
 
@@ -147,6 +185,62 @@ export const subscriptionFields = {
   source: z.enum(["transaction", "email"]),
 };
 
+/**
+ * Recurring series fields (routes/recurring.ts). `nextDate` and `lastCreated`
+ * are also written by the server when it books an occurrence; a push that
+ * has not seen the latest booking does not move them back (push.ts).
+ */
+export const recurringFields = {
+  // An account the caller does not own, or that does not exist, is stored as
+  // null, as for transactions (resolveAccountId); REST refuses one with a 400.
+  accountId: storableText(0, 200).nullable(),
+  name: storableText(1, 100),
+  amount: money,
+  category: storableText(1, 50),
+  type: transactionType,
+  isImpulse: z.boolean(),
+  frequency: recurrenceFrequency,
+  startDate: calendarDate,
+  nextDate: calendarDate,
+  lastCreated: calendarDate.nullable(),
+  isActive: z.boolean(),
+  currency: storableText(1, 5),
+};
+
+/**
+ * Bill reminder fields (routes/bill-reminders.ts). lastNotifiedAt is the
+ * server's own and never on the wire.
+ */
+export const billReminderFields = {
+  name: storableText(1, 100),
+  amount: money,
+  dueDay: z.number().int().min(1).max(31),
+  category: storableText(1, 50),
+  isRecurring: z.boolean(),
+  isPaid: z.boolean(),
+  /** ISO on the wire, epoch milliseconds once parsed. */
+  paidAt: isoTimestamp.nullable(),
+  nextDueDate: calendarDate,
+};
+
+/** Category budget fields; the category is the row's sync id. */
+export const categoryBudgetFields = {
+  amount: money,
+  period: z.enum(["weekly", "monthly", "yearly"]),
+};
+
+/**
+ * Net-worth snapshot fields. netWorth is always stored as assets −
+ * liabilities, whatever was sent, as POST /net-worth computes it.
+ */
+export const netWorthFields = {
+  date: calendarDate,
+  assets: money,
+  liabilities: money,
+  netWorth: signedMoney,
+  breakdown: breakdownText,
+};
+
 // ─── Sync rows ───────────────────────────────────────────────────────────────
 
 /**
@@ -161,14 +255,23 @@ export const SYNC_ROW_SCHEMAS = {
   accounts: z.object({ ...accountFields, createdAt: isoTimestamp }),
   transactions: z.object({ ...transactionFields, createdAt: isoTimestamp }),
   subscriptions: z.object({ ...subscriptionFields, createdAt: isoTimestamp }),
+  recurring: z.object({ ...recurringFields, createdAt: isoTimestamp }),
+  billReminders: z.object({ ...billReminderFields, createdAt: isoTimestamp }),
+  categoryBudgets: z.object({ ...categoryBudgetFields, createdAt: isoTimestamp }),
+  netWorth: z.object({ ...netWorthFields, createdAt: isoTimestamp }),
 } satisfies Record<SyncEntity, z.ZodObject>;
 
 export type SyncRowValues<E extends SyncEntity> = z.output<(typeof SYNC_ROW_SCHEMAS)[E]>;
 
 /**
  * The sync id of a row per entity: the settings row is always "settings", a
- * category is keyed by its name (1–50, as on the phone), anything else by an
- * id the phone minted.
+ * category is keyed by its name (1–50, as on the phone) and a category budget
+ * by its category, anything else by its id — minted by the phone, or by the
+ * server for a row made over REST (rec_…, bill_…, nw_…; any existing id).
+ *
+ * A recurring series' id is at most 100 characters because its occurrences
+ * are named tx_rec_<id>_<YYYY-MM-DD>, and those must fit the 200 of a
+ * transaction id.
  */
 const SYNC_ID_RULES: Record<SyncEntity, z.ZodType<string>> = {
   settings: z.literal("settings"),
@@ -176,6 +279,10 @@ const SYNC_ID_RULES: Record<SyncEntity, z.ZodType<string>> = {
   accounts: storableText(1, 200),
   transactions: storableText(1, 200),
   subscriptions: storableText(1, 200),
+  recurring: storableText(1, 100),
+  billReminders: storableText(1, 200),
+  categoryBudgets: storableText(1, 50),
+  netWorth: storableText(1, 200),
 };
 
 /** One pushed row, validated: an upsert with its values, or a delete. */

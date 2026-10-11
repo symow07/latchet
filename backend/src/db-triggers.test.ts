@@ -1,6 +1,8 @@
 /**
  * The database triggers from the init migration, exercised against the real
- * test database (prisma/migrations/20261011120000_postgres_init).
+ * test database (prisma/migrations/20261011120000_postgres_init), and the
+ * ones the Phase 4 migration adds for the four tables it makes synced
+ * (prisma/migrations/20261012000000_phase4_offline_sync).
  *
  *   serverUpdatedAt  stamped by the database clock, in UTC, on every write
  *   balance          openingBalance + Σ Income − Σ Expense, kept by trigger
@@ -384,4 +386,126 @@ test("deleting a user cascades through every synced table without failing", asyn
     .map((r) => r.entity)
     .sort();
   expect(entities).toEqual(["accounts", "categories", "settings", "subscriptions", "transactions", "transactions"]);
+});
+
+// ── Phase 4 tables: recurring, bill reminders, category budgets, net worth ───
+
+/** One row of each Phase 4 table for `userId`, created through Prisma with a forged serverUpdatedAt. */
+async function phase4Rows(userId: string, clientUpdatedAt = new Date()) {
+  const forged = new Date(0);
+  const rec = await prisma.recurringTransaction.create({ data: {
+    id: id("rec"), userId, name: "Rent", amount: 900, category: "Housing", type: "Expense", frequency: "monthly",
+    startDate: "2026-10-01", nextDate: "2026-11-01", clientUpdatedAt, serverUpdatedAt: forged,
+  } });
+  const bill = await prisma.billReminder.create({ data: {
+    id: id("bill"), userId, name: "Power", amount: 60, dueDay: 5, nextDueDate: "2026-11-05", clientUpdatedAt, serverUpdatedAt: forged,
+  } });
+  const budget = await prisma.categoryBudget.create({ data: {
+    id: id("cb"), userId, category: "Food", amount: 400, clientUpdatedAt, serverUpdatedAt: forged,
+  } });
+  const nw = await prisma.netWorthEntry.create({ data: {
+    id: id("nw"), userId, date: "2026-10-11", assets: 1000, liabilities: 200, netWorth: 800, clientUpdatedAt, serverUpdatedAt: forged,
+  } });
+  return { rec, bill, budget, nw };
+}
+
+test("the Phase 4 tables are stamped by the database's UTC clock on insert and update, and cannot be forged", async () => {
+  const user = await makeUser("p4stamp");
+  const start = Date.now();
+  const rows = await phase4Rows(user);
+  for (const row of Object.values(rows)) {
+    expect(Math.abs(row.serverUpdatedAt.getTime() - start)).toBeLessThan(60_000);
+  }
+
+  await Bun.sleep(5);
+  const updates = [
+    prisma.recurringTransaction.update({ where: { id: rows.rec.id }, data: { name: "Rent+", serverUpdatedAt: new Date(0) } }),
+    prisma.billReminder.update({ where: { id: rows.bill.id }, data: { amount: 61, serverUpdatedAt: new Date(0) } }),
+    prisma.categoryBudget.update({ where: { id: rows.budget.id }, data: { amount: 401, serverUpdatedAt: new Date(0) } }),
+    prisma.netWorthEntry.update({ where: { id: rows.nw.id }, data: { assets: 1001, serverUpdatedAt: new Date(0) } }),
+  ];
+  const updated = await Promise.all(updates);
+  const before = [rows.rec, rows.bill, rows.budget, rows.nw];
+  updated.forEach((row, i) => expect(row.serverUpdatedAt.getTime()).toBeGreaterThan(before[i]!.serverUpdatedAt.getTime()));
+
+  // Raw SQL, in the server's own (non-UTC) session zone, cannot set it either.
+  await prisma.$executeRawUnsafe(`UPDATE "BillReminder" SET "serverUpdatedAt" = '2000-01-01' WHERE "id" = $1`, rows.bill.id);
+  const raw = await prisma.billReminder.findUniqueOrThrow({ where: { id: rows.bill.id } });
+  expect(Math.abs(raw.serverUpdatedAt.getTime() - Date.now())).toBeLessThan(60_000);
+});
+
+test("deleting a Phase 4 row tombstones it under its entity and sync id (a budget under its category), with its client time", async () => {
+  const user = await makeUser("p4tomb");
+  const clientTime = new Date("2026-10-01T12:00:00.000Z");
+  const { rec, bill, budget, nw } = await phase4Rows(user, clientTime);
+
+  await prisma.recurringTransaction.delete({ where: { id: rec.id } });
+  await prisma.billReminder.delete({ where: { id: bill.id } });
+  await prisma.categoryBudget.delete({ where: { id: budget.id } });
+  await prisma.netWorthEntry.delete({ where: { id: nw.id } });
+
+  const tombs = await prisma.syncTombstone.findMany({ where: { userId: user }, orderBy: { entity: "asc" } });
+  expect(tombs.map((t) => [t.entity, t.syncId, t.clientUpdatedAt.toISOString()])).toEqual([
+    ["billReminders", bill.id, clientTime.toISOString()],
+    ["categoryBudgets", "Food", clientTime.toISOString()],
+    ["netWorth", nw.id, clientTime.toISOString()],
+    ["recurring", rec.id, clientTime.toISOString()],
+  ]);
+
+  // The Phase 3 arms are all still there.
+  const acc = await makeAccount(user, 0);
+  await prisma.customCategory.create({ data: { userId: user, name: "Pets" } });
+  await prisma.customCategory.delete({ where: { userId_name: { userId: user, name: "Pets" } } });
+  await prisma.bankAccount.delete({ where: { id: acc } });
+  expect(await tombstone(user, "categories", "Pets")).not.toBeNull();
+  expect(await tombstone(user, "accounts", acc)).not.toBeNull();
+});
+
+test("a category budget moved to another category leaves a tombstone for the old one, at the move's time", async () => {
+  const user = await makeUser("p4rekey");
+  const { budget } = await phase4Rows(user, new Date("2026-10-01T00:00:00.000Z"));
+  const moved = new Date("2026-10-05T00:00:00.000Z");
+
+  await prisma.categoryBudget.update({ where: { id: budget.id }, data: { amount: 450 } });
+  expect(await prisma.syncTombstone.count({ where: { userId: user } })).toBe(0);
+
+  await prisma.categoryBudget.update({ where: { id: budget.id }, data: { category: "Groceries", clientUpdatedAt: moved } });
+  const old = await tombstone(user, "categoryBudgets", "Food");
+  expect(old!.clientUpdatedAt.toISOString()).toBe(moved.toISOString());
+  expect(await tombstone(user, "categoryBudgets", "Groceries")).toBeNull();
+});
+
+test("a recurring series' account must exist; deleting the account unlinks the series and marks it changed", async () => {
+  const user = await makeUser("p4fk");
+  const acc = await makeAccount(user, 0);
+  const rec = await prisma.recurringTransaction.create({ data: {
+    id: id("rec"), userId: user, accountId: acc, name: "Gym", amount: 30, category: "Gym", type: "Expense",
+    frequency: "monthly", startDate: "2026-10-01", nextDate: "2026-11-01",
+  } });
+  const dangling = await prisma.recurringTransaction
+    .update({ where: { id: rec.id }, data: { accountId: id("missing") } })
+    .then(() => "written", (e: { code?: string }) => e.code);
+  expect(dangling).toBe("P2003");
+
+  await Bun.sleep(5);
+  await prisma.bankAccount.delete({ where: { id: acc } });
+  const after = await prisma.recurringTransaction.findUniqueOrThrow({ where: { id: rec.id } });
+  expect(after.accountId).toBeNull();
+  expect(after.serverUpdatedAt.getTime()).toBeGreaterThan(rec.serverUpdatedAt.getTime());
+  expect(await tombstone(user, "recurring", rec.id)).toBeNull();
+});
+
+test("deleting a user cascades through the Phase 4 tables too, leaving one tombstone per row", async () => {
+  const user = await makeUser("p4gone");
+  const { rec } = await phase4Rows(user);
+  // A series linked to an account: the account's SET NULL and the user's
+  // cascade both reach it in the same delete.
+  const acc = await makeAccount(user, 0);
+  await prisma.recurringTransaction.update({ where: { id: rec.id }, data: { accountId: acc } });
+  await prisma.user.delete({ where: { id: user } });
+  expect(await prisma.recurringTransaction.count({ where: { userId: user } })).toBe(0);
+  const entities = (await prisma.syncTombstone.findMany({ where: { userId: user }, select: { entity: true } }))
+    .map((r) => r.entity)
+    .sort();
+  expect(entities).toEqual(["accounts", "billReminders", "categoryBudgets", "netWorth", "recurring"]);
 });

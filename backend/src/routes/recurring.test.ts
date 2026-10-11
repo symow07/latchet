@@ -1,9 +1,9 @@
-import { test, expect, beforeAll, afterAll } from "bun:test";
+import { describe, test, expect, beforeAll, afterAll } from "bun:test";
 import { Hono } from "hono";
 import { prisma } from "../prisma";
 import { recurringRouter } from "./recurring";
 import { processRecurring } from "../jobs/recurring-processor";
-import { occurrenceId } from "../jobs/recurring-booking";
+import { bookOccurrence, keepsBookingState, occurrenceId } from "../jobs/recurring-booking";
 import { dbToday } from "../lib/distributed/clock";
 import { advanceDays, anchorDayOf, computeNextDate } from "../lib/recurrence";
 
@@ -33,6 +33,26 @@ app.route("/recurring", recurringRouter as unknown as Hono<TestEnv>);
 const as = (userId: string) => {
   actingAs = userId;
 };
+let seq = 0;
+/** A fresh user of this file's own, for tests that need to control its accounts. */
+async function makeUser(label: string): Promise<string> {
+  const id = `${P}${label}_${++seq}`;
+  const now = new Date();
+  await prisma.user.create({ data: { id, name: id, email: `${id}@x.test`, createdAt: now, updatedAt: now } });
+  return id;
+}
+/** An account of `userId`'s, created `ageMs` ago. */
+async function makeAccount(userId: string, id: string, opts: { isDefault?: boolean; ageMs?: number; openingBalance?: number } = {}) {
+  await prisma.bankAccount.create({
+    data: {
+      id, userId, name: id, type: "checking", isDefault: opts.isDefault ?? false, openingBalance: opts.openingBalance ?? 0,
+      createdAt: new Date(Date.now() - (opts.ageMs ?? 0)),
+    },
+  });
+  return id;
+}
+const balanceOf = async (id: string) => (await prisma.bankAccount.findUniqueOrThrow({ where: { id } })).balance;
+
 async function call(method: string, path: string, body?: unknown) {
   const res = await app.fetch(
     new Request(`http://t${path}`, {
@@ -51,6 +71,7 @@ async function cleanup() {
   await prisma.recurringTransaction.deleteMany({ where: { userId: { startsWith: P } } });
   await prisma.bankAccount.deleteMany({ where: { userId: { startsWith: P } } });
   await prisma.user.deleteMany({ where: { id: { startsWith: P } } });
+  await prisma.syncTombstone.deleteMany({ where: { userId: { startsWith: P } } });
 }
 
 beforeAll(async () => {
@@ -207,13 +228,159 @@ test("a paused series is skipped by the job but can still be run by hand", async
   expect((await call("POST", `/recurring/${rec.id}/run`)).status).toBe(201);
 });
 
-test("an occurrence is never booked onto somebody else's account", async () => {
-  // The series' accountId was stored as sent; booking checks it belongs to
-  // the owner and books with no account otherwise.
-  const rec = await series({ accountId: OTHER_ACCOUNT });
-  expect((await call("POST", `/recurring/${rec.id}/run`)).status).toBe(201);
-  const [tx] = await booked(rec.id);
-  expect(tx!.accountId).toBeNull();
-  const theirs = await prisma.bankAccount.findUnique({ where: { id: OTHER_ACCOUNT } });
-  expect(theirs!.balance).toBe(0);
+test("an edit read before the latest booking keeps the series' booking state; one that has seen it does not", () => {
+  // Booked on the 10th; the edit was made on a copy from before it.
+  expect(keepsBookingState("2026-10-10", null)).toBe(true);
+  expect(keepsBookingState("2026-10-10", "2026-09-10")).toBe(true);
+  // It has seen the booking (or a later one): its nextDate is meant.
+  expect(keepsBookingState("2026-10-10", "2026-10-10")).toBe(false);
+  expect(keepsBookingState("2026-10-10", "2026-11-10")).toBe(false);
+  // Never booked, or the edit does not say: nothing to keep.
+  expect(keepsBookingState(null, null)).toBe(false);
+  expect(keepsBookingState(null, "2026-10-10")).toBe(false);
+  expect(keepsBookingState("2026-10-10", undefined)).toBe(false);
+});
+
+test("a booking read before an edit landed claims nothing, so the series is booked from its new values", async () => {
+  // The job reads every due series, then claims each. A sync push or a REST
+  // update between the two must not leave the occurrence booked from the old
+  // amount or onto the old account.
+  const rec = await series({ amount: 30 });
+  const read = await prisma.recurringTransaction.findUniqueOrThrow({ where: { id: rec.id } });
+  expect((await call("PUT", `/recurring/${rec.id}`, { amount: 45 })).status).toBe(200);
+
+  const stale = await bookOccurrence(read, today, advanceDays(today, 30), { requireActive: true });
+  expect(stale).toEqual({ claimed: false, created: false });
+  expect(await booked(rec.id)).toHaveLength(0);
+
+  expect(await processRecurring({ userIds: [OWNER] })).toBeGreaterThanOrEqual(1);
+  expect((await booked(rec.id)).map((t) => t.amount)).toEqual([45]);
+});
+
+// ─── Where an occurrence lands (Phase 4 decision 5) ──────────────────────────
+
+/** A series of `userId`'s written straight to the table, as a phone's push or old data could leave it. */
+async function storedSeries(userId: string, accountId: string | null, overrides: Record<string, unknown> = {}) {
+  const id = `${P}rec_${++seq}`;
+  await prisma.recurringTransaction.create({
+    data: {
+      id, userId, accountId, name: "Rent", amount: 700, category: "Housing", type: "Expense",
+      frequency: "monthly", startDate: today, nextDate: today, currency: "EUR", ...overrides,
+    },
+  });
+  return id;
+}
+
+describe("books onto an account", () => {
+  test("the job books onto the series' own account and moves that account's balance, no other", async () => {
+    const user = await makeUser("own");
+    const main = await makeAccount(user, `${user}_main`, { openingBalance: 1000 });
+    const fallback = await makeAccount(user, `${user}_default`, { isDefault: true, ageMs: 60_000 });
+    as(user);
+    const res = await call("POST", "/recurring", {
+      name: "Rent", amount: 700, category: "Housing", type: "Expense", frequency: "monthly",
+      startDate: today, nextDate: today, accountId: main,
+    });
+    expect([res.status, res.json.accountId]).toEqual([201, main]);
+
+    expect(await processRecurring({ userIds: [user] })).toBe(1);
+    const [tx] = await booked(res.json.id);
+    expect(tx!.accountId).toBe(main);
+    expect([await balanceOf(main), await balanceOf(fallback)]).toEqual([300, 0]);
+  });
+
+  test("a series with no account books onto the user's default account, the oldest marked isDefault", async () => {
+    const user = await makeUser("default");
+    const plain = await makeAccount(user, `${user}_plain`, { ageMs: 120_000 });
+    const older = await makeAccount(user, `${user}_d_older`, { isDefault: true, ageMs: 60_000 });
+    const newer = await makeAccount(user, `${user}_d_newer`, { isDefault: true, ageMs: 1_000 });
+    const rec = await storedSeries(user, null);
+
+    as(user);
+    expect((await call("POST", `/recurring/${rec}/run`)).status).toBe(201);
+    const [tx] = await booked(rec);
+    expect(tx!.accountId).toBe(older);
+    expect([await balanceOf(older), await balanceOf(newer), await balanceOf(plain)]).toEqual([-700, 0, 0]);
+  });
+
+  test("with no account marked default the phone's acc_default_<userId> is used; with neither, no account", async () => {
+    const seeded = await makeUser("seeded");
+    const phoneDefault = await makeAccount(seeded, `acc_default_${seeded}`);
+    await makeAccount(seeded, `${seeded}_other`, { ageMs: 60_000 });
+    const a = await storedSeries(seeded, null);
+
+    const bare = await makeUser("bare");
+    await makeAccount(bare, `${bare}_only`);
+    const b = await storedSeries(bare, null);
+
+    expect(await processRecurring({ userIds: [seeded, bare] })).toBe(2);
+    expect((await booked(a))[0]!.accountId).toBe(phoneDefault);
+    expect(await balanceOf(phoneDefault)).toBe(-700);
+    expect((await booked(b))[0]!.accountId).toBeNull();
+  });
+
+  test("a series naming another user's account books onto the owner's default, never theirs", async () => {
+    // Nothing writes such a series any more (REST refuses it, a push stores
+    // null, the Phase 4 migration unlinked old ones); the booking checks anyway.
+    const user = await makeUser("foreign");
+    const mine = await makeAccount(user, `${user}_default`, { isDefault: true });
+    const theirsBefore = await balanceOf(OTHER_ACCOUNT);
+    const viaJob = await storedSeries(user, OTHER_ACCOUNT);
+    // Not due yet: only run-now books it.
+    const viaRunNow = await storedSeries(user, OTHER_ACCOUNT, { nextDate: advanceDays(today, 5) });
+
+    expect(await processRecurring({ userIds: [user] })).toBe(1);
+    as(user);
+    expect((await call("POST", `/recurring/${viaRunNow}/run`)).status).toBe(201);
+    for (const rec of [viaJob, viaRunNow]) expect((await booked(rec)).map((t) => t.accountId)).toEqual([mine]);
+    expect(await balanceOf(OTHER_ACCOUNT)).toBe(theirsBefore);
+    expect(await balanceOf(mine)).toBe(-1400);
+  });
+
+  test("REST create and update take only the caller's own account: another's or none such is a 400, null unlinks", async () => {
+    const body = {
+      name: "Gym", amount: 30, category: "Gym", type: "Expense", frequency: "monthly", startDate: today, nextDate: today,
+    };
+    as(OWNER);
+    const seriesBefore = await prisma.recurringTransaction.count({ where: { userId: OWNER } });
+    for (const accountId of [OTHER_ACCOUNT, "acc_nowhere"]) {
+      const refused = await call("POST", "/recurring", { ...body, accountId });
+      expect([refused.status, refused.json.code]).toEqual([400, "invalid_account"]);
+    }
+    expect(await prisma.recurringTransaction.count({ where: { userId: OWNER } })).toBe(seriesBefore);
+
+    const created = await call("POST", "/recurring", { ...body, accountId: OWNER_ACCOUNT });
+    expect([created.status, created.json.accountId]).toEqual([201, OWNER_ACCOUNT]);
+    const id = created.json.id as string;
+
+    const foreign = await call("PUT", `/recurring/${id}`, { accountId: OTHER_ACCOUNT, name: "Hijacked" });
+    expect(foreign.status).toBe(400);
+    expect(await prisma.recurringTransaction.findUniqueOrThrow({ where: { id } })).toMatchObject({ accountId: OWNER_ACCOUNT, name: "Gym" });
+
+    expect((await call("PUT", `/recurring/${id}`, { accountId: null })).json.accountId).toBeNull();
+    expect((await call("PUT", `/recurring/${id}`, { accountId: OWNER_ACCOUNT })).json.accountId).toBe(OWNER_ACCOUNT);
+    // A PUT that does not name the account leaves it alone.
+    expect((await call("PUT", `/recurring/${id}`, { amount: 31 })).json).toMatchObject({ accountId: OWNER_ACCOUNT, amount: 31 });
+    as(OTHER);
+    expect((await call("PUT", `/recurring/${id}`, { accountId: OTHER_ACCOUNT })).status).toBe(404);
+  });
+
+  test("deleting the account unlinks the series (devices pull it), and its next booking lands on the default", async () => {
+    const user = await makeUser("unlink");
+    const card = await makeAccount(user, `${user}_card`);
+    const fallback = await makeAccount(user, `${user}_default`, { isDefault: true });
+    const rec = await storedSeries(user, card);
+    const before = await prisma.recurringTransaction.findUniqueOrThrow({ where: { id: rec } });
+
+    await Bun.sleep(5);
+    await prisma.bankAccount.delete({ where: { id: card } });
+    const after = await prisma.recurringTransaction.findUniqueOrThrow({ where: { id: rec } });
+    expect(after.accountId).toBeNull();
+    expect(after.serverUpdatedAt.getTime()).toBeGreaterThan(before.serverUpdatedAt.getTime());
+
+    as(user);
+    expect((await call("POST", `/recurring/${rec}/run`)).status).toBe(201);
+    expect((await booked(rec))[0]!.accountId).toBe(fallback);
+    expect(await balanceOf(fallback)).toBe(-700);
+  });
 });
