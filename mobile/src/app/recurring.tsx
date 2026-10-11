@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useReducer, useState, type Dispatch } from 'react';
 import { ActivityIndicator, Alert, ScrollView, View } from 'react-native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
@@ -6,9 +6,35 @@ import { format, parseISO } from 'date-fns';
 import { Play, Plus, RefreshCw } from '@/components/icons';
 import * as Haptics from 'expo-haptics';
 
-import { api } from '@/lib/api/api';
-import { requestPull } from '@/lib/cloud-sync';
-import { getSettings } from '@/lib/db';
+import { NetworkError, TimeoutError, api } from '@/lib/api/api';
+import { requestPull, syncNow } from '@/lib/cloud-sync';
+import {
+  addRecurring,
+  deleteRecurring,
+  getAccounts,
+  getLocalSyncState,
+  getRecurring,
+  getSettings,
+  setRecurringActive,
+  type Account,
+  type RecurringSeries,
+} from '@/lib/db';
+import { todayISO } from '@/lib/dates';
+import { daysUntil } from '@/lib/offline/bills';
+import {
+  EMPTY_RECURRING_FORM,
+  RECURRING_CATEGORIES,
+  RECURRING_FREQUENCIES,
+  bookingAccountFor,
+  createRecurringFromForm,
+  recurringFormReducer,
+  runNowMessage,
+  runRecurringNow,
+  type RecurringForm,
+  type RecurringFormAction,
+  type RecurringFrequency,
+  type RecurringType,
+} from '@/lib/offline/recurring';
 import { formatCurrency } from '@/lib/calculations';
 import { categoryLabel } from '@/lib/category-meta';
 import { txTypeLabel } from '@/lib/tx-display';
@@ -36,56 +62,14 @@ import { t, getDateFnsLocale } from '@/lib/i18n/core';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Category = 'Food' | 'Gym' | 'Transport' | 'Shopping' | 'Subscriptions' | 'Other';
-type TxType = 'Expense' | 'Income';
-type Frequency = 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'yearly';
-
-interface RecurringTransaction {
-  id: string;
-  name: string;
-  amount: number;
-  category: Category;
-  type: TxType;
-  isImpulse: boolean;
-  frequency: Frequency;
-  startDate: string;
-  nextDate: string;
-  isActive: boolean;
-  currency: string;
-  createdAt?: string;
-}
-
-interface CreateRecurringBody {
-  name: string;
-  amount: number;
-  category: Category;
-  type: TxType;
-  isImpulse: boolean;
-  frequency: Frequency;
-  startDate: string;
-  nextDate: string;
-  currency: string;
-}
-
 /** POST /api/v1/recurring/:id/run — 201 when it booked today's occurrence, 200 when it already was. */
 interface RunNowResponse {
   transactionId: string;
   nextDate: string;
 }
 
-const CATEGORIES: readonly Category[] = [
-  'Food',
-  'Gym',
-  'Transport',
-  'Shopping',
-  'Subscriptions',
-  'Other',
-];
-
-const FREQUENCIES: readonly Frequency[] = ['daily', 'weekly', 'biweekly', 'monthly', 'yearly'];
-
 /** How many times a frequency runs in an average month. */
-const PER_MONTH: Record<Frequency, number> = {
+const PER_MONTH: Record<RecurringFrequency, number> = {
   daily: 30,
   weekly: 4.33,
   biweekly: 2.17,
@@ -95,19 +79,9 @@ const PER_MONTH: Record<Frequency, number> = {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function todayISO(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(
-    d.getDate()
-  ).padStart(2, '0')}`;
-}
-
+/** Whole days to the next run, against the local calendar date. */
 function daysUntilNext(nextDate: string): number {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const next = parseISO(`${nextDate}T00:00:00`);
-  next.setHours(0, 0, 0, 0);
-  return Math.round((next.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  return daysUntil(nextDate, todayISO());
 }
 
 /**
@@ -136,17 +110,30 @@ function urgencyDot(pal: Palette, nextDate: string, isActive: boolean): string {
   return pal.accentMark;
 }
 
-function monthlyTotal(items: RecurringTransaction[], type: TxType): number {
+function monthlyTotal(items: RecurringSeries[], type: RecurringType): number {
   return items
     .filter((item) => item.isActive && item.type === type)
-    .reduce((sum, item) => sum + item.amount * PER_MONTH[item.frequency], 0);
+    .reduce((sum, item) => sum + item.amount * (PER_MONTH[item.frequency] ?? 1), 0);
+}
+
+/** Run-now's request never reached the server. */
+function isConnectionError(e: unknown): boolean {
+  return e instanceof NetworkError || e instanceof TimeoutError;
 }
 
 // ─── Add sheet ───────────────────────────────────────────────────────────────
 
+/**
+ * The new-series form. Controlled: the screen holds what it says, so it can
+ * empty it once a series is saved — it used to keep its own state, and the
+ * next "New Recurring" opened on the last one's values.
+ */
 function AddRecurringSheet({
   pal,
   visible,
+  form,
+  dispatch,
+  accounts,
   onClose,
   onSubmit,
   isLoading,
@@ -154,45 +141,21 @@ function AddRecurringSheet({
 }: {
   pal: Palette;
   visible: boolean;
+  form: RecurringForm;
+  dispatch: Dispatch<RecurringFormAction>;
+  accounts: Account[];
   onClose: () => void;
-  onSubmit: (data: Omit<CreateRecurringBody, 'currency'>) => void;
+  onSubmit: () => void;
   isLoading: boolean;
   symbol: string;
 }) {
-  const [name, setName] = useState('');
-  const [amount, setAmount] = useState('');
-  const [category, setCategory] = useState<Category>('Subscriptions');
-  const [txType, setTxType] = useState<TxType>('Expense');
-  const [frequency, setFrequency] = useState<Frequency>('monthly');
-  const [error, setError] = useState('');
+  const edit = (patch: Extract<RecurringFormAction, { type: 'edit' }>['patch']) => dispatch({ type: 'edit', patch });
+  // The pick while it still exists, else the default account: what saving uses.
+  const bookingAccount = bookingAccountFor(form.accountId, accounts);
 
   const close = () => {
-    setName('');
-    setAmount('');
-    setCategory('Subscriptions');
-    setTxType('Expense');
-    setFrequency('monthly');
-    setError('');
+    dispatch({ type: 'reset' });
     onClose();
-  };
-
-  const submit = () => {
-    if (!name.trim()) return setError(t('recurring.errName'));
-    const amt = parseFloat(amount);
-    if (Number.isNaN(amt) || amt <= 0) return setError(t('recurring.errAmount'));
-
-    setError('');
-    const today = todayISO();
-    onSubmit({
-      name: name.trim(),
-      amount: amt,
-      category,
-      type: txType,
-      isImpulse: false,
-      frequency,
-      startDate: today,
-      nextDate: today,
-    });
   };
 
   return (
@@ -204,24 +167,25 @@ function AddRecurringSheet({
             { key: 'Expense' as const, label: txTypeLabel('Expense') },
             { key: 'Income' as const, label: txTypeLabel('Income') },
           ]}
-          value={txType}
-          onChange={setTxType}
+          value={form.type}
+          onChange={(type) => edit({ type })}
         />
 
         <Field
           pal={pal}
           label={t('recurring.name')}
-          value={name}
-          onChangeText={setName}
+          value={form.name}
+          onChangeText={(name) => edit({ name })}
           placeholder={t('fields.recurringPlaceholder')}
+          maxLength={100}
           style={{ marginTop: 16 }}
         />
 
         <Field
           pal={pal}
           label={t('recurring.amount')}
-          value={amount}
-          onChangeText={setAmount}
+          value={form.amount}
+          onChangeText={(amount) => edit({ amount })}
           placeholder="0"
           keyboardType="decimal-pad"
           icon={
@@ -236,13 +200,13 @@ function AddRecurringSheet({
           {t('recurring.category')}
         </Type>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-          {CATEGORIES.map((c) => (
+          {RECURRING_CATEGORIES.map((c) => (
             <FilterChip
               key={c}
               pal={pal}
               label={categoryLabel(c)}
-              active={category === c}
-              onPress={() => setCategory(c)}
+              active={form.category === c}
+              onPress={() => edit({ category: c })}
             />
           ))}
         </View>
@@ -251,18 +215,39 @@ function AddRecurringSheet({
           {t('recurring.frequency')}
         </Type>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-          {FREQUENCIES.map((f) => (
+          {RECURRING_FREQUENCIES.map((f) => (
             <FilterChip
               key={f}
               pal={pal}
               label={t(`frequency.${f}`)}
-              active={frequency === f}
-              onPress={() => setFrequency(f)}
+              active={form.frequency === f}
+              onPress={() => edit({ frequency: f })}
             />
           ))}
         </View>
 
-        <FormError pal={pal} message={error} />
+        {/* Where each run is booked (decision 5). It starts on the default
+            account; the server books there too when no account is named. */}
+        {accounts.length > 0 ? (
+          <>
+            <Type role="meta" color={pal.inkDim} style={{ marginTop: 16, marginBottom: 8 }}>
+              {t('recurring.account')}
+            </Type>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+              {accounts.map((a) => (
+                <FilterChip
+                  key={a.id}
+                  pal={pal}
+                  label={a.name}
+                  active={bookingAccount?.id === a.id}
+                  onPress={() => edit({ accountId: a.id })}
+                />
+              ))}
+            </View>
+          </>
+        ) : null}
+
+        <FormError pal={pal} message={form.error ? t(form.error) : ''} />
 
         <Type role="meta" color={pal.inkDim} style={{ marginTop: 16 }}>
           {t('recurring.autoRuns')}
@@ -271,7 +256,7 @@ function AddRecurringSheet({
         <PrimaryButton
           pal={pal}
           label={t('recurring.createButton')}
-          onPress={submit}
+          onPress={onSubmit}
           disabled={isLoading}
           style={{ marginTop: 12 }}
         />
@@ -303,6 +288,12 @@ function AddRecurringSheet({
  * every row (delete moves behind the same swipe Activity uses), and the two
  * monthly totals are plain stats on the screen's one espresso anchor rather
  * than tiles floating on a gradient.
+ *
+ * Since Phase 4 the series live in this phone's database and sync like the
+ * ledger: the list, creating, pausing and deleting all work offline. A new
+ * series names the account its runs are booked onto, starting on the default
+ * account. Run now is the one action that needs the server (see
+ * lib/offline/recurring.ts).
  */
 export default function RecurringScreen() {
   const C = useC();
@@ -310,39 +301,43 @@ export default function RecurringScreen() {
   const queryClient = useQueryClient();
   const [adding, setAdding] = useState(false);
   const [runningId, setRunningId] = useState<string | null>(null);
+  const [form, dispatch] = useReducer(recurringFormReducer, EMPTY_RECURRING_FORM);
 
-  const { data: items = [], isLoading, isError } = useQuery<RecurringTransaction[]>({
+  // Read from this phone's database, so the screen works offline; a pull
+  // that changes it refreshes every query (cloud-sync's onRemoteChange).
+  const { data: items = [], isLoading, isError } = useQuery({
     queryKey: ['recurring'],
-    queryFn: () => api.get<RecurringTransaction[]>('/api/recurring'),
+    queryFn: getRecurring,
   });
+  const { data: accounts = [] } = useQuery({ queryKey: ['accounts'], queryFn: getAccounts });
   const { data: settings } = useQuery({ queryKey: ['settings'], queryFn: getSettings });
   const currency = settings?.currency || 'USD';
 
   const createMutation = useMutation({
-    mutationFn: (body: Omit<CreateRecurringBody, 'currency'>) =>
-      // The user's currency, not a literal 'USD'. Stored on the item because
-      // the server replays it into a transaction later, long after this screen
-      // is gone.
-      api.post<RecurringTransaction>('/api/recurring', { ...body, currency }),
-    onSuccess: () => {
+    // The user's currency, not a literal 'USD': stored on the series because
+    // the server replays it into every occurrence, long after this screen is
+    // gone. Today is the local calendar date.
+    mutationFn: (current: RecurringForm) =>
+      createRecurringFromForm(current, { today: todayISO(), currency, accounts }, addRecurring),
+    onSuccess: ({ form: next, createdId }) => {
+      dispatch({ type: 'replace', form: next });
+      if (!createdId) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        return;
+      }
       queryClient.invalidateQueries({ queryKey: ['recurring'] });
       setAdding(false);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     },
-    onError: () => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error),
   });
 
   const toggleActiveMutation = useMutation({
-    mutationFn: (item: RecurringTransaction) =>
-      api.put<RecurringTransaction>(`/api/recurring/${item.id}`, {
-        ...item,
-        isActive: !item.isActive,
-      }),
+    mutationFn: (item: RecurringSeries) => setRecurringActive(item.id, !item.isActive),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['recurring'] }),
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => api.delete<void>(`/api/recurring/${id}`),
+    mutationFn: (id: string) => deleteRecurring(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['recurring'] });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -351,31 +346,44 @@ export default function RecurringScreen() {
 
   // The server books today's occurrence, under the same id its recurring job
   // uses, and moves nextDate past today — so the job cannot book it a second
-  // time, and pressing again books nothing new. It used to post a transaction
-  // of its own and set nextDate to today, which the job then booked again.
-  // The transaction reaches this phone's ledger through the pull that follows;
-  // that pull refreshes the screens that show it.
+  // time, and pressing again books nothing new. Pending changes go first, so
+  // a series made offline exists there before it is run; offline, nothing is
+  // booked and the screen says it needs a connection. The booking reaches
+  // this phone's ledger through the pull that follows, which refreshes the
+  // screens that show it.
   const runNowMutation = useMutation({
-    mutationFn: (item: RecurringTransaction) =>
-      api.post<RunNowResponse>(`/api/v1/recurring/${encodeURIComponent(item.id)}/run`, {}),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['recurring'] });
-      requestPull();
+    mutationFn: (item: RecurringSeries) =>
+      runRecurringNow(item.id, {
+        flush: syncNow,
+        syncState: (id) => getLocalSyncState('recurring', id),
+        run: (id) => api.post<RunNowResponse>(`/api/v1/recurring/${encodeURIComponent(id)}/run`, {}),
+        pull: requestPull,
+        isConnectionError,
+      }),
+    onSuccess: (outcome) => {
       setRunningId(null);
+      queryClient.invalidateQueries({ queryKey: ['recurring'] });
+      const message = runNowMessage(outcome);
+      if (message) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        Alert.alert(t('recurring.runNow'), t(message));
+        return;
+      }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     },
     onError: () => {
       setRunningId(null);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert(t('recurring.runNow'), t('recurring.runNowFailed'));
     },
   });
 
-  const handleRunNow = (item: RecurringTransaction) => {
+  const handleRunNow = (item: RecurringSeries) => {
     setRunningId(item.id);
     runNowMutation.mutate(item);
   };
 
-  const confirmDelete = (item: RecurringTransaction) => {
+  const confirmDelete = (item: RecurringSeries) => {
     Alert.alert(item.name, t('dialogs.areYouSure'), [
       { text: t('common.cancel'), style: 'cancel' },
       {
@@ -389,18 +397,24 @@ export default function RecurringScreen() {
   const active = items.filter((i) => i.isActive);
   const paused = items.filter((i) => !i.isActive);
 
-  const renderGroup = (group: RecurringTransaction[]) => (
+  const renderGroup = (group: RecurringSeries[]) => (
     <View style={{ paddingHorizontal: S.screen }}>
       <Card pal={C} padding={0} contentStyle={{ paddingHorizontal: 0 }}>
         {group.map((item, i) => {
           const isExpense = item.type === 'Expense';
           const running = runningId === item.id;
+          // With more than one account, which one it books onto: its own,
+          // or — none, or one since deleted — the default account.
+          const bookingAccount = accounts.length > 1 ? bookingAccountFor(item.accountId, accounts) : null;
           const meta = [
             categoryLabel(item.category),
             t(`frequency.${item.frequency}`),
             item.isActive ? nextRunLabel(item.nextDate) : t('recurring.paused'),
             format(parseISO(`${item.nextDate}T00:00:00`), 'd MMM', { locale: getDateFnsLocale() }),
-          ].join(' · ');
+            bookingAccount?.name ?? null,
+          ]
+            .filter(Boolean)
+            .join(' · ');
 
           return (
             <View
@@ -569,8 +583,11 @@ export default function RecurringScreen() {
       <AddRecurringSheet
         pal={C}
         visible={adding}
+        form={form}
+        dispatch={dispatch}
+        accounts={accounts}
         onClose={() => setAdding(false)}
-        onSubmit={(data) => createMutation.mutate(data)}
+        onSubmit={() => createMutation.mutate(form)}
         isLoading={createMutation.isPending}
         symbol={settings?.currencySymbol || '$'}
       />

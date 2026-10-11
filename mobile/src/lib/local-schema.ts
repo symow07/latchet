@@ -30,6 +30,16 @@
  * sync-redaction.ts) and `subscription_occurrences` (derived by the detection
  * engine from the ledger, so each device re-derives them).
  *
+ * Phase 4 added four synced tables (recurring series, bill reminders, category
+ * budgets, net-worth snapshots; I-WIRE-4 in .unlazy/phase4/PLAN.md). They are
+ * new tables, not changes to existing ones, so a file created by an earlier
+ * build gains them the next time it is opened — every statement here is
+ * IF NOT EXISTS — and LOCAL_SCHEMA_VERSION stays 1: bumping it would re-run
+ * the seed on every existing file and bring back a default account its user
+ * had deleted. What such a file lacks is their rows, which the sync store
+ * fetches with one full pull when it sees the synced entity set has grown
+ * (SYNC_ENTITY_SIGNATURE in sync/sqlite-store.ts).
+ *
  * Journal mode stays SQLite's default (DELETE), not WAL. Signing out deletes
  * the user's file with expo-sqlite's deleteDatabaseAsync, which removes the
  * main file only; in WAL mode the -wal and -shm files beside it would survive
@@ -45,15 +55,31 @@ export const LOCAL_SCHEMA_KEY = `schema_v${LOCAL_SCHEMA_VERSION}`;
 /** clientUpdatedAt of a row nobody has edited: the server's version always wins. */
 export const EPOCH_ISO = '1970-01-01T00:00:00.000Z';
 
-/** The synced entities, in the order the server applies them (I-WIRE). */
-export const SYNC_ENTITIES = ['settings', 'categories', 'accounts', 'transactions', 'subscriptions'] as const;
+/**
+ * The synced entities, in the order the server applies them (I-WIRE, and
+ * I-WIRE-4 for the last four): accounts before the transactions and recurring
+ * series that name them.
+ */
+export const SYNC_ENTITIES = [
+  'settings',
+  'categories',
+  'accounts',
+  'transactions',
+  'subscriptions',
+  'recurring',
+  'billReminders',
+  'categoryBudgets',
+  'netWorth',
+] as const;
 export type SyncEntity = (typeof SYNC_ENTITIES)[number];
 
 /**
  * Where each synced entity lives on the phone, and which column is its sync id.
  *
  * The settings row is `id = 1` locally and `'settings'` on the wire; a custom
- * category is identified by its name; everything else by `id`.
+ * category is identified by its name, and a category budget by its category
+ * (the server's own row id for a budget never leaves the server); everything
+ * else by `id`.
  */
 export const LOCAL_SYNC_TABLES: Readonly<Record<SyncEntity, { table: string; idColumn: string }>> = {
   settings: { table: 'settings', idColumn: 'id' },
@@ -61,6 +87,10 @@ export const LOCAL_SYNC_TABLES: Readonly<Record<SyncEntity, { table: string; idC
   accounts: { table: 'accounts', idColumn: 'id' },
   transactions: { table: 'transactions', idColumn: 'id' },
   subscriptions: { table: 'subscriptions', idColumn: 'id' },
+  recurring: { table: 'recurring_transactions', idColumn: 'id' },
+  billReminders: { table: 'bill_reminders', idColumn: 'id' },
+  categoryBudgets: { table: 'category_budgets', idColumn: 'category' },
+  netWorth: { table: 'net_worth_entries', idColumn: 'id' },
 };
 
 /** The settings row's id on the wire. Locally it is always row 1. */
@@ -193,6 +223,74 @@ export const LOCAL_SCHEMA_SQL = `
     );
 
     CREATE INDEX IF NOT EXISTS idx_sub_occurrences_sub ON subscription_occurrences(subscriptionId);
+
+    -- A recurring series. accountId is where the server books its occurrences
+    -- (null: the default account). No foreign key, on purpose: the account
+    -- can be deleted here or on another device before the series is told,
+    -- and the server unlinks it (ON DELETE SET NULL) on its own schedule.
+    CREATE TABLE IF NOT EXISTS recurring_transactions (
+      id TEXT PRIMARY KEY,
+      accountId TEXT,
+      name TEXT NOT NULL,
+      amount REAL NOT NULL,
+      category TEXT NOT NULL,
+      type TEXT NOT NULL,
+      isImpulse INTEGER NOT NULL DEFAULT 0,
+      frequency TEXT NOT NULL DEFAULT 'monthly',
+      startDate TEXT NOT NULL,
+      nextDate TEXT NOT NULL,
+      lastCreated TEXT,
+      isActive INTEGER NOT NULL DEFAULT 1,
+      currency TEXT NOT NULL DEFAULT 'USD',
+      createdAt TEXT NOT NULL,
+      clientUpdatedAt TEXT NOT NULL DEFAULT '1970-01-01T00:00:00.000Z',
+      dirty INTEGER NOT NULL DEFAULT 0,
+      syncError TEXT
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_recurring_account ON recurring_transactions(accountId);
+
+    CREATE TABLE IF NOT EXISTS bill_reminders (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      amount REAL NOT NULL,
+      dueDay INTEGER NOT NULL,
+      category TEXT NOT NULL DEFAULT 'Other',
+      isRecurring INTEGER NOT NULL DEFAULT 1,
+      isPaid INTEGER NOT NULL DEFAULT 0,
+      paidAt TEXT,
+      nextDueDate TEXT NOT NULL,
+      createdAt TEXT NOT NULL,
+      clientUpdatedAt TEXT NOT NULL DEFAULT '1970-01-01T00:00:00.000Z',
+      dirty INTEGER NOT NULL DEFAULT 0,
+      syncError TEXT
+    );
+
+    -- One budget per category: the category is the sync id.
+    CREATE TABLE IF NOT EXISTS category_budgets (
+      category TEXT PRIMARY KEY,
+      amount REAL NOT NULL,
+      period TEXT NOT NULL DEFAULT 'monthly',
+      createdAt TEXT NOT NULL,
+      clientUpdatedAt TEXT NOT NULL DEFAULT '1970-01-01T00:00:00.000Z',
+      dirty INTEGER NOT NULL DEFAULT 0,
+      syncError TEXT
+    );
+
+    -- breakdown is the JSON text of an object of amounts, as on the wire;
+    -- db.ts parses it on the way out.
+    CREATE TABLE IF NOT EXISTS net_worth_entries (
+      id TEXT PRIMARY KEY,
+      date TEXT NOT NULL,
+      assets REAL NOT NULL DEFAULT 0,
+      liabilities REAL NOT NULL DEFAULT 0,
+      netWorth REAL NOT NULL DEFAULT 0,
+      breakdown TEXT,
+      createdAt TEXT NOT NULL,
+      clientUpdatedAt TEXT NOT NULL DEFAULT '1970-01-01T00:00:00.000Z',
+      dirty INTEGER NOT NULL DEFAULT 0,
+      syncError TEXT
+    );
 
     CREATE TABLE IF NOT EXISTS sync_tombstones (
       entity TEXT NOT NULL,

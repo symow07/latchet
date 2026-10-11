@@ -3,7 +3,7 @@ import { EPOCH_ISO, defaultAccountId } from '../local-schema';
 import { createSyncEngine, type SyncEngine, type SyncReport } from './engine';
 import { FakeSyncServer } from './fake-sync-server';
 import { SyncTransportError, type PushRequest, type SyncTransport, type WireRow } from './protocol';
-import { createSqliteSyncStore } from './sqlite-store';
+import { SYNC_ENTITY_SIGNATURE, createSqliteSyncStore } from './sqlite-store';
 import { openTestUserDatabase, type TestUserDatabase } from './test-sqlite';
 
 /**
@@ -117,6 +117,13 @@ const realSettings = (over: Partial<WireRow> = {}): WireRow => ({
   locale: 'fr',
   ...over,
 });
+
+/** A cursor as this build stores one: with the entity signature it was read under. */
+function storeCursor(d: TestUserDatabase, cursor: string): void {
+  const put = d.db.raw.query(`INSERT OR REPLACE INTO sync_meta (key, value) VALUES (?, ?)`);
+  put.run('pull_cursor', cursor);
+  put.run('pull_entities', SYNC_ENTITY_SIGNATURE);
+}
 
 const dirtyCount = (d: TestUserDatabase, table: string) => one<{ n: number }>(d, `SELECT COUNT(*) AS n FROM ${table} WHERE dirty = 1`)!.n;
 const entitiesOf = (request: PushRequest) => Object.entries(request.changes).filter(([, rows]) => rows && rows.length > 0).map(([e]) => e);
@@ -375,7 +382,7 @@ describe('pull', () => {
 
   test('a refused cursor (400 invalid_cursor) is dropped and the pull restarts as a snapshot', async () => {
     server.put('transactions', serverTx('tx_1'));
-    device.db.raw.query(`INSERT INTO sync_meta (key, value) VALUES ('pull_cursor', 'garbage')`).run();
+    storeCursor(device, 'garbage');
     const report = await engineFor(device).syncOnce();
     expect(report.ok).toBe(true);
     expect(report.pulled.cursorReset).toBe(true);
@@ -384,7 +391,7 @@ describe('pull', () => {
   });
 
   test('a cursor that never advances stops the cycle instead of looping', async () => {
-    device.db.raw.query(`INSERT INTO sync_meta (key, value) VALUES ('pull_cursor', 'stuck')`).run();
+    storeCursor(device, 'stuck');
     server.stuckCursor = 'stuck';
     const report = await engineFor(device).syncOnce();
     expect(report.ok).toBe(false);
@@ -558,4 +565,125 @@ test('categories and subscriptions land too, one row per page', async () => {
   expect(report.pulled.pages).toBeGreaterThanOrEqual(4);
   expect(row(device, `SELECT icon FROM custom_categories WHERE name = 'Pets'`)).toEqual({ icon: 'paw' });
   expect(row(device, `SELECT status, dirty FROM subscriptions WHERE id = 'sub_1'`)).toEqual({ status: 'confirmed', dirty: 0 });
+});
+
+// ── Phase 4: recurring series, bills, budgets and net worth ───────────────────
+
+const P4_TABLES = ['recurring_transactions', 'bill_reminders', 'category_budgets', 'net_worth_entries'] as const;
+
+function putPhase4Rows(s: FakeSyncServer): void {
+  s.put('recurring', {
+    id: 'rec_gym', clientUpdatedAt: at(3), accountId: defaultAccountId(USER), name: 'Gym', amount: 35.5, category: 'Gym',
+    type: 'Expense', isImpulse: false, frequency: 'weekly', startDate: '2026-10-01', nextDate: '2026-10-15', lastCreated: '2026-10-08',
+    isActive: true, currency: 'USD', createdAt: at(1),
+  });
+  s.put('billReminders', {
+    id: 'bill_water', clientUpdatedAt: at(3), name: 'Water', amount: 20, dueDay: 12, category: 'Other', isRecurring: true,
+    isPaid: false, paidAt: null, nextDueDate: '2026-10-12', createdAt: at(1),
+  });
+  s.put('categoryBudgets', { id: 'Food', clientUpdatedAt: at(3), amount: 300, period: 'monthly', createdAt: at(1) });
+  s.put('netWorth', {
+    id: 'nw_1', clientUpdatedAt: at(3), date: '2026-10-11', assets: 10, liabilities: 2, netWorth: 8,
+    breakdown: '{"cashSavings":10,"loans":2}', createdAt: at(1),
+  });
+}
+
+const p4Counts = (d: TestUserDatabase) =>
+  P4_TABLES.map((table) => one<{ n: number }>(d, `SELECT COUNT(*) AS n FROM ${table}`)!.n);
+
+describe('the Phase 4 entities', () => {
+  test('push after subscriptions, in contract order, and land on a second phone as they left the first', async () => {
+    device.db.raw
+      .query(
+        `INSERT INTO recurring_transactions (id, accountId, name, amount, category, type, frequency, startDate, nextDate, isActive, createdAt, clientUpdatedAt, dirty)
+         VALUES ('rec_1', ?, 'Rent', 700, 'Other', 'Expense', 'monthly', '2026-10-11', '2026-10-11', 1, ?, ?, 1)`,
+      )
+      .run(defaultAccountId(USER), at(1), at(2));
+    device.db.raw
+      .query(
+        `INSERT INTO bill_reminders (id, name, amount, dueDay, category, isRecurring, isPaid, paidAt, nextDueDate, createdAt, clientUpdatedAt, dirty)
+         VALUES ('bill_1', 'Water', 20, 31, 'Other', 1, 1, ?, '2026-11-30', ?, ?, 1)`,
+      )
+      .run(at(2), at(1), at(2));
+    device.db.raw
+      .query(`INSERT INTO category_budgets (category, amount, period, createdAt, clientUpdatedAt, dirty) VALUES ('Food', 300, 'monthly', ?, ?, 1)`)
+      .run(at(1), at(2));
+    device.db.raw
+      .query(
+        `INSERT INTO net_worth_entries (id, date, assets, liabilities, netWorth, breakdown, createdAt, clientUpdatedAt, dirty)
+         VALUES ('nw_1', '2026-10-11', 10, 2, 8, '{"cashSavings":10,"loans":2}', ?, ?, 1)`,
+      )
+      .run(at(1), at(2));
+
+    const report = await engineFor(device, { pushBatchSize: 1 }).syncOnce();
+    expect(report.ok).toBe(true);
+    expect(server.pushes.map((p) => entitiesOf(p)[0])).toEqual([
+      'settings', 'accounts', 'recurring', 'billReminders', 'categoryBudgets', 'netWorth',
+    ]);
+    // The series' account went first, so the server kept it.
+    expect(server.get('recurring', 'rec_1')).toMatchObject({ accountId: defaultAccountId(USER), isActive: true });
+    expect(server.get('billReminders', 'bill_1')).toMatchObject({ isPaid: true, isRecurring: true, paidAt: at(2) });
+    expect(server.get('netWorth', 'nw_1')!.breakdown).toBe('{"cashSavings":10,"loans":2}');
+    for (const table of P4_TABLES) expect(dirtyCount(device, table)).toBe(0);
+
+    const phoneB = openTestUserDatabase(USER, at(0));
+    await engineFor(phoneB).syncOnce();
+    for (const table of P4_TABLES) {
+      expect(q(phoneB, `SELECT * FROM ${table}`)).toEqual(q(device, `SELECT * FROM ${table}`));
+    }
+    phoneB.close();
+  });
+
+  test('a phone upgraded from the five-entity build pulls everything once and fills the new tables', async () => {
+    putPhase4Rows(server);
+    server.put('transactions', serverTx('tx_1'));
+    const engine = engineFor(device);
+    await engine.syncOnce();
+    expect(p4Counts(device)).toEqual([1, 1, 1, 1]);
+
+    // The database as the five-entity build left it, opened by this one: its
+    // cursor is past the four entities' rows, which it skipped, and the new
+    // tables are empty. It has unsent work of its own.
+    for (const table of P4_TABLES) device.db.raw.query(`DELETE FROM ${table}`).run();
+    device.db.raw.query(`DELETE FROM sync_meta WHERE key = 'pull_entities'`).run();
+    addTx(device, 'tx_unsent', { clientUpdatedAt: at(40) });
+    server.failPush = new SyncTransportError('http', 'busy', 503);
+
+    const upgraded = await engine.syncOnce();
+    expect(upgraded.pulled.fullResync).toBe(true);
+    expect(server.pulls[server.pulls.length - 1]!.cursor).toBeNull();
+    expect(p4Counts(device)).toEqual([1, 1, 1, 1]);
+    expect(row(device, `SELECT accountId, isActive, lastCreated FROM recurring_transactions WHERE id = 'rec_gym'`)).toEqual({
+      accountId: defaultAccountId(USER),
+      isActive: 1,
+      lastCreated: '2026-10-08',
+    });
+    expect(row(device, `SELECT breakdown FROM net_worth_entries WHERE id = 'nw_1'`)).toEqual({ breakdown: '{"cashSavings":10,"loans":2}' });
+    // The snapshot kept what was not yet sent.
+    expect(q<{ id: string }>(device, `SELECT id FROM transactions ORDER BY id`).map((r) => r.id)).toEqual(['tx_1', 'tx_unsent']);
+
+    // Once: the next cycle goes on from the snapshot's cursor.
+    const after = await engine.syncOnce();
+    expect(after.pulled.fullResync).toBe(false);
+    expect(server.pulls[server.pulls.length - 1]!.cursor).toMatch(/^seq:/);
+    expect(server.get('transactions', 'tx_unsent')).toBeDefined();
+  });
+
+  test('a series edited here after the server booked it keeps the edit; the server-moved dates come back by pull', async () => {
+    putPhase4Rows(server);
+    const engine = engineFor(device);
+    await engine.syncOnce();
+    // Paused here, then the server's booking (stamped later) arrives: the server write wins.
+    device.db.raw.query(`UPDATE recurring_transactions SET isActive = 0, clientUpdatedAt = ?, dirty = 1 WHERE id = 'rec_gym'`).run(at(20));
+    const booked = server.get('recurring', 'rec_gym')!;
+    server.put('recurring', { ...booked, clientUpdatedAt: at(30), lastCreated: '2026-10-15', nextDate: '2026-10-22' });
+    const report = await engine.syncOnce();
+    expect(report.pushed.stale).toBe(1);
+    expect(row(device, `SELECT isActive, lastCreated, nextDate, dirty FROM recurring_transactions WHERE id = 'rec_gym'`)).toEqual({
+      isActive: 1,
+      lastCreated: '2026-10-15',
+      nextDate: '2026-10-22',
+      dirty: 0,
+    });
+  });
 });

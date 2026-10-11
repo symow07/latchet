@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -14,8 +15,20 @@ import { format, parseISO } from 'date-fns';
 import { PiggyBank, Plus } from '@/components/icons';
 import * as Haptics from 'expo-haptics';
 
-import { api } from '@/lib/api/api';
-import { getSettings } from '@/lib/db';
+import { addNetWorthEntry, deleteNetWorthEntry, getNetWorthEntries, getSettings, type NetWorthEntry } from '@/lib/db';
+import { todayISO } from '@/lib/dates';
+import {
+  ASSET_KEYS,
+  EMPTY_SNAPSHOT_FORM,
+  LIABILITY_KEYS,
+  breakdownLines,
+  snapshotFromForm,
+  snapshotTotals,
+  sortSnapshotsNewestFirst,
+  type BreakdownKey,
+  type SnapshotForm,
+  type SnapshotInput,
+} from '@/lib/offline/net-worth';
 import { formatCurrency } from '@/lib/calculations';
 import { F, R, S, useC, type Palette } from '@/lib/design';
 import {
@@ -24,61 +37,23 @@ import {
   Card,
   CircleAction,
   Empty,
+  FormError,
   InfoRow,
   PrimaryButton,
   Screen,
   SectionHeader,
   Stat,
   SubHeader,
+  SwipeRow,
   Type,
 } from '@/components/kit';
 import { t, getDateFnsLocale } from '@/lib/i18n/core';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-interface NetWorthBreakdown {
-  cashSavings?: number;
-  investments?: number;
-  realEstate?: number;
-  otherAssets?: number;
-  creditCardDebt?: number;
-  loans?: number;
-  mortgage?: number;
-  otherLiabilities?: number;
-}
-
-interface NetWorthEntry {
-  id: string;
-  date: string;
-  assets: number;
-  liabilities: number;
-  netWorth: number;
-  breakdown?: NetWorthBreakdown;
-  createdAt?: string;
-}
-
-interface NetWorthListResponse {
-  data: NetWorthEntry[];
-}
-
-type FormKey =
-  | 'cashSavings'
-  | 'investments'
-  | 'realEstate'
-  | 'otherAssets'
-  | 'creditCardDebt'
-  | 'loans'
-  | 'mortgage'
-  | 'otherLiabilities';
-
-type FormState = Record<FormKey, string>;
-
-const ASSET_KEYS = ['cashSavings', 'investments', 'realEstate', 'otherAssets'] as const;
-const LIABILITY_KEYS = ['creditCardDebt', 'loans', 'mortgage', 'otherLiabilities'] as const;
-
 /** The label key for each form field. `otherLiabilities` is the one that does
  *  not match its string key, which is why this is a table and not a template. */
-const FIELD_LABEL: Record<FormKey, string> = {
+const FIELD_LABEL: Record<BreakdownKey, string> = {
   cashSavings: 'netWorthCats.cashSavings',
   investments: 'netWorthCats.investments',
   realEstate: 'netWorthCats.realEstate',
@@ -88,26 +63,6 @@ const FIELD_LABEL: Record<FormKey, string> = {
   mortgage: 'netWorthCats.mortgage',
   otherLiabilities: 'netWorthCats.otherLiab',
 };
-
-const EMPTY_FORM: FormState = {
-  cashSavings: '',
-  investments: '',
-  realEstate: '',
-  otherAssets: '',
-  creditCardDebt: '',
-  loans: '',
-  mortgage: '',
-  otherLiabilities: '',
-};
-
-function parseAmount(str: string): number {
-  const n = parseFloat(str.replace(/,/g, ''));
-  return Number.isNaN(n) ? 0 : n;
-}
-
-function todayISO(): string {
-  return new Date().toISOString().slice(0, 10);
-}
 
 /** A stored `YYYY-MM-DD`, read as a local date rather than a UTC instant. */
 function readDate(dateStr: string): Date {
@@ -130,13 +85,8 @@ function longDate(dateStr: string): string {
  * (the ramp's espresso end) so the eye lands on where you are now.
  */
 function HistoryChart({ pal, entries }: { pal: Palette; entries: NetWorthEntry[] }) {
-  const data = useMemo(
-    () =>
-      [...entries]
-        .sort((a, b) => readDate(a.date).getTime() - readDate(b.date).getTime())
-        .slice(-12),
-    [entries]
-  );
+  // Oldest to newest, the last twelve.
+  const data = useMemo(() => sortSnapshotsNewestFirst(entries).slice(0, 12).reverse(), [entries]);
 
   const height = 120;
   /** The ramp's platinum end: present, but quieter than the latest bar. */
@@ -300,31 +250,27 @@ function AddSnapshot({
   pal: Palette;
   visible: boolean;
   onClose: () => void;
-  onSubmit: (body: {
-    date: string;
-    assets: number;
-    liabilities: number;
-    breakdown: NetWorthBreakdown;
-  }) => void;
+  onSubmit: (snapshot: SnapshotInput) => void;
   isSubmitting: boolean;
   symbol: string;
 }) {
-  const [form, setForm] = useState<FormState>(EMPTY_FORM);
-  const set = (key: FormKey) => (v: string) => setForm((f) => ({ ...f, [key]: v }));
+  const [form, setForm] = useState<SnapshotForm>(EMPTY_SNAPSHOT_FORM);
+  const [error, setError] = useState('');
+  const set = (key: BreakdownKey) => (v: string) => setForm((f) => ({ ...f, [key]: v }));
 
-  const totalAssets = ASSET_KEYS.reduce((sum, k) => sum + parseAmount(form[k]), 0);
-  const totalLiabilities = LIABILITY_KEYS.reduce((sum, k) => sum + parseAmount(form[k]), 0);
-  const netWorth = totalAssets - totalLiabilities;
+  const { assets: totalAssets, liabilities: totalLiabilities, netWorth } = snapshotTotals(form);
   const nothingEntered = totalAssets === 0 && totalLiabilities === 0;
 
   function handleSubmit() {
-    const breakdown: NetWorthBreakdown = {};
-    for (const key of [...ASSET_KEYS, ...LIABILITY_KEYS]) {
-      const value = parseAmount(form[key]);
-      if (value > 0) breakdown[key] = value;
+    // Dated today on the device's own calendar, not UTC's.
+    const parsed = snapshotFromForm(form);
+    if (!parsed.ok) {
+      setError(parsed.error ? t(parsed.error) : '');
+      return;
     }
-    onSubmit({ date: todayISO(), assets: totalAssets, liabilities: totalLiabilities, breakdown });
-    setForm(EMPTY_FORM);
+    setError('');
+    onSubmit(parsed.snapshot);
+    setForm(EMPTY_SNAPSHOT_FORM);
   }
 
   return (
@@ -419,6 +365,8 @@ function AddSnapshot({
                 })}
               </Type>
 
+              <FormError pal={pal} message={error} />
+
               <PrimaryButton
                 pal={pal}
                 label={t('netWorth.saveSnapshot')}
@@ -457,6 +405,10 @@ function AddSnapshot({
  * plain stats beneath it, and the sign carried by the number's own minus sign
  * and `negative` — not by the room's lighting. A change between snapshots is
  * a delta, so it is signed and coloured: green up, red down.
+ *
+ * Since Phase 4 the snapshots live in this phone's database and sync like the
+ * ledger, so the screen works offline; a snapshot is dated on the device's
+ * own calendar, and one taken by mistake can be swiped away.
  */
 export default function NetWorthScreen() {
   const C = useC();
@@ -464,33 +416,23 @@ export default function NetWorthScreen() {
   const queryClient = useQueryClient();
   const [adding, setAdding] = useState(false);
 
-  const { data, isLoading, isError } = useQuery<NetWorthEntry[]>({
+  // Read from this phone's database, so the screen works offline; a pull
+  // that changes it refreshes every query (cloud-sync's onRemoteChange).
+  const { data, isLoading, isError } = useQuery({
     queryKey: ['net-worth'],
-    queryFn: async () => {
-      const res = await api.get<NetWorthEntry[] | NetWorthListResponse>('/api/net-worth?limit=24');
-      if (Array.isArray(res)) return res;
-      return (res as NetWorthListResponse).data ?? [];
-    },
+    queryFn: getNetWorthEntries,
   });
   const { data: settings } = useQuery({ queryKey: ['settings'], queryFn: getSettings });
   const symbol = settings?.currencySymbol || '$';
 
-  const entries = useMemo(
-    () => (data ? [...data].sort((a, b) => readDate(b.date).getTime() - readDate(a.date).getTime()) : []),
-    [data]
-  );
+  const entries = useMemo(() => (data ? sortSnapshotsNewestFirst(data) : []), [data]);
 
   const latest = entries[0] ?? null;
   const previous = entries[1] ?? null;
   const delta = latest && previous ? latest.netWorth - previous.netWorth : null;
 
   const addMutation = useMutation({
-    mutationFn: (body: {
-      date: string;
-      assets: number;
-      liabilities: number;
-      breakdown: NetWorthBreakdown;
-    }) => api.post('/api/net-worth', body),
+    mutationFn: (snapshot: SnapshotInput) => addNetWorthEntry(snapshot),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['net-worth'] });
       setAdding(false);
@@ -499,12 +441,28 @@ export default function NetWorthScreen() {
     onError: () => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error),
   });
 
-  const breakdown = latest?.breakdown;
-  const breakdownLines = breakdown
-    ? ([...ASSET_KEYS, ...LIABILITY_KEYS] as const)
-        .map((key) => ({ key, value: breakdown[key] ?? 0 }))
-        .filter((line) => line.value > 0)
-    : [];
+  // A snapshot taken by mistake used to stay for good: there was no way to
+  // remove one. The same swipe, and the same question, as bills and
+  // recurring items.
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => deleteNetWorthEntry(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['net-worth'] });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    },
+  });
+
+  const confirmDelete = (entry: NetWorthEntry) => {
+    Alert.alert(longDate(entry.date), t('dialogs.areYouSure'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      { text: t('dialogs.delete'), style: 'destructive', onPress: () => deleteMutation.mutate(entry.id) },
+    ]);
+  };
+
+  // The breakdown is stored as JSON text, as the server has always kept it;
+  // db.ts hands it over parsed. The screen used to read the text as if it
+  // were an object, so this section never appeared.
+  const lines = breakdownLines(latest?.breakdown ?? null);
 
   const caption =
     delta !== null
@@ -577,13 +535,13 @@ export default function NetWorthScreen() {
           </View>
         ) : null}
 
-        {breakdownLines.length > 0 ? (
+        {lines.length > 0 ? (
           <View style={{ marginTop: S.section }}>
             <SectionHeader pal={C} title={t('netWorth.latestBreakdown')} />
             <View style={{ paddingHorizontal: S.screen }}>
               <Card pal={C} padding={0} contentStyle={{ paddingHorizontal: S.card }}>
-                {breakdownLines.map((line, i) => {
-                  const isLiability = (LIABILITY_KEYS as readonly string[]).includes(line.key);
+                {lines.map((line, i) => {
+                  const isLiability = line.liability;
                   return (
                     <View
                       key={line.key}
@@ -631,7 +589,7 @@ export default function NetWorthScreen() {
             />
           ) : (
             <View style={{ paddingHorizontal: S.screen }}>
-              <Card pal={C} padding={0} contentStyle={{ paddingHorizontal: S.card }}>
+              <Card pal={C} padding={0} contentStyle={{ paddingHorizontal: 0 }}>
                 {entries.map((entry, i) => {
                   const step = entries[i + 1] ? entry.netWorth - entries[i + 1]!.netWorth : null;
                   const meta = [
@@ -646,26 +604,30 @@ export default function NetWorthScreen() {
 
                   return (
                     <View
-                      key={entry.id ?? i}
+                      key={entry.id}
                       style={i > 0 ? { borderTopWidth: 1, borderTopColor: C.hairline } : undefined}
                     >
-                      <InfoRow
-                        pal={C}
-                        title={longDate(entry.date)}
-                        meta={meta}
-                        amount={entry.netWorth}
-                        format={formatCurrency}
-                        tone={entry.netWorth < 0 ? C.negative : C.ink}
-                        footer={
-                          step !== null ? (
-                            <Type role="meta" color={stepTone} numberOfLines={1}>
-                              {t('netWorth.sinceLast', {
-                                delta: `${step >= 0 ? '+' : '−'}${formatCurrency(Math.abs(step))}`,
-                              })}
-                            </Type>
-                          ) : null
-                        }
-                      />
+                      <SwipeRow pal={C} onDelete={() => confirmDelete(entry)} actionLabel={t('dialogs.delete')}>
+                        <View style={{ paddingHorizontal: S.card }}>
+                          <InfoRow
+                            pal={C}
+                            title={longDate(entry.date)}
+                            meta={meta}
+                            amount={entry.netWorth}
+                            format={formatCurrency}
+                            tone={entry.netWorth < 0 ? C.negative : C.ink}
+                            footer={
+                              step !== null ? (
+                                <Type role="meta" color={stepTone} numberOfLines={1}>
+                                  {t('netWorth.sinceLast', {
+                                    delta: `${step >= 0 ? '+' : '−'}${formatCurrency(Math.abs(step))}`,
+                                  })}
+                                </Type>
+                              ) : null
+                            }
+                          />
+                        </View>
+                      </SwipeRow>
                     </View>
                   );
                 })}

@@ -29,6 +29,7 @@ import {
   type PushStatus,
   type SyncEngine,
   type SyncEntity,
+  type LocalSyncState,
   type SyncReport,
   type SyncTransport,
 } from "./phone";
@@ -79,6 +80,8 @@ export interface Device {
   rows(entity: SyncEntity): Promise<LocalRow[]>;
   /** One synced row with its sync bookkeeping (dirty, syncError), or null. */
   row(entity: SyncEntity, id: string): Promise<Record<string, unknown> | null>;
+  /** Where one row stands with the server, as db.ts's getLocalSyncState says it. */
+  syncState(entity: SyncEntity, id: string): Promise<LocalSyncState>;
   /** Everything synced, per entity: what two converged devices must agree on exactly. */
   view(): Promise<Record<SyncEntity, LocalRow[]>>;
   /** Rows still dirty (entity:id) and deletions not yet sent (entity:id). */
@@ -229,6 +232,18 @@ export function openDevice(app: Fetcher, session: Session, options: DeviceOption
           [key]
         )
       );
+    },
+    async syncState(entity, id) {
+      const { table, idColumn } = LOCAL_SYNC_TABLES[entity];
+      const row = await db.access.run((sql) =>
+        sql.getFirstAsync<{ dirty: number; syncError: string | null }>(
+          `SELECT dirty, syncError FROM ${table} WHERE ${idColumn} = ?`,
+          [entity === "settings" ? 1 : id]
+        )
+      );
+      if (!row) return "missing";
+      if (row.syncError !== null) return "refused";
+      return row.dirty === 1 ? "pending" : "synced";
     },
     async view() {
       const out = {} as Record<SyncEntity, LocalRow[]>;

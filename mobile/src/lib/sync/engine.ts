@@ -7,9 +7,11 @@
  *
  *   1. Push. Every dirty row the server has not refused, and every local
  *      deletion, in entity order — settings, categories, accounts,
- *      transactions, subscriptions — at most PUSH_BATCH_SIZE rows a request.
- *      Entity order across requests matters: a transaction pushed before its
- *      account would be stored by the server with its account set to null.
+ *      transactions, subscriptions, recurring, billReminders,
+ *      categoryBudgets, netWorth (SYNC_ENTITIES) — at most PUSH_BATCH_SIZE
+ *      rows a request. Entity order across requests matters: a transaction
+ *      or a recurring series pushed before its account would be stored by the
+ *      server with its account set to null.
  *      Each row's status is settled at once:
  *        applied, stale   → clean (stale: the pull brings the server's version)
  *        invalid,

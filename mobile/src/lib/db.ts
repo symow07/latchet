@@ -13,7 +13,8 @@
  * from the server is the sync engine's job and does none of that.
  *
  * This file is also the one place SQLite's representations are translated:
- * 0/1 into booleans and NULL into null, on the way out.
+ * 0/1 into booleans, NULL into null and a net-worth breakdown's JSON text
+ * into an object, on the way out.
  */
 import * as SQLite from 'expo-sqlite';
 import { setActiveCurrency } from './calculations';
@@ -25,6 +26,9 @@ import {
   defaultAccountId,
   type SyncEntity,
 } from './local-schema';
+import { billPaidChange } from './offline/bills';
+import { parseBreakdown, serializeBreakdown, type Breakdown } from './offline/breakdown';
+import type { LocalSyncState, RecurringFrequency } from './offline/recurring';
 import type { Transaction } from './transaction';
 import { createUserDatabaseRegistry, type UserDatabaseDriver } from './user-db';
 
@@ -987,7 +991,366 @@ export async function deleteCustomCategory(name: string): Promise<void> {
   if (deleted) notifyLocalMutation();
 }
 
+// ── Recurring series ─────────────────────────────────────────────────────────
+//
+// Synced since Phase 4 (entity `recurring`). The server books their
+// occurrences — the recurring job, and run-now (POST /recurring/:id/run) —
+// and moves nextDate and lastCreated as it does; those come back by pull. A
+// write here sends the series as this phone has it, and the server keeps its
+// own booking state over an older one (I-WIRE-4), so nothing here moves them.
+
+export interface RecurringSeries {
+  id: string;
+  /** Where occurrences are booked; null, or an account since deleted, means the default account. */
+  accountId: string | null;
+  name: string;
+  amount: number;
+  category: string;
+  type: 'Expense' | 'Income';
+  isImpulse: boolean;
+  frequency: RecurringFrequency;
+  startDate: string;
+  nextDate: string;
+  lastCreated: string | null;
+  isActive: boolean;
+  currency: string;
+  createdAt: string;
+}
+
+export interface RecurringInput {
+  accountId: string | null;
+  name: string;
+  amount: number;
+  category: string;
+  type: 'Expense' | 'Income';
+  isImpulse: boolean;
+  frequency: RecurringFrequency;
+  startDate: string;
+  nextDate: string;
+  currency: string;
+}
+
+interface RecurringRow extends Omit<RecurringSeries, 'isImpulse' | 'isActive'> {
+  isImpulse: number;
+  isActive: number;
+}
+
+const RECURRING_COLUMNS =
+  'id, accountId, name, amount, category, type, isImpulse, frequency, startDate, nextDate, lastCreated, isActive, currency, createdAt';
+
+function toRecurring(row: RecurringRow): RecurringSeries {
+  return {
+    ...row,
+    accountId: row.accountId ?? null,
+    type: row.type === 'Income' ? 'Income' : 'Expense',
+    isImpulse: row.isImpulse === 1,
+    lastCreated: row.lastCreated ?? null,
+    isActive: row.isActive === 1,
+  };
+}
+
+export async function getRecurring(): Promise<RecurringSeries[]> {
+  const database = await getDatabase();
+  const rows = await database.getAllAsync<RecurringRow>(
+    `SELECT ${RECURRING_COLUMNS} FROM recurring_transactions ORDER BY nextDate ASC, id ASC`,
+  );
+  return rows.map(toRecurring);
+}
+
+/** A new series, active and never booked. Its id is minted here, rec_…, as the server's are. */
+export async function addRecurring(input: RecurringInput): Promise<string> {
+  const id = newId('rec');
+  const at = nowISO();
+  await withWriteLock((db) =>
+    db.runAsync(
+      `INSERT INTO recurring_transactions (${RECURRING_COLUMNS}, clientUpdatedAt, dirty, syncError)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, 1, ?, ?, ?, 1, NULL)`,
+      [
+        id,
+        input.accountId || null,
+        input.name,
+        input.amount,
+        input.category,
+        input.type,
+        input.isImpulse ? 1 : 0,
+        input.frequency,
+        input.startDate,
+        input.nextDate,
+        input.currency || 'USD',
+        at,
+        at,
+      ],
+    ),
+  );
+  notifyLocalMutation();
+  return id;
+}
+
+/**
+ * Pause or resume a series. A no-op when it already is: the row a tap acted
+ * on may be older than the one a pull has since written.
+ */
+export async function setRecurringActive(id: string, active: boolean): Promise<void> {
+  const changed = await withWriteLock(async (db) => {
+    const result = await db.runAsync(
+      `UPDATE recurring_transactions SET isActive = ?, clientUpdatedAt = ?, dirty = 1, syncError = NULL
+       WHERE id = ? AND isActive <> ?`,
+      [active ? 1 : 0, nowISO(), id, active ? 1 : 0],
+    );
+    return result.changes > 0;
+  });
+  if (changed) notifyLocalMutation();
+}
+
+/** Delete a series. The occurrences it already booked stay: they are transactions. */
+export async function deleteRecurring(id: string): Promise<void> {
+  const deleted = await withWriteLock((db) =>
+    inTransaction(db, async () => {
+      const result = await db.runAsync(`DELETE FROM recurring_transactions WHERE id = ?`, [id]);
+      if (result.changes > 0) await writeTombstone(db, 'recurring', id, nowISO());
+      return result.changes > 0;
+    }),
+  );
+  if (deleted) notifyLocalMutation();
+}
+
+// ── Bill reminders ───────────────────────────────────────────────────────────
+//
+// Synced since Phase 4 (entity `billReminders`). The server's notifier moves
+// a recurring bill on when it fires, as a server write that wins over an
+// older copy here; when it last fired is the server's own and never synced.
+
+export interface BillReminder {
+  id: string;
+  name: string;
+  amount: number;
+  /** Day of the month it falls due, 1–31. */
+  dueDay: number;
+  category: string;
+  isRecurring: boolean;
+  isPaid: boolean;
+  /** When it was marked paid (ISO), or null. */
+  paidAt: string | null;
+  nextDueDate: string;
+  createdAt: string;
+}
+
+export interface BillReminderInput {
+  name: string;
+  amount: number;
+  dueDay: number;
+  category: string;
+  isRecurring: boolean;
+  nextDueDate: string;
+}
+
+interface BillReminderRow extends Omit<BillReminder, 'isRecurring' | 'isPaid'> {
+  isRecurring: number;
+  isPaid: number;
+}
+
+const BILL_COLUMNS = 'id, name, amount, dueDay, category, isRecurring, isPaid, paidAt, nextDueDate, createdAt';
+
+function toBillReminder(row: BillReminderRow): BillReminder {
+  return { ...row, isRecurring: row.isRecurring === 1, isPaid: row.isPaid === 1, paidAt: row.paidAt ?? null };
+}
+
+export async function getBillReminders(): Promise<BillReminder[]> {
+  const database = await getDatabase();
+  const rows = await database.getAllAsync<BillReminderRow>(
+    `SELECT ${BILL_COLUMNS} FROM bill_reminders ORDER BY isPaid ASC, nextDueDate ASC, id ASC`,
+  );
+  return rows.map(toBillReminder);
+}
+
+/** A new bill, unpaid. Its id is minted here, bill_…, as the server's are. */
+export async function addBillReminder(input: BillReminderInput): Promise<string> {
+  const id = newId('bill');
+  const at = nowISO();
+  await withWriteLock((db) =>
+    db.runAsync(
+      `INSERT INTO bill_reminders (${BILL_COLUMNS}, clientUpdatedAt, dirty, syncError)
+       VALUES (?, ?, ?, ?, ?, ?, 0, NULL, ?, ?, ?, 1, NULL)`,
+      [id, input.name, input.amount, input.dueDay, input.category, input.isRecurring ? 1 : 0, input.nextDueDate, at, at],
+    ),
+  );
+  notifyLocalMutation();
+  return id;
+}
+
+/**
+ * Mark a bill paid or unpaid (billPaidChange: a recurring bill moves on a
+ * month when paid, and back when un-paid). Decided from the row as it is now,
+ * inside the write lock, not from the copy the screen drew: asking for what
+ * the bill already is changes nothing. True when it changed.
+ */
+export async function setBillPaid(id: string, paid: boolean): Promise<boolean> {
+  const changed = await withWriteLock(async (db) => {
+    const row = await db.getFirstAsync<BillReminderRow>(`SELECT ${BILL_COLUMNS} FROM bill_reminders WHERE id = ?`, [id]);
+    if (!row) return false;
+    const at = nowISO();
+    const next = billPaidChange(toBillReminder(row), paid, at);
+    if (!next) return false;
+    await db.runAsync(
+      `UPDATE bill_reminders SET isPaid = ?, paidAt = ?, nextDueDate = ?, clientUpdatedAt = ?, dirty = 1, syncError = NULL
+       WHERE id = ?`,
+      [next.isPaid ? 1 : 0, next.paidAt, next.nextDueDate, at, id],
+    );
+    return true;
+  });
+  if (changed) notifyLocalMutation();
+  return changed;
+}
+
+export async function deleteBillReminder(id: string): Promise<void> {
+  const deleted = await withWriteLock((db) =>
+    inTransaction(db, async () => {
+      const result = await db.runAsync(`DELETE FROM bill_reminders WHERE id = ?`, [id]);
+      if (result.changes > 0) await writeTombstone(db, 'billReminders', id, nowISO());
+      return result.changes > 0;
+    }),
+  );
+  if (deleted) notifyLocalMutation();
+}
+
+// ── Category budgets ─────────────────────────────────────────────────────────
+//
+// Synced since Phase 4 (entity `categoryBudgets`), keyed by category on the
+// wire and here: one budget per category. The server's own row id for a
+// budget never leaves the server.
+
+export type BudgetPeriod = 'weekly' | 'monthly' | 'yearly';
+
+export interface CategoryBudget {
+  category: string;
+  amount: number;
+  period: BudgetPeriod;
+  createdAt: string;
+}
+
+export async function getCategoryBudgets(): Promise<CategoryBudget[]> {
+  const database = await getDatabase();
+  return database.getAllAsync<CategoryBudget>(
+    `SELECT category, amount, period, createdAt FROM category_budgets ORDER BY createdAt ASC, category ASC`,
+  );
+}
+
+/** Set a category's limit: creates its budget, or replaces the limit of the one it has. */
+export async function setCategoryBudget(category: string, amount: number, period: BudgetPeriod = 'monthly'): Promise<void> {
+  await withWriteLock((db) =>
+    inTransaction(db, async () => {
+      const at = nowISO();
+      await db.runAsync(
+        `INSERT INTO category_budgets (category, amount, period, createdAt, clientUpdatedAt, dirty, syncError)
+         VALUES (?, ?, ?, ?, ?, 1, NULL)
+         ON CONFLICT(category) DO UPDATE SET
+           amount = excluded.amount, period = excluded.period,
+           clientUpdatedAt = excluded.clientUpdatedAt, dirty = 1, syncError = NULL`,
+        [category, amount, period, at, at],
+      );
+      await clearTombstone(db, 'categoryBudgets', category);
+    }),
+  );
+  notifyLocalMutation();
+}
+
+export async function deleteCategoryBudget(category: string): Promise<void> {
+  const deleted = await withWriteLock((db) =>
+    inTransaction(db, async () => {
+      const result = await db.runAsync(`DELETE FROM category_budgets WHERE category = ?`, [category]);
+      if (result.changes > 0) await writeTombstone(db, 'categoryBudgets', category, nowISO());
+      return result.changes > 0;
+    }),
+  );
+  if (deleted) notifyLocalMutation();
+}
+
+// ── Net-worth snapshots ──────────────────────────────────────────────────────
+//
+// Synced since Phase 4 (entity `netWorth`). The breakdown is stored and sent
+// as JSON text (I-WIRE-4) and is an object everywhere outside this file.
+
+export interface NetWorthEntry {
+  id: string;
+  /** The local calendar date it was taken. */
+  date: string;
+  assets: number;
+  liabilities: number;
+  /** Always assets − liabilities. */
+  netWorth: number;
+  breakdown: Breakdown | null;
+  createdAt: string;
+}
+
+export interface NetWorthInput {
+  date: string;
+  assets: number;
+  liabilities: number;
+  breakdown?: Breakdown | null;
+}
+
+export async function getNetWorthEntries(): Promise<NetWorthEntry[]> {
+  const database = await getDatabase();
+  const rows = await database.getAllAsync<Omit<NetWorthEntry, 'breakdown'> & { breakdown: string | null }>(
+    `SELECT id, date, assets, liabilities, netWorth, breakdown, createdAt FROM net_worth_entries
+     ORDER BY date DESC, createdAt DESC, id ASC`,
+  );
+  return rows.map((row) => ({ ...row, breakdown: parseBreakdown(row.breakdown) }));
+}
+
+/** A new snapshot. Its id is minted here, nw_…; netWorth is derived, as the server stores it. */
+export async function addNetWorthEntry(input: NetWorthInput): Promise<string> {
+  const id = newId('nw');
+  const at = nowISO();
+  await withWriteLock((db) =>
+    db.runAsync(
+      `INSERT INTO net_worth_entries (id, date, assets, liabilities, netWorth, breakdown, createdAt, clientUpdatedAt, dirty, syncError)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, NULL)`,
+      [
+        id,
+        input.date,
+        input.assets,
+        input.liabilities,
+        input.assets - input.liabilities,
+        serializeBreakdown(input.breakdown),
+        at,
+        at,
+      ],
+    ),
+  );
+  notifyLocalMutation();
+  return id;
+}
+
+/** Delete a snapshot taken by mistake; the deletion syncs like any other. */
+export async function deleteNetWorthEntry(id: string): Promise<void> {
+  const deleted = await withWriteLock((db) =>
+    inTransaction(db, async () => {
+      const result = await db.runAsync(`DELETE FROM net_worth_entries WHERE id = ?`, [id]);
+      if (result.changes > 0) await writeTombstone(db, 'netWorth', id, nowISO());
+      return result.changes > 0;
+    }),
+  );
+  if (deleted) notifyLocalMutation();
+}
+
 // ── Sync bookkeeping ─────────────────────────────────────────────────────────
+
+/**
+ * Where one synced row stands with the server (offline/recurring.ts
+ * LocalSyncState). `id` is the sync id; the settings row is 'settings'.
+ */
+export async function getLocalSyncState(entity: SyncEntity, id: string): Promise<LocalSyncState> {
+  const database = await getDatabase();
+  const { table, idColumn } = LOCAL_SYNC_TABLES[entity];
+  const row = await database.getFirstAsync<{ dirty: number; syncError: string | null }>(
+    `SELECT dirty, syncError FROM ${table} WHERE ${idColumn} = ?`,
+    [entity === 'settings' ? 1 : id],
+  );
+  if (!row) return 'missing';
+  if (row.syncError !== null) return 'refused';
+  return row.dirty === 1 ? 'pending' : 'synced';
+}
 
 export interface UnsyncedChanges {
   /** Edited rows not yet accepted by the server, per entity. */

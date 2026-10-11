@@ -19,6 +19,12 @@
  *     when it was read for the push. A write in between keeps it dirty.
  *   - 0/1 become booleans on the way out, booleans become 0/1 on the way in,
  *     and a malformed server row is skipped and reported, never half-written.
+ *     A net-worth breakdown is JSON text on the wire and in its column alike;
+ *     only db.ts parses it.
+ *   - When the set of synced entities grows (a phone upgraded from a build
+ *     that synced fewer), the next pull is a full one: rows of the new
+ *     entities that the old build skipped are behind its cursor, and nothing
+ *     else would ever send them (SYNC_ENTITY_SIGNATURE).
  */
 import { EPOCH_ISO, LOCAL_SYNC_TABLES, SETTINGS_SYNC_ID, type SyncEntity } from '../local-schema';
 import type { ApplyCounts, ApplyOptions, PendingChange, PullState, PushOutcome, SettleCounts, SyncStore } from './engine';
@@ -45,9 +51,23 @@ export const SYNC_META = {
   cursor: 'pull_cursor',
   resyncActive: 'pull_resync_active',
   serverTime: 'pull_server_time',
+  /** The SYNC_ENTITY_SIGNATURE of the build that stored the cursor. */
+  entities: 'pull_entities',
 } as const;
 
-type ColumnKind = 'number' | 'text' | 'nullableText' | 'boolean';
+/**
+ * The entities this build syncs, stored with every cursor. A stored cursor is
+ * only good for the entity set it was read under: a build that synced five
+ * entities pulled past rows of the other four without keeping them. When the
+ * stored signature is not this one (missing, on a database from such a
+ * build), the store reports no cursor — and no snapshot in progress, since
+ * one the old build started skipped those rows too — so the engine pulls a
+ * full snapshot. Its first page stores this signature with its cursor, so an
+ * interrupted snapshot then continues instead of starting over.
+ */
+export const SYNC_ENTITY_SIGNATURE = SYNC_ENTITIES.join(',');
+
+type ColumnKind = 'number' | 'text' | 'nullableText' | 'boolean' | 'json';
 
 interface ColumnSpec {
   kind: ColumnKind;
@@ -60,8 +80,11 @@ const num = (fallback: number): ColumnSpec => ({ kind: 'number', fallback });
 const text = (fallback: string): ColumnSpec => ({ kind: 'text', fallback });
 const nullableText: ColumnSpec = { kind: 'nullableText', fallback: null };
 const bool: ColumnSpec = { kind: 'boolean', fallback: 0 };
+const boolTrue: ColumnSpec = { kind: 'boolean', fallback: 1 };
 const requiredNum: ColumnSpec = { kind: 'number', required: true };
 const requiredText: ColumnSpec = { kind: 'text', required: true };
+/** JSON text, or null. An object from the server is stored as its JSON text. */
+const jsonText: ColumnSpec = { kind: 'json', fallback: null };
 /** createdAt falls back to the row's clientUpdatedAt. */
 const createdAt: ColumnSpec = { kind: 'text' };
 
@@ -123,6 +146,47 @@ export const SYNC_COLUMNS: Record<SyncEntity, Record<string, ColumnSpec>> = {
     cancelUrl: nullableText,
     cancelNotes: nullableText,
     source: text('transaction'),
+    createdAt,
+  },
+  recurring: {
+    // Null, or an account this phone may no longer have: the server books an
+    // unknown or unlinked account's occurrences onto the default account.
+    accountId: nullableText,
+    name: requiredText,
+    amount: requiredNum,
+    category: requiredText,
+    type: requiredText,
+    isImpulse: bool,
+    frequency: text('monthly'),
+    startDate: requiredText,
+    nextDate: requiredText,
+    lastCreated: nullableText,
+    isActive: boolTrue,
+    currency: text('USD'),
+    createdAt,
+  },
+  billReminders: {
+    name: requiredText,
+    amount: requiredNum,
+    dueDay: requiredNum,
+    category: text('Other'),
+    isRecurring: boolTrue,
+    isPaid: bool,
+    paidAt: nullableText,
+    nextDueDate: requiredText,
+    createdAt,
+  },
+  categoryBudgets: {
+    amount: requiredNum,
+    period: text('monthly'),
+    createdAt,
+  },
+  netWorth: {
+    date: requiredText,
+    assets: num(0),
+    liabilities: num(0),
+    netWorth: num(0),
+    breakdown: jsonText,
     createdAt,
   },
 };
@@ -191,7 +255,11 @@ export function toLocalValues(entity: SyncEntity, row: WireRow): { values: Recor
     const value = row[field];
     switch (spec.kind) {
       case 'boolean':
-        values[field] = value === true || value === 1 ? 1 : 0;
+        values[field] = value === true || value === 1 ? 1 : value === false || value === 0 ? 0 : (spec.fallback as number);
+        break;
+      case 'json':
+        values[field] =
+          typeof value === 'string' ? value : value && typeof value === 'object' ? JSON.stringify(value) : null;
         break;
       case 'number': {
         const n = typeof value === 'number' ? value : typeof value === 'string' && value.trim() !== '' ? Number(value) : NaN;
@@ -308,9 +376,12 @@ async function deleteLocalRow(db: SyncSqlDb, entity: SyncEntity, key: LocalKey):
   let changed = result.changes;
   if (entity === 'accounts') {
     // What the server's ON DELETE SET NULL already did to its copies of these
-    // transactions: none may point at an account that no longer exists.
+    // transactions and recurring series: none may point at an account that no
+    // longer exists. Not stamped and not dirty — the server made the same
+    // change, and re-sends the rows it changed.
     const detached = await db.runAsync(`UPDATE transactions SET accountId = NULL WHERE accountId = ?`, [key]);
-    changed += detached.changes;
+    const unlinked = await db.runAsync(`UPDATE recurring_transactions SET accountId = NULL WHERE accountId = ?`, [key]);
+    changed += detached.changes + unlinked.changes;
   }
   return changed;
 }
@@ -476,10 +547,13 @@ export function createSqliteSyncStore(access: SyncDbAccess): SyncStore {
   async function getPullState(): Promise<PullState> {
     return access.run(async (db) => {
       const rows = await db.getAllAsync<{ key: string; value: string | null }>(
-        `SELECT key, value FROM sync_meta WHERE key IN (?, ?)`,
-        [SYNC_META.cursor, SYNC_META.resyncActive],
+        `SELECT key, value FROM sync_meta WHERE key IN (?, ?, ?)`,
+        [SYNC_META.cursor, SYNC_META.resyncActive, SYNC_META.entities],
       );
       const meta = new Map(rows.map((r) => [r.key, r.value]));
+      // A cursor read under another entity set (an older build's) has passed
+      // rows this build keeps and that build did not: start a full pull.
+      if (meta.get(SYNC_META.entities) !== SYNC_ENTITY_SIGNATURE) return { cursor: null, resyncActive: false };
       return {
         cursor: meta.get(SYNC_META.cursor) || null,
         resyncActive: meta.get(SYNC_META.resyncActive) === '1',
@@ -592,8 +666,10 @@ export function createSqliteSyncStore(access: SyncDbAccess): SyncStore {
         }
 
         // In the same transaction as the rows: a cycle cut short resumes from
-        // exactly what was applied.
+        // exactly what was applied. The signature says the cursor was read by
+        // a build that keeps every entity this one does.
         await setMeta(db, SYNC_META.cursor, page.cursor);
+        await setMeta(db, SYNC_META.entities, SYNC_ENTITY_SIGNATURE);
         await setMeta(db, SYNC_META.resyncActive, options.resyncActive ? '1' : null);
         await setMeta(db, SYNC_META.serverTime, typeof page.serverTime === 'string' ? page.serverTime : null);
         return counts;

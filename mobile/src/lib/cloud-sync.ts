@@ -9,7 +9,9 @@
  *   - every SYNC_INTERVAL_MS while the app is in front
  *   - activation                 the root layout calls syncNow(); on a fresh
  *                                database that is the full pull (no cursor yet)
- *   - explicit                   syncNow() / requestPull(): recurring run-now,
+ *   - explicit                   syncNow() / requestPull(): recurring run-now
+ *                                (syncNow first, so a series made offline reaches
+ *                                the server before it is run; requestPull after),
  *                                bank link and bank sync, after server-side work
  *   - leaving for the background, if a local write is still waiting to go
  *   - sign-out                   flushBeforeSignOut()

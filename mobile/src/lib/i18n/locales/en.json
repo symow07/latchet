@@ -34,7 +34,8 @@
     "noChartData": "No spending to chart yet",
     "transactionsEmptyBody": "Try adjusting your filters, or add your first transaction.",
     "netWorthEmptyBody": "Tap the + button to record your first net worth snapshot.",
-    "saving": "Saving…"
+    "saving": "Saving…",
+    "amountTooLarge": "That amount is too large."
   },
   "settings": {
     "title": "Settings",
@@ -708,7 +709,7 @@
     "activeExpenses": "active expenses",
     "monthlyIncome": "Monthly income",
     "activeIncome": "active income",
-    "loadFailed": "Could not load recurring transactions. Check your connection.",
+    "loadFailed": "Could not load recurring transactions.",
     "emptyTitle": "No Recurring Transactions",
     "emptyBody": "Tap the + button to add subscriptions, bills, or regular income that repeat on a schedule.",
     "headerTitle": "Recurring",
@@ -721,7 +722,11 @@
       "one": "%{count} running",
       "other": "%{count} running"
     },
-    "noteRuns": "Recurring: %{frequency}"
+    "noteRuns": "Recurring: %{frequency}",
+    "account": "Account",
+    "saveFailed": "Could not save this. Try again.",
+    "runNowOffline": "Run now needs a connection. Nothing was booked — try again when you're online.",
+    "runNowFailed": "Couldn't run this now. Nothing was booked."
   },
   "emailInbox": {
     "title": "Email Inbox",
@@ -816,7 +821,7 @@
     "addButton": "Add Bill Reminder",
     "monthlyTotal": "Monthly total",
     "recurringBills": "recurring bills",
-    "loadFailed": "Could not load bill reminders. Check your connection.",
+    "loadFailed": "Could not load bill reminders.",
     "emptyTitle": "No Bill Reminders",
     "emptyBody": "Tap the + button to add your first bill reminder and never miss a due date.",
     "paidThisCycle": "Paid this cycle",
@@ -878,7 +883,8 @@
     "footnote": "Budgets are monthly. Progress bars reset at the start of each month. Over-budget categories show in red.",
     "spentOf": "%{amount} spent",
     "remaining": " · %{amount} left",
-    "overBy": "%{amount} over"
+    "overBy": "%{amount} over",
+    "loadFailed": "Could not load your budgets."
   },
   "expenseCategories": {
     "Travel": "Travel",

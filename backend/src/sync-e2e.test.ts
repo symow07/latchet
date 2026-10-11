@@ -19,6 +19,13 @@
  *   separation       one user's phones never see another user's rows; a new
  *                    phone's seeded defaults never beat real server settings
  *                    and never add a second default account.
+ *   phase4 offline   recurring series, bill reminders, category budgets and
+ *                    net-worth snapshots made on a phone reach the server and
+ *                    the other phone, and server-side writes come back; a
+ *                    series made offline is run once it has reached the
+ *                    server, onto the default account; the server's own
+ *                    writes beat a phone's older edits; a phone upgraded from
+ *                    the five-entity build fills the four new tables.
  *
  * Timing. A pull returns every row visible when it is read, so a row written
  * before a sync arrives in that sync — no test waits for arrival. The cursor
@@ -37,8 +44,9 @@ import { advanceDays, anchorDayOf, computeNextDate } from "./lib/recurrence";
 import { bankAccountId, persistConnection, syncConnectionTransactions, transactionId } from "./lib/bank-sync";
 import type { BankProvider, ProviderAccount, ProviderTransaction, TransactionPage } from "./lib/bank-providers";
 import { PULL_SAFETY_LAG_MS } from "./lib/sync/constants";
+import { billReminderDeps, checkBillReminders } from "./jobs/bill-reminder-checker";
 import { openDevice, type Device, type DeviceOptions, type LocalRow, type SyncResult } from "./test-support/device";
-import { EPOCH_ISO, SYNC_META, defaultAccountId } from "./test-support/phone";
+import { EPOCH_ISO, SYNC_META, defaultAccountId, parseBreakdown, runRecurringNow, type RunNowDeps } from "./test-support/phone";
 import { deleteUsers, request, signIn, signUp, type E2EUser } from "./test-support/session";
 
 const TIMEOUT = 30_000;
@@ -870,37 +878,409 @@ describe("the phone's transport against the real server", () => {
   }, TIMEOUT);
 });
 
-describe("a phone that predates the Phase 4 entities", () => {
-  // The server syncs nine entities since Phase 4; phones already installed
-  // know five. Their pull keeps working: rows of an entity they do not know
-  // are skipped, a deletion of one is reported as an apply error (logged on
-  // the phone) and passed over, and nothing of theirs changes. Once the phone
-  // knows the entity (Phase 4, leaf 4.5) there is no error at all.
-  test("recurring series, bills, budgets and net worth written and deleted on the server never stop its sync", async () => {
-    const user = await newUser("e2e-p4-old-phone");
+// ── Phase 4: the four screens, local-first ──────────────────────────────────
+
+/** The server's copy of one recurring series, in the phone's comparison shape. */
+async function serverSeries(id: string): Promise<LocalRow> {
+  const r = await prisma.recurringTransaction.findUniqueOrThrow({ where: { id } });
+  return {
+    id: r.id, clientUpdatedAt: r.clientUpdatedAt.toISOString(), accountId: r.accountId, name: r.name, amount: r.amount,
+    category: r.category, type: r.type, isImpulse: r.isImpulse ? 1 : 0, frequency: r.frequency, startDate: r.startDate,
+    nextDate: r.nextDate, lastCreated: r.lastCreated, isActive: r.isActive ? 1 : 0, currency: r.currency,
+    createdAt: r.createdAt.toISOString(),
+  };
+}
+
+/** The server's copy of one bill reminder, in the phone's comparison shape (no lastNotifiedAt: it never leaves). */
+async function serverBill(id: string): Promise<LocalRow> {
+  const b = await prisma.billReminder.findUniqueOrThrow({ where: { id } });
+  return {
+    id: b.id, clientUpdatedAt: b.clientUpdatedAt.toISOString(), name: b.name, amount: b.amount, dueDay: b.dueDay,
+    category: b.category, isRecurring: b.isRecurring ? 1 : 0, isPaid: b.isPaid ? 1 : 0,
+    paidAt: b.paidAt ? b.paidAt.toISOString() : null, nextDueDate: b.nextDueDate, createdAt: b.createdAt.toISOString(),
+  };
+}
+
+/** The server's category budgets, keyed by category as on the phone. */
+async function serverBudgets(userId: string): Promise<LocalRow[]> {
+  const rows = await prisma.categoryBudget.findMany({ where: { userId } });
+  return rows
+    .map((b) => ({ id: b.category, clientUpdatedAt: b.clientUpdatedAt.toISOString(), amount: b.amount, period: b.period, createdAt: b.createdAt.toISOString() }))
+    .sort((a, b) => (a.id < b.id ? -1 : 1));
+}
+
+async function serverNetWorth(userId: string): Promise<LocalRow[]> {
+  const rows = await prisma.netWorthEntry.findMany({ where: { userId } });
+  return rows
+    .map((n) => ({
+      id: n.id, clientUpdatedAt: n.clientUpdatedAt.toISOString(), date: n.date, assets: n.assets, liabilities: n.liabilities,
+      netWorth: n.netWorth, breakdown: n.breakdown, createdAt: n.createdAt.toISOString(),
+    }))
+    .sort((a, b) => (a.id < b.id ? -1 : 1));
+}
+
+const P4_TABLES = ["recurring_transactions", "bill_reminders", "category_budgets", "net_worth_entries"] as const;
+
+describe("phase4 offline", () => {
+  const series = (accountId: string | null, over: Record<string, unknown> = {}) => ({
+    accountId, name: "Rent", amount: 700, category: "Other", type: "Expense" as const, isImpulse: false,
+    frequency: "monthly" as const, startDate: "2026-10-01", nextDate: "2099-01-01", currency: "EUR", ...over,
+  });
+
+  test("a recurring series made on one phone reaches the server and the other phone; a pause, a server edit and a delete travel both ways", async () => {
+    const user = await newUser("e2e-p4-recurring");
+    const p1 = await phone(user, "phone 1");
+    const p2 = await phone(user, "phone 2");
+    await synced(p1);
+    await synced(p2);
+
+    // Made on phone 1, on the account the form starts on: the default account.
+    const id = await p1.write.addRecurring(series(p1.defaultAccountId));
+    expect(await p1.syncState("recurring", id)).toBe("pending");
+    expect((await synced(p1)).statuses("recurring")).toEqual({ [id]: "applied" });
+    expect(await p1.syncState("recurring", id)).toBe("synced");
+    expect(await p1.rows("recurring")).toEqual([await serverSeries(id)]);
+
+    const got = await synced(p2);
+    expect(got.pulledIds("recurring")).toEqual([id]);
+    expect(await p2.rows("recurring")).toEqual(await p1.rows("recurring"));
+
+    // Paused on phone 2.
+    await p2.write.setRecurringActive(id, false);
+    expect((await synced(p2)).statuses("recurring")).toEqual({ [id]: "applied" });
+    await synced(p1);
+    expect(await p1.row("recurring", id)).toMatchObject({ isActive: 0, dirty: 0 });
+
+    // Edited over REST: a server write, stamped by the database clock.
+    await tick();
+    expect((await request(app, user.session, "PUT", `/api/v1/recurring/${id}`, { name: "Rent (flat)", amount: 720 })).status).toBe(200);
+    for (const p of [p1, p2]) {
+      await synced(p);
+      expect(await p.rows("recurring")).toEqual([await serverSeries(id)]);
+    }
+    expect(await p1.row("recurring", id)).toMatchObject({ name: "Rent (flat)", amount: 720, isActive: 0 });
+
+    // Deleted on phone 1.
+    await p1.write.deleteRecurring(id);
+    expect((await synced(p1)).statuses("recurring")).toEqual({ [id]: "applied" });
+    expect(await prisma.recurringTransaction.findUnique({ where: { id } })).toBeNull();
+    const gone = await synced(p2);
+    expect(gone.pulledDeletions()).toContain(`recurring:${id}`);
+    expect(await p2.row("recurring", id)).toBeNull();
+    expect(await p2.view()).toEqual(await p1.view());
+    await quiet(p1);
+    await quiet(p2);
+  }, TIMEOUT);
+
+  test("a bill added, paid and deleted on phones reaches the server and the other phone; one added over REST reaches both", async () => {
+    const user = await newUser("e2e-p4-bills");
+    const p1 = await phone(user, "phone 1");
+    const p2 = await phone(user, "phone 2");
+    await synced(p1);
+    await synced(p2);
+
+    const water = await p1.write.addBillReminder({ name: "Water", amount: 20, dueDay: 31, category: "Other", isRecurring: true, nextDueDate: "2099-01-31" });
+    expect((await synced(p1)).statuses("billReminders")).toEqual({ [water]: "applied" });
+    expect(await p1.rows("billReminders")).toEqual([await serverBill(water)]);
+    await synced(p2);
+    expect(await p2.rows("billReminders")).toEqual(await p1.rows("billReminders"));
+
+    // Paid on phone 2: a recurring bill moves on a month (clamped to February).
+    // A second tap on the same row changes nothing.
+    expect(await p2.write.setBillPaid(water, true)).toBe(true);
+    expect(await p2.write.setBillPaid(water, true)).toBe(false);
+    expect((await synced(p2)).statuses("billReminders")).toEqual({ [water]: "applied" });
+    const stored = await prisma.billReminder.findUniqueOrThrow({ where: { id: water } });
+    expect(stored).toMatchObject({ isPaid: true, nextDueDate: "2099-02-28", lastNotifiedAt: null });
+    expect(stored.paidAt?.toISOString()).toBe((await p2.row("billReminders", water))!.paidAt as string);
+    await synced(p1);
+    expect(await p1.rows("billReminders")).toEqual(await p2.rows("billReminders"));
+
+    // Added over REST, as the old screen did.
+    const rest = await request(app, user.session, "POST", "/api/v1/bill-reminders", { name: "Phone", amount: 30, dueDay: 5, nextDueDate: "2099-01-05" });
+    expect(rest.status).toBe(201);
+    for (const p of [p1, p2]) {
+      await synced(p);
+      expect(await p.rows("billReminders")).toEqual([await serverBill(rest.json.id), await serverBill(water)].sort((a, b) => (a.id < b.id ? -1 : 1)));
+    }
+
+    // Deleted on phone 1.
+    await p1.write.deleteBillReminder(water);
+    await synced(p1);
+    expect(await prisma.billReminder.findUnique({ where: { id: water } })).toBeNull();
+    expect((await synced(p2)).pulledDeletions()).toContain(`billReminders:${water}`);
+    expect(ids(await p2.rows("billReminders"))).toEqual([rest.json.id]);
+    expect(await p2.view()).toEqual(await p1.view());
+    await quiet(p1);
+    await quiet(p2);
+  }, TIMEOUT);
+
+  test("a category budget is one row per category on every side: set on a phone, replaced on another, set over REST, removed", async () => {
+    const user = await newUser("e2e-p4-budgets");
+    const p1 = await phone(user, "phone 1");
+    const p2 = await phone(user, "phone 2");
+    await synced(p1);
+    await synced(p2);
+
+    await p1.write.setCategoryBudget("Food", 300);
+    expect((await synced(p1)).statuses("categoryBudgets")).toEqual({ Food: "applied" });
+    const first = await prisma.categoryBudget.findMany({ where: { userId: user.id } });
+    expect(first).toMatchObject([{ category: "Food", amount: 300, period: "monthly" }]);
+    expect(first[0]!.id).toStartWith("catbud_");
+
+    await synced(p2);
+    await p2.write.setCategoryBudget("Food", 450);
+    expect((await synced(p2)).statuses("categoryBudgets")).toEqual({ Food: "applied" });
+    // Replaced in place: the same row, not a second one.
+    expect(await prisma.categoryBudget.findMany({ where: { userId: user.id } })).toMatchObject([{ id: first[0]!.id, category: "Food", amount: 450 }]);
+
+    expect((await request(app, user.session, "POST", "/api/v1/category-budgets", { category: "Transport", amount: 80 })).status).toBe(200);
+    for (const p of [p1, p2]) {
+      const r = await synced(p);
+      // The server's row id is its own: never on the wire.
+      expect(JSON.stringify(r.pulledRows("categoryBudgets"))).not.toContain("catbud_");
+      expect(await p.rows("categoryBudgets")).toEqual(await serverBudgets(user.id));
+    }
+    expect(await p1.rows("categoryBudgets")).toMatchObject([{ id: "Food", amount: 450 }, { id: "Transport", amount: 80 }]);
+
+    await p1.write.deleteCategoryBudget("Food");
+    expect((await synced(p1)).statuses("categoryBudgets")).toEqual({ Food: "applied" });
+    expect(await prisma.categoryBudget.findMany({ where: { userId: user.id }, select: { category: true } })).toEqual([{ category: "Transport" }]);
+    expect((await synced(p2)).pulledDeletions()).toContain("categoryBudgets:Food");
+    expect(ids(await p2.rows("categoryBudgets"))).toEqual(["Transport"]);
+    expect(await p2.view()).toEqual(await p1.view());
+    await quiet(p1);
+    await quiet(p2);
+  }, TIMEOUT);
+
+  test("a net-worth snapshot's breakdown travels as JSON text and reads back as an object; one taken over REST reaches both phones; a deletion travels both ways", async () => {
+    const user = await newUser("e2e-p4-net-worth");
+    const p1 = await phone(user, "phone 1");
+    const p2 = await phone(user, "phone 2");
+    await synced(p1);
+    await synced(p2);
+
+    const breakdown = { cashSavings: 3000, investments: 2000, loans: 1200 };
+    const mine = await p1.write.addNetWorthEntry({ date: "2026-10-11", assets: 5000, liabilities: 1200, breakdown });
+    expect((await synced(p1)).statuses("netWorth")).toEqual({ [mine]: "applied" });
+    expect(await prisma.netWorthEntry.findUniqueOrThrow({ where: { id: mine } })).toMatchObject({
+      assets: 5000, liabilities: 1200, netWorth: 3800, breakdown: JSON.stringify(breakdown),
+    });
+
+    const rest = await request(app, user.session, "POST", "/api/v1/net-worth", { date: "2026-10-12", assets: 10, liabilities: 0, breakdown: { investments: 10 } });
+    expect(rest.status).toBe(201);
+    for (const p of [p1, p2]) {
+      await synced(p);
+      expect(await p.rows("netWorth")).toEqual(await serverNetWorth(user.id));
+      // What db.ts hands the screen: the object, which it used to never get.
+      expect(parseBreakdown((await p.row("netWorth", mine))!.breakdown as string)).toEqual(breakdown);
+      expect(parseBreakdown((await p.row("netWorth", rest.json.id))!.breakdown as string)).toEqual({ investments: 10 });
+    }
+
+    // The REST snapshot swiped away on phone 2.
+    await p2.write.deleteNetWorthEntry(rest.json.id);
+    expect((await synced(p2)).statuses("netWorth")).toEqual({ [rest.json.id]: "applied" });
+    expect(await prisma.netWorthEntry.findUnique({ where: { id: rest.json.id } })).toBeNull();
+    expect((await synced(p1)).pulledDeletions()).toContain(`netWorth:${rest.json.id}`);
+    expect(ids(await p1.rows("netWorth"))).toEqual([mine]);
+    expect(await p2.view()).toEqual(await p1.view());
+    await quiet(p1);
+    await quiet(p2);
+  }, TIMEOUT);
+
+  test("a series made offline books nothing until it reaches the server; then run now books it once onto the default account, on both phones", async () => {
+    const user = await newUser("e2e-p4-run-now");
+    const p1 = await phone(user, "phone 1");
+    const p2 = await phone(user, "phone 2");
+    const checking = await p1.write.createAccount({ name: "Checking", type: "checking", balance: 1000, currency: "USD", color: "#3b82f6", icon: "bank" });
+    await synced(p1);
+    await synced(p2);
+    const today = await dbToday();
+
+    // Made offline. One on the account the form defaults to, the default
+    // account; one naming none, which the server books onto it as well.
+    const gym = await p1.write.addRecurring(series(p1.defaultAccountId, {
+      name: "Gym", amount: 35.5, category: "Gym", frequency: "weekly", startDate: today, nextDate: advanceDays(today, 3), currency: "USD",
+    }));
+    const coffee = await p1.write.addRecurring(series(null, {
+      name: "Coffee", amount: 4, category: "Food", frequency: "daily", startDate: today, nextDate: advanceDays(today, 1), currency: "USD",
+    }));
+
+    // The screen's run-now, with this phone's sync and the real endpoint.
+    const log: string[] = [];
+    const unreachable = Object.assign(new Error("Network request failed"), { name: "NetworkError" });
+    const runNow = (id: string, online: boolean) => {
+      const deps: RunNowDeps = {
+        // Offline the push cannot go: the series stays pending.
+        flush: async () => (online ? p1.sync() : null),
+        syncState: (seriesId) => p1.syncState("recurring", seriesId),
+        run: async (seriesId) => {
+          if (!online) throw unreachable;
+          const res = await request(app, user.session, "POST", `/api/v1/recurring/${encodeURIComponent(seriesId)}/run`);
+          log.push(`run ${res.status}`);
+          if (res.status !== 200 && res.status !== 201) throw new Error(`run: HTTP ${res.status}`);
+          return res.json;
+        },
+        pull: () => log.push("pull"),
+        isConnectionError: (e) => e === unreachable,
+      };
+      return runRecurringNow(id, deps);
+    };
+
+    // Offline: nothing sent, nothing booked, and the screen says why.
+    expect(await runNow(gym, false)).toBe("offline");
+    expect(log).toEqual([]);
+    expect(await prisma.recurringTransaction.count({ where: { userId: user.id } })).toBe(0);
+    expect(await serverTransactionIds(user.id)).toEqual([]);
+
+    // Online: the series goes first, then today's occurrence is booked.
+    expect(await runNow(gym, true)).toBe("booked");
+    expect(await runNow(coffee, true)).toBe("booked");
+    expect(log).toEqual(["run 201", "pull", "run 201", "pull"]);
+    const gymTx = occurrence(gym, today);
+    const coffeeTx = occurrence(coffee, today);
+    expect(await serverTransaction(gymTx)).toMatchObject({ amount: 35.5, accountId: p1.defaultAccountId, dateISO: today, note: "[Auto] Gym" });
+    expect(await serverTransaction(coffeeTx)).toMatchObject({ amount: 4, accountId: p1.defaultAccountId, dateISO: today });
+
+    for (const p of [p1, p2]) {
+      await synced(p);
+      expect(ids(await p.rows("transactions"))).toEqual(sorted([gymTx, coffeeTx]));
+      expect(await balances(p)).toEqual({ [checking]: 1000, [p.defaultAccountId]: -39.5 });
+      expect(await p.row("recurring", gym)).toMatchObject({ lastCreated: today, nextDate: advanceDays(today, 7), dirty: 0 });
+      expect(await p.row("recurring", coffee)).toMatchObject({ accountId: null, lastCreated: today, nextDate: advanceDays(today, 1) });
+    }
+
+    // A second tap books nothing more.
+    log.length = 0;
+    expect(await runNow(gym, true)).toBe("booked");
+    expect(log).toEqual(["run 200", "pull"]);
+    for (const p of [p1, p2]) {
+      await synced(p);
+      expect(ids(await p.rows("transactions"))).toEqual(sorted([gymTx, coffeeTx]));
+      expect(await balances(p)).toEqual({ [checking]: 1000, [p.defaultAccountId]: -39.5 });
+    }
+    expect(await serverTransactionIds(user.id)).toEqual(sorted([gymTx, coffeeTx]));
+    expect(await serverBalances(user.id)).toEqual({ [checking]: 1000, [p1.defaultAccountId]: -39.5 });
+    expect(await p2.view()).toEqual(await p1.view());
+  }, TIMEOUT);
+
+  test("the bill notifier's move and the recurring job's booking win over a phone's older edits", async () => {
+    const user = await newUser("e2e-p4-server-wins");
+    const p1 = await phone(user, "phone 1");
+    const p2 = await phone(user, "phone 2");
+    const today = await dbToday();
+    const due = advanceDays(today, -2);
+    const dueDay = Number(due.slice(8, 10));
+    const bill = await p1.write.addBillReminder({ name: "Rent", amount: 900, dueDay, category: "Other", isRecurring: true, nextDueDate: due });
+    const rent = await p1.write.addRecurring(series(p1.defaultAccountId, { startDate: today, nextDate: today, currency: "USD" }));
+    await synced(p1);
+    await synced(p2);
+
+    // On phone 2, before it next syncs: the bill marked paid, the series paused.
+    expect(await p2.write.setBillPaid(bill, true)).toBe(true);
+    await p2.write.setRecurringActive(rent, false);
+    await tick();
+
+    // Then the server writes both: the notifier fires for the bill and moves
+    // it on a month; the job books today's rent and moves the series on.
+    await checkBillReminders({
+      ...billReminderDeps,
+      findDueBills: async (day, start) => (await billReminderDeps.findDueBills(day, start)).filter((b) => b.userId === user.id),
+      sendPush: async () => {},
+    });
+    expect(await processRecurring({ userIds: [user.id] })).toBe(1);
+    const movedTo = computeNextDate(due, "monthly", dueDay);
+    expect(await prisma.billReminder.findUniqueOrThrow({ where: { id: bill } })).toMatchObject({ isPaid: false, nextDueDate: movedTo });
+
+    // Phone 2's edits are older than the server's writes: they lose, and it
+    // ends up holding what the server holds.
+    const r = await synced(p2);
+    expect(r.statuses("billReminders")).toEqual({ [bill]: "stale" });
+    expect(r.statuses("recurring")).toEqual({ [rent]: "stale" });
+    expect(await p2.rows("billReminders")).toEqual([await serverBill(bill)]);
+    expect(await p2.rows("recurring")).toEqual([await serverSeries(rent)]);
+    expect(await p2.row("billReminders", bill)).toMatchObject({ isPaid: 0, paidAt: null, nextDueDate: movedTo, dirty: 0 });
+    expect(await p2.row("recurring", rent)).toMatchObject({ isActive: 1, lastCreated: today, dirty: 0 });
+    expect(ids(await p2.rows("transactions"))).toEqual([occurrence(rent, today)]);
+
+    await synced(p1);
+    expect(await p1.view()).toEqual(await p2.view());
+    await quiet(p1);
+    await quiet(p2);
+  }, TIMEOUT);
+
+  test("an account deleted while a series books onto it unlinks the series on both phones, and its next run lands on the default account", async () => {
+    const user = await newUser("e2e-p4-unlinked");
+    const p1 = await phone(user, "phone 1");
+    const p2 = await phone(user, "phone 2");
+    const savings = await p1.write.createAccount({ name: "Savings", type: "savings", balance: 500, currency: "USD", color: "#000000", icon: "bank" });
+    const transfer = await p1.write.addRecurring(series(savings, { name: "Transfer", amount: 50, nextDate: "2099-01-10", currency: "USD" }));
+    await synced(p1);
+    await synced(p2);
+
+    await p2.write.deleteAccount(savings);
+    // Until the server has it, the series still names the account (the
+    // screen shows the default account for it).
+    expect(await p2.row("recurring", transfer)).toMatchObject({ accountId: savings });
+    await synced(p2);
+    expect((await prisma.recurringTransaction.findUniqueOrThrow({ where: { id: transfer } })).accountId).toBeNull();
+    expect(await p2.row("recurring", transfer)).toMatchObject({ accountId: null, dirty: 0 });
+    await synced(p1);
+    expect(await p1.row("accounts", savings)).toBeNull();
+    expect(await p1.row("recurring", transfer)).toMatchObject({ accountId: null, dirty: 0 });
+
+    const run = await request(app, user.session, "POST", `/api/v1/recurring/${transfer}/run`);
+    expect(run.status).toBe(201);
+    expect(await serverTransaction(run.json.transactionId)).toMatchObject({ amount: 50, accountId: p1.defaultAccountId });
+    for (const p of [p1, p2]) {
+      await synced(p);
+      expect(await balances(p)).toEqual({ [p.defaultAccountId]: -50 });
+    }
+    expect(await p2.view()).toEqual(await p1.view());
+  }, TIMEOUT);
+
+  test("a phone upgraded from the five-entity build fills the four new tables, once, keeping its unsent work", async () => {
+    const user = await newUser("e2e-p4-upgrade");
     const p = await phone(user, "phone");
     await p.write.addTransaction(spending({ amount: 8 }));
     await synced(p);
-    const before = await p.view();
 
-    // What the app's REST screens do today.
+    // What the app's REST screens wrote before this build.
     const post = (path: string, body: unknown) => request(app, user.session, "POST", path, body);
     const rec = await post("/api/v1/recurring", {
       name: "Gym", amount: 30, category: "Health", type: "Expense", frequency: "weekly", startDate: "2026-10-01", nextDate: "2099-01-01",
     });
     const bill = await post("/api/v1/bill-reminders", { name: "Water", amount: 20, dueDay: 12, nextDueDate: "2099-01-12" });
     const budget = await post("/api/v1/category-budgets", { category: "Food", amount: 300 });
-    const nw = await post("/api/v1/net-worth", { date: "2026-10-11", assets: 10, liabilities: 2 });
+    const nw = await post("/api/v1/net-worth", { date: "2026-10-11", assets: 10, liabilities: 2, breakdown: { cashSavings: 10, loans: 2 } });
     expect([rec.status, bill.status, budget.status, nw.status]).toEqual([201, 201, 200, 201]);
-    expect((await request(app, user.session, "DELETE", `/api/v1/bill-reminders/${bill.json.id}`)).status).toBe(200);
-    expect((await request(app, user.session, "DELETE", `/api/v1/category-budgets/${budget.json.id}`)).status).toBe(200);
 
-    const r = await p.sync();
-    expect(r.report.pulled.complete).toBe(true);
-    expect(r.report.errors.every((e) => /deletion of unknown entity (billReminders|categoryBudgets)/.test(e))).toBe(true);
-    // The server did send them, under their own keys.
-    expect(r.pulls.flatMap((x) => (x.response.changes as Record<string, { id: string }[]>).recurring ?? []).map((x) => x.id)).toContain(rec.json.id);
-    expect(await p.view()).toEqual(before);
-    expect(await p.pending()).toEqual({ dirty: [], tombstones: [] });
+    // The five-entity build pulled past these rows without keeping them, and
+    // stored its cursor with no record of which entities it covers: the
+    // database it leaves is this one with the four tables empty.
+    await synced(p);
+    for (const table of P4_TABLES) p.raw.query(`DELETE FROM ${table}`).run();
+    p.raw.query(`DELETE FROM sync_meta WHERE key = ?`).run(SYNC_META.entities);
+    const unsent = await p.write.addTransaction(spending({ amount: 3 }));
+
+    const upgraded = await synced(p);
+    expect(upgraded.statuses("transactions")).toEqual({ [unsent]: "applied" });
+    expect(upgraded.report.pulled.fullResync).toBe(true);
+    expect(upgraded.pulls[0]!.cursor).toBeNull();
+    expect(ids(await p.rows("recurring"))).toEqual([rec.json.id]);
+    expect(ids(await p.rows("billReminders"))).toEqual([bill.json.id]);
+    expect(ids(await p.rows("categoryBudgets"))).toEqual(["Food"]);
+    expect(ids(await p.rows("netWorth"))).toEqual([nw.json.id]);
+    expect(parseBreakdown((await p.row("netWorth", nw.json.id))!.breakdown as string)).toEqual({ cashSavings: 10, loans: 2 });
+    expect((await p.rows("transactions")).length).toBe(2);
+
+    // It now holds exactly what a brand-new phone gets.
+    const fresh = await phone(user, "fresh phone");
+    await synced(fresh);
+    expect(await p.view()).toEqual(await fresh.view());
+
+    // Once: the next cycle carries on from the snapshot's cursor.
+    expect((await synced(p)).report.pulled.fullResync).toBe(false);
+    await quiet(p);
   }, TIMEOUT);
 });

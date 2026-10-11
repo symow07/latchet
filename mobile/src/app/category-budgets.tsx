@@ -1,15 +1,16 @@
 import { useCallback, useState } from 'react';
-import { ScrollView, View } from 'react-native';
+import { ActivityIndicator, ScrollView, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import * as Haptics from 'expo-haptics';
 
-import { getSettings, getTransactions } from '@/lib/db';
-import { api } from '@/lib/api/api';
+import { deleteCategoryBudget, getCategoryBudgets, getSettings, getTransactions, setCategoryBudget } from '@/lib/db';
 import { getCategories, DEFAULT_CATEGORIES } from '@/lib/categories';
 import { categoryLabel } from '@/lib/category-meta';
 import { formatCurrency } from '@/lib/calculations';
+import { currentMonthKey } from '@/lib/dates';
+import { budgetLines, parseBudgetLimit } from '@/lib/offline/category-budgets';
 import { S, useC } from '@/lib/design';
 import { PressableScale } from '@/components/motion';
 import { categoryIcon } from '@/components/category-icon';
@@ -28,27 +29,11 @@ import {
 } from '@/components/kit';
 import { t, getDateFnsLocale } from '@/lib/i18n/core';
 
-interface CategoryBudget {
-  id: string;
-  category: string;
-  amount: number;
-  period: string;
-}
-
-async function fetchCategoryBudgets(): Promise<CategoryBudget[]> {
-  try {
-    return (await api.get<CategoryBudget[]>('/api/category-budgets')) ?? [];
-  } catch {
-    return [];
-  }
-}
-
 /** This month's spend per category, from the local ledger. */
 function currentMonthSpending(
   transactions: { category: string; type: string; amount: number; dateISO: string }[]
 ): Record<string, number> {
-  const now = new Date();
-  const yearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const yearMonth = currentMonthKey();
   const spending: Record<string, number> = {};
   for (const tx of transactions) {
     if (tx.type === 'Expense' && tx.dateISO.startsWith(yearMonth)) {
@@ -82,6 +67,12 @@ function currentMonthSpending(
  * identity marks a category by its glyph, never by a colour), a name, a
  * sentence saying where you are, one meter, and the limit. Tapping a line
  * opens the sheet that sets it.
+ *
+ * Since Phase 4 the budgets live in this phone's database and sync, keyed by
+ * category: setting a limit works offline and replaces the category's
+ * previous one. A failure to read them says so, where it used to show every
+ * category as having no limit. A budget whose category no longer exists is
+ * listed after the rest, so it can still be removed.
  */
 export default function CategoryBudgetsScreen() {
   const C = useC();
@@ -97,9 +88,15 @@ export default function CategoryBudgetsScreen() {
     }, [queryClient])
   );
 
-  const { data: budgets = [] } = useQuery<CategoryBudget[]>({
+  // Read from this phone's database, so the screen works offline; a pull
+  // that changes it refreshes every query (cloud-sync's onRemoteChange).
+  const {
+    data: budgets = [],
+    isLoading: budgetsLoading,
+    isError: budgetsFailed,
+  } = useQuery({
     queryKey: ['category-budgets'],
-    queryFn: fetchCategoryBudgets,
+    queryFn: getCategoryBudgets,
   });
   const { data: transactions = [] } = useQuery({
     queryKey: ['transactions'],
@@ -113,11 +110,12 @@ export default function CategoryBudgetsScreen() {
 
   const spending = currentMonthSpending(transactions);
   const budgetFor = (category: string) => budgets.find((b) => b.category === category);
+  const lines = budgetLines(categories, budgets);
 
   const saveMutation = useMutation({
-    mutationFn: async ({ category, value }: { category: string; value: number }) => {
-      await api.post('/api/category-budgets', { category, amount: value, period: 'monthly' });
-    },
+    // Keyed by category: a second limit for a category replaces the first.
+    mutationFn: ({ category, value }: { category: string; value: number }) =>
+      setCategoryBudget(category, value, 'monthly'),
     onSuccess: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       queryClient.invalidateQueries({ queryKey: ['category-budgets'] });
@@ -127,9 +125,7 @@ export default function CategoryBudgetsScreen() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      await api.delete(`/api/category-budgets/${id}`);
-    },
+    mutationFn: (category: string) => deleteCategoryBudget(category),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['category-budgets'] });
       close();
@@ -149,8 +145,8 @@ export default function CategoryBudgetsScreen() {
 
   function save() {
     if (!editing) return;
-    const value = parseFloat(amount);
-    if (!Number.isFinite(value) || value <= 0) return;
+    const value = parseBudgetLimit(amount);
+    if (value === null) return;
     saveMutation.mutate({ category: editing, value });
   }
 
@@ -172,71 +168,82 @@ export default function CategoryBudgetsScreen() {
         <View style={{ marginTop: S.section }}>
           <SectionHeader pal={C} title={monthLabel} />
           <View style={{ paddingHorizontal: S.screen }}>
-            <Card pal={C} padding={0} contentStyle={{ paddingHorizontal: S.card }}>
-              {categories.map((category, i) => {
-                const budget = budgetFor(category.name);
-                const spent = spending[category.name] ?? 0;
-                const over = budget !== undefined && spent > budget.amount;
-                const ratio = budget && budget.amount > 0 ? spent / budget.amount : 0;
-                // A module-level glyph component, so the row keeps one identity.
-                const Glyph = categoryIcon(category.name);
+            {budgetsLoading ? (
+              <View style={{ paddingVertical: 40, alignItems: 'center' }}>
+                <ActivityIndicator color={C.accent} />
+              </View>
+            ) : budgetsFailed ? (
+              // Not "no limit set" on every line: that is a claim about the
+              // user's budgets the screen could not read.
+              <Type role="body" color={C.negative}>
+                {t('categoryBudgets.loadFailed')}
+              </Type>
+            ) : (
+              <Card pal={C} padding={0} contentStyle={{ paddingHorizontal: S.card }}>
+                {lines.map(({ name, budget }, i) => {
+                  const spent = spending[name] ?? 0;
+                  const over = budget !== null && spent > budget.amount;
+                  const ratio = budget && budget.amount > 0 ? spent / budget.amount : 0;
+                  // A module-level glyph component, so the row keeps one identity.
+                  const Glyph = categoryIcon(name);
 
-                const sentence = budget
-                  ? over
-                    ? `${t('categoryBudgets.spentOf', { amount: formatCurrency(spent) })} · ${t(
-                        'categoryBudgets.overBy',
-                        { amount: formatCurrency(spent - budget.amount) }
-                      )}`
-                    : `${t('categoryBudgets.spentOf', {
-                        amount: formatCurrency(spent),
-                      })}${t('categoryBudgets.remaining', {
-                        amount: formatCurrency(budget.amount - spent),
-                      })}`
-                  : t('categoryBudgets.noLimitSet', { amount: formatCurrency(spent) });
+                  const sentence = budget
+                    ? over
+                      ? `${t('categoryBudgets.spentOf', { amount: formatCurrency(spent) })} · ${t(
+                          'categoryBudgets.overBy',
+                          { amount: formatCurrency(spent - budget.amount) }
+                        )}`
+                      : `${t('categoryBudgets.spentOf', {
+                          amount: formatCurrency(spent),
+                        })}${t('categoryBudgets.remaining', {
+                          amount: formatCurrency(budget.amount - spent),
+                        })}`
+                    : t('categoryBudgets.noLimitSet', { amount: formatCurrency(spent) });
 
-                return (
-                  <View
-                    key={category.name}
-                    style={i > 0 ? { borderTopWidth: 1, borderTopColor: C.hairline } : undefined}
-                  >
-                    <InfoRow
-                      pal={C}
-                      title={categoryLabel(category.name, categories)}
-                      meta={sentence}
-                      onPress={() => open(category.name)}
-                      amount={budget?.amount}
-                      format={budget ? formatCurrency : undefined}
-                      lead={
-                        <IconTile pal={C} size={40} style={{ backgroundColor: C.groundSunk }}>
-                          <Glyph size={22} color={C.ink} />
-                        </IconTile>
-                      }
-                      trailing={
-                        budget ? null : (
-                          <Type role="meta" color={C.inkDim}>
-                            {t('common.noLimit')}
-                          </Type>
-                        )
-                      }
-                      // Only a category with a limit has a proportion; a
-                      // category without one has nothing to be a fraction of,
-                      // and an empty track would imply it had spent nothing.
-                      footer={
-                        budget ? (
-                          <Meter
-                            pal={C}
-                            ratio={ratio}
-                            tone={over ? C.negative : undefined}
-                            label={categoryLabel(category.name, categories)}
-                            style={{ marginTop: 12 }}
-                          />
-                        ) : null
-                      }
-                    />
-                  </View>
-                );
-              })}
-            </Card>
+                  return (
+                    <View
+                      key={name}
+                      style={i > 0 ? { borderTopWidth: 1, borderTopColor: C.hairline } : undefined}
+                    >
+                      <InfoRow
+                        pal={C}
+                        title={categoryLabel(name, categories)}
+                        meta={sentence}
+                        onPress={() => open(name)}
+                        amount={budget?.amount}
+                        format={budget ? formatCurrency : undefined}
+                        lead={
+                          <IconTile pal={C} size={40} style={{ backgroundColor: C.groundSunk }}>
+                            <Glyph size={22} color={C.ink} />
+                          </IconTile>
+                        }
+                        trailing={
+                          budget ? null : (
+                            <Type role="meta" color={C.inkDim}>
+                              {t('common.noLimit')}
+                            </Type>
+                          )
+                        }
+                        // Only a category with a limit has a proportion; a
+                        // category without one has nothing to be a fraction of,
+                        // and an empty track would imply it had spent nothing.
+                        footer={
+                          budget ? (
+                            <Meter
+                              pal={C}
+                              ratio={ratio}
+                              tone={over ? C.negative : undefined}
+                              label={categoryLabel(name, categories)}
+                              style={{ marginTop: 12 }}
+                            />
+                          ) : null
+                        }
+                      />
+                    </View>
+                  );
+                })}
+              </Card>
+            )}
 
             <Type role="meta" color={C.inkDim} style={{ marginTop: 16 }}>
               {t('categoryBudgets.footnote')}
@@ -279,13 +286,13 @@ export default function CategoryBudgetsScreen() {
                 : t('categoryBudgets.setBudget')
             }
             onPress={save}
-            disabled={saveMutation.isPending || !amount}
+            disabled={saveMutation.isPending || parseBudgetLimit(amount) === null}
             style={{ marginTop: 24 }}
           />
 
           {editingBudget ? (
             <PressableScale
-              onPress={() => deleteMutation.mutate(editingBudget.id)}
+              onPress={() => deleteMutation.mutate(editingBudget.category)}
               haptic="light"
               accessibilityRole="button"
               accessibilityLabel={t('categoryBudgets.removeLimit')}

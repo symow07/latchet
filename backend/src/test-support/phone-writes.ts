@@ -20,6 +20,9 @@
  */
 import {
   EPOCH_ISO,
+  billPaidChange,
+  serializeBreakdown,
+  type Breakdown,
   type SyncDbAccess,
   type SyncEntity,
   type SyncSqlDb,
@@ -92,7 +95,39 @@ export interface SubscriptionInput {
   createdAt?: string;
 }
 
+export interface RecurringInput {
+  accountId: string | null;
+  name: string;
+  amount: number;
+  category: string;
+  type: "Expense" | "Income";
+  isImpulse: boolean;
+  frequency: "daily" | "weekly" | "biweekly" | "monthly" | "yearly";
+  startDate: string;
+  nextDate: string;
+  currency: string;
+}
+
+export interface BillReminderInput {
+  name: string;
+  amount: number;
+  dueDay: number;
+  category: string;
+  isRecurring: boolean;
+  nextDueDate: string;
+}
+
+export interface NetWorthInput {
+  date: string;
+  assets: number;
+  liabilities: number;
+  breakdown?: Breakdown | null;
+}
+
 const ACCOUNT_COLUMNS = "id, name, type, balance, openingBalance, currency, color, icon, isDefault, createdAt";
+const RECURRING_COLUMNS =
+  "id, accountId, name, amount, category, type, isImpulse, frequency, startDate, nextDate, lastCreated, isActive, currency, createdAt";
+const BILL_COLUMNS = "id, name, amount, dueDay, category, isRecurring, isPaid, paidAt, nextDueDate, createdAt";
 const TRANSACTION_COLUMNS = "id, amount, category, type, isImpulse, note, dateISO, createdAt, accountId, currency";
 const SETTINGS_FIELDS = [
   "monthlyBudget", "startingBalance", "hourlyValue", "showTimeCost", "currency", "currencySymbol",
@@ -415,6 +450,136 @@ export function createPhoneWrites(opts: { access: SyncDbAccess; now: () => strin
           await db.runAsync(`DELETE FROM subscription_occurrences WHERE subscriptionId = ?`, [id]);
           const result = await db.runAsync(`DELETE FROM subscriptions WHERE id = ?`, [id]);
           if (result.changes > 0) await writeTombstone(db, "subscriptions", id, now());
+        })
+      );
+    },
+
+    // ── Phase 4: recurring series, bills, budgets, net worth ──────────────
+
+    async addRecurring(input: RecurringInput): Promise<string> {
+      const id = newId("rec");
+      const at = now();
+      await run((db) =>
+        db.runAsync(
+          `INSERT INTO recurring_transactions (${RECURRING_COLUMNS}, clientUpdatedAt, dirty, syncError)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, 1, ?, ?, ?, 1, NULL)`,
+          [id, input.accountId || null, input.name, input.amount, input.category, input.type, input.isImpulse ? 1 : 0,
+            input.frequency, input.startDate, input.nextDate, input.currency || "USD", at, at]
+        )
+      );
+      return id;
+    },
+
+    async setRecurringActive(id: string, active: boolean): Promise<void> {
+      await run((db) =>
+        db.runAsync(
+          `UPDATE recurring_transactions SET isActive = ?, clientUpdatedAt = ?, dirty = 1, syncError = NULL
+           WHERE id = ? AND isActive <> ?`,
+          [active ? 1 : 0, now(), id, active ? 1 : 0]
+        )
+      );
+    },
+
+    async deleteRecurring(id: string): Promise<void> {
+      await run((db) =>
+        inTransaction(db, async () => {
+          const result = await db.runAsync(`DELETE FROM recurring_transactions WHERE id = ?`, [id]);
+          if (result.changes > 0) await writeTombstone(db, "recurring", id, now());
+          return result.changes > 0;
+        })
+      );
+    },
+
+    async addBillReminder(input: BillReminderInput): Promise<string> {
+      const id = newId("bill");
+      const at = now();
+      await run((db) =>
+        db.runAsync(
+          `INSERT INTO bill_reminders (${BILL_COLUMNS}, clientUpdatedAt, dirty, syncError)
+           VALUES (?, ?, ?, ?, ?, ?, 0, NULL, ?, ?, ?, 1, NULL)`,
+          [id, input.name, input.amount, input.dueDay, input.category, input.isRecurring ? 1 : 0, input.nextDueDate, at, at]
+        )
+      );
+      return id;
+    },
+
+    /** db.ts's setBillPaid: decided from the row as it is, with the app's own billPaidChange. */
+    async setBillPaid(id: string, paid: boolean): Promise<boolean> {
+      return run(async (db) => {
+        const row = await db.getFirstAsync<Record<string, any>>(`SELECT ${BILL_COLUMNS} FROM bill_reminders WHERE id = ?`, [id]);
+        if (!row) return false;
+        const at = now();
+        const next = billPaidChange(
+          { isRecurring: row.isRecurring === 1, isPaid: row.isPaid === 1, paidAt: row.paidAt ?? null, dueDay: row.dueDay, nextDueDate: row.nextDueDate },
+          paid,
+          at
+        );
+        if (!next) return false;
+        await db.runAsync(
+          `UPDATE bill_reminders SET isPaid = ?, paidAt = ?, nextDueDate = ?, clientUpdatedAt = ?, dirty = 1, syncError = NULL
+           WHERE id = ?`,
+          [next.isPaid ? 1 : 0, next.paidAt, next.nextDueDate, at, id]
+        );
+        return true;
+      });
+    },
+
+    async deleteBillReminder(id: string): Promise<void> {
+      await run((db) =>
+        inTransaction(db, async () => {
+          const result = await db.runAsync(`DELETE FROM bill_reminders WHERE id = ?`, [id]);
+          if (result.changes > 0) await writeTombstone(db, "billReminders", id, now());
+          return result.changes > 0;
+        })
+      );
+    },
+
+    async setCategoryBudget(category: string, amount: number, period: "weekly" | "monthly" | "yearly" = "monthly"): Promise<void> {
+      await run((db) =>
+        inTransaction(db, async () => {
+          const at = now();
+          await db.runAsync(
+            `INSERT INTO category_budgets (category, amount, period, createdAt, clientUpdatedAt, dirty, syncError)
+             VALUES (?, ?, ?, ?, ?, 1, NULL)
+             ON CONFLICT(category) DO UPDATE SET
+               amount = excluded.amount, period = excluded.period,
+               clientUpdatedAt = excluded.clientUpdatedAt, dirty = 1, syncError = NULL`,
+            [category, amount, period, at, at]
+          );
+          await clearTombstone(db, "categoryBudgets", category);
+        })
+      );
+    },
+
+    async deleteCategoryBudget(category: string): Promise<void> {
+      await run((db) =>
+        inTransaction(db, async () => {
+          const result = await db.runAsync(`DELETE FROM category_budgets WHERE category = ?`, [category]);
+          if (result.changes > 0) await writeTombstone(db, "categoryBudgets", category, now());
+          return result.changes > 0;
+        })
+      );
+    },
+
+    async addNetWorthEntry(input: NetWorthInput): Promise<string> {
+      const id = newId("nw");
+      const at = now();
+      await run((db) =>
+        db.runAsync(
+          `INSERT INTO net_worth_entries (id, date, assets, liabilities, netWorth, breakdown, createdAt, clientUpdatedAt, dirty, syncError)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, NULL)`,
+          [id, input.date, input.assets, input.liabilities, input.assets - input.liabilities, serializeBreakdown(input.breakdown), at, at]
+        )
+      );
+      return id;
+    },
+
+    async deleteNetWorthEntry(id: string): Promise<void> {
+      await run((db) =>
+        inTransaction(db, async () => {
+          const result = await db.runAsync(`DELETE FROM net_worth_entries WHERE id = ?`, [id]);
+          if (result.changes > 0) await writeTombstone(db, "netWorth", id, now());
+          return result.changes > 0;
         })
       );
     },

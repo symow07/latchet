@@ -32,7 +32,8 @@
     "noChartData": "暂无支出可供图表显示",
     "transactionsEmptyBody": "调整筛选条件，或添加第一笔交易。",
     "netWorthEmptyBody": "点击 + 按钮记录第一份净资产快照。",
-    "saving": "保存中…"
+    "saving": "保存中…",
+    "amountTooLarge": "金额过大。"
   },
   "settings": {
     "title": "设置",
@@ -694,7 +695,7 @@
     "activeExpenses": "项进行中的支出",
     "monthlyIncome": "每月收入",
     "activeIncome": "项进行中的收入",
-    "loadFailed": "无法加载定期交易，请检查网络连接。",
+    "loadFailed": "无法加载定期交易。",
     "emptyTitle": "还没有定期交易",
     "emptyBody": "点击 + 按钮添加按计划重复的订阅、账单或固定收入。",
     "headerTitle": "定期",
@@ -706,7 +707,11 @@
       "zero": "暂无进行中的项目",
       "other": "%{count} 项进行中"
     },
-    "noteRuns": "定期：%{frequency}"
+    "noteRuns": "定期：%{frequency}",
+    "account": "账户",
+    "saveFailed": "无法保存，请重试。",
+    "runNowOffline": "“立即执行”需要网络连接。未记入任何交易，请联网后重试。",
+    "runNowFailed": "暂时无法执行，未记入任何交易。"
   },
   "emailInbox": {
     "title": "邮件收件箱",
@@ -800,7 +805,7 @@
     "addButton": "添加账单提醒",
     "monthlyTotal": "每月总额",
     "recurringBills": "项重复账单",
-    "loadFailed": "无法加载账单提醒，请检查网络连接。",
+    "loadFailed": "无法加载账单提醒。",
     "emptyTitle": "还没有账单提醒",
     "emptyBody": "点击 + 按钮添加第一个账单提醒，再也不会错过到期日。",
     "paidThisCycle": "本周期已支付",
@@ -859,7 +864,8 @@
     "footnote": "预算按月计算。进度条会在每月月初重置。超出预算的分类会显示为红色。",
     "spentOf": "已花费 %{amount}",
     "remaining": " · 剩余 %{amount}",
-    "overBy": "超出 %{amount}"
+    "overBy": "超出 %{amount}",
+    "loadFailed": "无法加载预算。"
   },
   "expenseCategories": {
     "Travel": "差旅",

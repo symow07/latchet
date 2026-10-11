@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { EPOCH_ISO, LOCAL_SYNC_TABLES, SYNC_ENTITIES, defaultAccountId } from '../local-schema';
 import { SYNC_FIELDS, entityFields, type PullResponse, type WireRow } from './protocol';
-import { SYNC_COLUMNS, SYNC_META, createSqliteSyncStore } from './sqlite-store';
+import { SYNC_COLUMNS, SYNC_ENTITY_SIGNATURE, SYNC_META, createSqliteSyncStore } from './sqlite-store';
 import { openTestUserDatabase, type TestUserDatabase } from './test-sqlite';
 import type { PendingChange, PushOutcome, SyncStore } from './engine';
 
@@ -371,4 +371,151 @@ test('balances are recomputed from the opening balance and the ledger', async ()
   addTx('tx_i', { amount: 50, type: 'Income' });
   await store.recomputeBalances();
   expect(rowOf('accounts', 'id = ?', defaultAccountId(USER))!.balance).toBe(120);
+});
+
+// ── Phase 4: recurring series, bills, budgets and net worth (I-WIRE-4) ───────
+
+function insertRow(table: string, row: Record<string, string | number | null>): void {
+  const cols = Object.keys(row);
+  t.db.raw.query(`INSERT INTO ${table} (${cols.join(', ')}) VALUES (${cols.map(() => '?').join(', ')})`).run(...Object.values(row));
+}
+
+const serverSeries = (id: string, over: Partial<WireRow> = {}): WireRow => ({
+  id,
+  clientUpdatedAt: at(10),
+  accountId: null,
+  name: 'Gym',
+  amount: 35.5,
+  category: 'Gym',
+  type: 'Expense',
+  isImpulse: true,
+  frequency: 'weekly',
+  startDate: '2026-10-01',
+  nextDate: '2026-10-15',
+  lastCreated: '2026-10-08',
+  isActive: false,
+  currency: 'EUR',
+  createdAt: at(9),
+  ...over,
+});
+
+describe('the Phase 4 entities', () => {
+  test('pulled rows land clean: booleans as 0/1, paidAt as given, the breakdown as JSON text, a budget under its category', async () => {
+    const counts = await store.applyPullPage(
+      page({
+        changes: {
+          recurring: [serverSeries('rec_1')],
+          billReminders: [
+            { id: 'bill_1', clientUpdatedAt: at(10), name: 'Water', amount: 20, dueDay: 12, category: 'Other', isRecurring: false, isPaid: true, paidAt: at(8), nextDueDate: '2026-10-12', createdAt: at(7) },
+          ],
+          categoryBudgets: [{ id: 'Food', clientUpdatedAt: at(10), amount: 300, period: 'monthly', createdAt: at(6) }],
+          netWorth: [
+            { id: 'nw_text', clientUpdatedAt: at(10), date: '2026-10-11', assets: 10, liabilities: 2, netWorth: 8, breakdown: '{"cashSavings":10,"loans":2}', createdAt: at(5) },
+            // An object where text belongs is kept as its JSON text, not "[object Object]".
+            { id: 'nw_object', clientUpdatedAt: at(10), date: '2026-10-10', assets: 4, liabilities: 0, netWorth: 4, breakdown: { investments: 4 }, createdAt: at(5) },
+            { id: 'nw_none', clientUpdatedAt: at(10), date: '2026-10-09', assets: 1, liabilities: 0, netWorth: 1, breakdown: null, createdAt: at(5) },
+          ],
+        },
+      }),
+      { wipe: false, resyncActive: false },
+    );
+    expect(counts).toEqual({ changed: 6, skipped: 0, errors: [] });
+    expect(rowOf('recurring_transactions', `id = 'rec_1'`)).toMatchObject({
+      accountId: null, isImpulse: 1, isActive: 0, lastCreated: '2026-10-08', nextDate: '2026-10-15', dirty: 0, clientUpdatedAt: at(10),
+    });
+    expect(rowOf('bill_reminders', `id = 'bill_1'`)).toMatchObject({ isRecurring: 0, isPaid: 1, paidAt: at(8), dueDay: 12, dirty: 0 });
+    expect(rowOf('category_budgets', `category = 'Food'`)).toMatchObject({ amount: 300, period: 'monthly', dirty: 0 });
+    expect(rowOf('net_worth_entries', `id = 'nw_text'`)).toMatchObject({ breakdown: '{"cashSavings":10,"loans":2}', netWorth: 8 });
+    expect(rowOf('net_worth_entries', `id = 'nw_object'`)!.breakdown).toBe('{"investments":4}');
+    expect(rowOf('net_worth_entries', `id = 'nw_none'`)!.breakdown).toBeNull();
+
+    // Sent again unchanged (a page re-read inside the pull's safety lag): nothing changes.
+    const again = await store.applyPullPage(
+      page({ changes: { recurring: [serverSeries('rec_1')], netWorth: [{ id: 'nw_text', clientUpdatedAt: at(10), date: '2026-10-11', assets: 10, liabilities: 2, netWorth: 8, breakdown: '{"cashSavings":10,"loans":2}', createdAt: at(5) }] } }),
+      { wipe: false, resyncActive: false },
+    );
+    expect(again.changed).toBe(0);
+  });
+
+  test('they are pushed in wire shape: booleans, the breakdown text, a budget under its category', async () => {
+    insertRow('recurring_transactions', {
+      id: 'rec_mine', accountId: defaultAccountId(USER), name: 'Rent', amount: 700, category: 'Other', type: 'Expense', isImpulse: 0,
+      frequency: 'monthly', startDate: '2026-10-11', nextDate: '2026-10-11', lastCreated: null, isActive: 1, currency: 'USD',
+      createdAt: at(0), clientUpdatedAt: at(1), dirty: 1,
+    });
+    insertRow('bill_reminders', {
+      id: 'bill_mine', name: 'Water', amount: 20, dueDay: 31, category: 'Other', isRecurring: 1, isPaid: 1, paidAt: at(1),
+      nextDueDate: '2026-11-30', createdAt: at(0), clientUpdatedAt: at(1), dirty: 1,
+    });
+    insertRow('category_budgets', { category: 'Food', amount: 300, period: 'monthly', createdAt: at(0), clientUpdatedAt: at(1), dirty: 1 });
+    insertRow('net_worth_entries', {
+      id: 'nw_mine', date: '2026-10-11', assets: 10, liabilities: 2, netWorth: 8, breakdown: '{"cashSavings":10,"loans":2}',
+      createdAt: at(0), clientUpdatedAt: at(1), dirty: 1,
+    });
+
+    expect((await allPending('recurring'))[0]!.row).toEqual({
+      id: 'rec_mine', clientUpdatedAt: at(1), accountId: defaultAccountId(USER), name: 'Rent', amount: 700, category: 'Other',
+      type: 'Expense', isImpulse: false, frequency: 'monthly', startDate: '2026-10-11', nextDate: '2026-10-11', lastCreated: null,
+      isActive: true, currency: 'USD', createdAt: at(0),
+    });
+    expect((await allPending('billReminders'))[0]!.row).toEqual({
+      id: 'bill_mine', clientUpdatedAt: at(1), name: 'Water', amount: 20, dueDay: 31, category: 'Other', isRecurring: true,
+      isPaid: true, paidAt: at(1), nextDueDate: '2026-11-30', createdAt: at(0),
+    });
+    expect((await allPending('categoryBudgets'))[0]!.row).toEqual({ id: 'Food', clientUpdatedAt: at(1), amount: 300, period: 'monthly', createdAt: at(0) });
+    expect((await allPending('netWorth'))[0]!.row).toEqual({
+      id: 'nw_mine', clientUpdatedAt: at(1), date: '2026-10-11', assets: 10, liabilities: 2, netWorth: 8,
+      breakdown: '{"cashSavings":10,"loans":2}', createdAt: at(0),
+    });
+
+    // A deleted budget goes as a deletion under its category.
+    t.db.raw.query(`DELETE FROM category_budgets`).run();
+    t.db.raw.query(`INSERT INTO sync_tombstones (entity, id, clientUpdatedAt) VALUES ('categoryBudgets', 'Food', ?)`).run(at(2));
+    expect((await allPending('categoryBudgets'))[0]!.row).toEqual({ id: 'Food', clientUpdatedAt: at(2), deleted: true });
+  });
+
+  test('a server-deleted account unlinks the recurring series that named it, as its foreign key did on the server', async () => {
+    insertRow('recurring_transactions', {
+      id: 'rec_on_cash', accountId: defaultAccountId(USER), name: 'Rent', amount: 700, category: 'Other', type: 'Expense',
+      frequency: 'monthly', startDate: '2026-10-11', nextDate: '2026-10-11', createdAt: at(0), clientUpdatedAt: at(1), dirty: 0,
+    });
+    await store.applyPullPage(page({ deletions: [{ entity: 'accounts', id: defaultAccountId(USER), clientUpdatedAt: at(20) }] }), {
+      wipe: false,
+      resyncActive: false,
+    });
+    expect(rowOf('recurring_transactions', `id = 'rec_on_cash'`)).toMatchObject({ accountId: null, dirty: 0, clientUpdatedAt: at(1) });
+    expect(t.db.raw.query(`SELECT COUNT(*) AS n FROM sync_tombstones`).get()).toEqual({ n: 0 });
+  });
+
+  test('a snapshot wipes their clean rows too, keeping unsent ones', async () => {
+    insertRow('category_budgets', { category: 'Food', amount: 300, period: 'monthly', createdAt: at(0), clientUpdatedAt: at(1), dirty: 0 });
+    insertRow('category_budgets', { category: 'Pets', amount: 40, period: 'monthly', createdAt: at(0), clientUpdatedAt: at(1), dirty: 1 });
+    await store.applyPullPage(page({ fullResync: true }), { wipe: true, resyncActive: false });
+    const left = t.db.raw.query(`SELECT category FROM category_budgets`).all() as { category: string }[];
+    expect(left.map((r) => r.category)).toEqual(['Pets']);
+  });
+});
+
+describe('a phone upgraded from a build that synced fewer entities', () => {
+  test("a cursor stored without this build's entity signature is not used, and the next page stores the signature", async () => {
+    // What a five-entity build leaves behind: a cursor past rows it skipped, and no signature.
+    t.db.raw.query(`INSERT INTO sync_meta (key, value) VALUES (?, 'old-cursor'), (?, '1')`).run(SYNC_META.cursor, SYNC_META.resyncActive);
+    expect(await store.getPullState()).toEqual({ cursor: null, resyncActive: false });
+
+    await store.applyPullPage(page({ cursor: 'snap-1', fullResync: true, hasMore: true }), { wipe: true, resyncActive: true });
+    expect(t.db.raw.query(`SELECT value FROM sync_meta WHERE key = ?`).get(SYNC_META.entities)).toEqual({ value: SYNC_ENTITY_SIGNATURE });
+    // From here the snapshot continues where it is, rather than starting over.
+    expect(await store.getPullState()).toEqual({ cursor: 'snap-1', resyncActive: true });
+    expect(SYNC_ENTITY_SIGNATURE).toBe(SYNC_ENTITIES.join(','));
+    expect(SYNC_ENTITY_SIGNATURE).toContain('netWorth');
+  });
+
+  test('a signature from a different entity set counts as none', async () => {
+    t.db.raw
+      .query(`INSERT INTO sync_meta (key, value) VALUES (?, 'c9'), (?, ?)`)
+      .run(SYNC_META.cursor, SYNC_META.entities, 'settings,categories,accounts,transactions,subscriptions');
+    expect(await store.getPullState()).toEqual({ cursor: null, resyncActive: false });
+    t.db.raw.query(`UPDATE sync_meta SET value = ? WHERE key = ?`).run(SYNC_ENTITY_SIGNATURE, SYNC_META.entities);
+    expect(await store.getPullState()).toEqual({ cursor: 'c9', resyncActive: false });
+  });
 });

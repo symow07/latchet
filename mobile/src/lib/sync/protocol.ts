@@ -26,11 +26,17 @@ export const SYNC_COMMON_FIELDS = ['id', 'clientUpdatedAt'] as const;
 
 /**
  * Every field of a row on the wire, per entity. `id` is the sync id: the
- * category's name for categories, `'settings'` for the one settings row.
- * `deleted` is not listed: it only travels in a push, as the delete flag.
- * `balance` is not listed either: it is derived on both sides (decision 4).
+ * category's name for categories, the category for category budgets,
+ * `'settings'` for the one settings row. `deleted` is not listed: it only
+ * travels in a push, as the delete flag. `balance` is not listed either: it is
+ * derived on both sides (decision 4). Neither is a bill's `lastNotifiedAt`,
+ * which is the server's own, nor a budget's row id, which never leaves it.
+ *
+ * On the wire, booleans are booleans, dates YYYY-MM-DD, `paidAt` an ISO time
+ * or null, and `breakdown` the JSON text of an object of amounts or null
+ * (I-WIRE-4); the store converts at its boundary (sqlite-store.ts).
  */
-export const SYNC_FIELDS: Record<'settings' | 'categories' | 'accounts' | 'transactions' | 'subscriptions', readonly string[]> = {
+export const SYNC_FIELDS: Record<SyncEntity, readonly string[]> = {
   settings: [
     ...SYNC_COMMON_FIELDS,
     'monthlyBudget',
@@ -85,6 +91,36 @@ export const SYNC_FIELDS: Record<'settings' | 'categories' | 'accounts' | 'trans
     'source',
     'createdAt',
   ],
+  recurring: [
+    ...SYNC_COMMON_FIELDS,
+    'accountId',
+    'name',
+    'amount',
+    'category',
+    'type',
+    'isImpulse',
+    'frequency',
+    'startDate',
+    'nextDate',
+    'lastCreated',
+    'isActive',
+    'currency',
+    'createdAt',
+  ],
+  billReminders: [
+    ...SYNC_COMMON_FIELDS,
+    'name',
+    'amount',
+    'dueDay',
+    'category',
+    'isRecurring',
+    'isPaid',
+    'paidAt',
+    'nextDueDate',
+    'createdAt',
+  ],
+  categoryBudgets: [...SYNC_COMMON_FIELDS, 'amount', 'period', 'createdAt'],
+  netWorth: [...SYNC_COMMON_FIELDS, 'date', 'assets', 'liabilities', 'netWorth', 'breakdown', 'createdAt'],
 };
 
 /** The fields of an entity other than `id` and `clientUpdatedAt`. */
@@ -124,7 +160,7 @@ export type PushStatus = 'applied' | 'stale' | 'invalid' | 'forbidden';
 export const PUSH_STATUSES: readonly PushStatus[] = ['applied', 'stale', 'invalid', 'forbidden'];
 
 /**
- * `results` carries all five entity keys. A row the server could not identify
+ * `results` carries a key for every entity the server syncs. A row the server could not identify
  * comes back with id `""`: it matches nothing, and the row it was stays dirty.
  */
 export interface PushResult {

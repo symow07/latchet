@@ -6,8 +6,17 @@ import { format, parseISO } from 'date-fns';
 import { Bell, Plus, Tick } from '@/components/icons';
 import * as Haptics from 'expo-haptics';
 
-import { api } from '@/lib/api/api';
-import { getSettings } from '@/lib/db';
+import {
+  addBillReminder,
+  deleteBillReminder,
+  getBillReminders,
+  getSettings,
+  setBillPaid,
+  type BillReminder,
+  type BillReminderInput,
+} from '@/lib/db';
+import { todayISO } from '@/lib/dates';
+import { billFromForm, daysUntil } from '@/lib/offline/bills';
 import { formatCurrency } from '@/lib/calculations';
 import { categoryLabel } from '@/lib/category-meta';
 import { R, S, useC, type Palette } from '@/lib/design';
@@ -36,27 +45,6 @@ import { t, getDateFnsLocale } from '@/lib/i18n/core';
 
 type Category = 'Food' | 'Gym' | 'Transport' | 'Shopping' | 'Subscriptions' | 'Other';
 
-interface BillReminder {
-  id: string;
-  name: string;
-  amount: number;
-  dueDay: number;
-  category: Category;
-  isRecurring: boolean;
-  isPaid: boolean;
-  nextDueDate: string;
-  createdAt?: string;
-}
-
-interface CreateBillBody {
-  name: string;
-  amount: number;
-  dueDay: number;
-  category: Category;
-  isRecurring: boolean;
-  nextDueDate: string;
-}
-
 const CATEGORIES: readonly Category[] = [
   'Food',
   'Gym',
@@ -68,22 +56,9 @@ const CATEGORIES: readonly Category[] = [
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function computeNextDueDate(dueDay: number): string {
-  const today = new Date();
-  const thisMonth = new Date(today.getFullYear(), today.getMonth(), dueDay);
-  const target = thisMonth >= today ? thisMonth : new Date(today.getFullYear(), today.getMonth() + 1, dueDay);
-  // Built from local Y/M/D parts, so it is not shifted a day by the timezone.
-  return `${target.getFullYear()}-${String(target.getMonth() + 1).padStart(2, '0')}-${String(
-    target.getDate()
-  ).padStart(2, '0')}`;
-}
-
+/** Whole days to the due date, against the local calendar date. */
 function daysUntilDue(nextDueDate: string): number {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const due = parseISO(`${nextDueDate}T00:00:00`);
-  due.setHours(0, 0, 0, 0);
-  return Math.round((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  return daysUntil(nextDueDate, todayISO());
 }
 
 function urgencyLabel(days: number): string {
@@ -119,14 +94,6 @@ function sortBills(bills: BillReminder[]): BillReminder[] {
     if (a.isPaid !== b.isPaid) return a.isPaid ? 1 : -1;
     return a.nextDueDate.localeCompare(b.nextDueDate);
   });
-}
-
-function advanceByOneMonth(isoDate: string): string {
-  const d = parseISO(`${isoDate}T00:00:00`);
-  d.setMonth(d.getMonth() + 1);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(
-    d.getDate()
-  ).padStart(2, '0')}`;
 }
 
 // ─── Paid toggle ─────────────────────────────────────────────────────────────
@@ -184,7 +151,7 @@ function AddBillSheet({
   pal: Palette;
   visible: boolean;
   onClose: () => void;
-  onSubmit: (data: CreateBillBody) => void;
+  onSubmit: (data: BillReminderInput) => void;
   isLoading: boolean;
   symbol: string;
 }) {
@@ -206,20 +173,19 @@ function AddBillSheet({
   };
 
   const submit = () => {
-    if (!name.trim()) return setError(t('billReminders.errName'));
-    const amt = parseFloat(amount);
-    if (Number.isNaN(amt) || amt <= 0) return setError(t('billReminders.errAmount'));
-    const day = parseInt(dueDay, 10);
-    if (Number.isNaN(day) || day < 1 || day > 31) return setError(t('billReminders.errDueDay'));
+    // First due on its day this month, or next month once that has passed —
+    // against the local calendar date.
+    const parsed = billFromForm({ name, amount, dueDay }, todayISO());
+    if (!parsed.ok) return setError(t(parsed.error));
 
     setError('');
     onSubmit({
-      name: name.trim(),
-      amount: amt,
-      dueDay: day,
+      name: parsed.name,
+      amount: parsed.amount,
+      dueDay: parsed.dueDay,
       category,
       isRecurring,
-      nextDueDate: computeNextDueDate(day),
+      nextDueDate: parsed.nextDueDate,
     });
   };
 
@@ -232,6 +198,7 @@ function AddBillSheet({
           value={name}
           onChangeText={setName}
           placeholder={t('fields.billPlaceholder')}
+          maxLength={100}
         />
 
         <View style={{ flexDirection: 'row', gap: 12, marginTop: 16 }}>
@@ -324,47 +291,57 @@ function AddBillSheet({
  * confirmation. It is now the same sideways swipe Activity uses, with the same
  * dialog behind it — a destructive control parked beside the amount you are
  * reading is both noise and a hazard.
+ *
+ * Since Phase 4 the bills live in this phone's database and sync like the
+ * ledger, so the list, adding, paying and deleting all work offline. The
+ * server's notifier still fires on the due date, and moves a recurring bill
+ * on when it does; that change reaches the phone by pull.
  */
 export default function BillRemindersScreen() {
   const C = useC();
   const router = useRouter();
   const queryClient = useQueryClient();
   const [adding, setAdding] = useState(false);
+  // A fresh sheet each time it opens, so it never reopens on the last bill's
+  // values. Bumped on opening rather than after a save: replacing the sheet
+  // while it slides away would cut that motion short.
+  const [sheetKey, setSheetKey] = useState(0);
+  const openSheet = () => {
+    setSheetKey((k) => k + 1);
+    setAdding(true);
+  };
 
-  const { data: bills = [], isLoading, isError } = useQuery<BillReminder[]>({
+  // Read from this phone's database, so the screen works offline; a pull
+  // that changes it refreshes every query (cloud-sync's onRemoteChange).
+  const { data: bills = [], isLoading, isError } = useQuery({
     queryKey: ['bill-reminders'],
-    queryFn: () => api.get<BillReminder[]>('/api/bill-reminders'),
+    queryFn: getBillReminders,
   });
   const { data: settings } = useQuery({ queryKey: ['settings'], queryFn: getSettings });
 
   const createMutation = useMutation({
-    mutationFn: (body: CreateBillBody) => api.post<BillReminder>('/api/bill-reminders', body),
+    mutationFn: (body: BillReminderInput) => addBillReminder(body),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['bill-reminders'] });
       setAdding(false);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     },
+    onError: () => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error),
   });
 
+  // Paying a recurring bill rolls it on to the next cycle, as it always has;
+  // un-paying rolls it back. The tap asks for the state the row showed the
+  // opposite of, so a second tap on a row not yet redrawn changes nothing.
   const markPaidMutation = useMutation({
-    mutationFn: (bill: BillReminder) =>
-      api.put<BillReminder>(`/api/bill-reminders/${bill.id}`, {
-        ...bill,
-        isPaid: !bill.isPaid,
-        // Marking a recurring bill paid rolls it forward to the next cycle.
-        nextDueDate:
-          !bill.isPaid && bill.isRecurring
-            ? advanceByOneMonth(bill.nextDueDate)
-            : bill.nextDueDate,
-      }),
-    onSuccess: () => {
+    mutationFn: (bill: BillReminder) => setBillPaid(bill.id, !bill.isPaid),
+    onSuccess: (changed) => {
       queryClient.invalidateQueries({ queryKey: ['bill-reminders'] });
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      if (changed) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     },
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => api.delete<void>(`/api/bill-reminders/${id}`),
+    mutationFn: (id: string) => deleteBillReminder(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['bill-reminders'] });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -459,7 +436,7 @@ export default function BillRemindersScreen() {
           title={t('billReminders.title')}
           onBack={() => router.back()}
           action={
-            <CircleAction pal={C} label={t('billReminders.addButton')} onPress={() => setAdding(true)}>
+            <CircleAction pal={C} label={t('billReminders.addButton')} onPress={openSheet}>
               <Plus size={20} color={C.ink} strokeWidth={S.stroke} />
             </CircleAction>
           }
@@ -498,7 +475,7 @@ export default function BillRemindersScreen() {
             title={t('billReminders.emptyTitle')}
             body={t('billReminders.emptyBody')}
             actionLabel={t('billReminders.addButton')}
-            onAction={() => setAdding(true)}
+            onAction={openSheet}
             style={{ marginTop: 56 }}
           />
         ) : (
@@ -521,6 +498,7 @@ export default function BillRemindersScreen() {
       </ScrollView>
 
       <AddBillSheet
+        key={sheetKey}
         pal={C}
         visible={adding}
         onClose={() => setAdding(false)}

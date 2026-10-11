@@ -34,7 +34,8 @@
     "noChartData": "Aucune dépense à afficher",
     "transactionsEmptyBody": "Ajustez vos filtres ou ajoutez votre première transaction.",
     "netWorthEmptyBody": "Touchez le bouton + pour enregistrer votre premier bilan patrimonial.",
-    "saving": "Enregistrement…"
+    "saving": "Enregistrement…",
+    "amountTooLarge": "Ce montant est trop élevé."
   },
   "settings": {
     "title": "Réglages",
@@ -708,7 +709,7 @@
     "activeExpenses": "dépenses actives",
     "monthlyIncome": "Revenus mensuels",
     "activeIncome": "revenus actifs",
-    "loadFailed": "Impossible de charger les transactions récurrentes. Vérifiez votre connexion.",
+    "loadFailed": "Impossible de charger les transactions récurrentes.",
     "emptyTitle": "Aucune transaction récurrente",
     "emptyBody": "Touchez le bouton + pour ajouter des abonnements, des factures ou des revenus réguliers qui se répètent.",
     "headerTitle": "Récurrent",
@@ -721,7 +722,11 @@
       "one": "%{count} en cours",
       "other": "%{count} en cours"
     },
-    "noteRuns": "Récurrent : %{frequency}"
+    "noteRuns": "Récurrent : %{frequency}",
+    "account": "Compte",
+    "saveFailed": "Impossible d'enregistrer. Réessayez.",
+    "runNowOffline": "« Exécuter maintenant » nécessite une connexion. Rien n'a été enregistré — réessayez une fois en ligne.",
+    "runNowFailed": "Impossible d'exécuter maintenant. Rien n'a été enregistré."
   },
   "emailInbox": {
     "title": "Boîte de réception",
@@ -816,7 +821,7 @@
     "addButton": "Ajouter le rappel",
     "monthlyTotal": "Total mensuel",
     "recurringBills": "factures récurrentes",
-    "loadFailed": "Impossible de charger les rappels de factures. Vérifiez votre connexion.",
+    "loadFailed": "Impossible de charger les rappels de factures.",
     "emptyTitle": "Aucun rappel de facture",
     "emptyBody": "Touchez le bouton + pour créer votre premier rappel et ne plus jamais manquer une échéance.",
     "paidThisCycle": "Payé ce cycle",
@@ -878,7 +883,8 @@
     "footnote": "Les budgets sont mensuels. Les barres de progression se réinitialisent au début de chaque mois. Les catégories dépassées apparaissent en rouge.",
     "spentOf": "%{amount} dépensés",
     "remaining": " · %{amount} restants",
-    "overBy": "%{amount} de dépassement"
+    "overBy": "%{amount} de dépassement",
+    "loadFailed": "Impossible de charger vos budgets."
   },
   "expenseCategories": {
     "Travel": "Déplacement",

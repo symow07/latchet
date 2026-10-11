@@ -1,8 +1,8 @@
 /**
  * An in-memory stand-in for the server's half of I-WIRE, for the engine's
  * tests: last writer wins by clientUpdatedAt with ties to the server,
- * tombstones that a newer upsert resurrects, unknown account ids stored as
- * null, a cursor over a write sequence, paged snapshots with `fullResync`,
+ * tombstones that a newer upsert resurrects, unknown account ids (of a
+ * transaction or a recurring series) stored as null, a cursor over a write sequence, paged snapshots with `fullResync`,
  * and a 400 `invalid_cursor` for a cursor it did not issue. Every request
  * goes through JSON, as on the wire.
  *
@@ -72,9 +72,10 @@ export class FakeSyncServer {
     this.live.delete(key(entity, id));
     this.tombs.set(key(entity, id), { entity, id, clientUpdatedAt, seq: ++this.seq });
     if (entity === 'accounts') {
-      // ON DELETE SET NULL, which re-stamps the transactions it touches.
+      // ON DELETE SET NULL, which re-stamps the transactions and recurring
+      // series it touches.
       for (const l of this.live.values()) {
-        if (l.entity === 'transactions' && l.row.accountId === id) {
+        if ((l.entity === 'transactions' || l.entity === 'recurring') && l.row.accountId === id) {
           l.row = { ...l.row, accountId: null };
           l.seq = ++this.seq;
         }
@@ -114,7 +115,11 @@ export class FakeSyncServer {
         } else {
           const { deleted: _deleted, ...fields } = row;
           void _deleted;
-          if (entity === 'transactions' && fields.accountId != null && !this.live.has(key('accounts', String(fields.accountId)))) {
+          if (
+            (entity === 'transactions' || entity === 'recurring') &&
+            fields.accountId != null &&
+            !this.live.has(key('accounts', String(fields.accountId)))
+          ) {
             fields.accountId = null;
           }
           this.put(entity, fields as WireRow);

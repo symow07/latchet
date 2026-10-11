@@ -1,6 +1,7 @@
 import { test, expect, mock, beforeEach, describe } from 'bun:test';
 import { createMemorySqlite } from './test-support/memory-sqlite';
 import { defaultAccountId, EPOCH_ISO } from './local-schema';
+import { createSqliteSyncStore } from './sync/sqlite-store';
 import type { SqlDb } from './db';
 
 /**
@@ -279,5 +280,187 @@ describe('reset all activity', () => {
     const settings = await db.getSettings();
     expect([settings.monthlyBudget, settings.currency, settings.locale]).toEqual([0, 'EUR', 'fr']);
     expect(await db.isSettingsDefault()).toBe(false);
+  });
+});
+
+// ── Phase 4: the four screens' entities ──────────────────────────────────────
+
+/** The sync store over the active database, as cloud-sync.ts builds it. */
+function store() {
+  return createSqliteSyncStore({ run: (fn) => db.withWriteLock((h) => fn(h)) });
+}
+
+const series = (over: Partial<Parameters<typeof db.addRecurring>[0]> = {}) => ({
+  accountId: null,
+  name: 'Rent',
+  amount: 700,
+  category: 'Other',
+  type: 'Expense' as const,
+  isImpulse: false,
+  frequency: 'monthly' as const,
+  startDate: '2026-10-11',
+  nextDate: '2026-10-11',
+  currency: 'EUR',
+  ...over,
+});
+
+describe('recurring account', () => {
+  test('a new series keeps the account it books onto, and is pushed with it', async () => {
+    const bank = await db.createAccount({ name: 'Bank', type: 'checking', balance: 0, currency: 'EUR', color: '#000', icon: 'bank' });
+    mutations = 0;
+    const id = await db.addRecurring(series({ accountId: bank }));
+    expect(id).toMatch(/^rec_/);
+    expect(id.length).toBeLessThanOrEqual(100);
+    expect(mutations).toBe(1);
+
+    const [saved] = await db.getRecurring();
+    expect(saved).toEqual({
+      id,
+      accountId: bank,
+      name: 'Rent',
+      amount: 700,
+      category: 'Other',
+      type: 'Expense',
+      isImpulse: false,
+      frequency: 'monthly',
+      startDate: '2026-10-11',
+      nextDate: '2026-10-11',
+      lastCreated: null,
+      isActive: true,
+      currency: 'EUR',
+      createdAt: expect.any(String),
+    });
+    const state = await syncState('recurring_transactions', 'id', id);
+    expect(state?.dirty).toBe(1);
+    expect(isRecent(state?.clientUpdatedAt)).toBe(true);
+
+    const [pending] = await store().readPending('recurring', null, 10);
+    expect(pending!.row).toMatchObject({ id, accountId: bank, isActive: true, isImpulse: false, lastCreated: null });
+    expect(await db.getLocalSyncState('recurring', id)).toBe('pending');
+  });
+
+  test('deleting the account a series books onto leaves the series alone until the server unlinks it', async () => {
+    const bank = await db.createAccount({ name: 'Bank', type: 'checking', balance: 0, currency: 'USD', color: '#000', icon: 'bank' });
+    const id = await db.addRecurring(series({ accountId: bank }));
+    await db.deleteAccount(bank);
+    // Unlinking here would race the server: the delete may yet lose to a newer edit of the account.
+    expect((await db.getRecurring())[0]).toMatchObject({ id, accountId: bank });
+  });
+});
+
+describe('recurring series', () => {
+  test('pausing is a stamped edit, a no-op when it already is, and a delete leaves a tombstone', async () => {
+    const id = await db.addRecurring(series());
+    await handle.runAsync(`UPDATE recurring_transactions SET dirty = 0, clientUpdatedAt = ?`, [EPOCH_ISO]);
+    expect(await db.getLocalSyncState('recurring', id)).toBe('synced');
+    mutations = 0;
+
+    await db.setRecurringActive(id, true);
+    expect(await syncState('recurring_transactions', 'id', id)).toEqual({ clientUpdatedAt: EPOCH_ISO, dirty: 0, syncError: null });
+    expect(mutations).toBe(0);
+
+    await db.setRecurringActive(id, false);
+    expect((await db.getRecurring())[0]!.isActive).toBe(false);
+    expect(isRecent((await syncState('recurring_transactions', 'id', id))?.clientUpdatedAt)).toBe(true);
+    expect(mutations).toBe(1);
+
+    await db.deleteRecurring(id);
+    expect(await db.getRecurring()).toEqual([]);
+    expect(await tombstones()).toEqual([{ entity: 'recurring', id }]);
+    expect(await db.getLocalSyncState('recurring', id)).toBe('missing');
+  });
+});
+
+describe('bill reminders', () => {
+  const water = { name: 'Water', amount: 20, dueDay: 31, category: 'Other', isRecurring: true, nextDueDate: '2026-01-31' };
+
+  test('paying moves a recurring bill on a month; asking again changes nothing; un-paying moves it back', async () => {
+    const id = await db.addBillReminder(water);
+    expect(id).toMatch(/^bill_/);
+    expect((await db.getBillReminders())[0]).toEqual({
+      id, ...water, isPaid: false, paidAt: null, createdAt: expect.any(String),
+    });
+    mutations = 0;
+
+    expect(await db.setBillPaid(id, true)).toBe(true);
+    const paid = (await db.getBillReminders())[0]!;
+    expect(paid).toMatchObject({ isPaid: true, nextDueDate: '2026-02-28' });
+    expect(isRecent(paid.paidAt ?? undefined)).toBe(true);
+    const raw = await handle.getFirstAsync<{ isPaid: number; dirty: number }>('SELECT isPaid, dirty FROM bill_reminders');
+    expect(raw).toEqual({ isPaid: 1, dirty: 1 });
+
+    // A second tap on a row drawn before the first landed.
+    expect(await db.setBillPaid(id, true)).toBe(false);
+    expect((await db.getBillReminders())[0]!.nextDueDate).toBe('2026-02-28');
+    expect(mutations).toBe(1);
+
+    expect(await db.setBillPaid(id, false)).toBe(true);
+    expect((await db.getBillReminders())[0]).toMatchObject({ isPaid: false, paidAt: null, nextDueDate: '2026-01-31' });
+
+    await db.deleteBillReminder(id);
+    expect(await tombstones()).toEqual([{ entity: 'billReminders', id }]);
+  });
+});
+
+describe('phase4 screens', () => {
+  test('a category budget upserts by category', async () => {
+    await db.setCategoryBudget('Food', 300);
+    const [first] = await db.getCategoryBudgets();
+    await handle.runAsync(`UPDATE category_budgets SET dirty = 0, clientUpdatedAt = ?`, [EPOCH_ISO]);
+
+    await db.setCategoryBudget('Food', 450);
+    const budgets = await db.getCategoryBudgets();
+    expect(budgets).toEqual([{ category: 'Food', amount: 450, period: 'monthly', createdAt: first!.createdAt }]);
+    const state = await syncState('category_budgets', 'category', 'Food');
+    expect(state?.dirty).toBe(1);
+    expect(isRecent(state?.clientUpdatedAt)).toBe(true);
+
+    // On the wire under its category, as the server keys it.
+    const [pending] = await store().readPending('categoryBudgets', null, 10);
+    expect(pending!.row).toEqual({
+      id: 'Food', clientUpdatedAt: state!.clientUpdatedAt, amount: 450, period: 'monthly', createdAt: first!.createdAt,
+    });
+
+    await db.deleteCategoryBudget('Food');
+    expect(await tombstones()).toEqual([{ entity: 'categoryBudgets', id: 'Food' }]);
+    await db.setCategoryBudget('Food', 200);
+    expect(await tombstones()).toEqual([]);
+    expect((await db.getCategoryBudgets()).map((b) => [b.category, b.amount])).toEqual([['Food', 200]]);
+  });
+
+  test('a net-worth snapshot keeps its breakdown as JSON text, and reads back as an object', async () => {
+    const id = await db.addNetWorthEntry({ date: '2026-10-11', assets: 5000, liabilities: 1200, breakdown: { cashSavings: 5000, loans: 1200 } });
+    expect(id).toMatch(/^nw_/);
+    const raw = await handle.getFirstAsync<{ breakdown: string; netWorth: number }>('SELECT breakdown, netWorth FROM net_worth_entries');
+    expect(raw).toEqual({ breakdown: '{"cashSavings":5000,"loans":1200}', netWorth: 3800 });
+    expect(await db.getNetWorthEntries()).toEqual([
+      {
+        id, date: '2026-10-11', assets: 5000, liabilities: 1200, netWorth: 3800,
+        breakdown: { cashSavings: 5000, loans: 1200 }, createdAt: expect.any(String),
+      },
+    ]);
+    const [pending] = await store().readPending('netWorth', null, 10);
+    expect(pending!.row).toMatchObject({ id, netWorth: 3800, breakdown: '{"cashSavings":5000,"loans":1200}' });
+
+    await db.addNetWorthEntry({ date: '2026-10-12', assets: 1, liabilities: 0, breakdown: {} });
+    expect((await db.getNetWorthEntries())[0]).toMatchObject({ date: '2026-10-12', breakdown: null });
+
+    // One taken by mistake can go, as a deletion the server receives.
+    await db.deleteNetWorthEntry(id);
+    expect((await db.getNetWorthEntries()).map((e) => e.date)).toEqual(['2026-10-12']);
+    expect(await tombstones()).toEqual([{ entity: 'netWorth', id }]);
+  });
+});
+
+describe('unsynced work', () => {
+  test('the four new tables count, and a refused row says so', async () => {
+    const id = await db.addBillReminder({ name: 'Gas', amount: 5, dueDay: 2, category: 'Other', isRecurring: false, nextDueDate: '2026-11-02' });
+    await db.setCategoryBudget('Food', 10);
+    await db.addNetWorthEntry({ date: '2026-10-11', assets: 1, liabilities: 0 });
+    await db.addRecurring(series());
+    const unsynced = await db.countUnsyncedChanges();
+    expect([unsynced.byEntity.billReminders, unsynced.byEntity.categoryBudgets, unsynced.byEntity.netWorth, unsynced.byEntity.recurring]).toEqual([1, 1, 1, 1]);
+    await handle.runAsync(`UPDATE bill_reminders SET syncError = 'invalid' WHERE id = ?`, [id]);
+    expect(await db.getLocalSyncState('billReminders', id)).toBe('refused');
   });
 });
