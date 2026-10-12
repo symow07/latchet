@@ -9,15 +9,24 @@ import { useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import RevenueCatUI, { PAYWALL_RESULT } from 'react-native-purchases-ui';
 import {
+  devProOverrideActive,
   fetchEntitlement,
   refreshEntitlement,
   isUpgradeRequired,
+  DEV_PRO_ENTITLEMENT,
   FREE_ENTITLEMENT,
   type Entitlement,
 } from './entitlementApi';
 import { isRevenueCatEnabled, restorePurchases } from './revenuecatClient';
 
 export const ENTITLEMENT_QUERY_KEY = ['entitlement'] as const;
+
+/**
+ * Development builds with EXPO_PUBLIC_DEV_PRO=true see every Pro feature.
+ * Read once: both values are fixed when the bundle is built (Expo inlines
+ * EXPO_PUBLIC_ variables), and __DEV__ is false in every release build.
+ */
+const DEV_PRO = devProOverrideActive({ isDev: __DEV__, flag: process.env.EXPO_PUBLIC_DEV_PRO });
 
 export function useEntitlement() {
   const queryClient = useQueryClient();
@@ -30,7 +39,7 @@ export function useEntitlement() {
     retry: 1,
   });
 
-  const entitlement = query.data ?? FREE_ENTITLEMENT;
+  const entitlement = DEV_PRO ? DEV_PRO_ENTITLEMENT : (query.data ?? FREE_ENTITLEMENT);
 
   /** Pull the server's view again — after a purchase, or a 402. */
   const refresh = useCallback(async () => {

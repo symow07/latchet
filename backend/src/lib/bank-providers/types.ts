@@ -1,8 +1,8 @@
 /**
  * Provider-neutral bank-sync contract.
  *
- * Plaid's Transactions product covers exactly 20 countries (US, CA and 18 in
- * the EU). Morocco and China are not among them, and Alipay/WeChat are
+ * Plaid's Transactions product covers exactly 20 countries (US, CA, GB and 17
+ * in the EU and EEA). Morocco and China are not among them, and Alipay/WeChat are
  * unreachable by any aggregator — which is why file import, not bank sync, is
  * the universal rail. Adding Salt Edge (73 countries) or TrueLayer (64) later
  * should be additive: a new module implementing this interface, with the
@@ -76,7 +76,12 @@ export interface TransactionPage {
 
 export type WebhookVerification = { ok: true } | { ok: false; reason: string };
 
-/** What a provider's webhook is telling us, in neutral terms. */
+/**
+ * What a provider's webhook is telling us, in neutral terms. "link-finished"
+ * carries the public tokens a link session produced, from whichever of the
+ * provider's link webhooks carried them; the same token may arrive more than
+ * once and is exchanged once.
+ */
 export type WebhookEvent =
   | { kind: "link-finished"; linkToken: string; publicTokens: string[] }
   | { kind: "transactions-changed"; connectionExternalId: string }
@@ -84,10 +89,69 @@ export type WebhookEvent =
 
 export interface CreateLinkSessionParams {
   userId: string;
-  /** Drives which country's institutions are offered. */
+  /** The phone's region (ISO 3166-1 alpha-2), the first hint at where the user banks. */
+  region?: string | null;
+  /** The app's currency, the second hint. */
   currency: string | null | undefined;
+  /** The app's language, for the provider's own screens. */
+  language?: string | null;
   /** Where the provider should send webhooks. */
   webhookUrl: string;
+  /**
+   * Where the hosted flow sends the browser when it ends, whether the user
+   * linked a bank or gave up. A route of ours, which carries the result back
+   * into the app.
+   */
+  completionRedirectUri?: string | null;
+}
+
+/** How a link session ended, read back from the provider. */
+export interface LinkSessionResult {
+  /**
+   * success: at least one institution was linked; exited: the user left (or
+   * the bank refused) without linking; pending: the session has not finished.
+   */
+  status: "success" | "exited" | "pending";
+  /** Short-lived tokens to exchange, one per linked institution. */
+  publicTokens: string[];
+  /** Why the user left, when they did: the provider's error code and exit status. */
+  exit: { code: string | null; status: string | null } | null;
+}
+
+/**
+ * A provider call that failed, classified so callers can decide what to do
+ * without reading the provider's vocabulary:
+ *   config       our credentials or request are wrong — an operator problem;
+ *   gone         the connection no longer exists upstream (already removed,
+ *                token invalid) — treat a removal as done;
+ *   unavailable  the provider or the bank is down, slow or rate-limiting —
+ *                worth retrying later;
+ *   rejected     anything else the provider refused.
+ * `providerCode` is the provider's own code (Plaid's error_code) and
+ * `displayMessage` the provider's sentence written for end users, if any.
+ */
+export class BankProviderError extends Error {
+  readonly kind: "config" | "gone" | "unavailable" | "rejected";
+  readonly providerCode: string | null;
+  readonly displayMessage: string | null;
+  readonly httpStatus: number | null;
+
+  constructor(
+    message: string,
+    details: {
+      kind: BankProviderError["kind"];
+      providerCode?: string | null;
+      displayMessage?: string | null;
+      httpStatus?: number | null;
+    }
+  ) {
+    super(message);
+    this.name = "BankProviderError";
+    this.kind = details.kind;
+    this.providerCode = details.providerCode ?? null;
+    this.displayMessage = details.displayMessage ?? null;
+    this.httpStatus = details.httpStatus ?? null;
+  }
 }
 
 export interface BankProvider {
@@ -97,7 +161,20 @@ export interface BankProvider {
   /** False when credentials are absent; routes answer 503 rather than failing. */
   isConfigured(): boolean;
 
+  /**
+   * The countries this deployment can link banks in, and the provider's
+   * environment name. Nothing secret: the phone reads it to decide whether to
+   * offer bank linking at all.
+   */
+  describe?(): { countries: string[]; environment: string };
+
   createLinkSession(params: CreateLinkSessionParams): Promise<LinkSession>;
+
+  /**
+   * How the link session `linkToken` ended, and its public tokens. Lets the
+   * server finish a link when the provider's webhook cannot reach it.
+   */
+  getLinkSessionResult?(linkToken: string): Promise<LinkSessionResult>;
 
   /** Trade the short-lived token from the link flow for a durable one. */
   exchange(publicToken: string): Promise<ProviderConnection>;
@@ -106,7 +183,11 @@ export interface BankProvider {
 
   syncTransactions(accessToken: string, cursor?: string): Promise<TransactionPage>;
 
-  /** Revoke upstream. Callers still delete locally if this fails. */
+  /**
+   * Revoke upstream, ending the provider's access and its billing. Resolves
+   * when the connection is gone, including when it already was; throws (a
+   * BankProviderError where it can) when it may still be live.
+   */
   removeConnection(accessToken: string): Promise<void>;
 
   /**

@@ -4,6 +4,7 @@ import {
   applyWebhookEvent,
   parseWebhookEvent,
   aiAllowance,
+  devProOverrideActive,
   FREE,
   FREE_AI_CALLS_PER_DAY,
   PRO_AI_DAILY_MAX,
@@ -138,4 +139,24 @@ test("free gets a taste, pro gets the real budget", () => {
 test("a free user cannot burst past their daily allowance", () => {
   const free = aiAllowance(false);
   expect(free.burstMax).toBeLessThanOrEqual(free.dailyMax);
+});
+
+// ── The development Pro override ─────────────────────────────────────────────
+
+test("dev pro override: every user counts as Pro in development when the flag is set", () => {
+  expect(devProOverrideActive({ DEV_PRO_OVERRIDE: "true" })).toBe(true);
+  expect(devProOverrideActive({ DEV_PRO_OVERRIDE: "true", NODE_ENV: "development" })).toBe(true);
+});
+
+test("dev pro override: ignored in production, whatever the flag says", () => {
+  expect(devProOverrideActive({ DEV_PRO_OVERRIDE: "true", NODE_ENV: "production" })).toBe(false);
+  expect(devProOverrideActive({ DEV_PRO_OVERRIDE: "true", NODE_ENV: " Production " })).toBe(false);
+});
+
+test("dev pro override: off unless explicitly on, and off under the test runner", () => {
+  expect(devProOverrideActive({})).toBe(false);
+  expect(devProOverrideActive({ DEV_PRO_OVERRIDE: "false", NODE_ENV: "development" })).toBe(false);
+  expect(devProOverrideActive({ DEV_PRO_OVERRIDE: "1" })).toBe(false);
+  // bun test loads .env: a developer's local override must not flip the paywall tests.
+  expect(devProOverrideActive({ DEV_PRO_OVERRIDE: "true", NODE_ENV: "test" })).toBe(false);
 });

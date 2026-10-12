@@ -42,6 +42,27 @@ export function isPro(state: EntitlementState, now: Date = new Date()): boolean 
   return state.expiresAt.getTime() > now.getTime();
 }
 
+/** The two environment values the development Pro override reads. */
+export interface DevOverrideEnv {
+  NODE_ENV?: string;
+  DEV_PRO_OVERRIDE?: string;
+}
+
+/**
+ * Whether every user counts as Pro, so paid features such as bank linking can
+ * be tried in development without a purchase.
+ *
+ * Only on an explicit DEV_PRO_OVERRIDE=true, and never in production, whatever
+ * else is set: a production server with the flag left on still charges. Also
+ * off under `bun test` (NODE_ENV=test): bun loads .env into the suite, and a
+ * developer's local override would otherwise turn every paywall test.
+ */
+export function devProOverrideActive(e: DevOverrideEnv): boolean {
+  if (e.DEV_PRO_OVERRIDE !== "true") return false;
+  const nodeEnv = (e.NODE_ENV ?? "").trim().toLowerCase();
+  return nodeEnv !== "production" && nodeEnv !== "test";
+}
+
 /** RevenueCat webhook event types we act on. */
 export type WebhookEventType =
   | "INITIAL_PURCHASE"

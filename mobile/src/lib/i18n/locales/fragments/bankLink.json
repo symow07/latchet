@@ -1,6 +1,265 @@
 {
-  "en": {},
-  "fr": {},
-  "zh": {},
-  "ar": {}
+  "en": {
+    "unnamedBank": "Your bank",
+    "availability": {
+      "outsideTitle": "Bank linking isn't available in your country yet",
+      "outsideBody": "Our bank connection partner, Plaid, covers the US, Canada, the UK and much of the EU. You can still bring in your spending and catch every subscription: import a statement from your bank, or connect your email so receipts and renewals are picked up for you.",
+      "notConfiguredTitle": "Bank linking isn't set up yet",
+      "notConfiguredBody": "This server isn't connected to a bank provider. You can import a statement or connect your email instead.",
+      "importStatement": "Import a statement",
+      "importStatementHint": "A CSV or PDF from your bank's website",
+      "connectEmail": "Connect your email",
+      "connectEmailHint": "Receipts and renewals, found for you",
+      "tryAnyway": "Connect a bank anyway"
+    },
+    "stage": {
+      "opening": "Opening your bank's secure page…",
+      "browser": "Finish in the secure window…",
+      "finishing": "Checking the connection…",
+      "waiting": "Waiting for your bank to appear…",
+      "syncing": "Fetching your transactions…"
+    },
+    "result": {
+      "linkedTitle": "Bank connected",
+      "linkedBody": {
+        "zero": "Your accounts are connected. Transactions appear as your bank sends them — pull down to refresh.",
+        "one": "%{count} transaction added.",
+        "other": "%{count} transactions added."
+      },
+      "pendingTitle": "Almost there",
+      "pendingBody": "Your bank is still being connected. It will appear here shortly — pull down to refresh.",
+      "exitedTitle": "No bank was connected"
+    },
+    "errors": {
+      "title": "Couldn't connect your bank",
+      "syncTitle": "Couldn't refresh your banks",
+      "notConfigured": "Bank linking isn't set up on this server yet.",
+      "unavailable": "Bank linking is unavailable right now. Try again later.",
+      "providerConfig": "The bank connection service refused this server's setup. Try again later.",
+      "providerUnavailable": "The bank connection service or your bank isn't responding. Try again in a few minutes.",
+      "providerRejected": "The bank connection service couldn't complete the request.",
+      "providerRejectedCode": "The bank connection service couldn't complete the request (%{code}).",
+      "bankDown": "Your bank isn't responding right now. Try again later.",
+      "signInAgain": "Your bank needs you to sign in again.",
+      "expired": "That connection attempt expired. Start again.",
+      "browser": "The secure window couldn't open. Try again.",
+      "exitedCode": "Your bank couldn't be connected (%{code}).",
+      "syncPartial": "Some banks couldn't be refreshed: %{banks}."
+    },
+    "disconnect": {
+      "title": "Disconnect %{bank}?",
+      "body": "We'll stop syncing and remove our access at your bank. What should happen to the accounts and transactions it brought in?",
+      "keep": "Keep this bank's accounts and transactions",
+      "keepHint": "They stay as ordinary accounts you can edit. Nothing new arrives.",
+      "delete": "Delete them",
+      "deleteHint": "Removes this bank's accounts and their transactions on all your devices.",
+      "failedTitle": "Couldn't disconnect"
+    },
+    "consent": {
+      "balances": "Account balances",
+      "history": "Transaction history (up to two years)",
+      "names": "Account names and masked numbers",
+      "readOnly": "Read-only access to accounts",
+      "noPayments": "No ability to make payments",
+      "noPersonal": "No access to personal details"
+    }
+  },
+  "fr": {
+    "unnamedBank": "Votre banque",
+    "availability": {
+      "outsideTitle": "La connexion bancaire n'est pas encore disponible dans votre pays",
+      "outsideBody": "Notre partenaire de connexion bancaire, Plaid, couvre les États-Unis, le Canada, le Royaume-Uni et une grande partie de l'UE. Vous pouvez quand même suivre vos dépenses et repérer chaque abonnement : importez un relevé de votre banque, ou connectez votre e-mail pour que reçus et renouvellements soient repérés pour vous.",
+      "notConfiguredTitle": "La connexion bancaire n'est pas encore configurée",
+      "notConfiguredBody": "Ce serveur n'est relié à aucun service bancaire. Vous pouvez importer un relevé ou connecter votre e-mail à la place.",
+      "importStatement": "Importer un relevé",
+      "importStatementHint": "Un CSV ou un PDF du site de votre banque",
+      "connectEmail": "Connecter votre e-mail",
+      "connectEmailHint": "Reçus et renouvellements, trouvés pour vous",
+      "tryAnyway": "Connecter une banque quand même"
+    },
+    "stage": {
+      "opening": "Ouverture de la page sécurisée de votre banque…",
+      "browser": "Terminez dans la fenêtre sécurisée…",
+      "finishing": "Vérification de la connexion…",
+      "waiting": "En attente de votre banque…",
+      "syncing": "Récupération de vos transactions…"
+    },
+    "result": {
+      "linkedTitle": "Banque connectée",
+      "linkedBody": {
+        "zero": "Vos comptes sont connectés. Les transactions apparaissent dès que votre banque les envoie — tirez pour actualiser.",
+        "one": "%{count} transaction ajoutée.",
+        "other": "%{count} transactions ajoutées."
+      },
+      "pendingTitle": "Presque terminé",
+      "pendingBody": "Votre banque est en cours de connexion. Elle apparaîtra ici sous peu — tirez pour actualiser.",
+      "exitedTitle": "Aucune banque connectée"
+    },
+    "errors": {
+      "title": "Impossible de connecter votre banque",
+      "syncTitle": "Impossible d'actualiser vos banques",
+      "notConfigured": "La connexion bancaire n'est pas encore configurée sur ce serveur.",
+      "unavailable": "La connexion bancaire est indisponible pour le moment. Réessayez plus tard.",
+      "providerConfig": "Le service de connexion bancaire a refusé la configuration de ce serveur. Réessayez plus tard.",
+      "providerUnavailable": "Le service de connexion bancaire ou votre banque ne répond pas. Réessayez dans quelques minutes.",
+      "providerRejected": "Le service de connexion bancaire n'a pas pu traiter la demande.",
+      "providerRejectedCode": "Le service de connexion bancaire n'a pas pu traiter la demande (%{code}).",
+      "bankDown": "Votre banque ne répond pas pour le moment. Réessayez plus tard.",
+      "signInAgain": "Votre banque vous demande de vous reconnecter.",
+      "expired": "Cette tentative de connexion a expiré. Recommencez.",
+      "browser": "La fenêtre sécurisée n'a pas pu s'ouvrir. Réessayez.",
+      "exitedCode": "Votre banque n'a pas pu être connectée (%{code}).",
+      "syncPartial": "Certaines banques n'ont pas pu être actualisées : %{banks}."
+    },
+    "disconnect": {
+      "title": "Déconnecter %{bank} ?",
+      "body": "Nous arrêterons la synchronisation et retirerons notre accès auprès de votre banque. Que faire des comptes et transactions qu'elle a importés ?",
+      "keep": "Garder les comptes et transactions de cette banque",
+      "keepHint": "Ils restent des comptes ordinaires que vous pouvez modifier. Rien de nouveau n'arrive.",
+      "delete": "Les supprimer",
+      "deleteHint": "Supprime les comptes de cette banque et leurs transactions sur tous vos appareils.",
+      "failedTitle": "Déconnexion impossible"
+    },
+    "consent": {
+      "balances": "Soldes des comptes",
+      "history": "Historique des transactions (jusqu'à deux ans)",
+      "names": "Noms des comptes et numéros masqués",
+      "readOnly": "Accès en lecture seule aux comptes",
+      "noPayments": "Aucune possibilité d'effectuer des paiements",
+      "noPersonal": "Aucun accès à vos données personnelles"
+    }
+  },
+  "zh": {
+    "unnamedBank": "您的银行",
+    "availability": {
+      "outsideTitle": "您所在的国家/地区暂不支持银行连接",
+      "outsideBody": "我们的银行连接合作方 Plaid 支持美国、加拿大、英国和大部分欧盟国家。您仍然可以记录支出并发现每一笔订阅：导入银行对账单，或连接您的邮箱，自动找出收据和续费提醒。",
+      "notConfiguredTitle": "银行连接尚未设置",
+      "notConfiguredBody": "此服务器尚未接入银行服务。您可以改为导入对账单或连接邮箱。",
+      "importStatement": "导入对账单",
+      "importStatementHint": "从银行网站下载的 CSV 或 PDF",
+      "connectEmail": "连接邮箱",
+      "connectEmailHint": "自动找出收据和续费",
+      "tryAnyway": "仍然连接银行"
+    },
+    "stage": {
+      "opening": "正在打开银行的安全页面…",
+      "browser": "请在安全窗口中完成…",
+      "finishing": "正在确认连接…",
+      "waiting": "正在等待您的银行出现…",
+      "syncing": "正在获取交易记录…"
+    },
+    "result": {
+      "linkedTitle": "银行已连接",
+      "linkedBody": {
+        "zero": "您的账户已连接。银行发送交易后会显示在这里——下拉即可刷新。",
+        "one": "已添加 %{count} 笔交易。",
+        "other": "已添加 %{count} 笔交易。"
+      },
+      "pendingTitle": "马上就好",
+      "pendingBody": "您的银行仍在连接中，稍后会显示在这里——下拉即可刷新。",
+      "exitedTitle": "未连接任何银行"
+    },
+    "errors": {
+      "title": "无法连接您的银行",
+      "syncTitle": "无法刷新您的银行",
+      "notConfigured": "此服务器尚未设置银行连接。",
+      "unavailable": "银行连接暂时不可用，请稍后再试。",
+      "providerConfig": "银行连接服务拒绝了此服务器的配置，请稍后再试。",
+      "providerUnavailable": "银行连接服务或您的银行没有响应，请几分钟后再试。",
+      "providerRejected": "银行连接服务无法完成此请求。",
+      "providerRejectedCode": "银行连接服务无法完成此请求（%{code}）。",
+      "bankDown": "您的银行暂时没有响应，请稍后再试。",
+      "signInAgain": "您的银行要求您重新登录。",
+      "expired": "本次连接已过期，请重新开始。",
+      "browser": "无法打开安全窗口，请重试。",
+      "exitedCode": "无法连接您的银行（%{code}）。",
+      "syncPartial": "部分银行无法刷新：%{banks}。"
+    },
+    "disconnect": {
+      "title": "断开 %{bank}？",
+      "body": "我们将停止同步，并撤销在您银行的访问权限。它导入的账户和交易要如何处理？",
+      "keep": "保留此银行的账户和交易",
+      "keepHint": "它们会保留为可编辑的普通账户，不再有新数据。",
+      "delete": "删除它们",
+      "deleteHint": "在您的所有设备上删除此银行的账户及其交易。",
+      "failedTitle": "无法断开连接"
+    },
+    "consent": {
+      "balances": "账户余额",
+      "history": "交易记录（最多两年）",
+      "names": "账户名称和隐藏后的账号",
+      "readOnly": "仅可读取账户",
+      "noPayments": "无法进行任何付款",
+      "noPersonal": "无法访问个人资料"
+    }
+  },
+  "ar": {
+    "unnamedBank": "بنكك",
+    "availability": {
+      "outsideTitle": "ربط البنك غير متاح في بلدك بعد",
+      "outsideBody": "شريكنا في ربط البنوك، Plaid، يغطي الولايات المتحدة وكندا والمملكة المتحدة وجزءًا كبيرًا من الاتحاد الأوروبي. لا يزال بإمكانك تتبّع مصاريفك واكتشاف كل اشتراك: استورد كشف حساب من بنكك، أو اربط بريدك الإلكتروني لنلتقط لك الإيصالات والتجديدات.",
+      "notConfiguredTitle": "ربط البنك غير مُعدّ بعد",
+      "notConfiguredBody": "هذا الخادم غير متصل بأي مزوّد بنكي. يمكنك استيراد كشف حساب أو ربط بريدك الإلكتروني بدلًا من ذلك.",
+      "importStatement": "استيراد كشف حساب",
+      "importStatementHint": "ملف CSV أو PDF من موقع بنكك",
+      "connectEmail": "ربط بريدك الإلكتروني",
+      "connectEmailHint": "الإيصالات والتجديدات، نجدها لك",
+      "tryAnyway": "ربط بنك على أي حال"
+    },
+    "stage": {
+      "opening": "جارٍ فتح الصفحة الآمنة لبنكك…",
+      "browser": "أكمل في النافذة الآمنة…",
+      "finishing": "جارٍ التحقق من الاتصال…",
+      "waiting": "في انتظار ظهور بنكك…",
+      "syncing": "جارٍ جلب معاملاتك…"
+    },
+    "result": {
+      "linkedTitle": "تم ربط البنك",
+      "linkedBody": {
+        "zero": "تم ربط حساباتك. تظهر المعاملات حين يرسلها بنكك — اسحب للأسفل للتحديث.",
+        "one": "أُضيفت معاملة واحدة.",
+        "two": "أُضيفت معاملتان.",
+        "few": "أُضيفت %{count} معاملات.",
+        "many": "أُضيفت %{count} معاملة.",
+        "other": "أُضيفت %{count} معاملة."
+      },
+      "pendingTitle": "أوشكنا على الانتهاء",
+      "pendingBody": "لا يزال بنكك قيد الربط. سيظهر هنا قريبًا — اسحب للأسفل للتحديث.",
+      "exitedTitle": "لم يتم ربط أي بنك"
+    },
+    "errors": {
+      "title": "تعذّر ربط بنكك",
+      "syncTitle": "تعذّر تحديث بنوكك",
+      "notConfigured": "ربط البنوك غير مُعدّ على هذا الخادم بعد.",
+      "unavailable": "ربط البنوك غير متاح حاليًا. حاول لاحقًا.",
+      "providerConfig": "رفضت خدمة ربط البنوك إعدادات هذا الخادم. حاول لاحقًا.",
+      "providerUnavailable": "خدمة ربط البنوك أو بنكك لا يستجيب. حاول بعد بضع دقائق.",
+      "providerRejected": "تعذّر على خدمة ربط البنوك إتمام الطلب.",
+      "providerRejectedCode": "تعذّر على خدمة ربط البنوك إتمام الطلب (%{code}).",
+      "bankDown": "بنكك لا يستجيب حاليًا. حاول لاحقًا.",
+      "signInAgain": "يطلب منك بنكك تسجيل الدخول مجددًا.",
+      "expired": "انتهت صلاحية محاولة الربط هذه. ابدأ من جديد.",
+      "browser": "تعذّر فتح النافذة الآمنة. حاول مجددًا.",
+      "exitedCode": "تعذّر ربط بنكك (%{code}).",
+      "syncPartial": "تعذّر تحديث بعض البنوك: %{banks}."
+    },
+    "disconnect": {
+      "title": "فصل %{bank}؟",
+      "body": "سنوقف المزامنة ونلغي وصولنا لدى بنكك. ماذا تريد أن يحدث للحسابات والمعاملات التي جلبها؟",
+      "keep": "الاحتفاظ بحسابات هذا البنك ومعاملاته",
+      "keepHint": "تبقى حسابات عادية يمكنك تعديلها. لن يصل أي جديد.",
+      "delete": "حذفها",
+      "deleteHint": "يحذف حسابات هذا البنك ومعاملاتها على جميع أجهزتك.",
+      "failedTitle": "تعذّر الفصل"
+    },
+    "consent": {
+      "balances": "أرصدة الحسابات",
+      "history": "سجل المعاملات (حتى سنتين)",
+      "names": "أسماء الحسابات وأرقامها المخفية",
+      "readOnly": "وصول للقراءة فقط إلى الحسابات",
+      "noPayments": "لا إمكانية لإجراء أي دفعات",
+      "noPersonal": "لا وصول إلى بياناتك الشخصية"
+    }
+  }
 }

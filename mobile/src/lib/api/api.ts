@@ -1,23 +1,13 @@
 import { fetch } from "expo/fetch";
 import { authClient } from "../auth/auth-client";
-import { t } from "../i18n/core";
+import { ApiError, NetworkError, TimeoutError, apiErrorFrom } from "./http-errors";
+
+// The error classes live in a module with nothing native in it, so they and
+// the reading of a failed response are tested without a device.
+export { ApiError, NetworkError, TimeoutError };
 
 const baseUrl = process.env.EXPO_PUBLIC_BACKEND_URL!;
 const REQUEST_TIMEOUT_MS = 15000;
-
-export class TimeoutError extends Error {
-  constructor() {
-    super("Request timed out");
-    this.name = "TimeoutError";
-  }
-}
-
-export class NetworkError extends Error {
-  constructor(cause: unknown) {
-    super(cause instanceof Error ? cause.message : "Network request failed");
-    this.name = "NetworkError";
-  }
-}
 
 /**
  * fetch with the session attached.
@@ -37,17 +27,6 @@ export const authedFetch = (
     credentials: "include",
     headers: { ...(init.headers ?? {}), Cookie: authClient.getCookie() },
   });
-
-export class ApiError extends Error {
-  status: number;
-  body: unknown;
-  constructor(status: number, message: string, body: unknown) {
-    super(message);
-    this.name = "ApiError";
-    this.status = status;
-    this.body = body;
-  }
-}
 
 const request = async <T>(
   url: string,
@@ -95,24 +74,10 @@ const request = async <T>(
   );
 
   if (!response.ok) {
+    // The server's own reason — its `error` field, or `message` — when it is
+    // a request's short plain sentence (http-errors.ts).
     const text = await response.text().catch(() => "");
-    const contentType = response.headers.get("content-type") ?? "";
-    let parsed: unknown = text;
-    let message = t("errors.requestFailed", { status: response.status });
-    if (contentType.includes("application/json") && text) {
-      try {
-        parsed = JSON.parse(text);
-        const maybeMessage = (parsed as { message?: unknown })?.message;
-        if (typeof maybeMessage === "string" && maybeMessage.length > 0) {
-          message = maybeMessage;
-        }
-      } catch {
-        // fall through with raw text
-      }
-    } else if (text) {
-      message = text;
-    }
-    throw new ApiError(response.status, message, parsed);
+    throw apiErrorFrom(response.status, response.headers.get("content-type") ?? "", text);
   }
   return response.json();
 };

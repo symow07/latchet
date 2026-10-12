@@ -6,8 +6,13 @@
  * landing, but every gate that costs money is enforced server-side — see
  * backend/src/lib/entitlement.ts.
  */
-import { api } from './api/api';
 import { request } from './api-errors';
+
+// The client is imported where it is used, so the pure parts of this module
+// (devProOverrideActive) are testable without a device.
+async function client() {
+  return (await import('./api/api')).api;
+}
 
 export type Tier = 'free' | 'pro';
 
@@ -17,6 +22,20 @@ export interface Entitlement {
 }
 
 export const FREE_ENTITLEMENT: Entitlement = { tier: 'free', expiresAt: null };
+
+/** What the development override reports: Pro, with no end. */
+export const DEV_PRO_ENTITLEMENT: Entitlement = { tier: 'pro', expiresAt: null };
+
+/**
+ * Whether this build shows every Pro feature as unlocked, so bank linking can
+ * be tried in development without a purchase: a development build (__DEV__)
+ * with EXPO_PUBLIC_DEV_PRO=true. A release build ignores the variable — and
+ * the server, which enforces the tier, has its own override (DEV_PRO_OVERRIDE)
+ * that production ignores in turn.
+ */
+export function devProOverrideActive(build: { isDev: boolean | undefined; flag: string | undefined }): boolean {
+  return build.isDev === true && (build.flag ?? '').trim().toLowerCase() === 'true';
+}
 
 interface MeResponse {
   entitlement?: { tier?: string; expiresAt?: string | null };
@@ -28,6 +47,7 @@ interface MeResponse {
 
 /** The tier the server currently holds for this account. */
 export async function fetchEntitlement(): Promise<Entitlement> {
+  const api = await client();
   const res = await request(() => api.get<MeResponse>('/api/me'));
   return {
     tier: res?.entitlement?.tier === 'pro' ? 'pro' : 'free',
@@ -42,6 +62,7 @@ export async function fetchEntitlement(): Promise<Entitlement> {
  * the user should not be looking at a paywall they have just paid to dismiss.
  */
 export async function refreshEntitlement(): Promise<Entitlement> {
+  const api = await client();
   const res = await request(() =>
     api.post<{ tier?: string; expiresAt?: string | null }>('/api/me/entitlement/refresh', {}),
   );

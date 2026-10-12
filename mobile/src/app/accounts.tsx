@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Alert, ScrollView, View } from 'react-native';
+import { Alert, RefreshControl, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -38,6 +38,8 @@ import {
   mirror,
 } from '@/components/kit';
 import { useEntitlement } from '@/lib/useEntitlement';
+import { syncAllTransactions } from '@/lib/bank-linking';
+import { syncNow } from '@/lib/cloud-sync';
 import { t } from '@/lib/i18n/core';
 
 /**
@@ -138,6 +140,7 @@ export default function AccountsScreen() {
 
   const [editing, setEditing] = useState<Account | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const [name, setName] = useState('');
   const [type, setType] = useState<string>('cash');
@@ -218,6 +221,21 @@ export default function AccountsScreen() {
     },
   });
 
+  // Pull to refresh: the banks first (a Pro feature; the server books what is
+  // new), then this phone's own pull, which brings those rows and any other
+  // device's edits into the balances above. A bank that cannot be read here
+  // is the bank screen's to explain; this one just refreshes.
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      if (isPro) await syncAllTransactions();
+      await syncNow();
+      await queryClient.invalidateQueries({ queryKey: ['accounts'] });
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
   // Deleting an account takes its history with it and there is no undo, which
   // is the one case §16.2 reserves a dialog for. It had none before.
   const confirmDelete = (account: Account) => {
@@ -236,6 +254,7 @@ export default function AccountsScreen() {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingTop: 8, paddingBottom: 60 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.accent} />}
       >
         <SubHeader
           pal={C}

@@ -25,9 +25,40 @@ import { ledgerNet, stampTombstones } from "./sync/sql";
  *     a removal stamps its tombstone with it, so a device's older edit of a
  *     cancelled charge cannot bring it back.
  *
- * Every entry point takes an optional provider, for tests; the routes pass
- * none and the connection's own provider is used.
+ * Every entry point takes an optional provider (or BankSyncOptions), for
+ * tests; the routes pass none and the connection's own provider is used. The
+ * access token is encrypted at rest by the process's keys (lib/crypto.ts:
+ * TOKEN_ENCRYPTION_KEY when set, v2 ciphertext), and a test may pass its own.
  */
+
+/** Encrypts provider access tokens for storage and reads them back. */
+export interface TokenCipher {
+  encrypt(plaintext: string): string;
+  decrypt(payload: string): string;
+}
+
+/** The process's keys, from the environment (lib/crypto.ts). */
+export const processCipher: TokenCipher = { encrypt: encryptSecret, decrypt: decryptSecret };
+
+export interface BankSyncOptions {
+  /** Overrides the provider named on the connection. */
+  provider?: BankProvider;
+  /** Overrides the process's token cipher. */
+  cipher?: TokenCipher;
+}
+
+function resolveOptions(o: BankProvider | BankSyncOptions | undefined): BankSyncOptions {
+  if (!o) return {};
+  return "listAccounts" in o ? { provider: o } : o;
+}
+
+/** A connection that already belongs to a different user. Never re-bound. */
+export class ConnectionOwnedElsewhereError extends Error {
+  constructor() {
+    super("this bank connection belongs to another user");
+    this.name = "ConnectionOwnedElsewhereError";
+  }
+}
 
 /** Stable local id for a synced transaction. */
 export function transactionId(providerId: string, externalId: string): string {
@@ -39,38 +70,62 @@ export function bankAccountId(providerId: string, externalId: string): string {
   return `acc_${providerId}_${externalId}`;
 }
 
-/** Store a completed connection and its accounts, then pull transactions. */
+/**
+ * Store a completed connection and its accounts, then pull transactions.
+ *
+ * The access token is stored encrypted, never in the clear. A connection id
+ * the provider already gave another user is refused rather than re-bound: the
+ * row's owner is whoever linked it first.
+ */
 export async function persistConnection(
   userId: string,
   provider: BankProvider,
-  connection: ProviderConnection
+  connection: ProviderConnection,
+  options: {
+    cipher?: TokenCipher;
+    /**
+     * Pull transactions now (the default). A caller that holds a claim while
+     * it links passes false and runs the first sync after letting go: a long
+     * history must not hold the link open.
+     */
+    initialSync?: boolean;
+  } = {}
 ) {
+  const cipher = options.cipher ?? processCipher;
+  const existing = await prisma.plaidItem.findUnique({
+    where: { itemId: connection.externalId },
+    select: { userId: true },
+  });
+  if (existing && existing.userId !== userId) throw new ConnectionOwnedElsewhereError();
+
   const item = await prisma.plaidItem.upsert({
     where: { itemId: connection.externalId },
     create: {
       userId,
       provider: provider.id,
       itemId: connection.externalId,
-      accessTokenEnc: encryptSecret(connection.accessToken),
+      accessTokenEnc: cipher.encrypt(connection.accessToken),
       institutionId: connection.institutionId,
       institutionName: connection.institutionName,
     },
     update: {
-      accessTokenEnc: encryptSecret(connection.accessToken),
+      accessTokenEnc: cipher.encrypt(connection.accessToken),
       status: "active",
     },
   });
 
-  await refreshConnectionAccounts(item.id, provider);
-  await syncConnectionTransactions(item.id, provider).catch(() => {});
+  await refreshConnectionAccounts(item.id, { provider, cipher });
+  if (options.initialSync !== false) {
+    await syncConnectionTransactions(item.id, { provider, cipher }).catch(() => {});
+  }
   return item;
 }
 
-/** Resolve the provider that owns a stored connection. */
-async function loadConnection(itemRowId: string, provider?: BankProvider) {
+/** Resolve the provider and cipher for a stored connection. */
+async function loadConnection(itemRowId: string, o: BankSyncOptions) {
   const item = await prisma.plaidItem.findUnique({ where: { id: itemRowId } });
   if (!item) return null;
-  return { item, provider: provider ?? getProvider(item.provider) };
+  return { item, provider: o.provider ?? getProvider(item.provider), cipher: o.cipher ?? processCipher };
 }
 
 /** Differences below this are float noise, not a change worth a write. */
@@ -195,12 +250,15 @@ async function ensureMirrors(itemId: string, userId: string): Promise<Map<string
 }
 
 /** Pull the latest accounts/balances for a connection and mirror them locally. */
-export async function refreshConnectionAccounts(itemRowId: string, providerOverride?: BankProvider): Promise<void> {
-  const loaded = await loadConnection(itemRowId, providerOverride);
+export async function refreshConnectionAccounts(
+  itemRowId: string,
+  options?: BankProvider | BankSyncOptions
+): Promise<void> {
+  const loaded = await loadConnection(itemRowId, resolveOptions(options));
   if (!loaded) return;
-  const { item, provider } = loaded;
+  const { item, provider, cipher } = loaded;
 
-  const accounts = await provider.listAccounts(decryptSecret(item.accessTokenEnc));
+  const accounts = await provider.listAccounts(cipher.decrypt(item.accessTokenEnc));
 
   for (const a of accounts) {
     const existing = await prisma.plaidAccount.findUnique({
@@ -251,12 +309,22 @@ export async function refreshConnectionAccounts(itemRowId: string, providerOverr
 export const MAX_SYNC_PAGES = 100;
 
 /** Apply incremental changes for one connection. Returns rows added. */
-export async function syncConnectionTransactions(itemRowId: string, providerOverride?: BankProvider): Promise<number> {
-  const loaded = await loadConnection(itemRowId, providerOverride);
+export async function syncConnectionTransactions(
+  itemRowId: string,
+  options?: BankProvider | BankSyncOptions
+): Promise<number> {
+  const loaded = await loadConnection(itemRowId, resolveOptions(options));
   if (!loaded) return 0;
-  const { item, provider } = loaded;
+  const { item, provider, cipher } = loaded;
 
-  const accessToken = decryptSecret(item.accessTokenEnc);
+  const accessToken = cipher.decrypt(item.accessTokenEnc);
+
+  // A connection whose accounts were never pulled (the provider failed right
+  // after the link) gets them first: booking without them would leave every
+  // transaction on no account at all.
+  if ((await prisma.plaidAccount.count({ where: { itemId: item.id } })) === 0) {
+    await refreshConnectionAccounts(item.id, { provider, cipher });
+  }
 
   // Accounts the user has switched off — their transactions are skipped.
   const disabled = new Set(
@@ -359,22 +427,95 @@ export async function syncConnectionTransactions(itemRowId: string, providerOver
   // opening balances from fresh provider balances, or, when the provider cannot
   // be reached, from the last ones it reported, so the balance a device shows
   // never drifts by the booked amount.
-  await refreshConnectionAccounts(item.id, provider).catch(() =>
+  await refreshConnectionAccounts(item.id, { provider, cipher }).catch(() =>
     realignFromLastKnownBalances(item.id, item.userId).catch(() => {})
   );
   return added;
 }
 
-/** Revoke upstream and delete locally. Local deletion happens either way. */
-export async function removeConnection(itemRowId: string): Promise<void> {
-  const loaded = await loadConnection(itemRowId);
-  if (!loaded) return;
-  const { item, provider } = loaded;
+/** What a disconnect left behind, or took with it. */
+export interface RemovedConnection {
+  /** Mirrored accounts deleted (0 when the data was kept). */
+  accounts: number;
+  /** Their transactions deleted (0 when the data was kept). */
+  transactions: number;
+}
 
+/**
+ * Disconnect a bank: revoke it at the provider, then forget the connection.
+ *
+ * Revocation comes first and must succeed (or find the connection already
+ * gone): it is what ends the provider's access to the user's bank and its
+ * billing, and once the row is deleted the token to revoke it with is gone
+ * too. A provider that cannot be reached throws, and nothing is deleted, so
+ * the user can try again. A token that can no longer be decrypted can never
+ * be revoked by us; the connection is forgotten anyway.
+ *
+ * Then, by the user's choice:
+ *   keepData  the mirrored accounts and their transactions stay, as ordinary
+ *             accounts and transactions that nothing updates any more;
+ *   !keepData they are deleted, and the triggers' tombstones (stamped with
+ *             the server's time) make every phone drop them on its next pull.
+ */
+export async function removeConnection(
+  itemRowId: string,
+  options: BankSyncOptions & { keepData?: boolean } = {}
+): Promise<RemovedConnection> {
+  const loaded = await loadConnection(itemRowId, options);
+  if (!loaded) return { accounts: 0, transactions: 0 };
+  const { item, provider, cipher } = loaded;
+
+  let accessToken: string | null = null;
   try {
-    await provider.removeConnection(decryptSecret(item.accessTokenEnc));
+    accessToken = cipher.decrypt(item.accessTokenEnc);
   } catch {
-    /* still delete locally even if revoke fails */
+    console.warn(`[bank-sync] connection ${item.id}: token unreadable, cannot revoke upstream`);
   }
-  await prisma.plaidItem.delete({ where: { id: item.id } });
+  if (accessToken !== null) await provider.removeConnection(accessToken);
+
+  if (options.keepData !== false) {
+    await prisma.plaidItem.delete({ where: { id: item.id } });
+    return { accounts: 0, transactions: 0 };
+  }
+
+  return prisma.$transaction(
+    async (tx) => {
+      const mapped = await tx.plaidAccount.findMany({
+        where: { itemId: item.id, bankAccountId: { not: null } },
+        select: { bankAccountId: true },
+        orderBy: { plaidAccountId: "asc" },
+      });
+      // Only this user's own rows: an id held by someone else was never a mirror.
+      const accountIds = (
+        await tx.bankAccount.findMany({
+          where: { userId: item.userId, id: { in: mapped.map((a) => a.bankAccountId!) } },
+          select: { id: true },
+          orderBy: { id: "asc" },
+        })
+      ).map((a) => a.id);
+
+      // One statement however long the history: a list of ids as bind
+      // parameters would hit Postgres's limit on a two-year account.
+      const deleted = accountIds.length
+        ? await tx.$queryRaw<{ id: string }[]>`
+            DELETE FROM "Transaction"
+             WHERE "userId" = ${item.userId} AND "accountId" = ANY(${accountIds}::text[])
+            RETURNING "id"`
+        : [];
+      await tx.bankAccount.deleteMany({ where: { userId: item.userId, id: { in: accountIds } } });
+      await tx.plaidItem.delete({ where: { id: item.id } });
+
+      // The server deleted them now; see the note at the top of the file.
+      const at = Date.now();
+      await stampTombstones(tx, item.userId, "transactions", deleted.map((r) => ({ id: r.id, cu: at })), {
+        insertMissing: false,
+      });
+      await stampTombstones(tx, item.userId, "accounts", accountIds.map((id) => ({ id, cu: at })), {
+        insertMissing: false,
+      });
+      return { accounts: accountIds.length, transactions: deleted.length };
+    },
+    // Every deleted transaction runs the balance and tombstone triggers.
+    { timeout: 60_000 }
+  );
 }

@@ -1,7 +1,8 @@
 import { afterAll, describe, expect, test } from "bun:test";
 import { prisma } from "../prisma";
 import {
-  bankAccountId, mirrorBankAccount, persistConnection, syncConnectionTransactions, transactionId,
+  bankAccountId, ConnectionOwnedElsewhereError, mirrorBankAccount, persistConnection, removeConnection,
+  syncConnectionTransactions, transactionId,
 } from "./bank-sync";
 import type { BankProvider, ProviderAccount, ProviderTransaction, TransactionPage } from "./bank-providers";
 
@@ -72,7 +73,7 @@ async function setup(label: string) {
     prisma.bankAccount.findUniqueOrThrow({ where: { id: bankAccountId(provider.id, ext(name)) } });
   const link = () => persistConnection(userId, provider, { externalId: `item_${tag}`, accessToken: "access" });
 
-  return { userId, bank, provider, ext, account, tx, page, localAccount, link };
+  return { userId, bank, provider, ext, account, tx, page, localAccount, link, itemExternalId: `item_${tag}` };
 }
 
 describe("bank sync and the derived balance", () => {
@@ -207,4 +208,48 @@ describe("bank sync and the derived balance", () => {
     const acc = await prisma.bankAccount.findUniqueOrThrow({ where: { id } });
     expect([acc.userId, acc.name, acc.openingBalance]).toEqual([owner.userId, "Mine", 7]);
   });
+
+  test("a connection another user linked is never re-bound to a second user", async () => {
+    const owner = await setup("bound");
+    owner.bank.accounts = [owner.account("chk", 10)];
+    await owner.link();
+    const thief = await setup("thief");
+    await expect(
+      persistConnection(thief.userId, owner.provider, { externalId: owner.itemExternalId, accessToken: "other" })
+    ).rejects.toBeInstanceOf(ConnectionOwnedElsewhereError);
+    const item = await prisma.plaidItem.findUniqueOrThrow({ where: { itemId: owner.itemExternalId } });
+    expect(item.userId).toBe(owner.userId);
+  });
+
+  test("a sync of a connection whose accounts were never pulled pulls them before booking", async () => {
+    const s = await setup("noaccounts");
+    s.bank.failAccounts = true;
+    // The link itself survives a provider failing right after the exchange.
+    await expect(s.link()).rejects.toThrow("provider unreachable");
+    const item = await prisma.plaidItem.findFirstOrThrow({ where: { userId: s.userId } });
+    s.bank.failAccounts = false;
+    s.bank.accounts = [s.account("chk", 70)];
+    s.bank.pages = [s.page({ added: [s.tx("t1", 5, "Expense")] })];
+    expect(await syncConnectionTransactions(item.id, s.provider)).toBe(1);
+    const acc = await s.localAccount();
+    expect((await prisma.transaction.findUniqueOrThrow({ where: { id: transactionId(s.provider.id, "t1") } })).accountId).toBe(acc.id);
+    expect(acc.balance).toBeCloseTo(70, 9);
+  });
+
+  test("removing a connection keeps its data by default and deletes it on request", async () => {
+    const kept = await setup("keepdefault");
+    kept.bank.accounts = [kept.account("chk", 100)];
+    kept.bank.pages = [kept.page({ added: [kept.tx("t1", 10, "Expense")] })];
+    const keptItem = await kept.link();
+    expect(await removeConnection(keptItem.id, { provider: kept.provider })).toEqual({ accounts: 0, transactions: 0 });
+    expect(await prisma.transaction.count({ where: { userId: kept.userId } })).toBe(1);
+
+    const gone = await setup("deleteall");
+    gone.bank.accounts = [gone.account("chk", 100), gone.account("sav", 5)];
+    gone.bank.pages = [gone.page({ added: [gone.tx("t1", 10, "Expense"), gone.tx("t2", 3, "Income", "sav")] })];
+    const goneItem = await gone.link();
+    expect(await removeConnection(goneItem.id, { provider: gone.provider, keepData: false })).toEqual({ accounts: 2, transactions: 2 });
+    expect(await prisma.bankAccount.count({ where: { userId: gone.userId } })).toBe(0);
+  });
 });
+

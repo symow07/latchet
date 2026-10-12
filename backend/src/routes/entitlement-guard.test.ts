@@ -2,7 +2,9 @@ import { test, expect, beforeAll, afterAll } from "bun:test";
 import { Hono } from "hono";
 import { prisma } from "../prisma";
 import { aiRouter } from "./ai";
-import { plaidRouter } from "./plaid";
+import { createPlaidRouter, plaidRouter } from "./plaid";
+import { getProvider } from "../lib/bank-providers";
+import { userIsPro } from "../lib/user-entitlement";
 import { revenueCatRouter } from "./revenuecat";
 import { FREE_AI_CALLS_PER_DAY, aiAllowance } from "../lib/entitlement";
 import { allowUsageTiered } from "../lib/usage-limit";
@@ -117,6 +119,25 @@ test("an expired Pro subscription is treated as free", async () => {
   // A missed EXPIRATION webhook must not leave someone on Pro forever.
   const res = await appAs(EXPIRED_USER, plaidRouter as never).request("/accounts");
   expect(res.status).toBe(402);
+});
+
+test("dev pro override: bank linking is reachable without a purchase in development, and still paid in production", async () => {
+  const routerFor = (NODE_ENV: string) =>
+    createPlaidRouter({
+      provider: getProvider(),
+      isPro: (userId) => userIsPro(userId, { env: { NODE_ENV, DEV_PRO_OVERRIDE: "true" } }),
+      backendUrl: "https://api.budget.test",
+      production: NODE_ENV === "production",
+    });
+
+  // A free user, no purchase: through in development...
+  expect((await appAs(FREE_USER, routerFor("development") as never).request("/accounts")).status).toBe(200);
+  // ...and refused in production, flag or no flag.
+  const prod = await appAs(FREE_USER, routerFor("production") as never).request("/accounts");
+  expect(prod.status).toBe(402);
+  expect(((await prod.json()) as { code: string }).code).toBe("upgrade_required");
+  // The default router follows the real environment, where the suite runs as "test".
+  expect((await appAs(FREE_USER, plaidRouter as never).request("/accounts")).status).toBe(402);
 });
 
 // ── The AI allowance ─────────────────────────────────────────────────────────

@@ -2,9 +2,11 @@ import { prisma } from "../prisma";
 import { fetchWithTimeout } from "./fetch-timeout";
 import { env } from "../env";
 import {
+  devProOverrideActive,
   isPro,
   PRO_ENTITLEMENT_ID,
   FREE,
+  type DevOverrideEnv,
   type EntitlementState,
 } from "./entitlement";
 
@@ -27,9 +29,17 @@ export async function loadEntitlement(userId: string): Promise<EntitlementState>
   };
 }
 
-/** True when the user may use paid features right now. */
-export async function userIsPro(userId: string): Promise<boolean> {
-  return isPro(await loadEntitlement(userId));
+/**
+ * True when the user may use paid features right now: their entitlement, or
+ * the development override (devProOverrideActive), which production ignores.
+ * `options.env` replaces the process's environment, for tests.
+ */
+export async function userIsPro(
+  userId: string,
+  options: { env?: DevOverrideEnv; now?: Date } = {}
+): Promise<boolean> {
+  if (devProOverrideActive(options.env ?? env)) return true;
+  return isPro(await loadEntitlement(userId), options.now);
 }
 
 export async function saveEntitlement(
