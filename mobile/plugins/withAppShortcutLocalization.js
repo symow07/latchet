@@ -98,10 +98,10 @@ module.exports = function withAppShortcutLocalization(config) {
       objects.PBXBuildFile[buildFile] = { isa: "PBXBuildFile", fileRef: variantGroup };
       objects.PBXBuildFile[`${buildFile}_comment`] = `${table} in Resources`;
 
-      project.addToPbxGroup(
-        { uuid: variantGroup, basename: table, group: groupName },
-        project.findPBXGroupKey({ name: groupName }),
-      );
+      // By key. Passed an object, the xcode library uses its `fileRef` as the
+      // child; a variant group has none, so the group got an `undefined`
+      // child, which CocoaPods warned about on every install and dropped.
+      project.addToPbxGroup(variantGroup, project.findPBXGroupKey({ name: groupName }));
       project.pbxResourcesBuildPhaseObj(
         IOSConfig.XcodeUtils.getApplicationNativeTarget({ project, projectName: groupName }).uuid,
       ).files.push({ value: buildFile, comment: `${table} in Resources` });

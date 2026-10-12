@@ -1,6 +1,7 @@
 const { withXcodeProject, withEntitlementsPlist, IOSConfig } = require("@expo/config-plugins");
 const fs = require("fs");
 const path = require("path");
+const { iosDeploymentTarget } = require("./withIosDeploymentTarget");
 
 /**
  * Creates the "Share to Budget" extension target.
@@ -33,7 +34,7 @@ const REGIONS = ["en", "fr", "zh-Hans"];
 const STRINGS_TABLE = "Localizable.strings";
 
 /** Settings the generated target does not get right on its own. */
-function buildSettings(bundleId, marketingVersion) {
+function buildSettings(bundleId, marketingVersion, deploymentTarget) {
   return {
     CLANG_ENABLE_MODULES: "YES",
     CODE_SIGN_ENTITLEMENTS: `"${TARGET}/ShareExtension.entitlements"`,
@@ -43,7 +44,9 @@ function buildSettings(bundleId, marketingVersion) {
     // would drop NSExtension and the extension would never be offered.
     GENERATE_INFOPLIST_FILE: "NO",
     INFOPLIST_FILE: `"${TARGET}/Info.plist"`,
-    IPHONEOS_DEPLOYMENT_TARGET: '"15.1"',
+    // The app's minimum, from app.json (see withIosDeploymentTarget). A value
+    // of its own would drift the first time the app's is raised.
+    IPHONEOS_DEPLOYMENT_TARGET: deploymentTarget,
     LD_RUNPATH_SEARCH_PATHS:
       '"$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks"',
     MARKETING_VERSION: `"${marketingVersion}"`,
@@ -108,7 +111,7 @@ module.exports = function withShareExtension(config) {
       if (configuration.buildSettings.PRODUCT_NAME !== `"${TARGET}"`) continue;
       Object.assign(
         configuration.buildSettings,
-        buildSettings(bundleId, config.version ?? "1.0.0"),
+        buildSettings(bundleId, config.version ?? "1.0.0", iosDeploymentTarget(cfg)),
       );
     }
 
@@ -135,7 +138,7 @@ module.exports = function withShareExtension(config) {
 
     // The extension's own .lproj files, attached to the extension's resources
     // rather than the app's. A .xcstrings catalog is not an option here for
-    // the same reason as the app: it requires iOS 17 and this deploys to 15.1.
+    // the same reason as the app: it requires iOS 17, above this app's minimum.
     const variantChildren = [];
     for (const region of REGIONS) {
       const relative = path.join(`${region}.lproj`, STRINGS_TABLE);
@@ -173,10 +176,10 @@ module.exports = function withShareExtension(config) {
     objects.PBXBuildFile[stringsBuildFile] = { isa: "PBXBuildFile", fileRef: variantGroup };
     objects.PBXBuildFile[`${stringsBuildFile}_comment`] = `${STRINGS_TABLE} in Resources`;
 
-    project.addToPbxGroup(
-      { uuid: variantGroup, basename: STRINGS_TABLE, group: TARGET },
-      project.findPBXGroupKey({ name: TARGET }),
-    );
+    // By key. Passed an object, the xcode library uses its `fileRef` as the
+    // child; a variant group has none, so the group got an `undefined`
+    // child, which CocoaPods warned about on every install and dropped.
+    project.addToPbxGroup(variantGroup, project.findPBXGroupKey({ name: TARGET }));
     project.pbxResourcesBuildPhaseObj(target.uuid).files.push({
       value: stringsBuildFile,
       comment: `${STRINGS_TABLE} in Resources`,

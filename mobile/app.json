@@ -73,7 +73,18 @@
       "./plugins/withShareExtension",
       "./plugins/withAppShortcutLocalization",
       "expo-localization",
-      "expo-audio"
+      "expo-audio",
+      "expo-asset",
+      "expo-web-browser",
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "deploymentTarget": "15.1"
+          }
+        }
+      ],
+      "./plugins/withIosDeploymentTarget"
     ],
     "experiments": {
       "typedRoutes": true
