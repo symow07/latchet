@@ -1,0 +1,146 @@
+{
+  "statement": "releve-compte-2026-04-a-09.csv",
+  "country": "France",
+  "bank": "Crédit Agricole-style account export; comma-separated because the import parser does not read ';' yet",
+  "importSource": "bank",
+  "currency": "EUR",
+  "today": "2026-10-03",
+  "existing": [
+    {
+      "cadence": "monthly",
+      "confidenceScore": 80,
+      "cancelUrl": null,
+      "cancelNotes": null,
+      "source": "transaction",
+      "sources": "transaction",
+      "decision": null,
+      "canceledAt": null,
+      "trialEndsAt": null,
+      "previousAmount": null,
+      "priceChangedAt": null,
+      "alert": null,
+      "billedVia": null,
+      "id": "sub_deezer",
+      "merchantDisplay": "Deezer",
+      "merchantNormalized": "deezer",
+      "typicalAmount": 10.99,
+      "currency": "EUR",
+      "lastChargedAt": "2026-06-02",
+      "nextExpectedAt": "2026-07-02",
+      "status": "active"
+    },
+    {
+      "cadence": "monthly",
+      "confidenceScore": 80,
+      "cancelUrl": null,
+      "cancelNotes": null,
+      "source": "transaction",
+      "sources": "transaction",
+      "decision": "keep",
+      "canceledAt": null,
+      "trialEndsAt": null,
+      "previousAmount": null,
+      "priceChangedAt": null,
+      "alert": null,
+      "billedVia": null,
+      "id": "sub_basic_fit",
+      "merchantDisplay": "Basic-Fit",
+      "merchantNormalized": "basic_fit",
+      "typicalAmount": 29.99,
+      "currency": "EUR",
+      "lastChargedAt": "2026-06-02",
+      "nextExpectedAt": "2026-07-02",
+      "status": "confirmed"
+    }
+  ],
+  "email": [
+    {
+      "billedVia": null,
+      "amount": 24.99,
+      "currency": "EUR",
+      "cadence": "monthly",
+      "chargedISO": null,
+      "nextChargeISO": "2026-10-12",
+      "trialEndsISO": "2026-10-12",
+      "previousAmount": null,
+      "source": "gmail",
+      "id": "fr-trial-canal",
+      "kind": "trial_ending",
+      "merchant": "CANAL+",
+      "senderDomain": "canalplus.com",
+      "dateISO": "2026-10-01"
+    },
+    {
+      "billedVia": null,
+      "amount": null,
+      "currency": null,
+      "cadence": "unknown",
+      "chargedISO": null,
+      "nextChargeISO": null,
+      "trialEndsISO": null,
+      "previousAmount": null,
+      "source": "gmail",
+      "id": "fr-cancel-molotov",
+      "kind": "cancellation",
+      "merchant": "Molotov",
+      "senderDomain": "molotov.tv",
+      "dateISO": "2026-09-01"
+    }
+  ],
+  "expect": {
+    "subscriptions": [
+      {
+        "key": "free_mobile",
+        "status": "active",
+        "cadence": "monthly",
+        "typicalAmount": 19.99,
+        "merchantDisplay": "Free Mobile",
+        "nextExpectedAt": "2026-10-06"
+      },
+      {
+        "key": "freebox",
+        "status": "active",
+        "cadence": "monthly",
+        "typicalAmount": 39.99,
+        "merchantDisplay": "Freebox"
+      },
+      {
+        "key": "deezer",
+        "status": "active",
+        "typicalAmount": 11.99,
+        "previousAmount": 10.99,
+        "priceChangedAt": "2026-07-02",
+        "alert": "price_rise"
+      },
+      {
+        "key": "canal_plus",
+        "status": "trial",
+        "trialEndsAt": "2026-10-12",
+        "nextExpectedAt": "2026-10-12",
+        "typicalAmount": 24.99,
+        "merchantDisplay": "Canal+"
+      },
+      {
+        "key": "basic_fit",
+        "status": "confirmed",
+        "decision": "keep",
+        "typicalAmount": 29.99,
+        "lastChargedAt": "2026-09-22",
+        "nextExpectedAt": "2026-10-20"
+      }
+    ],
+    "absent": [
+      "navigo",
+      "molotov",
+      "paul",
+      "starbucks",
+      "monoprix",
+      "totalenergies"
+    ],
+    "events": [
+      "new",
+      "price_rise",
+      "trial_found"
+    ]
+  }
+}

@@ -1,0 +1,156 @@
+{
+  "statement": "releve-attijariwafa-2026-04-a-09.csv",
+  "country": "Morocco",
+  "bank": "Attijariwafa bank-style account export (CSV)",
+  "importSource": "bank",
+  "currency": "MAD",
+  "today": "2026-10-04",
+  "existing": [
+    {
+      "cadence": "monthly",
+      "confidenceScore": 80,
+      "cancelUrl": null,
+      "cancelNotes": null,
+      "source": "transaction",
+      "sources": "transaction",
+      "decision": null,
+      "canceledAt": null,
+      "trialEndsAt": null,
+      "previousAmount": null,
+      "priceChangedAt": null,
+      "alert": null,
+      "billedVia": null,
+      "id": "sub_shahid",
+      "merchantDisplay": "Shahid",
+      "merchantNormalized": "shahid",
+      "typicalAmount": 35,
+      "currency": "MAD",
+      "lastChargedAt": "2026-06-20",
+      "nextExpectedAt": "2026-07-20",
+      "status": "active"
+    },
+    {
+      "cadence": "monthly",
+      "confidenceScore": 80,
+      "cancelUrl": null,
+      "cancelNotes": null,
+      "source": "transaction",
+      "sources": "transaction",
+      "decision": "cancel",
+      "canceledAt": "2026-08-10",
+      "trialEndsAt": null,
+      "previousAmount": null,
+      "priceChangedAt": null,
+      "alert": null,
+      "billedVia": null,
+      "id": "sub_city_club",
+      "merchantDisplay": "City Club",
+      "merchantNormalized": "city_club",
+      "typicalAmount": 299,
+      "currency": "MAD",
+      "lastChargedAt": "2026-08-05",
+      "nextExpectedAt": null,
+      "status": "canceled"
+    }
+  ],
+  "email": [
+    {
+      "billedVia": null,
+      "amount": 34.99,
+      "currency": "MAD",
+      "cadence": "monthly",
+      "chargedISO": null,
+      "nextChargeISO": "2026-10-08",
+      "trialEndsISO": "2026-10-08",
+      "previousAmount": null,
+      "source": "gmail",
+      "id": "ma-trial-anghami",
+      "kind": "trial_ending",
+      "merchant": "Anghami Plus",
+      "senderDomain": "anghami.com",
+      "dateISO": "2026-10-01"
+    },
+    {
+      "billedVia": null,
+      "amount": null,
+      "currency": null,
+      "cadence": "unknown",
+      "chargedISO": null,
+      "nextChargeISO": null,
+      "trialEndsISO": null,
+      "previousAmount": null,
+      "source": "gmail",
+      "id": "ma-cancel-osn",
+      "kind": "cancellation",
+      "merchant": "OSN+",
+      "senderDomain": "osnplus.com",
+      "dateISO": "2026-09-03"
+    }
+  ],
+  "expect": {
+    "subscriptions": [
+      {
+        "key": "maroc_telecom",
+        "status": "active",
+        "cadence": "monthly",
+        "typicalAmount": 99,
+        "merchantDisplay": "Maroc Telecom"
+      },
+      {
+        "key": "inwi",
+        "status": "active",
+        "typicalAmount": 149,
+        "nextExpectedAt": "2026-10-12"
+      },
+      {
+        "key": "netflix",
+        "status": "active",
+        "typicalAmount": 65,
+        "currency": "MAD",
+        "nextExpectedAt": "2026-10-18"
+      },
+      {
+        "key": "shahid",
+        "status": "active",
+        "typicalAmount": 40,
+        "previousAmount": 35,
+        "priceChangedAt": "2026-07-20",
+        "alert": "price_rise"
+      },
+      {
+        "key": "orange",
+        "status": "active",
+        "cadence": "monthly",
+        "typicalAmount": 208.3,
+        "merchantDisplay": "Orange"
+      },
+      {
+        "key": "city_club",
+        "status": "canceled",
+        "decision": "cancel",
+        "alert": "charged_after_cancel",
+        "lastChargedAt": "2026-09-05"
+      },
+      {
+        "key": "anghami",
+        "status": "trial",
+        "trialEndsAt": "2026-10-08",
+        "typicalAmount": 34.99,
+        "currency": "MAD"
+      }
+    ],
+    "absent": [
+      "cafe_bougainville",
+      "marjane",
+      "afriquia",
+      "glovo",
+      "osn_plus"
+    ],
+    "events": [
+      "new",
+      "price_rise",
+      "charged_after_cancel",
+      "trial_found"
+    ]
+  }
+}

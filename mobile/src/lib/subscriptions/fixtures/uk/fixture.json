@@ -1,0 +1,205 @@
+{
+  "statement": "barclays-current-2026-04-to-09.csv",
+  "country": "United Kingdom",
+  "bank": "Barclays current account export (CSV)",
+  "importSource": "bank",
+  "currency": "GBP",
+  "today": "2026-10-05",
+  "existing": [
+    {
+      "cadence": "monthly",
+      "confidenceScore": 80,
+      "cancelUrl": null,
+      "cancelNotes": null,
+      "source": "transaction",
+      "sources": "transaction",
+      "decision": "dismiss",
+      "canceledAt": null,
+      "trialEndsAt": null,
+      "previousAmount": null,
+      "priceChangedAt": null,
+      "alert": null,
+      "billedVia": null,
+      "id": "sub_spotify",
+      "merchantDisplay": "Spotify",
+      "merchantNormalized": "spotify",
+      "typicalAmount": 11.99,
+      "currency": "GBP",
+      "lastChargedAt": "2026-03-03",
+      "nextExpectedAt": null,
+      "status": "dismissed"
+    },
+    {
+      "cadence": "monthly",
+      "confidenceScore": 80,
+      "cancelUrl": null,
+      "cancelNotes": null,
+      "source": "transaction",
+      "sources": "transaction",
+      "decision": null,
+      "canceledAt": null,
+      "trialEndsAt": null,
+      "previousAmount": null,
+      "priceChangedAt": null,
+      "alert": null,
+      "billedVia": null,
+      "id": "sub_disney_plus",
+      "merchantDisplay": "Disney+",
+      "merchantNormalized": "disney_plus",
+      "typicalAmount": 7.99,
+      "currency": "GBP",
+      "lastChargedAt": "2026-07-05",
+      "nextExpectedAt": "2026-08-05",
+      "status": "active"
+    },
+    {
+      "cadence": "monthly",
+      "confidenceScore": 80,
+      "cancelUrl": null,
+      "cancelNotes": null,
+      "source": "transaction",
+      "sources": "transaction",
+      "decision": "keep",
+      "canceledAt": null,
+      "trialEndsAt": null,
+      "previousAmount": null,
+      "priceChangedAt": null,
+      "alert": null,
+      "billedVia": null,
+      "id": "sub_puregym",
+      "merchantDisplay": "PureGym",
+      "merchantNormalized": "puregym",
+      "typicalAmount": 24.99,
+      "currency": "GBP",
+      "lastChargedAt": "2026-05-01",
+      "nextExpectedAt": "2026-06-01",
+      "status": "confirmed"
+    },
+    {
+      "cadence": "monthly",
+      "confidenceScore": 80,
+      "cancelUrl": null,
+      "cancelNotes": null,
+      "source": "transaction",
+      "sources": "transaction",
+      "decision": null,
+      "canceledAt": null,
+      "trialEndsAt": null,
+      "previousAmount": null,
+      "priceChangedAt": null,
+      "alert": null,
+      "billedVia": null,
+      "id": "sub_the_times",
+      "merchantDisplay": "The Times",
+      "merchantNormalized": "the_times",
+      "typicalAmount": 26,
+      "currency": "GBP",
+      "lastChargedAt": "2026-08-08",
+      "nextExpectedAt": "2026-09-08",
+      "status": "active"
+    }
+  ],
+  "email": [
+    {
+      "billedVia": null,
+      "amount": null,
+      "currency": null,
+      "cadence": "unknown",
+      "chargedISO": null,
+      "nextChargeISO": null,
+      "trialEndsISO": null,
+      "previousAmount": null,
+      "source": "outlook",
+      "id": "uk-cancel-times",
+      "kind": "cancellation",
+      "merchant": "The Times",
+      "senderDomain": "thetimes.co.uk",
+      "dateISO": "2026-09-01"
+    },
+    {
+      "billedVia": null,
+      "amount": 9.99,
+      "currency": "GBP",
+      "cadence": "monthly",
+      "chargedISO": null,
+      "nextChargeISO": "2026-10-10",
+      "trialEndsISO": "2026-10-10",
+      "previousAmount": null,
+      "source": "outlook",
+      "id": "uk-trial-now",
+      "kind": "trial_ending",
+      "merchant": "NOW",
+      "senderDomain": "nowtv.com",
+      "dateISO": "2026-10-03"
+    }
+  ],
+  "expect": {
+    "subscriptions": [
+      {
+        "key": "spotify",
+        "status": "dismissed",
+        "decision": "dismiss",
+        "nextExpectedAt": null
+      },
+      {
+        "key": "disney_plus",
+        "status": "active",
+        "billedVia": "paypal",
+        "typicalAmount": 8.99,
+        "previousAmount": 7.99,
+        "priceChangedAt": "2026-08-05",
+        "alert": "price_rise"
+      },
+      {
+        "key": "puregym",
+        "status": "confirmed",
+        "decision": "keep",
+        "lastChargedAt": "2026-09-01",
+        "nextExpectedAt": "2026-10-01",
+        "typicalAmount": 24.99
+      },
+      {
+        "key": "sky",
+        "status": "active",
+        "cadence": "monthly",
+        "typicalAmount": 35,
+        "merchantDisplay": "Sky"
+      },
+      {
+        "key": "tv_licence",
+        "status": "active",
+        "cadence": "monthly",
+        "typicalAmount": 14.13,
+        "nextExpectedAt": "2026-10-15"
+      },
+      {
+        "key": "the_times",
+        "status": "ended",
+        "nextExpectedAt": null,
+        "sources": "transaction,import,email"
+      },
+      {
+        "key": "now_tv",
+        "status": "trial",
+        "trialEndsAt": "2026-10-10",
+        "typicalAmount": 9.99,
+        "currency": "GBP"
+      }
+    ],
+    "absent": [
+      "pret_a_manger",
+      "tfl",
+      "tesco",
+      "costa",
+      "deliveroo",
+      "j_smith_rent",
+      "marcus"
+    ],
+    "events": [
+      "new",
+      "price_rise",
+      "ended",
+      "trial_found"
+    ]
+  }
+}

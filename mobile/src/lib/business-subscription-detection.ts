@@ -4,13 +4,19 @@
  * This used to be a third, independent detector — its own grouping, its own
  * cadence rules, its own cancel map — so the business dashboard and the
  * personal subscriptions screen could disagree about the same charges. It is
- * now an adapter over the shared engine, and its cancel map has been merged
- * into lib/cancel-directory alongside the consumer services.
+ * now an adapter over the shared engine (lib/subscriptions/engine): the same
+ * merchant keys and aliases ("ADOBE *CREATIVE CLOUD" and "Adobe" are one
+ * tool), the same cadences from weekly to yearly, and the current price
+ * rather than an average. It uses the engine's list view, which still lists a
+ * tool bought often but irregularly (as not recurring, costing nothing a
+ * month), because Business Tools shows every tool the company pays for. Its
+ * cancel map has been merged into lib/cancel-directory alongside the consumer
+ * services.
  */
 import { type Expense } from './expenseApi';
 import { detectSubscriptions as detectFromEngine, monthlyCost } from './subscriptions/engine';
 import { chargesFromExpenses } from './subscriptions/sources';
-import { findCancelEntry } from './cancel-directory';
+import { CANCEL_DIRECTORY, type CancelDirectoryEntry } from './cancel-directory';
 import { todayISO, daysAheadISO, daysBetween, isBetween } from './dates';
 import { t } from './i18n/core';
 
@@ -40,9 +46,32 @@ export interface SubscriptionSummary {
  */
 const genericCancelSteps = () => t('subscriptionDetail.genericCancelSteps');
 
+/**
+ * The directory entry for a merchant: the one whose matching keyword is the
+ * longest, so "google_workspace" finds Google Workspace rather than the first
+ * entry that mentions Google. Keys spell spaces as underscores.
+ */
+function cancelEntryFor(merchant: string): CancelDirectoryEntry | null {
+  const lower = merchant.toLowerCase().replace(/_/g, ' ').trim();
+  if (!lower) return null;
+  let best: CancelDirectoryEntry | null = null;
+  let bestLength = 0;
+  for (const entry of CANCEL_DIRECTORY) {
+    for (const kw of entry.keywords) {
+      // A short key ("ee", "o2") is not looked for inside longer keywords.
+      const matches = lower.includes(kw) || (lower.length >= 4 && kw.includes(lower));
+      if (matches && kw.length > bestLength) {
+        best = entry;
+        bestLength = kw.length;
+      }
+    }
+  }
+  return best;
+}
+
 /** Cancel guidance for a merchant, from the shared directory. */
 export function cancelGuidanceFor(merchant: string): { instructions: string; url?: string } {
-  const entry = findCancelEntry(merchant.toLowerCase());
+  const entry = cancelEntryFor(merchant);
   if (!entry) return { instructions: genericCancelSteps() };
   return {
     instructions: entry.steps.join(' → '),

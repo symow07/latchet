@@ -5,7 +5,7 @@
  * merchant, how dates are shaped, what counts as an outflow — so the engine
  * itself never has to know where a charge came from.
  */
-import type { SourceCharge } from './types';
+import type { ChargeSource, SourceCharge } from './types';
 
 /** A device transaction, as stored in SQLite. */
 export interface TransactionLike {
@@ -45,7 +45,15 @@ export function merchantTextOf(note: string | null | undefined): string | null {
   return text;
 }
 
-export function chargesFromTransactions(txs: TransactionLike[]): SourceCharge[] {
+/**
+ * Device transactions as charges. `sourceOf` says where each one came from (a
+ * statement import, a bank feed, a hand-typed entry) so the engine can fold
+ * the copies of one payment together; without it every row is a 'transaction'.
+ */
+export function chargesFromTransactions(
+  txs: TransactionLike[],
+  sourceOf: (tx: TransactionLike) => ChargeSource = () => 'transaction'
+): SourceCharge[] {
   const charges: SourceCharge[] = [];
   for (const tx of txs) {
     if (tx.type !== 'Expense') continue;
@@ -55,10 +63,10 @@ export function chargesFromTransactions(txs: TransactionLike[]): SourceCharge[] 
     charges.push({
       id: tx.id,
       merchant,
-      amount: tx.amount,
-      dateISO: tx.dateISO,
+      amount: Math.abs(tx.amount),
+      dateISO: tx.dateISO.slice(0, 10),
       currency: tx.currency || 'USD',
-      source: 'transaction',
+      source: sourceOf(tx),
       category: tx.category,
     });
   }

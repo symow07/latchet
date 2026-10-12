@@ -4,7 +4,7 @@ import {
   detectSubscriptions,
   formatNextCharge,
 } from './business-subscription-detection';
-import { findCancelEntry } from './cancel-directory';
+import { CANCEL_DIRECTORY, findCancelEntry } from './cancel-directory';
 import type { Expense, ExpenseCategory } from './expenseApi';
 import { t } from './i18n/core';
 
@@ -54,14 +54,15 @@ function inTimeZone<T>(zone: string, fn: () => T): T {
 
 describe('behaviour detection: business subscriptions', () => {
   test('three monthly charges are one recurring subscription with cancel guidance', () => {
-    const adobe = findCancelEntry('adobe creative cloud')!;
+    const adobe = findCancelEntry('adobe')!;
     const summary = detectSubscriptions(
       charges('Adobe Creative Cloud', 54.99, ['2026-06-05', '2026-07-05', '2026-08-05']),
       NOW
     );
+    // The shared engine knows Adobe by every name its invoices use.
     const sub = {
-      key: 'sub_adobe_creative_cloud',
-      name: 'Adobe Creative Cloud',
+      key: 'sub_adobe',
+      name: 'Adobe',
       amount: 54.99,
       category: 'Software',
       lastChargeDate: '2026-08-05',
@@ -122,7 +123,8 @@ describe('behaviour detection: business subscriptions', () => {
     const summary = detectSubscriptions(
       [
         ...charges('Office Depot', 40, ['2026-05-01', '2026-05-04', '2026-06-23', '2026-07-05']),
-        ...charges('Staples', 40, ['2026-07-01', '2026-07-16']),
+        // Two charges three weeks apart: no cadence at all.
+        ...charges('Staples', 40, ['2026-07-01', '2026-07-22']),
       ],
       NOW
     );
@@ -140,6 +142,34 @@ describe('behaviour detection: business subscriptions', () => {
     });
   });
 
+  test('one tool billed under several spellings is one tool, at its current price', () => {
+    const summary = detectSubscriptions(
+      [
+        ...charges('ADOBE *CREATIVE CLD 800-833-6687 CA', 52.99, ['2026-04-05', '2026-05-05']),
+        ...charges('Adobe Creative Cloud', 54.99, ['2026-06-05', '2026-07-05', '2026-08-05']),
+      ],
+      NOW
+    );
+    expect(summary.subscriptions.map((s) => [s.key, s.name, s.amount, s.monthlyCount, s.nextChargeDate])).toEqual([
+      ['sub_adobe', 'Adobe', 54.99, 5, '2026-09-05'],
+    ]);
+  });
+
+  test('quarterly and every-other-week tools count their share of a month', () => {
+    const summary = detectSubscriptions(
+      [
+        ...charges('Zendesk Suite', 90, ['2026-02-10', '2026-05-10', '2026-08-10']),
+        ...charges('HelloFresh*Office Box', 70, ['2026-06-20', '2026-07-04', '2026-07-18', '2026-08-01']),
+      ],
+      NOW
+    );
+    expect(summary.monthlyTotal).toBeCloseTo(90 / 3 + (70 * 365) / 12 / 14, 10);
+    expect(summary.subscriptions.map((s) => [s.name, s.isRecurring, s.nextChargeDate])).toEqual([
+      ['Zendesk Suite', true, '2026-11-10'],
+      ['HelloFresh', true, '2026-08-15'],
+    ]);
+  });
+
   test('cancel guidance comes from the directory, or the generic steps', () => {
     const netflix = findCancelEntry('netflix')!;
     expect(cancelGuidanceFor('NETFLIX')).toEqual({
@@ -149,6 +179,11 @@ describe('behaviour detection: business subscriptions', () => {
     expect(cancelGuidanceFor('ZZYZX WIDGETS')).toEqual({
       instructions: t('subscriptionDetail.genericCancelSteps'),
     });
+    // A merchant key finds its own entry, not the first that shares a word.
+    const workspace = findCancelEntry('google workspace')!;
+    expect(cancelGuidanceFor('google_workspace').instructions).toBe(
+      (CANCEL_DIRECTORY.find((e) => e.keywords.includes('google workspace')) ?? workspace).steps.join(' → ')
+    );
   });
 
   test('the next charge reads overdue, today, tomorrow, in N days, then a date', () => {

@@ -1,6 +1,7 @@
 import { test, expect } from 'bun:test';
 import {
   detectSubscriptions,
+  displayMerchant,
   normalizeMerchant,
   subscriptionId,
   occurrenceId,
@@ -109,10 +110,16 @@ test('re-running detection over the same charges is stable', () => {
 
 // ── Detection behaviour ──────────────────────────────────────────────────────
 
-test('cadence is read from the interval pattern', () => {
+test('cadence is read from the median interval', () => {
   expect(detectCadence([7, 7, 7])).toBe('weekly');
+  expect(detectCadence([14, 14, 15])).toBe('biweekly');
   expect(detectCadence([30, 31, 30])).toBe('monthly');
+  expect(detectCadence([28, 28, 28])).toBe('monthly');
+  expect(detectCadence([90, 91, 92])).toBe('quarterly');
+  expect(detectCadence([181, 184])).toBe('semiannual');
   expect(detectCadence([365, 366])).toBe('yearly');
+  // One late charge does not change a monthly plan.
+  expect(detectCadence([30, 31, 61, 30])).toBe('monthly');
   expect(detectCadence([3, 19, 47])).toBe('unknown');
   expect(detectCadence([])).toBe('unknown');
 });
@@ -130,16 +137,22 @@ test('a single charge is never a subscription', () => {
   expect(detectSubscriptions([charge()])).toEqual([]);
 });
 
-test('one merchant can hold two subscriptions at different prices', () => {
+test('two plans billed side by side at one merchant are one subscription: the current plan', () => {
+  // One subscription per merchant: interleaved charges are not one irregular
+  // stream at an average price, but the regular plan with the latest charge.
   const charges = [
     ...monthly('ADOBE', 9.99, [1, 2, 3]),
-    ...monthly('ADOBE', 52.99, [1, 2, 3]).map((c) => ({ ...c, id: `${c.id}-pro` })),
+    ...monthly('ADOBE', 52.99, [1, 2, 3]).map((c) => ({ ...c, id: `${c.id}-pro`, dateISO: c.dateISO.replace(/15$/, '20') })),
   ];
   const found = detectSubscriptions(charges);
 
-  expect(found).toHaveLength(2);
-  // Most expensive first.
-  expect(found[0]!.typicalAmount).toBe(52.99);
+  expect(found).toHaveLength(1);
+  expect([found[0]!.id, found[0]!.typicalAmount, found[0]!.cadence]).toEqual(['sub_adobe', 52.99, 'monthly']);
+});
+
+test('the price is the current one, not an average', () => {
+  const [sub] = detectSubscriptions(monthly('NETFLIX.COM', 0, [1, 2, 3, 4, 5], [15.49, 15.49, 15.49, 17.99, 17.99]));
+  expect(sub!.typicalAmount).toBe(17.99);
 });
 
 test('small price drift stays one subscription', () => {
@@ -165,10 +178,19 @@ test('the next charge date never skips a short month', () => {
   expect(predictNextDate('2028-02-29', 'yearly', 365)).toBe('2029-02-28');
 });
 
-test('normalisation strips payment noise', () => {
+test('normalisation strips payment noise and agrees with the merchant key', () => {
   expect(normalizeMerchant('POS DEBIT NETFLIX.COM')).toBe('NETFLIX');
   expect(normalizeMerchant('SPOTIFY*RECURRING')).toBe('SPOTIFY');
+  expect(normalizeMerchant('PRLV SEPA FREE MOBILE REF:FM100234')).toBe('FREE MOBILE');
   expect(normalizeMerchant('   ')).toBe('');
+  expect(displayMerchant('DISNEY PLUS')).toBe('Disney+');
+  expect(displayMerchant('CORNER SHOP')).toBe('Corner Shop');
+});
+
+test('habits, transfers and refunds are never listed', () => {
+  const coffee = [1, 2, 3, 4, 5, 6].map((m) => charge({ id: `c${m}`, merchant: 'STARBUCKS STORE 08123', amount: 5.25, dateISO: `2026-0${m}-03` }));
+  const rent = [1, 2, 3, 4, 5, 6].map((m) => charge({ id: `r${m}`, merchant: 'VIR SEPA EMIS LOYER', amount: 850, dateISO: `2026-0${m}-01` }));
+  expect(detectSubscriptions([...coffee, ...rent])).toEqual([]);
 });
 
 test('occurrences carry the charge ids they came from', () => {
@@ -180,10 +202,10 @@ test('occurrences carry the charge ids they came from', () => {
   ]);
 });
 
-test('monthly cost normalises weekly and yearly cadences', () => {
+test('monthly cost normalises a yearly cadence', () => {
   const subs = [
-    ...detectSubscriptions(monthly('YEARLY CO', 120, [1]).concat(
-      monthly('YEARLY CO', 120, [1]).map((c) => ({ ...c, id: 'y2', dateISO: '2027-01-15' }))
+    ...detectSubscriptions(monthly('NAMECHEAP DOMAINS', 120, [1]).concat(
+      monthly('NAMECHEAP DOMAINS', 120, [1]).map((c) => ({ ...c, id: 'y2', dateISO: '2027-01-15' }))
     )),
   ];
   // A yearly 120 contributes 10/month.

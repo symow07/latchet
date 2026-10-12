@@ -1,0 +1,152 @@
+{
+  "statement": "alipay-bill-2026-04-to-09.csv",
+  "country": "China",
+  "bank": "Alipay bill export (支付宝账单, UTF-8 CSV)",
+  "importSource": "alipay",
+  "currency": "CNY",
+  "today": "2026-10-02",
+  "existing": [
+    {
+      "cadence": "monthly",
+      "confidenceScore": 80,
+      "cancelUrl": null,
+      "cancelNotes": null,
+      "source": "import",
+      "sources": "import",
+      "decision": null,
+      "canceledAt": null,
+      "trialEndsAt": null,
+      "previousAmount": null,
+      "priceChangedAt": null,
+      "alert": null,
+      "billedVia": null,
+      "id": "sub_netease_music",
+      "merchantDisplay": "网易云音乐",
+      "merchantNormalized": "netease_music",
+      "typicalAmount": 15,
+      "currency": "CNY",
+      "lastChargedAt": "2026-06-12",
+      "nextExpectedAt": "2026-07-12",
+      "status": "active"
+    },
+    {
+      "cadence": "monthly",
+      "confidenceScore": 80,
+      "cancelUrl": null,
+      "cancelNotes": null,
+      "source": "import",
+      "sources": "import",
+      "decision": "keep",
+      "canceledAt": null,
+      "trialEndsAt": null,
+      "previousAmount": null,
+      "priceChangedAt": null,
+      "alert": null,
+      "billedVia": null,
+      "id": "sub_tencent_video",
+      "merchantDisplay": "腾讯视频",
+      "merchantNormalized": "tencent_video",
+      "typicalAmount": 30,
+      "currency": "CNY",
+      "lastChargedAt": "2026-05-20",
+      "nextExpectedAt": "2026-06-20",
+      "status": "confirmed"
+    },
+    {
+      "cadence": "monthly",
+      "confidenceScore": 80,
+      "cancelUrl": null,
+      "cancelNotes": null,
+      "source": "import",
+      "sources": "import",
+      "decision": "dismiss",
+      "canceledAt": null,
+      "trialEndsAt": null,
+      "previousAmount": null,
+      "priceChangedAt": null,
+      "alert": null,
+      "billedVia": null,
+      "id": "sub_youku",
+      "merchantDisplay": "优酷",
+      "merchantNormalized": "youku",
+      "typicalAmount": 25,
+      "currency": "CNY",
+      "lastChargedAt": "2026-04-24",
+      "nextExpectedAt": null,
+      "status": "dismissed"
+    }
+  ],
+  "email": [
+    {
+      "billedVia": null,
+      "amount": null,
+      "currency": null,
+      "cadence": "unknown",
+      "chargedISO": null,
+      "nextChargeISO": null,
+      "trialEndsISO": null,
+      "previousAmount": null,
+      "source": "forwarding",
+      "id": "cn-cancel-mgtv",
+      "kind": "cancellation",
+      "merchant": "芒果TV",
+      "senderDomain": "mgtv.com",
+      "dateISO": "2026-09-05"
+    }
+  ],
+  "expect": {
+    "subscriptions": [
+      {
+        "key": "iqiyi",
+        "status": "active",
+        "cadence": "monthly",
+        "typicalAmount": 25,
+        "merchantDisplay": "爱奇艺",
+        "nextExpectedAt": "2026-10-08"
+      },
+      {
+        "key": "netease_music",
+        "status": "active",
+        "typicalAmount": 18,
+        "previousAmount": 15,
+        "priceChangedAt": "2026-07-12",
+        "alert": "price_rise"
+      },
+      {
+        "key": "bilibili",
+        "status": "active",
+        "typicalAmount": 15,
+        "currency": "CNY"
+      },
+      {
+        "key": "tencent_video",
+        "status": "confirmed",
+        "decision": "keep",
+        "lastChargedAt": "2026-09-20",
+        "nextExpectedAt": "2026-10-20"
+      },
+      {
+        "key": "youku",
+        "status": "dismissed",
+        "decision": "dismiss",
+        "nextExpectedAt": null
+      },
+      {
+        "key": "baidu_netdisk",
+        "status": "active",
+        "typicalAmount": 30
+      }
+    ],
+    "absent": [
+      "luckin",
+      "meituan",
+      "didi",
+      "hema",
+      "mango_tv"
+    ],
+    "events": [
+      "new",
+      "price_rise"
+    ]
+  }
+}
