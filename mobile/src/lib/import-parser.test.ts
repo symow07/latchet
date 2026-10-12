@@ -7,6 +7,7 @@ import {
   parseAmount,
   parseDate,
   detectCsvFormat,
+  detectDelimiter,
   detectDecimalConvention,
   detectDateConvention,
   detectSignConvention,
@@ -16,6 +17,7 @@ import {
   generateImportPreview,
   importHistory,
   preferHistory,
+  type CsvFormat,
   type ExistingTransaction,
 } from './import-parser';
 import { buildMerchantMemory } from './merchant-memory';
@@ -607,4 +609,397 @@ test('import history: every parse on the import screen is given it', () => {
   // Built from the user's own transactions, and used for the PDF path too.
   expect(screen).toMatch(/importHistory\(await getTransactions\(\)/);
   expect(screen).toMatch(/preferHistory\(r\.note, r\.category, known\.context\)/);
+});
+
+// ── Any delimiter: semicolon, tab and pipe exports ───────────────────────────
+//
+// French and Moroccan banks separate fields with semicolons (the comma is
+// their decimal point), some exports use tabs, and many put an account summary
+// above the table. Every one of these used to import as nothing, or as
+// garbage, because the parser split on commas only and took the first line as
+// the header.
+
+describe('csv delimiter', () => {
+  /** What a reviewer checks first: when, what, how much, which way. */
+  const brief = (rows: { date: string; description: string; amount: number; type: string }[]) =>
+    rows.map((r) => [r.date, r.description, r.amount, r.type]);
+
+  test('csv delimiter: a semicolon export with Débit and Crédit columns (CIC style)', () => {
+    // Debits written negative in the Débit column, a value date beside the
+    // operation date, the description after the amounts, and a running balance.
+    const CIC = [
+      "Date d'opération;Date de valeur;Débit;Crédit;Libellé;Solde",
+      '01/10/2026;01/10/2026;;2850,00;VIR SEPA SALAIRE ACME SAS;4120,35',
+      '02/10/2026;02/10/2026;-19,99;;PRLV SEPA FREE MOBILE;4100,36',
+      '03/10/2026;04/10/2026;-13,49;;CB NETFLIX.COM 02/10;4086,87',
+      '05/10/2026;06/10/2026;-1234,56;;CB AMAZON PAYMENTS 04/10;2852,31',
+    ].join('\r\n');
+
+    expect(detectDelimiter(CIC)).toBe(';');
+    // Every day is 12 or lower, so the dates alone cannot say; a semicolon
+    // export with decimal commas is day-first, whatever the fallback.
+    expect(detectCsvFormat(CIC)).toMatchObject({
+      delimiter: ';',
+      decimal: 'european',
+      date: 'dmy',
+      dateAmbiguous: true,
+      sign: 'signed',
+    });
+    expect(inspectCsv(CIC).mapping).toMatchObject({ dateIdx: 0, debitIdx: 2, creditIdx: 3, descIdx: 4 });
+
+    const rows = parseStatement(CIC, 'bank', {}, { currency: 'EUR' });
+    // The operation date, not the value date; the balance is never an amount.
+    expect(brief(rows)).toEqual([
+      ['2026-10-01', 'VIR SEPA SALAIRE ACME SAS', 2850, 'Income'],
+      ['2026-10-02', 'PRLV SEPA FREE MOBILE', 19.99, 'Expense'],
+      ['2026-10-03', 'CB NETFLIX.COM 02/10', 13.49, 'Expense'],
+      ['2026-10-05', 'CB AMAZON PAYMENTS 04/10', 1234.56, 'Expense'],
+    ]);
+    expect(rows[2]!.suggestedCategory).toBe('Subscriptions');
+  });
+
+  test('csv delimiter: a semicolon export with one signed Montant column (Société Générale style)', () => {
+    // The account line above the header, a short Libellé and a long Détail,
+    // "+" on credits, and thousands grouped with a space or a no-break space.
+    const SG = [
+      '="00012345678";COMPTE COURANT;',
+      "Date de l'opération;Libellé;Détail de l'écriture;Montant de l'opération;Devise",
+      '12/10/2026;PRLV SEPA FREE MOBILE;PRLV SEPA FREE MOBILE ECH/121026 ID EMETTEUR/FR84ZZZ412345 MDT/FM100234;-19,99;EUR',
+      '09/10/2026;CARTE X1234 08/10 NETFLIX.COM;CARTE X1234 08/10 NETFLIX.COM 866-579-7172;-13,49;EUR',
+      '01/10/2026;VIR RECU 1234567;VIR RECU 1234567 DE: ACME SAS MOTIF: SALAIRE OCTOBRE;+2 850,00;EUR',
+      '28/09/2026;CARTE X1234 27/09 AMAZON PAYMENTS;CARTE X1234 27/09 AMAZON PAYMENTS LUXEMBOURG;-1\u00a0234,56;EUR',
+    ].join('\r\n');
+
+    expect(detectCsvFormat(SG)).toMatchObject({
+      delimiter: ';',
+      decimal: 'european',
+      date: 'dmy',
+      dateAmbiguous: false,
+      sign: 'signed',
+    });
+    const found = inspectCsv(SG);
+    expect(found.headers[0]).toBe("Date de l'opération");
+    expect(found.mapping).toMatchObject({ dateIdx: 0, descIdx: 1, amountIdx: 3, currencyIdx: 4 });
+
+    const rows = parseStatement(SG, 'bank', {}, { currency: 'EUR' });
+    expect(brief(rows)).toEqual([
+      ['2026-10-12', 'PRLV SEPA FREE MOBILE', 19.99, 'Expense'],
+      ['2026-10-09', 'CARTE X1234 08/10 NETFLIX.COM', 13.49, 'Expense'],
+      ['2026-10-01', 'VIR RECU 1234567', 2850, 'Income'],
+      ['2026-09-28', 'CARTE X1234 27/09 AMAZON PAYMENTS', 1234.56, 'Expense'],
+    ]);
+    expect(rows.every((r) => r.currency === 'EUR')).toBe(true);
+  });
+
+  test('csv delimiter: tab-separated exports, with decimal commas and with decimal points', () => {
+    // A comma inside a description is text, not a column break.
+    const FR_TAB = [
+      'Date\tLibellé\tMontant\tDevise',
+      '03/10/2026\tCB SPOTIFY P1A2B3, STOCKHOLM\t-10,99\tEUR',
+      '18/09/2026\tVIR INST RECU REMBOURSEMENT, M. DUPONT\t45,00\tEUR',
+      '02/09/2026\tCB LECLERC DRIVE, ANGERS\t-1 087,40\tEUR',
+    ].join('\n');
+    expect(detectCsvFormat(FR_TAB)).toMatchObject({ delimiter: '\t', decimal: 'european', date: 'dmy' });
+    expect(brief(parseCSV(FR_TAB))).toEqual([
+      ['2026-10-03', 'CB SPOTIFY P1A2B3, STOCKHOLM', 10.99, 'Expense'],
+      ['2026-09-18', 'VIR INST RECU REMBOURSEMENT, M. DUPONT', 45, 'Income'],
+      ['2026-09-02', 'CB LECLERC DRIVE, ANGERS', 1087.4, 'Expense'],
+    ]);
+
+    const US_TAB = [
+      'Posted Date\tReference Number\tPayee\tAddress\tAmount',
+      '09/28/2026\t24692166271\tSPOTIFY USA\tNEW YORK NY\t-11.99',
+      '09/15/2026\t24692166205\tPAYROLL ACME INC\t\t2,450.00',
+      '09/02/2026\t24692166113\tCOSTCO WHSE #0423\tAUSTIN TX\t-1,203.88',
+    ].join('\n');
+    expect(detectCsvFormat(US_TAB)).toMatchObject({ delimiter: '\t', decimal: 'us', date: 'mdy' });
+    expect(brief(parseCSV(US_TAB))).toEqual([
+      ['2026-09-28', 'SPOTIFY USA', 11.99, 'Expense'],
+      ['2026-09-15', 'PAYROLL ACME INC', 2450, 'Income'],
+      ['2026-09-02', 'COSTCO WHSE #0423', 1203.88, 'Expense'],
+    ]);
+  });
+
+  test('csv delimiter: a quoted field keeps the delimiter, doubled quotes and line breaks', () => {
+    const QUOTED = [
+      'Date;Libellé;Débit;Crédit',
+      '25/09/2026;"RETRAIT DAB 25/09; AGENCE PARIS OPERA";60,00;',
+      '24/09/2026;"CB ""LE PETIT CAFE""; PARIS 9";4,50;',
+      // Crédit Agricole wraps long libellés over several lines inside one field.
+      '23/09/2026;"PRLV SEPA FREE MOBILE ',
+      'FM100234 ',
+      'ECH 23/09";19,99;',
+      '22/09/2026;CB MONOPRIX;"1 234,56";',
+      // An inch mark is an ordinary character, not the start of a quoted field.
+      '21/09/2026;CB PIZZA 12" MARGHERITA;11,00;',
+    ].join('\r\n');
+
+    expect(detectDelimiter(QUOTED)).toBe(';');
+    expect(brief(parseCSV(QUOTED))).toEqual([
+      ['2026-09-25', 'RETRAIT DAB 25/09; AGENCE PARIS OPERA', 60, 'Expense'],
+      ['2026-09-24', 'CB "LE PETIT CAFE"; PARIS 9', 4.5, 'Expense'],
+      ['2026-09-23', 'PRLV SEPA FREE MOBILE FM100234 ECH 23/09', 19.99, 'Expense'],
+      ['2026-09-22', 'CB MONOPRIX', 1234.56, 'Expense'],
+      ['2026-09-21', 'CB PIZZA 12" MARGHERITA', 11, 'Expense'],
+    ]);
+    // The mapping preview shows the same cells the parse reads.
+    expect(inspectCsv(QUOTED).sampleRows[2]).toEqual([
+      '23/09/2026',
+      'PRLV SEPA FREE MOBILE FM100234 ECH 23/09',
+      '19,99',
+      '',
+    ]);
+
+    // The comma file's own quoting is unchanged: a quoted comma is text.
+    const COMMA = ['Date,Description,Amount', '2026-09-20,"AMAZON.COM, INC; SEATTLE",-42.10'].join('\n');
+    expect(detectDelimiter(COMMA)).toBe(',');
+    expect(brief(parseCSV(COMMA))).toEqual([['2026-09-20', 'AMAZON.COM, INC; SEATTLE', 42.1, 'Expense']]);
+  });
+
+  test('csv delimiter: the account summary above the table is skipped (Crédit Agricole style)', () => {
+    const CA = [
+      'Téléchargement du 12/10/2026;;;;',
+      ';;;;',
+      'Compte de Dépôt carte n° 00012345678;;;;',
+      'Solde au 12/10/2026;2 345,67 €;;;',
+      ';;;;',
+      'Liste des opérations du compte entre le 01/09/2026 et le 12/10/2026;;;;',
+      ';;;;',
+      'Date;Libellé;Débit euros;Crédit euros;',
+      '05/10/2026;"PRLV SEPA FREE MOBILE ',
+      'FM100234 ";19,99;;',
+      '01/10/2026;"VIR SEPA RECU ',
+      'SALAIRE ACME SAS ";;2 850,00;',
+      '28/09/2026;"PAIEMENT PAR CARTE ',
+      'NETFLIX.COM 27/09 ";13,49;;',
+    ].join('\r\n');
+
+    const found = inspectCsv(CA, 'dmy');
+    expect(found.headers).toEqual(['Date', 'Libellé', 'Débit euros', 'Crédit euros', '']);
+    expect(found.missing).toEqual([]);
+    expect(found.mapping).toMatchObject({ dateIdx: 0, descIdx: 1, debitIdx: 2, creditIdx: 3 });
+    expect(found.sampleRows).toHaveLength(3);
+    expect(found.sampleRows[0]!.slice(0, 3)).toEqual(['05/10/2026', 'PRLV SEPA FREE MOBILE FM100234', '19,99']);
+
+    // Neither the summary's date nor its balance becomes a transaction.
+    expect(brief(parseStatement(CA, 'bank', {}, { currency: 'EUR' }))).toEqual([
+      ['2026-10-05', 'PRLV SEPA FREE MOBILE FM100234', 19.99, 'Expense'],
+      ['2026-10-01', 'VIR SEPA RECU SALAIRE ACME SAS', 2850, 'Income'],
+      ['2026-09-28', 'PAIEMENT PAR CARTE NETFLIX.COM 27/09', 13.49, 'Expense'],
+    ]);
+
+    // A header in a language the parser does not read is still found below
+    // the summary, so the columns the user maps are the table's own.
+    const DE = [
+      'Kontonummer;DE89 3704 0044 0532 0130 00',
+      'Zeitraum;01.09.2026 - 30.09.2026',
+      '',
+      'Buchungstag;Verwendungszweck;Betrag',
+      '15.09.2026;REWE MARKT;-84,32',
+      '30.09.2026;GEHALT;2.450,00',
+    ].join('\n');
+    const de = inspectCsv(DE);
+    expect(de.headers).toEqual(['Buchungstag', 'Verwendungszweck', 'Betrag']);
+    expect(de.sampleRows[0]).toEqual(['15.09.2026', 'REWE MARKT', '-84,32']);
+    expect(de.missing).toEqual(['date', 'amount']);
+    expect(brief(parseCSV(DE, {}, { dateIdx: 0, descIdx: 1, amountIdx: 2 }))).toEqual([
+      ['2026-09-15', 'REWE MARKT', 84.32, 'Expense'],
+      ['2026-09-30', 'GEHALT', 2450, 'Income'],
+    ]);
+  });
+
+  test('csv delimiter: a Moroccan export in dirhams with French headers (Attijariwafa style)', () => {
+    const MA = [
+      'RELEVE DE COMPTE;;;;;',
+      'Agence : CASABLANCA ANFA;;;;;',
+      'Compte : 007 780 0001234567890123 45;;;;;',
+      'Devise : MAD;;;;;',
+      'Période du 01/09/2026 au 12/09/2026;;;;;',
+      ';;;;;',
+      'Date opération;Date valeur;Libellé;Débit;Crédit;Solde',
+      '02/09/2026;02/09/2026;PAIEMENT CARTE MARJANE CALIFORNIE CASA;1 245,30;;18 754,70',
+      '03/09/2026;03/09/2026;PRELEVEMENT MAROC TELECOM;199,00;;18 555,70',
+      '05/09/2026;06/09/2026;ACHAT TPE AFRIQUIA SMDC;461,50;;18 094,20',
+      '10/09/2026;10/09/2026;VIREMENT RECU SALAIRE OCP SA;;12 450,00;30 544,20',
+      '12/09/2026;12/09/2026;PAIEMENT INTERNET NETFLIX.COM;65,00;;30 479,20',
+    ].join('\r\n');
+
+    // The import screen's own path: inspect, detect, then parse.
+    const found = inspectCsv(MA, 'dmy');
+    expect(found.missing).toEqual([]);
+    expect(found.mapping).toMatchObject({ dateIdx: 0, descIdx: 2, amountIdx: 3, debitIdx: 3, creditIdx: 4 });
+    const format = detectCsvFormat(MA, 'dmy');
+    expect(format).toMatchObject({ delimiter: ';', decimal: 'european', date: 'dmy' });
+
+    const rows = parseCSV(MA, format, undefined, { currency: 'MAD' });
+    // Every day is 12 or lower: read month-first, 02/09 would be the 9th of
+    // February. Nothing here is from February.
+    expect(brief(rows)).toEqual([
+      ['2026-09-02', 'PAIEMENT CARTE MARJANE CALIFORNIE CASA', 1245.3, 'Expense'],
+      ['2026-09-03', 'PRELEVEMENT MAROC TELECOM', 199, 'Expense'],
+      ['2026-09-05', 'ACHAT TPE AFRIQUIA SMDC', 461.5, 'Expense'],
+      ['2026-09-10', 'VIREMENT RECU SALAIRE OCP SA', 12450, 'Income'],
+      ['2026-09-12', 'PAIEMENT INTERNET NETFLIX.COM', 65, 'Expense'],
+    ]);
+    expect(rows.map((r) => r.suggestedCategory).slice(0, 2)).toEqual(['Food', 'Subscriptions']);
+    // Even a caller that falls back to month-first gets the day first here.
+    expect(parseStatement(MA, 'bank', {}, { currency: 'MAD' })[0]!.date).toBe('2026-09-02');
+  });
+
+  test('csv delimiter: Arabic headers, a Sens column, and the dirham sign', () => {
+    // Spreadsheets saved in Arabic wrap cells in invisible right-to-left marks.
+    const RLM = '\u200f';
+    const AR = [
+      `التاريخ;البيان;${RLM}المبلغ;${RLM}العملة`,
+      `05/09/2026;${RLM}أداء فاتورة اتصالات المغرب;${RLM}-199,00;MAD${RLM}`,
+      '20/09/2026;تحويل وارد راتب شهر شتنبر;12 450,00;MAD',
+      '22/09/2026;سحب نقدي من الشباك;-1.000,00 د.م.;MAD',
+    ].join('\n');
+    expect(detectCsvFormat(AR)).toMatchObject({ delimiter: ';', decimal: 'european', date: 'dmy' });
+    expect(inspectCsv(AR).mapping).toMatchObject({ dateIdx: 0, descIdx: 1, amountIdx: 2, currencyIdx: 3 });
+    const rows = parseStatement(AR, 'bank', {}, { currency: 'MAD' });
+    expect(brief(rows)).toEqual([
+      ['2026-09-05', 'أداء فاتورة اتصالات المغرب', 199, 'Expense'],
+      ['2026-09-20', 'تحويل وارد راتب شهر شتنبر', 12450, 'Income'],
+      ['2026-09-22', 'سحب نقدي من الشباك', 1000, 'Expense'],
+    ]);
+    expect(rows[0]!.suggestedCategory).toBe('Subscriptions');
+    expect(rows.map((r) => r.currency)).toEqual(['MAD', 'MAD', 'MAD']);
+
+    // Debit and credit named in Arabic, value date beside the operation date.
+    const AR_DC = [
+      'تاريخ العملية;تاريخ القيمة;البيان;مدين;دائن',
+      '03/09/2026;04/09/2026;مرجان كاليفورنيا;845,20;',
+      '30/09/2026;30/09/2026;تحويل وارد;;5 000,00',
+    ].join('\n');
+    expect(brief(parseCSV(AR_DC))).toEqual([
+      ['2026-09-03', 'مرجان كاليفورنيا', 845.2, 'Expense'],
+      ['2026-09-30', 'تحويل وارد', 5000, 'Income'],
+    ]);
+
+    // An unsigned Montant with a Sens column saying D or C for each row.
+    const SENS = [
+      'Date;Libellé;Montant;Sens',
+      '04/09/2026;PAIEMENT CB BIM DERB GHALLEF;87,50;D',
+      '15/09/2026;VERSEMENT ESPECES AGENCE;2 000,00;C',
+    ].join('\n');
+    expect(detectCsvFormat(SENS).signAmbiguous).toBe(false);
+    expect(brief(parseCSV(SENS))).toEqual([
+      ['2026-09-04', 'PAIEMENT CB BIM DERB GHALLEF', 87.5, 'Expense'],
+      ['2026-09-15', 'VERSEMENT ESPECES AGENCE', 2000, 'Income'],
+    ]);
+  });
+
+  test('csv delimiter: pipe-separated, rows missing their trailing fields, and an Excel sep= line', () => {
+    const PIPE = [
+      'Date|Libellé|Débit|Crédit',
+      '14/09/2026|PRLV CANAL+ FRANCE|24,99|',
+      '15/09/2026|VIR RECU LOYER||850,00',
+    ].join('\n');
+    expect(detectDelimiter(PIPE)).toBe('|');
+    expect(brief(parseCSV(PIPE))).toEqual([
+      ['2026-09-14', 'PRLV CANAL+ FRANCE', 24.99, 'Expense'],
+      ['2026-09-15', 'VIR RECU LOYER', 850, 'Income'],
+    ]);
+
+    // Banks that drop empty trailing fields: a debit row stops at Débit.
+    const SHORT = ['Date;Libellé;Débit;Crédit', '14/09/2026;CB FNAC;129,99', '16/09/2026;VIR RECU;;300,00'].join('\n');
+    expect(brief(parseCSV(SHORT))).toEqual([
+      ['2026-09-14', 'CB FNAC', 129.99, 'Expense'],
+      ['2026-09-16', 'VIR RECU', 300, 'Income'],
+    ]);
+
+    // Excel writes the delimiter on a first line of its own.
+    const EXCEL = ['sep=;', 'Date;Libellé;Montant', '14/09/2026;CB DECATHLON;-59,90'].join('\r\n');
+    expect(detectDelimiter(EXCEL)).toBe(';');
+    expect(inspectCsv(EXCEL).headers).toEqual(['Date', 'Libellé', 'Montant']);
+    expect(brief(parseCSV(EXCEL))).toEqual([['2026-09-14', 'CB DECATHLON', 59.9, 'Expense']]);
+  });
+
+  test('csv delimiter: an explicit delimiter overrides detection, and a stale one cannot break a file', () => {
+    // Two semicolons and one tab per row: detection says semicolon.
+    const MIXED = ['Date;Ref\tLibellé;Montant', '14/09/2026;A1\tCB FNAC;-12,00'].join('\n');
+    expect(detectDelimiter(MIXED)).toBe(';');
+    expect(inspectCsv(MIXED, 'dmy', '\t').headers).toEqual(['Date;Ref', 'Libellé;Montant']);
+    expect(detectCsvFormat(MIXED, 'dmy', undefined, '\t').delimiter).toBe('\t');
+    expect(parseCSV(MIXED, { delimiter: ';' })[0]).toMatchObject({ amount: 12, type: 'Expense' });
+
+    // A bank profile remembered before delimiters were detected carries none:
+    // the file's own is used.
+    const SEMI = ['Date;Libellé;Montant', '14/09/2026;CB FNAC;-12,00'].join('\n');
+    const saved: CsvFormat = {
+      decimal: 'european',
+      date: 'dmy',
+      sign: 'signed',
+      dateAmbiguous: false,
+      signAmbiguous: false,
+      decimalAmbiguous: false,
+    };
+    expect(parseCSV(SEMI, saved, { dateIdx: 0, descIdx: 1, amountIdx: 2 })).toHaveLength(1);
+    // A remembered comma, for a bank that has since moved to semicolons, does
+    // not split the header at all, so it cannot be the file's delimiter.
+    expect(parseCSV(SEMI, { ...saved, delimiter: ',' })).toHaveLength(1);
+    expect(inspectCsv(SEMI, 'dmy', ',').headers).toEqual(['Date', 'Libellé', 'Montant']);
+  });
+
+  test('csv delimiter: balance lines below the table, and Swiss thousands, are not misread', () => {
+    // Read by the engine's own date parser, "Solde au 12/10/2026" was the
+    // 10th of December, and the closing balance became an income.
+    const FOOTED = [
+      'Date;Libellé;Débit;Crédit',
+      '05/10/2026;PRLV SEPA FREE MOBILE;19,99;',
+      '01/10/2026;VIR SEPA RECU SALAIRE;;2 850,00',
+      'Total des opérations;;19,99;2 850,00',
+      'Solde au 12/10/2026;;;2 345,67',
+    ].join('\r\n');
+    expect(brief(parseCSV(FOOTED))).toEqual([
+      ['2026-10-05', 'PRLV SEPA FREE MOBILE', 19.99, 'Expense'],
+      ['2026-10-01', 'VIR SEPA RECU SALAIRE', 2850, 'Income'],
+    ]);
+    expect(parseDate('Solde au 12/10/2026', 'dmy')).toBeNull();
+    // Written-out dates still read.
+    expect(parseDate('15 Jan 2026', 'dmy')).toBe('2026-01-15');
+    expect(parseDate('Jan 15, 2026', 'mdy')).toBe('2026-01-15');
+
+    // A Swiss export: semicolons, decimal points, apostrophes between thousands.
+    const CH = [
+      'Datum;Buchungstext;Betrag;Valuta',
+      "15.09.2026;Einkauf COOP-1234 Zürich;-1'234.50;15.09.2026",
+      "25.09.2026;Gutschrift Lohn ACME AG;6'500.00;25.09.2026",
+    ].join('\r\n');
+    expect(detectCsvFormat(CH, 'dmy', { dateIdx: 0, amountIdx: 2 })).toMatchObject({
+      delimiter: ';',
+      decimal: 'us',
+      date: 'dmy',
+    });
+    expect(brief(parseCSV(CH, {}, { dateIdx: 0, descIdx: 1, amountIdx: 2 }))).toEqual([
+      ['2026-09-15', 'Einkauf COOP-1234 Zürich', 1234.5, 'Expense'],
+      ['2026-09-25', 'Gutschrift Lohn ACME AG', 6500, 'Income'],
+    ]);
+  });
+
+  test('csv delimiter: comma files are still read as comma files', () => {
+    // Every comma fixture above, including the ones with quoted decimal commas.
+    for (const csv of [US_BANK, FRENCH_BANK, MOROCCAN_BANK, UNSIGNED_DEBITS, DEBIT_ONLY, UNRECOGNISABLE]) {
+      expect(detectDelimiter(csv)).toBe(',');
+      expect(detectCsvFormat(csv).delimiter).toBe(',');
+    }
+    // A semicolon in the text of a comma file is text.
+    const NOTES = [
+      'Date,Description,Amount',
+      '03/15/2026,SQ *BLUE BOTTLE; OAKLAND,-6.50',
+      '03/16/2026,ZELLE FROM J DOE; RENT SHARE,800.00',
+      '03/17/2026,UBER *TRIP,-18.20',
+    ].join('\n');
+    expect(detectDelimiter(NOTES)).toBe(',');
+    expect(brief(parseCSV(NOTES))).toEqual([
+      ['2026-03-15', 'SQ *BLUE BOTTLE; OAKLAND', 6.5, 'Expense'],
+      ['2026-03-16', 'ZELLE FROM J DOE; RENT SHARE', 800, 'Income'],
+      ['2026-03-17', 'UBER *TRIP', 18.2, 'Expense'],
+    ]);
+    // A file with no delimiter at all, and an empty one, are comma files that say nothing.
+    expect(detectDelimiter('just one line')).toBe(',');
+    expect(detectDelimiter('')).toBe(',');
+    expect(parseCSV('')).toEqual([]);
+  });
 });
