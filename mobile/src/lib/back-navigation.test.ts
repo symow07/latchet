@@ -23,6 +23,7 @@ const NO_BACK_BY_DESIGN = new Set([
   'reset-password.tsx', 'verify-email.tsx',
   'index.tsx',                                    // the root
   '+not-found.tsx', '+html.tsx',
+  '+native-intent.tsx',                           // a link rewriter, not a screen
 ]);
 
 test('every pushed screen has a back control', () => {
