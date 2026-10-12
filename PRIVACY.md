@@ -20,6 +20,7 @@ so the hosted page and the repository can never disagree.
 | Forwarded billing emails | You (via an email filter you create) | Detecting recurring subscriptions. **We extract only the merchant name, amount, currency, billing cycle, and date. The email body, the sender's address and the subject line are all discarded — we keep the sender's domain (e.g. `netflix.com`) and a subject remnant with every number removed, so an email we could not identify still shows you something recognisable.** Deleted after 90 days. |
 | Business data (expenses, team, payroll) | You and your team | Business mode features |
 | Household sharing | You, and the people who join your household | Combined household budgeting. **Each member chooses individually how much they reveal — totals only, totals and categories, or full transactions. Nobody, including the household's owner, can raise another member's setting.** Leaving a household revokes access immediately. |
+| Crash reports | The app, when it crashes or hits an error | Finding and fixing crashes. **We send only the kind of error, where in the code it happened, the app version and the device model and OS, tied to your account's random ID. Never your email, name, amounts, notes, merchant or category names, anything you typed, or your IP address.** Sent to Sentry, kept for at most 90 days. |
 | Advisor profile, incl. health and allergies | You, optionally | Explaining why some spending categories cost you more than average. **Stored only on your device — see below.** |
 
 ## The advisor profile stays on your device
@@ -65,6 +66,9 @@ or clinical advice. It uses this information to explain costs.
 - **OpenAI** (receipt/email text analysis, AI advisor) — content sent for
   analysis is not used to train OpenAI models per API terms.
 - **Railway** (hosting) and **Cloudflare** (email relay) — infrastructure only.
+- **Resend** (email delivery) — sends the password-reset and email-verification messages to your address.
+- **RevenueCat** (subscriptions) — manages Pro: it receives your account's random ID and, from Apple or Google, your purchase receipts. It never sees your budget data.
+- **Sentry** (crash reporting) — receives the crash reports described above, with your IP address not stored. [sentry.io/privacy](https://sentry.io/privacy/)
 
 ## Security
 

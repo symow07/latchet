@@ -38,6 +38,20 @@ Today the Budget service has only `BACKEND_URL`, `BETTER_AUTH_SECRET`, `DATABASE
 2. Apply the changes (one redeploy).
 3. **→ tell me** once `OPENAI_API_KEY` is set: I'll run the live advisor safety tests through `railway run`, which injects the key without anyone reading it.
 
+## 3a. Crash reporting with Sentry (15 min) — before the first device build
+
+The app reports crashes to Sentry once it has a DSN, and sends no personal data (PRIVACY.md lists exactly what). Until you do this, builds work and simply report nothing.
+
+1. sentry.io → create a free account and organization → **Projects → Create Project → React Native**, name it `budget`.
+2. Project → **Settings → Security & Privacy**: turn on **Prevent Storing of IP Addresses**; keep **Data Scrubber** and **Use Default Scrubbers** on.
+3. Copy the project's **DSN** (Settings → Client Keys). Create an **auth token**: Settings → Developer Settings → Organization Tokens → Create (it uploads source maps so crashes show readable code).
+4. In `mobile/`, store them as EAS environment variables (replace the `<…>`):
+   1. `eas env:create --name EXPO_PUBLIC_SENTRY_DSN --value "<dsn>" --visibility plaintext --environment production --environment preview --environment development`
+   2. `eas env:create --name SENTRY_ORG --value "<org-slug>" --visibility plaintext --environment production --environment preview --environment development`
+   3. `eas env:create --name SENTRY_PROJECT --value "budget" --visibility plaintext --environment production --environment preview --environment development`
+   4. `eas env:create --name SENTRY_AUTH_TOKEN --value "<token>" --visibility secret --environment production --environment preview --environment development`
+5. **→ tell me**: the next build will upload source maps; I'll check a test crash reaches Sentry with nothing personal in it.
+
 ## 4. Buy the domain (10 min)
 
 `realbudget.app` matches the bundle ID you already use. One purchase unblocks the support email, the sending domain and the privacy-policy URL.
@@ -98,7 +112,7 @@ I'll start the build; Apple sign-in and registering your phone have to be you.
 
 1. appstoreconnect.apple.com → **Apps → + → New App**: platform iOS, name (with the qualifier from §4), primary language, bundle ID `com.realbudget.app`, SKU (any, e.g. `realbudget-ios`).
 2. **App Information**: category **Finance**; content rights; age rating questionnaire (no objectionable content → 4+).
-3. **App Privacy**: privacy policy URL from §7; data types, matching `PRIVACY.md`: contact info (email, name), financial info (transactions, bank data via Plaid), user content (emailed receipts, photos you scan), identifiers (user ID), usage data if you add crash reporting — all **linked to the user**, **not used for tracking**.
+3. **App Privacy**: privacy policy URL from §7; data types, matching `PRIVACY.md`: contact info (email, name), financial info (transactions, bank data via Plaid), user content (emailed receipts, photos you scan), identifiers (user ID), and **Diagnostics → Crash Data** (Sentry, through the account's random ID only) — all **linked to the user** (Apple counts a random account ID as linking), **not used for tracking**.
 4. **Pricing and Availability**: free, with in-app subscriptions (§11); choose countries.
 5. **Prepare for Submission**: screenshots at 6.9" (1320×2868) — I can produce them from the simulator if you tell me which screens; description, keywords, support URL (`https://realbudget.app` or the privacy page), marketing URL optional.
 6. **App Review Information**: a demo account (create one in the app; give its email and password only in this form), and a note: "Bank linking needs Plaid; statement import is the main path."
@@ -109,7 +123,7 @@ I'll start the build; Apple sign-in and registering your phone have to be you.
 
 1. play.google.com/console → **Create app**: name, default language, App, Free.
 2. **Store listing**: short and full description, icon 512×512, feature graphic 1024×500, phone screenshots.
-3. **App content**: privacy policy URL (§7); **Data safety** form matching `PRIVACY.md`; **Financial features** declaration (personal finance / budgeting, no lending); content rating questionnaire; target audience 18+; ads: none; **App access**: the demo account.
+3. **App content**: privacy policy URL (§7); **Data safety** form matching `PRIVACY.md` (include **App info and performance → Crash logs**, collected, not shared, for analytics/app functionality); **Financial features** declaration (personal finance / budgeting, no lending); content rating questionnaire; target audience 18+; ads: none; **App access**: the demo account.
 4. If your developer account is a **personal** account created after November 2023, Google requires a **closed test with at least 12 testers opted in for 14 days** before you can publish to production — start this early.
 5. Build and upload: `eas build --profile production --platform android` (an `.aab`), upload it to the internal testing track first. For `eas submit`, create a Google service account with Play Console access and give EAS its JSON key when asked.
 
