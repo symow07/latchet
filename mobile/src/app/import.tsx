@@ -48,6 +48,7 @@ import {
 import { addTransaction, getTransactions, getSettings } from '@/lib/db';
 import { findProfileFor, rememberProfile } from '@/lib/import-profiles';
 import { recordImportBatch, runDetection } from '@/lib/subscription-detection';
+import { base64ToBytes, decodeStatementBytes } from '@/lib/text-decode';
 import { useEntitlement } from '@/lib/useEntitlement';
 import { isUpgradeRequired } from '@/lib/entitlementApi';
 import { api } from '@/lib/api/api';
@@ -340,10 +341,16 @@ export default function ImportScreen() {
         }
       }
 
-      // Read file content
+      // Read the file's bytes and decode them as the bank wrote them: many
+      // French and Moroccan banks export Windows-1252, Excel's "Unicode
+      // text" is UTF-16, and reading everything as UTF-8 lost every accent
+      // and euro sign (lib/text-decode.ts).
       let content: string;
       try {
-        content = await FileSystem.readAsStringAsync(readUri);
+        const base64 = await FileSystem.readAsStringAsync(readUri, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+        content = decodeStatementBytes(base64ToBytes(base64)).text;
       } catch (readErr) {
         console.error('readAsStringAsync failed:', readErr);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
