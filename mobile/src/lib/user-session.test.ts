@@ -421,3 +421,21 @@ describe('signOutAndClear', () => {
     ).toBe(defaultAccountId('bob'));
   });
 });
+
+describe('signOutAndClear reminders', () => {
+  test('clears the user\'s reminders last, and a failure there still signs out', async () => {
+    await session.activateUser('alice');
+    const { d } = deps({});
+    let cleared = 0;
+    const outcome = await session.signOutAndClear({ ...d, clearNotifications: async () => { cleared++; steps.push('clearNotifications'); } });
+    expect(outcome.status).toBe('signed-out');
+    expect(cleared).toBe(1);
+    expect(steps[steps.length - 1]).toBe('clearNotifications');
+
+    await session.activateUser('alice');
+    const failing = await session.signOutAndClear({ ...deps({}).d, clearNotifications: async () => { throw new Error('os said no'); } });
+    expect(failing.status).toBe('signed-out');
+    if (failing.status === 'signed-out') expect(failing.errors.length).toBe(1);
+  });
+});
+

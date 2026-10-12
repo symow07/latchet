@@ -118,6 +118,11 @@ export interface SignOutDeps {
   clearQueryCache: () => void;
   /** Forget the in-memory personal/business choice. */
   resetAccountType: () => void;
+  /**
+   * Optional: take away this user's scheduled and shown reminders, so the next
+   * person on this phone is not told when the last one's Netflix renews.
+   */
+  clearNotifications?: () => Promise<unknown>;
 }
 
 export type SignOutOutcome =
@@ -126,7 +131,8 @@ export type SignOutOutcome =
 
 /**
  * Explicit sign-out: flush → server sign-out → delete the user's database →
- * delete their per-user keys → clear the query cache → reset the account type.
+ * delete their per-user keys → clear the query cache → reset the account type
+ * → clear their reminders.
  *
  * Unsynced changes are never destroyed silently: if the flush could not send
  * everything (or could not run at all), the user is asked first, and declining
@@ -190,6 +196,13 @@ export async function signOutAndClear(deps: SignOutDeps): Promise<SignOutOutcome
     deps.resetAccountType();
   } catch (e) {
     errors.push(e);
+  }
+  if (deps.clearNotifications) {
+    try {
+      await deps.clearNotifications();
+    } catch (e) {
+      errors.push(e);
+    }
   }
 
   if (errors.length > 0) console.warn('[sign-out] completed with errors', errors);

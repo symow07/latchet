@@ -15,6 +15,7 @@ import { endServerSession } from './auth/server-sign-out';
 import { useAccountTypeStore } from './account-type-store';
 import { flushBeforeSignOut } from './cloud-sync';
 import { drainPendingCaptures } from './pending-drain';
+import { clearSubscriptionNotifications } from './notifications';
 import { t } from './i18n/core';
 import type { PendingChanges, SignOutDeps } from './user-session';
 
@@ -75,6 +76,7 @@ export function useSignOutDeps(): SignOutDeps | null {
             signOut: endServerSession,
             clearQueryCache: () => markSignedOut(queryClient),
             resetAccountType,
+            clearNotifications: clearSubscriptionNotifications,
           }
         : null,
     [userId, queryClient, resetAccountType],
