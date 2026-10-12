@@ -24,6 +24,14 @@
  *
  * Every outbound payload goes through redactDeviceOnly (sync-redaction.ts).
  *
+ * After a cycle, subscription detection (subscription-detection.ts): a pull
+ * that changed the ledger's transactions — the bank's arrive this way, booked
+ * by the server — runs it ('bank' when Plaid's rows were among them, 'sync'
+ * otherwise), and so does the first complete pull of a database whose first
+ * run was waiting for it; a pull that only changed subscriptions (a decision
+ * made on another device) re-plans the reminders. The decision is
+ * detectionAfterPull, tested there.
+ *
  * A sync belongs to one user's database. The engine is created for the user
  * whose database is active, and every store operation checks, under db.ts's
  * write lock, that the same database is still the active one — so a cycle
@@ -44,6 +52,15 @@ import {
 } from './sync/protocol';
 import { createSqliteSyncStore, type SyncDbAccess, type SyncSqlDb } from './sync/sqlite-store';
 import { createTimezoneReporter, deviceTimeZone } from './timezone-report';
+import {
+  detectionAfterPull,
+  emptyPullTally,
+  isDetectionDeferred,
+  replanReminders,
+  runDetection,
+  tallyPullPage,
+  type PullTally,
+} from './subscription-detection';
 
 export type { SyncReport };
 
@@ -77,6 +94,13 @@ function transportError(e: unknown, what: string): SyncTransportError {
   return new SyncTransportError('protocol', `${what}: ${e instanceof Error ? e.message : String(e)}`);
 }
 
+/**
+ * What this cycle's pull pages carried, for detection. Cycles never overlap
+ * (one engine per activation, single-flight), so one tally, read and reset
+ * when each cycle's report is first seen, belongs to that cycle.
+ */
+let pullTally: PullTally = emptyPullTally();
+
 const transport: SyncTransport = {
   async push(request: PushRequest): Promise<PushResponse> {
     try {
@@ -87,11 +111,14 @@ const transport: SyncTransport = {
   },
   async pull(cursor: string | null, limit: number): Promise<PullResponse> {
     const query = `limit=${limit}${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`;
+    let page: PullResponse;
     try {
-      return await api.get<PullResponse>(`/api/v1/sync/pull?${query}`);
+      page = await api.get<PullResponse>(`/api/v1/sync/pull?${query}`);
     } catch (e) {
       throw transportError(e, 'pull');
     }
+    tallyPullPage(pullTally, page);
+    return page;
   },
 };
 
@@ -162,6 +189,8 @@ function afterCycle(report: SyncReport): SyncReport {
   // Several triggers can join one cycle; screens refresh once for it.
   if (report !== lastReported) {
     lastReported = report;
+    const tally = pullTally;
+    pullTally = emptyPullTally();
     if (report.pulled.changed > 0) {
       try {
         onRemoteChange?.(report);
@@ -169,8 +198,21 @@ function afterCycle(report: SyncReport): SyncReport {
         console.warn('[sync] refresh after pull failed', e);
       }
     }
+    afterPull(report, tally);
   }
   return report;
+}
+
+/**
+ * Detection after a pull. Not while sign-out is under way, and never awaited:
+ * a run is serialised on its own, and nothing it does can fail the sync.
+ */
+function afterPull(report: SyncReport, tally: PullTally): void {
+  if (session?.suspended) return;
+  const next = detectionAfterPull(report, tally, isDetectionDeferred());
+  if (next.detect === 'bank') void runDetection('bank');
+  else if (next.detect === 'sync') void runDetection('sync');
+  else if (next.replan) void replanReminders();
 }
 
 /**

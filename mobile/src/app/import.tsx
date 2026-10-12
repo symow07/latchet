@@ -47,6 +47,7 @@ import {
 } from '@/lib/import-parser';
 import { addTransaction, getTransactions, getSettings } from '@/lib/db';
 import { findProfileFor, rememberProfile } from '@/lib/import-profiles';
+import { recordImportBatch, runDetection } from '@/lib/subscription-detection';
 import { useEntitlement } from '@/lib/useEntitlement';
 import { isUpgradeRequired } from '@/lib/entitlementApi';
 import { api } from '@/lib/api/api';
@@ -510,11 +511,14 @@ export default function ImportScreen() {
   };
 
   const importTransactions = async () => {
+    let count = 0;
+    // The span the import's rows are written in: detection reads rows written
+    // inside it as statement lines rather than hand entries.
+    const startedAt = new Date().toISOString();
     try {
       setImporting(true);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
 
-      let count = 0;
       for (const tx of transactions) {
         await addTransaction({
           amount: tx.amount,
@@ -548,6 +552,12 @@ export default function ImportScreen() {
       Alert.alert(t('dialogs.importError'), t('dialogs.importPartial'));
     } finally {
       setImporting(false);
+      // Whatever was saved — all of it, or what got in before a failure —
+      // is looked through for subscriptions now, without a Scan tap. The run
+      // is serialised and never rejects; the success screen does not wait.
+      if (count > 0) {
+        void recordImportBatch(startedAt, new Date().toISOString()).then(() => runDetection('import'));
+      }
     }
   };
 

@@ -48,3 +48,18 @@ test('streak reminder default: the key is a declared per-device key, and launch 
   expect(layout).not.toMatch(/\bscheduleStreakReminder\(/);
   expect(layout).toMatch(/\bapplyDefaultStreakReminder\(/);
 });
+
+test('permission when useful: the default waits, unapplied, until notifications are allowed — it never asks', async () => {
+  const d = device();
+  let allowed = false;
+  const deps = { ...d.deps, canSchedule: async () => allowed };
+  // Startup on a phone that has not granted permission: nothing scheduled, nothing remembered.
+  expect(await applyStreakReminderDefault(deps)).toBe(false);
+  expect(d.scheduled).toBe(0);
+  expect(d.applied).toBe(false);
+  // Permission granted later, for a subscription reminder: the default applies then, once.
+  allowed = true;
+  expect(await applyStreakReminderDefault(deps)).toBe(true);
+  expect(await applyStreakReminderDefault(deps)).toBe(false);
+  expect(d.scheduled).toBe(1);
+});

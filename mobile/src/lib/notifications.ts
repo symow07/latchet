@@ -1,11 +1,22 @@
 /**
  * Notification substrate.
  *
- * Wraps expo-notifications for three jobs:
+ * Wraps expo-notifications for four jobs:
  *   1. Registering a device push token and handing it to the backend so the
  *      bill-reminder job can deliver remote pushes.
  *   2. Firing local notifications for newly-earned badges.
  *   3. Scheduling a daily local "log your spending" streak nudge.
+ *   4. The subscription remind loop: the plan subscription-reminders.ts makes
+ *      after every detection run, handed to the OS — reminders before
+ *      renewals and trial ends, notices for finds, price rises and charges
+ *      after cancelling, each with "Keep it" and "Did I forget?".
+ *
+ * Permission when it is useful (Phase 6 decision 6). Nothing asks at startup:
+ * push registration and the streak nudge's on-by-default only go ahead when
+ * permission was already granted. The first prompt comes when there is a
+ * first reminder worth scheduling, in a moment the user is acting (an import,
+ * a Scan, a decision, connecting an inbox, onboarding's payoff — which may
+ * also call askForNotifications itself), or when they turn a reminder on.
  *
  * Everything degrades gracefully: on web, on a simulator without push support,
  * or when permission is denied, the helpers no-op instead of throwing.
@@ -19,16 +30,41 @@ import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import { Platform } from 'react-native';
 import { api } from './api/api';
+import { todayISO } from './dates';
 import { onLocaleChange, t } from './i18n/core';
 import {
   DEFAULT_NUDGE_TIME,
+  applySubscriptionPlan,
+  cancelSubscriptionReminders,
   findNudge,
   notificationChannelName,
+  otherPendingCount,
   rewordNotifications,
   scheduleNudge,
   setQuickAddCategory,
+  setSubscriptionCategory,
   type NotificationIds,
+  type SubscriptionNotificationIds,
 } from './i18n/notification-copy';
+import {
+  SUBSCRIPTION_CATEGORY,
+  SUBSCRIPTION_FORGOT_ACTION,
+  SUBSCRIPTION_KEEP_ACTION,
+} from './notification-route';
+import { userKeyFor } from './storage-keys';
+import type { ReminderRequest } from './subscription-detection';
+import {
+  IOS_PENDING_LIMIT,
+  SUBSCRIPTION_NOTICE_PREFIX,
+  SUBSCRIPTION_NOTIFICATION_PREFIX,
+  parseLedger,
+  permissionStep,
+  planIsWorthNotifying,
+  planSubscriptionReminders,
+  recordInLedger,
+  type NoticeLedger,
+  type PermissionState,
+} from './subscription-reminders';
 
 // Show alerts + play sound even when the app is foregrounded.
 Notifications.setNotificationHandler({
@@ -60,6 +96,16 @@ const IDS: NotificationIds = {
   action: QUICK_ADD_ACTION,
   nudge: STREAK_NUDGE_ID,
 };
+
+/** The subscription reminders' category and its two answers (notification-route.ts names them). */
+const SUBSCRIPTION_IDS: SubscriptionNotificationIds = {
+  category: SUBSCRIPTION_CATEGORY,
+  keep: SUBSCRIPTION_KEEP_ACTION,
+  forgot: SUBSCRIPTION_FORGOT_ACTION,
+};
+
+/** Per user (storage-keys.ts): the subscription notices already shown. */
+const NOTIFIED_KEY = 'subs_notified_v1';
 
 /**
  * Notification work, one piece at a time, in the order it was asked for.
@@ -93,7 +139,68 @@ export async function registerQuickAddCategory(): Promise<void> {
 }
 
 /**
- * Ask for notification permission, if it has not been granted already.
+ * Register "Keep it" and "Did I forget?" for the subscription reminders, in
+ * the app's language. Asks for nothing, so it is safe at startup; a
+ * notification delivered before its category exists shows no buttons.
+ */
+export async function registerSubscriptionCategory(): Promise<void> {
+  return inTurn(async () => {
+    try {
+      await setSubscriptionCategory(Notifications, SUBSCRIPTION_IDS);
+    } catch (e) {
+      console.warn('[notifications] registerSubscriptionCategory failed:', e);
+    }
+  });
+}
+
+/** Where notification permission stands, without asking. */
+async function permissionState(): Promise<PermissionState> {
+  try {
+    const p = await Notifications.getPermissionsAsync();
+    return { status: p.status, canAskAgain: p.canAskAgain };
+  } catch {
+    return { status: 'denied', canAskAgain: false };
+  }
+}
+
+/** Show the system prompt. Only from askForNotifications and the plans below. */
+async function requestPermission(): Promise<boolean> {
+  try {
+    const req = await Notifications.requestPermissionsAsync();
+    return req.status === 'granted';
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Once permission exists, what startup used to do with it: register the push
+ * token (bill reminders) and turn the streak nudge on by default. Not awaited
+ * by anything running in turn — each queues its own turn.
+ */
+function afterPermissionGranted(): void {
+  void registerForPushNotifications().catch(() => {});
+  void applyDefaultStreakReminder().catch(() => {});
+}
+
+/**
+ * Ask for notification permission now, because there is something worth it —
+ * onboarding's payoff, a reminder the user is about to want. Asks only while
+ * the OS still can (once per install on iOS); returns whether notifications
+ * may be shown.
+ */
+export async function askForNotifications(): Promise<boolean> {
+  const step = permissionStep(await permissionState(), true);
+  if (step === 'use') return true;
+  if (step === 'skip') return false;
+  const granted = await requestPermission();
+  if (granted) afterPermissionGranted();
+  return granted;
+}
+
+/**
+ * Permission for something the user just switched on themselves (the streak
+ * nudge in Settings): asking then is answering them, not interrupting.
  *
  * Deliberately does not check Device.isDevice. Local notifications — the
  * streak nudge and its quick-add action — work perfectly well on a simulator,
@@ -102,13 +209,10 @@ export async function registerQuickAddCategory(): Promise<void> {
  * for that itself.
  */
 async function ensurePermission(): Promise<boolean> {
-  const { status: existing } = await Notifications.getPermissionsAsync();
-  let status = existing;
-  if (status !== 'granted') {
-    const req = await Notifications.requestPermissionsAsync();
-    status = req.status;
-  }
-  return status === 'granted';
+  const state = await permissionState();
+  if (state.status === 'granted') return true;
+  if (state.canAskAgain === false) return false;
+  return requestPermission();
 }
 
 /**
@@ -124,16 +228,19 @@ function setDefaultChannel(): Promise<unknown> {
 }
 
 /**
- * Request permission, fetch the Expo push token, and register it with the
- * backend. Safe to call on every login — the backend upserts by token.
- * Returns the token, or null if unavailable.
+ * Fetch the Expo push token and register it with the backend — when
+ * permission has already been granted. It never asks: startup calls this, and
+ * a prompt at startup is a prompt with no reason attached. Once the user
+ * grants permission for a reason, this runs again (afterPermissionGranted).
+ * Safe to call on every login — the backend upserts by token. Returns the
+ * token, or null if unavailable.
  */
 export async function registerForPushNotifications(): Promise<string | null> {
   try {
     if (Platform.OS === 'android') await setDefaultChannel();
     // A push token identifies real hardware; a simulator cannot have one.
     if (!Device.isDevice) return null;
-    if (!(await ensurePermission())) return null;
+    if ((await permissionState()).status !== 'granted') return null;
 
     const tokenResponse = await Notifications.getExpoPushTokenAsync();
     const token = tokenResponse.data;
@@ -182,8 +289,9 @@ export async function isStreakReminderScheduled(): Promise<boolean> {
 }
 
 /**
- * Turn the streak nudge on the first time on this device, and never again:
- * after that, the Settings switch alone decides (lib/streak-reminder-default).
+ * Turn the streak nudge on the first time on this device that notifications
+ * are allowed, and never again: after that, the Settings switch alone decides
+ * (lib/streak-reminder-default). Never asks for permission itself.
  */
 export async function applyDefaultStreakReminder(): Promise<void> {
   const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
@@ -191,6 +299,7 @@ export async function applyDefaultStreakReminder(): Promise<void> {
   await applyStreakReminderDefault({
     isApplied: async () => (await AsyncStorage.getItem(STREAK_DEFAULT_KEY)) !== null,
     markApplied: () => AsyncStorage.setItem(STREAK_DEFAULT_KEY, '1'),
+    canSchedule: async () => (await permissionState()).status === 'granted',
     schedule: () => scheduleStreakReminder(),
   });
 }
@@ -218,6 +327,98 @@ export async function scheduleStreakReminder(
   });
 }
 
+// ── Subscription reminders ───────────────────────────────────────────────────
+
+async function readNoticeLedger(uid: string): Promise<NoticeLedger> {
+  try {
+    const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+    return parseLedger(await AsyncStorage.getItem(userKeyFor(uid, NOTIFIED_KEY)));
+  } catch {
+    return {};
+  }
+}
+
+async function writeNoticeLedger(uid: string, ledger: NoticeLedger): Promise<void> {
+  try {
+    const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+    await AsyncStorage.setItem(userKeyFor(uid, NOTIFIED_KEY), JSON.stringify(ledger));
+  } catch (e) {
+    console.warn('[notifications] notice ledger not saved:', e);
+  }
+}
+
+/**
+ * Plan the subscription notifications from a detection run (or a decision)
+ * and hand them to the OS: this feature's pending reminders are replaced by
+ * the new plan, within what iOS's 64 leave after the app's other
+ * notifications, and the run's notices are shown — each once, by a per-user
+ * ledger. Asks for permission only when the run is interactive and the plan
+ * has something worth it; without permission, this feature holds nothing.
+ */
+export async function scheduleSubscriptionReminders(request: ReminderRequest): Promise<void> {
+  return inTurn(async () => {
+    try {
+      const now = new Date();
+      const today = todayISO(now);
+      const ledger = await readNoticeLedger(request.uid);
+      const others = await otherPendingCount(Notifications);
+      const plan = planSubscriptionReminders({
+        subscriptions: request.subscriptions,
+        events: request.events,
+        today,
+        nowMinutes: now.getHours() * 60 + now.getMinutes(),
+        notified: Object.keys(ledger),
+        announceFinds: request.announceFinds,
+        // One spare, so a badge or quick-add notification always has room.
+        limit: IOS_PENDING_LIMIT - others - 1,
+      });
+
+      const step = permissionStep(await permissionState(), request.interactive && planIsWorthNotifying(plan));
+      let granted = step === 'use';
+      if (step === 'ask') {
+        granted = await requestPermission();
+        if (granted) afterPermissionGranted();
+      }
+      if (!granted) {
+        // Nothing can be shown; nothing stale may wait for a later grant.
+        await cancelSubscriptionReminders(Notifications);
+        const quiet = plan.notices.filter((n) => !n.show).flatMap((n) => n.ledgerKeys);
+        if (quiet.length > 0) await writeNoticeLedger(request.uid, recordInLedger(ledger, quiet, today));
+        return;
+      }
+
+      const applied = await applySubscriptionPlan(Notifications, SUBSCRIPTION_IDS, plan, request.uid);
+      if (applied.ledgerKeys.length > 0) {
+        await writeNoticeLedger(request.uid, recordInLedger(ledger, applied.ledgerKeys, today));
+      }
+    } catch (e) {
+      console.warn('[notifications] scheduleSubscriptionReminders failed:', e);
+    }
+  });
+}
+
+/**
+ * Take every subscription notification off this phone: the pending
+ * reminders, and the ones still in Notification Center. On sign-out, so the
+ * next person to use the phone is not told about the last one's Netflix.
+ */
+export async function clearSubscriptionNotifications(): Promise<void> {
+  return inTurn(async () => {
+    await cancelSubscriptionReminders(Notifications);
+    try {
+      const shown = await Notifications.getPresentedNotificationsAsync();
+      for (const n of shown) {
+        const id = n.request.identifier;
+        if (id.startsWith(SUBSCRIPTION_NOTIFICATION_PREFIX) || id.startsWith(SUBSCRIPTION_NOTICE_PREFIX)) {
+          await Notifications.dismissNotificationAsync(id).catch(() => {});
+        }
+      }
+    } catch {
+      // Nothing presented, or the OS cannot say: nothing to take away.
+    }
+  });
+}
+
 /**
  * Reword what the OS holds whenever the language changes.
  *
@@ -230,6 +431,10 @@ export async function scheduleStreakReminder(
 onLocaleChange(() => {
   void inTurn(async () => {
     await rewordNotifications(Notifications, IDS);
+    await setSubscriptionCategory(Notifications, SUBSCRIPTION_IDS).catch(() => {});
     if (Platform.OS === 'android') await setDefaultChannel().catch(() => {});
   }).catch(() => {});
+  // The subscription reminders hold their words too: plan them again, now in
+  // the new language (it schedules in turn, after the rewording above).
+  void import('./subscription-detection').then((m) => m.replanReminders()).catch(() => {});
 });

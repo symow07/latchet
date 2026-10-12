@@ -50,6 +50,13 @@ export const DEVICE_STORAGE_KEYS = [
  *                            same as on a new phone.
  *   linked_banks/_accounts   an offline snapshot of the user's Plaid links:
  *                            bank names and masked account numbers.
+ *   imported_batches_v1      when this user's statement imports wrote their
+ *                            rows (time spans only), so subscription detection
+ *                            knows statement lines from hand-typed ones.
+ *   subs_notified_v1         the subscription notices already shown (keys and
+ *                            dates, no amounts or names): never the same twice.
+ *   email_sync_state_v1      the email findings cursor (the server's time),
+ *                            the connection ids it covers and the last sync.
  */
 export const USER_STORAGE_KEYS = [
   '@account_type',
@@ -57,6 +64,9 @@ export const USER_STORAGE_KEYS = [
   '@import_profiles_v1',
   'linked_banks',
   'linked_accounts',
+  'imported_batches_v1',
+  'subs_notified_v1',
+  'email_sync_state_v1',
 ] as const;
 
 export type DeviceStorageKey = (typeof DEVICE_STORAGE_KEYS)[number];

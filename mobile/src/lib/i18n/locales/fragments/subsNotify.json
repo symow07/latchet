@@ -1,6 +1,218 @@
 {
-  "en": {},
-  "fr": {},
-  "zh": {},
-  "ar": {}
+  "en": {
+    "actionKeep": "Keep it",
+    "actionForgot": "Did I forget?",
+    "price": {
+      "weekly": "%{amount} a week",
+      "biweekly": "%{amount} every two weeks",
+      "monthly": "%{amount} a month",
+      "quarterly": "%{amount} every three months",
+      "semiannual": "%{amount} every six months",
+      "yearly": "%{amount} a year",
+      "unknown": "%{amount}"
+    },
+    "renewalTitle": "%{merchant} renews soon",
+    "renewalYearlyTitle": "%{merchant}: yearly renewal coming",
+    "renewalBody": {
+      "one": "%{price}, charged tomorrow. Keep it, or did you forget?",
+      "other": "%{price}, charged on %{date}, in %{count} days. Keep it, or did you forget?"
+    },
+    "renewalBodyNoPrice": {
+      "one": "It renews tomorrow. Keep it, or did you forget?",
+      "other": "It renews on %{date}, in %{count} days. Keep it, or did you forget?"
+    },
+    "trialTitle": {
+      "one": "Your %{merchant} trial ends tomorrow",
+      "other": "Your %{merchant} trial ends in %{count} days"
+    },
+    "trialBody": "Then it costs %{price}. Keep it, or did you forget?",
+    "trialBodyNoPrice": "Then the first charge comes. Keep it, or did you forget?",
+    "foundTitle": "New subscription: %{merchant}",
+    "foundBody": "%{price}. Keep it, or did you forget?",
+    "foundBodyNoPrice": "It charges you regularly. Keep it, or did you forget?",
+    "trialFoundTitle": "Free trial found: %{merchant}",
+    "trialFoundBody": "It ends on %{date}, then %{price}. Keep it, or did you forget?",
+    "trialFoundBodyNoPrice": "It ends on %{date}. Keep it, or did you forget?",
+    "batchTitle": {
+      "one": "%{count} subscription found",
+      "other": "%{count} subscriptions found"
+    },
+    "batchBody": "%{names}. Keep them, or did you forget some?",
+    "namesAndMore": {
+      "one": "%{names} and %{count} more",
+      "other": "%{names} and %{count} more"
+    },
+    "nameSeparator": ", ",
+    "priceRiseTitle": "%{merchant} went up",
+    "priceRiseBody": "From %{from} to %{to}. Keep it, or did you forget?",
+    "chargedAfterCancelTitle": "%{merchant} charged you again",
+    "chargedAfterCancelBody": "%{amount} on %{date}, after you cancelled. Keep it, or did you forget to cancel?"
+  },
+  "fr": {
+    "actionKeep": "Je le garde",
+    "actionForgot": "Je l'avais oublié ?",
+    "price": {
+      "weekly": "%{amount} par semaine",
+      "biweekly": "%{amount} toutes les deux semaines",
+      "monthly": "%{amount} par mois",
+      "quarterly": "%{amount} par trimestre",
+      "semiannual": "%{amount} par semestre",
+      "yearly": "%{amount} par an",
+      "unknown": "%{amount}"
+    },
+    "renewalTitle": "%{merchant} se renouvelle bientôt",
+    "renewalYearlyTitle": "%{merchant} : renouvellement annuel proche",
+    "renewalBody": {
+      "one": "%{price}, prélevé demain. Vous le gardez ou l'aviez-vous oublié ?",
+      "other": "%{price}, prélevé le %{date}, dans %{count} jours. Vous le gardez ou l'aviez-vous oublié ?"
+    },
+    "renewalBodyNoPrice": {
+      "one": "Il se renouvelle demain. Vous le gardez ou l'aviez-vous oublié ?",
+      "other": "Il se renouvelle le %{date}, dans %{count} jours. Vous le gardez ou l'aviez-vous oublié ?"
+    },
+    "trialTitle": {
+      "one": "Votre essai %{merchant} se termine demain",
+      "other": "Votre essai %{merchant} se termine dans %{count} jours"
+    },
+    "trialBody": "Ensuite, %{price}. Vous le gardez ou l'aviez-vous oublié ?",
+    "trialBodyNoPrice": "Ensuite vient le premier prélèvement. Vous le gardez ou l'aviez-vous oublié ?",
+    "foundTitle": "Nouvel abonnement : %{merchant}",
+    "foundBody": "%{price}. Vous le gardez ou l'aviez-vous oublié ?",
+    "foundBodyNoPrice": "Il vous est prélevé régulièrement. Vous le gardez ou l'aviez-vous oublié ?",
+    "trialFoundTitle": "Essai gratuit repéré : %{merchant}",
+    "trialFoundBody": "Il se termine le %{date}, puis %{price}. Vous le gardez ou l'aviez-vous oublié ?",
+    "trialFoundBodyNoPrice": "Il se termine le %{date}. Vous le gardez ou l'aviez-vous oublié ?",
+    "batchTitle": {
+      "one": "%{count} abonnement repéré",
+      "other": "%{count} abonnements repérés"
+    },
+    "batchBody": "%{names}. Vous les gardez ou en aviez-vous oublié ?",
+    "namesAndMore": {
+      "one": "%{names} et %{count} autre",
+      "other": "%{names} et %{count} autres"
+    },
+    "nameSeparator": ", ",
+    "priceRiseTitle": "%{merchant} augmente",
+    "priceRiseBody": "De %{from} à %{to}. Vous le gardez ou l'aviez-vous oublié ?",
+    "chargedAfterCancelTitle": "%{merchant} vous a encore prélevé",
+    "chargedAfterCancelBody": "%{amount} le %{date}, après votre résiliation. Vous le gardez ou aviez-vous oublié de résilier ?"
+  },
+  "zh": {
+    "actionKeep": "保留",
+    "actionForgot": "我忘了吗？",
+    "price": {
+      "weekly": "每周 %{amount}",
+      "biweekly": "每两周 %{amount}",
+      "monthly": "每月 %{amount}",
+      "quarterly": "每季度 %{amount}",
+      "semiannual": "每半年 %{amount}",
+      "yearly": "每年 %{amount}",
+      "unknown": "%{amount}"
+    },
+    "renewalTitle": "%{merchant} 即将续费",
+    "renewalYearlyTitle": "%{merchant} 即将按年续费",
+    "renewalBody": {
+      "one": "%{price}，明天扣费。保留，还是忘了？",
+      "other": "%{price}，%{date}（%{count} 天后）扣费。保留，还是忘了？"
+    },
+    "renewalBodyNoPrice": {
+      "one": "明天续费。保留，还是忘了？",
+      "other": "%{date}（%{count} 天后）续费。保留，还是忘了？"
+    },
+    "trialTitle": {
+      "one": "%{merchant} 试用明天结束",
+      "other": "%{merchant} 试用 %{count} 天后结束"
+    },
+    "trialBody": "之后收费 %{price}。保留，还是忘了？",
+    "trialBodyNoPrice": "之后将开始扣费。保留，还是忘了？",
+    "foundTitle": "发现新订阅：%{merchant}",
+    "foundBody": "%{price}。保留，还是忘了？",
+    "foundBodyNoPrice": "它会定期扣费。保留，还是忘了？",
+    "trialFoundTitle": "发现免费试用：%{merchant}",
+    "trialFoundBody": "%{date} 结束，之后 %{price}。保留，还是忘了？",
+    "trialFoundBodyNoPrice": "%{date} 结束。保留，还是忘了？",
+    "batchTitle": {
+      "one": "发现 %{count} 个订阅",
+      "other": "发现 %{count} 个订阅"
+    },
+    "batchBody": "%{names}。都保留，还是有忘了的？",
+    "namesAndMore": {
+      "one": "%{names}，另有 %{count} 个",
+      "other": "%{names}，另有 %{count} 个"
+    },
+    "nameSeparator": "、",
+    "priceRiseTitle": "%{merchant} 涨价了",
+    "priceRiseBody": "从 %{from} 涨到 %{to}。保留，还是忘了？",
+    "chargedAfterCancelTitle": "%{merchant} 又扣费了",
+    "chargedAfterCancelBody": "取消之后，%{date} 仍扣费 %{amount}。保留，还是忘了取消？"
+  },
+  "ar": {
+    "actionKeep": "أحتفظ به",
+    "actionForgot": "هل نسيته؟",
+    "price": {
+      "weekly": "%{amount} أسبوعيًا",
+      "biweekly": "%{amount} كل أسبوعين",
+      "monthly": "%{amount} شهريًا",
+      "quarterly": "%{amount} كل ثلاثة أشهر",
+      "semiannual": "%{amount} كل ستة أشهر",
+      "yearly": "%{amount} سنويًا",
+      "unknown": "%{amount}"
+    },
+    "renewalTitle": "يتجدد %{merchant} قريبًا",
+    "renewalYearlyTitle": "التجديد السنوي لـ %{merchant} قريب",
+    "renewalBody": {
+      "zero": "%{price}، يُخصم اليوم. هل تحتفظ به أم نسيته؟",
+      "one": "%{price}، يُخصم غدًا. هل تحتفظ به أم نسيته؟",
+      "two": "%{price}، يُخصم بعد يومين، في %{date}. هل تحتفظ به أم نسيته؟",
+      "few": "%{price}، يُخصم بعد %{count} أيام، في %{date}. هل تحتفظ به أم نسيته؟",
+      "many": "%{price}، يُخصم بعد %{count} يومًا، في %{date}. هل تحتفظ به أم نسيته؟",
+      "other": "%{price}، يُخصم بعد %{count} يوم، في %{date}. هل تحتفظ به أم نسيته؟"
+    },
+    "renewalBodyNoPrice": {
+      "zero": "يتجدد اليوم. هل تحتفظ به أم نسيته؟",
+      "one": "يتجدد غدًا. هل تحتفظ به أم نسيته؟",
+      "two": "يتجدد بعد يومين، في %{date}. هل تحتفظ به أم نسيته؟",
+      "few": "يتجدد بعد %{count} أيام، في %{date}. هل تحتفظ به أم نسيته؟",
+      "many": "يتجدد بعد %{count} يومًا، في %{date}. هل تحتفظ به أم نسيته؟",
+      "other": "يتجدد بعد %{count} يوم، في %{date}. هل تحتفظ به أم نسيته؟"
+    },
+    "trialTitle": {
+      "zero": "تنتهي تجربة %{merchant} اليوم",
+      "one": "تنتهي تجربة %{merchant} غدًا",
+      "two": "تنتهي تجربة %{merchant} بعد يومين",
+      "few": "تنتهي تجربة %{merchant} بعد %{count} أيام",
+      "many": "تنتهي تجربة %{merchant} بعد %{count} يومًا",
+      "other": "تنتهي تجربة %{merchant} بعد %{count} يوم"
+    },
+    "trialBody": "بعدها يكلّف %{price}. هل تحتفظ به أم نسيته؟",
+    "trialBodyNoPrice": "بعدها يبدأ الخصم. هل تحتفظ به أم نسيته؟",
+    "foundTitle": "اشتراك جديد: %{merchant}",
+    "foundBody": "%{price}. هل تحتفظ به أم نسيته؟",
+    "foundBodyNoPrice": "يُخصم منك بانتظام. هل تحتفظ به أم نسيته؟",
+    "trialFoundTitle": "تجربة مجانية: %{merchant}",
+    "trialFoundBody": "تنتهي في %{date}، ثم %{price}. هل تحتفظ به أم نسيته؟",
+    "trialFoundBodyNoPrice": "تنتهي في %{date}. هل تحتفظ به أم نسيته؟",
+    "batchTitle": {
+      "zero": "لا اشتراكات جديدة",
+      "one": "عُثر على اشتراك واحد",
+      "two": "عُثر على اشتراكين",
+      "few": "عُثر على %{count} اشتراكات",
+      "many": "عُثر على %{count} اشتراكًا",
+      "other": "عُثر على %{count} اشتراك"
+    },
+    "batchBody": "%{names}. هل تحتفظ بها أم نسيت بعضها؟",
+    "namesAndMore": {
+      "zero": "%{names}",
+      "one": "%{names} وواحد آخر",
+      "two": "%{names} واثنان آخران",
+      "few": "%{names} و%{count} أخرى",
+      "many": "%{names} و%{count} أخرى",
+      "other": "%{names} و%{count} أخرى"
+    },
+    "nameSeparator": "، ",
+    "priceRiseTitle": "ارتفع سعر %{merchant}",
+    "priceRiseBody": "من %{from} إلى %{to}. هل تحتفظ به أم نسيته؟",
+    "chargedAfterCancelTitle": "خصم منك %{merchant} مرة أخرى",
+    "chargedAfterCancelBody": "%{amount} في %{date} بعد إلغائك. هل تحتفظ به أم نسيت الإلغاء؟"
+  }
 }

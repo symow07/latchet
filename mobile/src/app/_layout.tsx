@@ -23,7 +23,14 @@ import { isBiometricAvailable, authenticateWithBiometrics } from '@/lib/biometri
 import { useSafeAreaInsets, SafeAreaProvider } from 'react-native-safe-area-context';
 import { useAccountTypeStore, type AccountTypeStore } from '@/lib/account-type-store';
 import { profileRedirect } from '@/lib/profile-route';
-import { applyDefaultStreakReminder, registerForPushNotifications } from '@/lib/notifications';
+import {
+  applyDefaultStreakReminder,
+  clearSubscriptionNotifications,
+  registerForPushNotifications,
+  registerSubscriptionCategory,
+} from '@/lib/notifications';
+import { onDetectionChange, runDetection, SUBSCRIPTIONS_QUERY_KEY } from '@/lib/subscription-detection';
+import { syncEmailIfDue } from '@/lib/email-connections';
 import { setUserId, logoutUser } from '@/lib/revenuecatClient';
 import { S, useC, useScheme, type Palette } from '@/lib/design';
 import { IconTile, PrimaryButton, Type } from '@/components/kit';
@@ -77,6 +84,13 @@ const FIRST_PULL_WAIT_MS = 10_000;
  * the very choice that caused it.
  */
 let localeAppliedFor: string | null = null;
+
+/**
+ * The user whose database's first subscription detection has run, in module
+ * scope for the same reason: a language change remounts RootLayoutNav, and
+ * "once after the database activates" must not become once per language.
+ */
+let detectionStartedFor: string | null = null;
 
 function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
   return new Promise<T>((resolve, reject) => {
@@ -313,12 +327,16 @@ function RootLayoutNav({ colorScheme }: { colorScheme: 'light' | 'dark' | null |
       // sign-out has already done this; a session that simply ended has not.)
       clearUserQueries(queryClient);
       resetAccountType();
+      // Their subscription reminders too: the next person on this phone must
+      // not be told when the last one's Netflix renews.
+      clearSubscriptionNotifications().catch(() => {});
     }
     previousUser.current = userId;
 
     if (!userId) {
       setDbUser(null);
       localeAppliedFor = null;
+      detectionStartedFor = null;
       deactivateUser().catch((e) => console.warn('[mobile:gate:db] close failed', e));
       return;
     }
@@ -385,6 +403,9 @@ function RootLayoutNav({ colorScheme }: { colorScheme: 'light' | 'dark' | null |
 
   // Siri and share-sheet captures, only into an open user database.
   usePendingCaptures(dbUser);
+
+  // Subscription detection by itself, for the user whose database is open.
+  useSubscriptionTriggers(dbUser);
 
   // Two-way sync for the user whose database is open: local writes, the app
   // coming to the front and a 60 s interval (lib/cloud-sync.ts), and one
@@ -463,7 +484,11 @@ function RootLayoutNav({ colorScheme }: { colorScheme: 'light' | 'dark' | null |
 
   // Register the device for push notifications (bill reminders, badge alerts)
   // and turn the daily streak nudge on by default the first time on this
-  // device — after that the Settings switch alone decides.
+  // device — after that the Settings switch alone decides. Neither asks for
+  // permission any more: both go ahead only when it was already granted. The
+  // first prompt comes with the first reminder worth scheduling
+  // (notifications.ts). The subscription reminders' actions are registered
+  // here too; registering a category asks for nothing.
   const pushRegisteredFor = useRef<string | null>(null);
   useEffect(() => {
     const userId = session?.user?.id;
@@ -471,6 +496,7 @@ function RootLayoutNav({ colorScheme }: { colorScheme: 'light' | 'dark' | null |
     pushRegisteredFor.current = userId;
     registerForPushNotifications().catch(() => {});
     applyDefaultStreakReminder().catch(() => {});
+    registerSubscriptionCategory().catch(() => {});
   }, [session?.user?.id]);
 
   // Tell RevenueCat who this is — once per authenticated user, and log out
@@ -682,6 +708,45 @@ function useBiometricRelock(onRelock: () => void) {
     });
     return () => subscription.remove();
   }, [onRelock]);
+}
+
+/**
+ * Subscription detection without a Scan tap (lib/subscription-detection.ts).
+ *
+ * Once each time a user's database activates — for a phone whose first pull
+ * has not completed, the run waits for it (cloud-sync runs it then). And email:
+ * once per activation the server is asked which inboxes there are, and on
+ * every return to the front, an inbox whose last sync is over half an hour old
+ * is synced, which pulls its findings and runs detection. Imports and sync
+ * pulls trigger their own runs (import.tsx, cloud-sync.ts). Every run, and
+ * every decision, refreshes the screens that show subscriptions.
+ */
+function useSubscriptionTriggers(dbUser: string | null) {
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (!dbUser) return;
+    const stopListening = onDetectionChange(() => {
+      queryClient.invalidateQueries({ queryKey: SUBSCRIPTIONS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: ['subscription'] });
+      queryClient.invalidateQueries({ queryKey: ['subscription-occurrences'] });
+      queryClient.invalidateQueries({ queryKey: ['email-detected-biz'] });
+    });
+
+    if (detectionStartedFor !== dbUser) {
+      detectionStartedFor = dbUser;
+      void runDetection('startup');
+      void syncEmailIfDue({ refresh: true });
+    }
+
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') void syncEmailIfDue();
+    });
+    return () => {
+      stopListening();
+      sub.remove();
+    };
+  }, [dbUser, queryClient]);
 }
 
 function usePendingCaptures(dbUser: string | null) {
