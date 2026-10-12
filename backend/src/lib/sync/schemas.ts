@@ -6,7 +6,9 @@
  * accounts.ts, settings.ts, recurring.ts, bill-reminders.ts,
  * category-budgets.ts, net-worth.ts) wrap these with their own optional/default
  * handling, and SYNC_ROW_SCHEMAS requires every field, since a sync row is a
- * whole row and replaces the stored one. A rule changed here changes both.
+ * whole row and replaces the stored one — except a subscription's Phase 6
+ * fields, which older phones do not send (subscriptionFields). A rule changed
+ * here changes both.
  *
  * Dependency-free apart from zod: the root contract test imports this file on
  * its own to compare SYNC_ROW_SCHEMAS with the phone's SYNC_FIELDS, so nothing
@@ -15,6 +17,9 @@
 import { z } from "zod";
 import { isoDate, transactionType, accountType, money, signedMoney, recurrenceFrequency, MAX_MONEY } from "../schemas";
 import type { SyncEntity } from "./constants";
+import {
+  BILLED_VIA, SUBSCRIPTION_ALERTS, SUBSCRIPTION_DECISIONS, SUBSCRIPTION_STATUSES,
+} from "./subscription-fields";
 
 /** Half of a UTF-16 surrogate pair with no other half: not encodable as UTF-8. */
 const LONE_SURROGATE = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/;
@@ -169,7 +174,25 @@ export const categoryFields = {
   color: storableText(0, 100),
 };
 
-/** Subscription fields, as the phone's detector and email scan write them. */
+/**
+ * Where a subscription was seen (SUBSCRIPTION_SOURCES: transaction, import,
+ * bank, email, manual), and `sources`, a comma list of them or "". Lower-case
+ * words rather than a fixed list: a source a newer phone knows must not make
+ * the whole row unpushable here, as an enum once did for custom categories.
+ */
+const sourceName = storableText(1, 20).regex(/^[a-z_]+$/, "Expected a source");
+const sourceList = storableText(0, 200).regex(/^(?:[a-z_]+(?:,[a-z_]+)*)?$/, "Expected a comma list of sources");
+
+/**
+ * Subscription fields, as the phone's detection writes them and its user
+ * decides them (subscription-fields.ts says what each Phase 6 field means).
+ *
+ * The Phase 6 fields — decision through billedVia — are optional, the one
+ * exception to "a sync row is a whole row": a phone that predates them sends
+ * rows without them, and a field left out keeps the stored value rather than
+ * becoming null (push.ts, resolveSubscriptionWrite). A phone that has them
+ * always sends them, null included.
+ */
 export const subscriptionFields = {
   merchantDisplay: storableText(1, 200),
   merchantNormalized: storableText(0, 200),
@@ -179,10 +202,19 @@ export const subscriptionFields = {
   confidenceScore: z.number(),
   lastChargedAt: storableText(0, 40).nullable(),
   nextExpectedAt: storableText(0, 40).nullable(),
-  status: z.enum(["confirmed", "possible", "canceled"]),
+  status: z.enum(SUBSCRIPTION_STATUSES),
   cancelUrl: storableText(0, 2000).nullable(),
   cancelNotes: storableText(0, 2000).nullable(),
-  source: z.enum(["transaction", "email"]),
+  // Phase 5 phones send transaction or email; Phase 6 adds import, bank, manual.
+  source: sourceName,
+  decision: z.enum(SUBSCRIPTION_DECISIONS).nullable().optional(),
+  canceledAt: calendarDate.nullable().optional(),
+  trialEndsAt: calendarDate.nullable().optional(),
+  previousAmount: z.number().min(0).max(MAX_MONEY).nullable().optional(),
+  priceChangedAt: calendarDate.nullable().optional(),
+  alert: z.enum(SUBSCRIPTION_ALERTS).nullable().optional(),
+  sources: sourceList.optional(),
+  billedVia: z.enum(BILLED_VIA).nullable().optional(),
 };
 
 /**

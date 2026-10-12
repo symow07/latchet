@@ -67,7 +67,7 @@ export const SYNC_META = {
  */
 export const SYNC_ENTITY_SIGNATURE = SYNC_ENTITIES.join(',');
 
-type ColumnKind = 'number' | 'text' | 'nullableText' | 'boolean' | 'json';
+type ColumnKind = 'number' | 'nullableNumber' | 'text' | 'nullableText' | 'boolean' | 'json';
 
 interface ColumnSpec {
   kind: ColumnKind;
@@ -79,6 +79,8 @@ interface ColumnSpec {
 const num = (fallback: number): ColumnSpec => ({ kind: 'number', fallback });
 const text = (fallback: string): ColumnSpec => ({ kind: 'text', fallback });
 const nullableText: ColumnSpec = { kind: 'nullableText', fallback: null };
+/** A number or null; anything that is not a finite number is stored as null. */
+const nullableNum: ColumnSpec = { kind: 'nullableNumber', fallback: null };
 const bool: ColumnSpec = { kind: 'boolean', fallback: 0 };
 const boolTrue: ColumnSpec = { kind: 'boolean', fallback: 1 };
 const requiredNum: ColumnSpec = { kind: 'number', required: true };
@@ -146,6 +148,14 @@ export const SYNC_COLUMNS: Record<SyncEntity, Record<string, ColumnSpec>> = {
     cancelUrl: nullableText,
     cancelNotes: nullableText,
     source: text('transaction'),
+    decision: nullableText,
+    canceledAt: nullableText,
+    trialEndsAt: nullableText,
+    previousAmount: nullableNum,
+    priceChangedAt: nullableText,
+    alert: nullableText,
+    sources: text(''),
+    billedVia: nullableText,
     createdAt,
   },
   recurring: {
@@ -266,6 +276,11 @@ export function toLocalValues(entity: SyncEntity, row: WireRow): { values: Recor
         if (Number.isFinite(n)) values[field] = n;
         else if (spec.required) return { error: `${entity} ${row.id}: ${field} is not a number` };
         else values[field] = spec.fallback as number;
+        break;
+      }
+      case 'nullableNumber': {
+        const n = typeof value === 'number' ? value : typeof value === 'string' && value.trim() !== '' ? Number(value) : NaN;
+        values[field] = Number.isFinite(n) ? n : null;
         break;
       }
       case 'nullableText':

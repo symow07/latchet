@@ -78,6 +78,8 @@ const SOURCES: Record<SyncEntity, { table: Prisma.Sql; key: Prisma.Sql; fields: 
       'clientUpdatedAt', ${sqlMillis(Prisma.sql`x."clientUpdatedAt"`)})`,
   },
   subscriptions: {
+    // The Phase 6 fields always go out, null included: a phone that predates
+    // them ignores them, one that has them stores them as sent.
     table: Prisma.sql`"Subscription"`,
     key: Prisma.sql`x."syncId"`,
     fields: Prisma.sql`jsonb_build_object(
@@ -86,6 +88,9 @@ const SOURCES: Record<SyncEntity, { table: Prisma.Sql; key: Prisma.Sql; fields: 
       'confidenceScore', x."confidenceScore", 'lastChargedAt', x."lastChargedAt",
       'nextExpectedAt', x."nextExpectedAt", 'status', x."status",
       'cancelUrl', x."cancelUrl", 'cancelNotes', x."cancelNotes", 'source', x."source",
+      'decision', x."decision", 'canceledAt', x."canceledAt", 'trialEndsAt', x."trialEndsAt",
+      'previousAmount', x."previousAmount", 'priceChangedAt', x."priceChangedAt", 'alert', x."alert",
+      'sources', x."sources", 'billedVia', x."billedVia",
       'createdAt', ${sqlMillis(Prisma.sql`x."createdAt"`)},
       'clientUpdatedAt', ${sqlMillis(Prisma.sql`x."clientUpdatedAt"`)})`,
   },

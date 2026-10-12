@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { EPOCH_ISO, LOCAL_SYNC_TABLES, SYNC_ENTITIES, defaultAccountId } from '../local-schema';
+import { EPOCH_ISO, LOCAL_SYNC_TABLES, PULL_SIGNATURE_META_KEY, SYNC_ENTITIES, defaultAccountId } from '../local-schema';
 import { SYNC_FIELDS, entityFields, type PullResponse, type WireRow } from './protocol';
 import { SYNC_COLUMNS, SYNC_ENTITY_SIGNATURE, SYNC_META, createSqliteSyncStore } from './sqlite-store';
 import { openTestUserDatabase, type TestUserDatabase } from './test-sqlite';
@@ -517,5 +517,86 @@ describe('a phone upgraded from a build that synced fewer entities', () => {
     expect(await store.getPullState()).toEqual({ cursor: null, resyncActive: false });
     t.db.raw.query(`UPDATE sync_meta SET value = ? WHERE key = ?`).run(SYNC_ENTITY_SIGNATURE, SYNC_META.entities);
     expect(await store.getPullState()).toEqual({ cursor: 'c9', resyncActive: false });
+  });
+});
+
+describe('the Phase 6 subscription fields', () => {
+  const serverSub = (id: string, over: Partial<WireRow> = {}): WireRow => ({
+    id,
+    clientUpdatedAt: at(10),
+    merchantDisplay: 'Netflix',
+    merchantNormalized: 'netflix',
+    cadence: 'monthly',
+    typicalAmount: 17.99,
+    currency: 'EUR',
+    confidenceScore: 0.9,
+    lastChargedAt: '2026-10-03',
+    nextExpectedAt: '2026-11-03',
+    status: 'canceled',
+    cancelUrl: null,
+    cancelNotes: null,
+    source: 'bank',
+    decision: 'cancel',
+    canceledAt: '2026-10-05',
+    trialEndsAt: null,
+    previousAmount: 15.99,
+    priceChangedAt: '2026-10-03',
+    alert: 'charged_after_cancel',
+    sources: 'bank,email',
+    billedVia: 'apple',
+    createdAt: at(1),
+    ...over,
+  });
+
+  test('pulled rows land with the decision and the findings; previousAmount is a number or null', async () => {
+    const counts = await store.applyPullPage(
+      page({
+        changes: {
+          subscriptions: [
+            serverSub('sub_1'),
+            serverSub('sub_2', { previousAmount: '12.5' }),
+            serverSub('sub_3', { previousAmount: 'n/a' }),
+          ],
+        },
+      }),
+      { wipe: false, resyncActive: false },
+    );
+    expect(counts).toEqual({ changed: 3, skipped: 0, errors: [] });
+    expect(rowOf('subscriptions', `id = 'sub_1'`)).toMatchObject({
+      status: 'canceled',
+      decision: 'cancel',
+      canceledAt: '2026-10-05',
+      trialEndsAt: null,
+      previousAmount: 15.99,
+      priceChangedAt: '2026-10-03',
+      alert: 'charged_after_cancel',
+      sources: 'bank,email',
+      billedVia: 'apple',
+      dirty: 0,
+    });
+    expect(rowOf('subscriptions', `id = 'sub_2'`)!.previousAmount).toBe(12.5);
+    expect(rowOf('subscriptions', `id = 'sub_3'`)!.previousAmount).toBeNull();
+
+    // Re-sent unchanged inside the safety lag: nothing changes.
+    const again = await store.applyPullPage(page({ changes: { subscriptions: [serverSub('sub_1')] } }), {
+      wipe: false,
+      resyncActive: false,
+    });
+    expect(again.changed).toBe(0);
+  });
+
+  test('they are pushed as stored, nulls included, and settle clean', async () => {
+    await store.applyPullPage(page({ changes: { subscriptions: [serverSub('sub_1')] } }), { wipe: false, resyncActive: false });
+    t.db.raw.query(`UPDATE subscriptions SET decision = NULL, canceledAt = NULL, status = 'possible', clientUpdatedAt = ?, dirty = 1`).run(at(20));
+    const pending = await allPending('subscriptions');
+    expect(pending.map((p) => p.row)).toEqual([
+      { ...serverSub('sub_1'), clientUpdatedAt: at(20), decision: null, canceledAt: null, status: 'possible' },
+    ]);
+    await store.settlePush(applied(pending));
+    expect(rowOf('subscriptions', `id = 'sub_1'`)).toMatchObject({ dirty: 0, decision: null, alert: 'charged_after_cancel' });
+  });
+
+  test("the local schema upgrade asks for a full pull through this store's own signature key", () => {
+    expect(PULL_SIGNATURE_META_KEY).toBe(SYNC_META.entities);
   });
 });

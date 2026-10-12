@@ -35,6 +35,10 @@ export const SYNC_COMMON_FIELDS = ['id', 'clientUpdatedAt'] as const;
  * On the wire, booleans are booleans, dates YYYY-MM-DD, `paidAt` an ISO time
  * or null, and `breakdown` the JSON text of an object of amounts or null
  * (I-WIRE-4); the store converts at its boundary (sqlite-store.ts).
+ *
+ * A subscription's Phase 6 fields (decision … billedVia) are always sent,
+ * null included. The server accepts rows without them from older phones and
+ * then keeps what it holds (backend lib/sync/subscription-fields.ts).
  */
 export const SYNC_FIELDS: Record<SyncEntity, readonly string[]> = {
   settings: [
@@ -89,6 +93,15 @@ export const SYNC_FIELDS: Record<SyncEntity, readonly string[]> = {
     'cancelUrl',
     'cancelNotes',
     'source',
+    // Phase 6 (I-SYNC): the user's decision and what detection found.
+    'decision',
+    'canceledAt',
+    'trialEndsAt',
+    'previousAmount',
+    'priceChangedAt',
+    'alert',
+    'sources',
+    'billedVia',
     'createdAt',
   ],
   recurring: [

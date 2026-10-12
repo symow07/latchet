@@ -26,6 +26,10 @@
  *                    server, onto the default account; the server's own
  *                    writes beat a phone's older edits; a phone upgraded from
  *                    the five-entity build fills the four new tables.
+ *   phase6 sync      a subscription's decision and detection's findings
+ *                    travel both ways; a Phase 5 phone's push, without them,
+ *                    leaves them intact; a phone upgraded from that build gets
+ *                    back what it pulled without them.
  *
  * Timing. A pull returns every row visible when it is read, so a row written
  * before a sync arrives in that sync — no test waits for arrival. The cursor
@@ -48,6 +52,11 @@ import { billReminderDeps, checkBillReminders } from "./jobs/bill-reminder-check
 import { openDevice, type Device, type DeviceOptions, type LocalRow, type SyncResult } from "./test-support/device";
 import { EPOCH_ISO, SYNC_META, defaultAccountId, parseBreakdown, runRecurringNow, type RunNowDeps } from "./test-support/phone";
 import { deleteUsers, request, signIn, signUp, type E2EUser } from "./test-support/session";
+import { LOCAL_SCHEMA_KEY, upgradeLocalSchema } from "../../mobile/src/lib/local-schema";
+import { BunSqliteDb } from "../../mobile/src/lib/sync/test-sqlite";
+import {
+  writeDetectedSubscription, writeSubscriptionDecision, type DetectedSubscriptionWrite,
+} from "../../mobile/src/lib/sync/subscription-rows";
 
 const TIMEOUT = 30_000;
 
@@ -216,8 +225,11 @@ describe("two devices", () => {
       { id: "Pets", clientUpdatedAt: p1Rows.categories[0]!.clientUpdatedAt, icon: "paw", color: "#f97316", createdAt: p1Rows.categories[0]!.createdAt },
     ]);
     const { id: _subId, ...subFields } = subscription("sub_netflix");
+    // Written the Phase 5 way, so its Phase 6 fields are the columns' defaults (the "phase6 sync" tests set them).
     expect(await p2.rows("subscriptions")).toEqual([{
       id: "sub_netflix", ...subFields,
+      decision: null, canceledAt: null, trialEndsAt: null, previousAmount: null, priceChangedAt: null, alert: null,
+      sources: "", billedVia: null,
       clientUpdatedAt: p1Rows.subscriptions[0]!.clientUpdatedAt, createdAt: p1Rows.subscriptions[0]!.createdAt,
     }]);
     const p1Checking = p1Rows.accounts.find((a) => a.id === checking)!;
@@ -1343,5 +1355,194 @@ describe("phase5 time zone", () => {
     expect(await p2.view()).toEqual(await p1.view());
     await quiet(p1);
     await quiet(p2);
+  }, TIMEOUT);
+});
+
+describe("phase6 sync", () => {
+  /**
+   * The phone's subscription writes, the very statements db.ts runs
+   * (upsertSubscription is writeDetectedSubscription, setSubscriptionDecision
+   * writeSubscriptionDecision), on this device's file at its clock. Imported
+   * here rather than through test-support/phone.ts, which this phase could not
+   * change; they are pure, as the rest of the sync core is.
+   */
+  function subscriptionWrites(p: Device) {
+    const db = new BunSqliteDb(p.raw);
+    return {
+      detect: (id: string, values: DetectedSubscriptionWrite["values"]) =>
+        writeDetectedSubscription(db, { id, values, at: p.now() }),
+      decide: (id: string, decision: "keep" | "cancel" | "dismiss" | null, canceledAt: string | null = null) =>
+        writeSubscriptionDecision(db, id, decision, { canceledAt, at: p.now() }),
+    };
+  }
+
+  /** What the detection engine writes for Netflix, before any decision. */
+  const detected = (over: DetectedSubscriptionWrite["values"] = {}): DetectedSubscriptionWrite["values"] => ({
+    merchantDisplay: "Netflix", merchantNormalized: "netflix", cadence: "monthly", typicalAmount: 17.99, currency: "EUR",
+    confidenceScore: 0.95, lastChargedAt: "2026-10-03", nextExpectedAt: "2026-11-03", status: "active",
+    cancelUrl: "https://www.netflix.com/cancelplan", cancelNotes: null, source: "bank",
+    trialEndsAt: null, previousAmount: 15.99, priceChangedAt: "2026-10-03", alert: "price_rise",
+    sources: "bank,email", billedVia: "apple", ...over,
+  });
+
+  const serverSub = (userId: string, syncId: string) =>
+    prisma.subscription.findUniqueOrThrow({ where: { userId_syncId: { userId, syncId } } });
+
+  /** A Phase 5 phone's row: no decision, no findings — the fields it knew. */
+  const phase5Row = (id: string, clientUpdatedAt: string, over: Record<string, unknown> = {}) => ({
+    id, clientUpdatedAt, merchantDisplay: "Netflix", merchantNormalized: "netflix", cadence: "monthly",
+    typicalAmount: 19.99, currency: "EUR", confidenceScore: 0.6, lastChargedAt: "2026-11-03", nextExpectedAt: "2026-12-03",
+    status: "possible", cancelUrl: null, cancelNotes: null, source: "transaction", createdAt: clientUpdatedAt, ...over,
+  });
+
+  test("phase6 sync: a decision and detection's findings travel phone → server → second phone, and a later detection on that phone keeps the decision", async () => {
+    const user = await newUser("e2e-p6-roundtrip");
+    const p1 = await phone(user, "phone 1");
+    const p2 = await phone(user, "phone 2");
+    const w1 = subscriptionWrites(p1);
+    const w2 = subscriptionWrites(p2);
+
+    expect(await w1.detect("sub_netflix", detected())).toBe(true);
+    expect(await w1.decide("sub_netflix", "cancel", "2026-10-11")).toBe(true);
+    const sent = await synced(p1);
+    expect(sent.statuses("subscriptions")).toEqual({ sub_netflix: "applied" });
+
+    expect(await serverSub(user.id, "sub_netflix")).toMatchObject({
+      decision: "cancel", status: "canceled", canceledAt: "2026-10-11", trialEndsAt: null, previousAmount: 15.99,
+      priceChangedAt: "2026-10-03", alert: "price_rise", sources: "bank,email", billedVia: "apple", source: "bank",
+      typicalAmount: 17.99,
+    });
+
+    const got = await synced(p2);
+    expect(got.pulledIds("subscriptions")).toEqual(["sub_netflix"]);
+    expect(await p2.row("subscriptions", "sub_netflix")).toMatchObject({
+      decision: "cancel", status: "canceled", canceledAt: "2026-10-11", previousAmount: 15.99, priceChangedAt: "2026-10-03",
+      alert: "price_rise", sources: "bank,email", billedVia: "apple", dirty: 0, syncError: null,
+    });
+    expect(await p2.view()).toEqual(await p1.view());
+
+    // Phone 2's engine sees the next charge, after the cancellation: it
+    // proposes "active" and a new alert. The decision, its date and the
+    // status that follows it stay; the findings move.
+    await tick();
+    expect(await w2.detect("sub_netflix", detected({
+      lastChargedAt: "2026-11-03", nextExpectedAt: "2026-12-03", alert: "charged_after_cancel", status: "active",
+    }))).toBe(true);
+    expect(await p2.row("subscriptions", "sub_netflix")).toMatchObject({
+      decision: "cancel", status: "canceled", canceledAt: "2026-10-11", lastChargedAt: "2026-11-03",
+      alert: "charged_after_cancel", dirty: 1,
+    });
+    expect((await synced(p2)).statuses("subscriptions")).toEqual({ sub_netflix: "applied" });
+    await synced(p1);
+    expect(await p1.row("subscriptions", "sub_netflix")).toMatchObject({
+      decision: "cancel", status: "canceled", canceledAt: "2026-10-11", alert: "charged_after_cancel",
+      lastChargedAt: "2026-11-03", dirty: 0,
+    });
+    expect(await p1.view()).toEqual(await p2.view());
+
+    // The user takes the decision back on phone 1; phone 2 hears it.
+    await tick();
+    expect(await w1.decide("sub_netflix", null)).toBe(true);
+    await synced(p1);
+    await synced(p2);
+    expect(await p2.row("subscriptions", "sub_netflix")).toMatchObject({ decision: null, canceledAt: null, status: "possible", dirty: 0 });
+    expect(await serverSub(user.id, "sub_netflix")).toMatchObject({ decision: null, canceledAt: null, status: "possible" });
+    await quiet(p1);
+    await quiet(p2);
+  }, TIMEOUT);
+
+  test("phase6 sync: a Phase 5 phone's push, without the new fields, leaves them intact; its own keep or cancel becomes the decision only where none was made", async () => {
+    const user = await newUser("e2e-p6-oldclient");
+    const p1 = await phone(user, "phone 6");
+    const w1 = subscriptionWrites(p1);
+    await w1.detect("sub_netflix", detected({ trialEndsAt: "2026-10-20", alert: "trial_ending" }));
+    await w1.decide("sub_netflix", "dismiss");
+    await synced(p1);
+    const before = await serverSub(user.id, "sub_netflix");
+
+    // The old build's detector rewrites the row it holds as "possible", with
+    // a newer amount and time, and knows nothing of the rest. It also adds a
+    // row of its own that its user confirmed, and one that it only proposes.
+    const later = new Date(Date.now() + 60_000).toISOString();
+    const push = await request(app, user.session, "POST", "/api/v1/sync/push", { changes: { subscriptions: [
+      phase5Row("sub_netflix", later),
+      phase5Row("sub_gym", later, { merchantDisplay: "Gym", merchantNormalized: "gym", status: "confirmed", source: "email" }),
+      phase5Row("sub_news", later, { merchantDisplay: "News", merchantNormalized: "news", status: "possible" }),
+    ] } });
+    expect(push.status).toBe(200);
+    expect(push.json.results.subscriptions).toEqual([
+      { id: "sub_netflix", status: "applied" }, { id: "sub_gym", status: "applied" }, { id: "sub_news", status: "applied" },
+    ]);
+
+    // Its fields are applied; the Phase 6 ones, and the dismissal, are not touched.
+    const after = await serverSub(user.id, "sub_netflix");
+    expect(after).toMatchObject({
+      typicalAmount: 19.99, lastChargedAt: "2026-11-03", source: "transaction",
+      decision: "dismiss", status: "dismissed", canceledAt: null, trialEndsAt: "2026-10-20", previousAmount: 15.99,
+      priceChangedAt: "2026-10-03", alert: "trial_ending", sources: "bank,email", billedVia: "apple",
+    });
+    expect(after.clientUpdatedAt.getTime()).toBeGreaterThan(before.clientUpdatedAt.getTime());
+    expect(await serverSub(user.id, "sub_gym")).toMatchObject({ decision: "keep", status: "confirmed", sources: "email", alert: null });
+    expect(await serverSub(user.id, "sub_news")).toMatchObject({ decision: null, status: "possible", sources: "transaction" });
+
+    // The Phase 6 phone pulls the merge, the dismissal still its own.
+    await synced(p1);
+    expect(await p1.row("subscriptions", "sub_netflix")).toMatchObject({
+      typicalAmount: 19.99, decision: "dismiss", status: "dismissed", trialEndsAt: "2026-10-20", alert: "trial_ending",
+      sources: "bank,email", billedVia: "apple", dirty: 0,
+    });
+    expect(await p1.row("subscriptions", "sub_gym")).toMatchObject({ decision: "keep", status: "confirmed", dirty: 0 });
+    const fresh = await phone(user, "fresh phone");
+    await synced(fresh);
+    expect(await fresh.view()).toEqual(await p1.view());
+    await quiet(p1);
+  }, TIMEOUT);
+
+  test("phase6 sync: decision and alert survive a pull: a phone upgraded from the Phase 5 build, which pulled the row without them, gets them back by one full pull, keeping its unsent work", async () => {
+    const user = await newUser("e2e-p6-upgrade");
+    const p1 = await phone(user, "phone 6");
+    const old = await phone(user, "phase 5 phone");
+    const w1 = subscriptionWrites(p1);
+    await w1.detect("sub_trial", detected({
+      merchantDisplay: "Duolingo", merchantNormalized: "duolingo", status: "trial", typicalAmount: 12.99,
+      trialEndsAt: "2026-10-25", alert: "trial_ending", previousAmount: null, priceChangedAt: null, billedVia: "google_play",
+    }));
+    await w1.detect("sub_netflix", detected());
+    await w1.decide("sub_netflix", "keep");
+    await synced(p1);
+
+    // The Phase 5 build pulled both rows and kept only the fields it knew:
+    // its file is this one with the Phase 6 columns gone and no cache table,
+    // created at version 1.
+    await synced(old);
+    for (const column of ["decision", "canceledAt", "trialEndsAt", "previousAmount", "priceChangedAt", "alert", "sources", "billedVia"]) {
+      old.raw.query(`ALTER TABLE subscriptions DROP COLUMN ${column}`).run();
+    }
+    old.raw.query(`DROP TABLE email_findings`).run();
+    old.raw.query(`DELETE FROM migrations`).run();
+    old.raw.query(`INSERT INTO migrations (key, appliedAt) VALUES ('schema_v1', ?)`).run(old.now());
+    const unsent = await old.write.addTransaction(spending({ amount: 4 }));
+
+    // The new build opens it: version 2, the decision read from the status
+    // the old build kept, nothing stamped — and the next pull is a full one.
+    expect(await upgradeLocalSchema(new BunSqliteDb(old.raw), old.now())).toBe("upgraded");
+    expect(old.raw.query(`SELECT key FROM migrations ORDER BY key`).all()).toEqual([{ key: "schema_v1" }, { key: LOCAL_SCHEMA_KEY }]);
+    expect(await old.row("subscriptions", "sub_netflix")).toMatchObject({ decision: "keep", status: "confirmed", alert: null, dirty: 0 });
+    expect(await old.row("subscriptions", "sub_trial")).toMatchObject({ decision: null, trialEndsAt: null, alert: null, dirty: 0 });
+
+    const upgraded = await synced(old);
+    expect(upgraded.statuses("transactions")).toEqual({ [unsent]: "applied" });
+    expect(upgraded.report.pulled.fullResync).toBe(true);
+    expect(upgraded.pulls[0]!.cursor).toBeNull();
+    expect(await old.row("subscriptions", "sub_trial")).toMatchObject({
+      status: "trial", decision: null, trialEndsAt: "2026-10-25", alert: "trial_ending", billedVia: "google_play", dirty: 0,
+    });
+    expect(await old.row("subscriptions", "sub_netflix")).toMatchObject({
+      decision: "keep", status: "confirmed", alert: "price_rise", previousAmount: 15.99, sources: "bank,email", dirty: 0,
+    });
+    await synced(p1);
+    expect(await old.view()).toEqual(await p1.view());
+    expect((await synced(old)).report.pulled.fullResync).toBe(false);
+    await quiet(old);
   }, TIMEOUT);
 });

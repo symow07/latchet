@@ -46,6 +46,7 @@ import {
 } from "./conflict";
 import { parsePushRow, toWireTimestamp, type SyncRowValues } from "./schemas";
 import { databaseNowMs, dropTombstones, sqlMillis, stampTombstones, touchTombstones, SQL_NOW } from "./sql";
+import { PHASE6_SUBSCRIPTION_FIELDS, resolveSubscriptionWrite, type Phase6SubscriptionColumns } from "./subscription-fields";
 
 type Tx = Prisma.TransactionClient;
 
@@ -247,18 +248,35 @@ const STORES: { [E in SyncEntity]: EntityStore<E> } = {
           FROM "Subscription" WHERE "userId" = ${userId} AND "syncId" = ANY(${ids}::text[])
          ORDER BY "syncId" FOR UPDATE`);
     },
+    // The Phase 6 fields go through resolveSubscriptionWrite: a phone that
+    // predates them leaves them out, which keeps what is stored (and, for a
+    // row without a decision yet, reads its status as one), and the status
+    // follows the decision whatever was sent.
     async insert(tx, userId, ops) {
       await tx.subscription.createMany({
         data: ops.map(({ id, cu, values }) => ({
-          userId, syncId: id, ...values, createdAt: at(values.createdAt), clientUpdatedAt: at(cu),
+          userId, syncId: id, ...subscriptionColumns(values, null),
+          createdAt: at(values.createdAt), clientUpdatedAt: at(cu),
         })),
       });
     },
     async update(tx, userId, ops) {
+      if (ops.length === 0) return;
+      // Locked FOR UPDATE by lockLive in this transaction, so nothing changes
+      // them between this read and the write.
+      const stored = new Map(
+        (await tx.subscription.findMany({
+          where: { userId, syncId: { in: ops.map((op) => op.id) } },
+          select: { syncId: true, ...PHASE6_SELECT },
+        })).map(({ syncId, ...columns }) => [syncId, columns])
+      );
       for (const { id, cu, values } of ops) {
         await tx.subscription.update({
           where: { userId_syncId: { userId, syncId: id } },
-          data: { ...values, createdAt: at(values.createdAt), clientUpdatedAt: at(cu) },
+          data: {
+            ...subscriptionColumns(values, stored.get(id) ?? null),
+            createdAt: at(values.createdAt), clientUpdatedAt: at(cu),
+          },
         });
       }
     },
@@ -459,6 +477,25 @@ const STORES: { [E in SyncEntity]: EntityStore<E> } = {
 /** A category budget's row id: the server's own, never on the wire. */
 export function newCategoryBudgetId(): string {
   return `catbud_${crypto.randomUUID()}`;
+}
+
+/** The Phase 6 columns of a stored subscription, as a Prisma select. */
+const PHASE6_SELECT = Object.fromEntries(PHASE6_SUBSCRIPTION_FIELDS.map((f) => [f, true])) as {
+  [F in (typeof PHASE6_SUBSCRIPTION_FIELDS)[number]]: true;
+};
+
+/**
+ * A pushed subscription's stored columns, but createdAt and clientUpdatedAt.
+ * `stored` is the live row's Phase 6 columns, or null when the push creates it.
+ */
+function subscriptionColumns(v: SyncRowValues<"subscriptions">, stored: Phase6SubscriptionColumns | null) {
+  return {
+    merchantDisplay: v.merchantDisplay, merchantNormalized: v.merchantNormalized, cadence: v.cadence,
+    typicalAmount: v.typicalAmount, currency: v.currency, confidenceScore: v.confidenceScore,
+    lastChargedAt: v.lastChargedAt, nextExpectedAt: v.nextExpectedAt, cancelUrl: v.cancelUrl,
+    cancelNotes: v.cancelNotes, source: v.source,
+    ...resolveSubscriptionWrite(v, stored),
+  };
 }
 
 /** A net-worth snapshot's stored columns: netWorth is always assets − liabilities. */

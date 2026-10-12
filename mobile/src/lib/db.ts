@@ -12,23 +12,39 @@
  * so the deletion reaches the server (I-LOCAL-SCHEMA). Applying rows that came
  * from the server is the sync engine's job and does none of that.
  *
+ * The email findings cache (email_findings) is the one table here outside
+ * sync: the server's copy is the truth, so its writes stamp and announce
+ * nothing.
+ *
  * This file is also the one place SQLite's representations are translated:
  * 0/1 into booleans, NULL into null and a net-worth breakdown's JSON text
  * into an object, on the way out.
  */
 import * as SQLite from 'expo-sqlite';
 import { setActiveCurrency } from './calculations';
+import { todayISO } from './dates';
 import {
   DEFAULT_ACCOUNT,
   EPOCH_ISO,
   LOCAL_SYNC_TABLES,
   SYNC_ENTITIES,
   defaultAccountId,
+  upgradeLocalSchema,
   type SyncEntity,
 } from './local-schema';
 import { billPaidChange } from './offline/bills';
 import { parseBreakdown, serializeBreakdown, type Breakdown } from './offline/breakdown';
 import type { LocalSyncState, RecurringFrequency } from './offline/recurring';
+import {
+  insertOccurrenceRow,
+  isSubscriptionDecision,
+  moveOccurrenceRows,
+  writeDetectedSubscription,
+  writeSubscriptionDecision,
+  type DetectedSubscriptionWrite,
+  type SubscriptionDecision,
+  type SubscriptionStatus,
+} from './sync/subscription-rows';
 import type { Transaction } from './transaction';
 import { createUserDatabaseRegistry, type UserDatabaseDriver } from './user-db';
 
@@ -54,7 +70,19 @@ export interface SqlDb {
 const LEGACY_SHARED_DATABASE = 'real_budget.db';
 
 const expoDriver: UserDatabaseDriver<SQLite.SQLiteDatabase> = {
-  open: (fileName) => SQLite.openDatabaseAsync(fileName),
+  // A file an earlier build made is brought to the current schema version
+  // here, before user-db.ts's initializer runs the schema on it and decides
+  // whether it is new (local-schema.ts upgradeLocalSchema says why).
+  open: async (fileName) => {
+    const db = await SQLite.openDatabaseAsync(fileName);
+    try {
+      await upgradeLocalSchema(db, new Date().toISOString());
+    } catch (e) {
+      await db.closeAsync().catch(() => {});
+      throw e;
+    }
+    return db;
+  },
   close: (db) => db.closeAsync(),
   remove: async (fileName) => {
     try {
@@ -738,24 +766,56 @@ export async function resetAllData(): Promise<void> {
 }
 
 // ── Subscriptions ────────────────────────────────────────────────────────────
+//
+// A subscription carries the user's decision beside the engine's status, and
+// the user's always wins (Phase 6 decision 3): the engine's write
+// (upsertSubscription) never changes the decision or the cancellation date of
+// an existing row, and keeps its status following the decision. The rules are
+// SQL, in sync/subscription-rows.ts, shared with the end-to-end sync test.
+
+export type { SubscriptionDecision, SubscriptionStatus } from './sync/subscription-rows';
+
+/** Where a subscription was seen. `sources` lists every one, comma-separated. */
+export type SubscriptionSource = 'transaction' | 'import' | 'bank' | 'email' | 'manual';
+export type SubscriptionCadence = 'weekly' | 'biweekly' | 'monthly' | 'quarterly' | 'semiannual' | 'yearly' | 'unknown';
+export type SubscriptionAlert = 'price_rise' | 'charged_after_cancel' | 'trial_ending';
+/** Where it is billed, and so where it must be cancelled. */
+export type BilledVia = 'apple' | 'google_play' | 'paypal';
 
 export interface Subscription {
   id: string;
   merchantDisplay: string;
   merchantNormalized: string;
-  cadence: 'weekly' | 'monthly' | 'yearly' | 'unknown';
+  cadence: SubscriptionCadence;
   typicalAmount: number;
   currency: string;
   confidenceScore: number;
   lastChargedAt: string | null;
   nextExpectedAt: string | null;
-  status: 'confirmed' | 'possible' | 'canceled';
+  /** The engine's reading while there is no decision; the decision's status once there is. */
+  status: SubscriptionStatus;
   cancelUrl: string | null;
   cancelNotes: string | null;
-  source: 'transaction' | 'email';
+  source: SubscriptionSource;
   createdAt: string;
   /** When the row last changed, on any device. */
   updatedAt: string;
+  // Phase 6. Every read returns them; they are optional so that a caller
+  // building a row the Phase 5 way still compiles, and on a write, a field it
+  // leaves out keeps what is stored (upsertSubscription).
+  /** The user's: keep, cancel or dismiss; null while they have not said. */
+  decision?: SubscriptionDecision | null;
+  /** YYYY-MM-DD the user cancelled it. */
+  canceledAt?: string | null;
+  /** YYYY-MM-DD a free trial converts to a paid plan. */
+  trialEndsAt?: string | null;
+  /** The price before the last rise, and the day it rose (YYYY-MM-DD). */
+  previousAmount?: number | null;
+  priceChangedAt?: string | null;
+  alert?: SubscriptionAlert | null;
+  /** Comma list of every SubscriptionSource that saw it. */
+  sources?: string;
+  billedVia?: BilledVia | null;
 }
 
 export interface SubscriptionOccurrence {
@@ -766,34 +826,21 @@ export interface SubscriptionOccurrence {
   amount: number;
 }
 
-/** The fields that travel with a subscription and that a re-scan may change. */
-const SUBSCRIPTION_FIELDS = [
-  'merchantDisplay',
-  'merchantNormalized',
-  'cadence',
-  'typicalAmount',
-  'currency',
-  'confidenceScore',
-  'lastChargedAt',
-  'nextExpectedAt',
-  'status',
-  'cancelUrl',
-  'cancelNotes',
-  'source',
-] as const;
-
 const SUBSCRIPTION_SELECT =
-  `SELECT id, ${SUBSCRIPTION_FIELDS.join(', ')}, createdAt, clientUpdatedAt AS updatedAt FROM subscriptions`;
+  `SELECT id, merchantDisplay, merchantNormalized, cadence, typicalAmount, currency, confidenceScore, ` +
+  `lastChargedAt, nextExpectedAt, status, cancelUrl, cancelNotes, source, createdAt, ` +
+  `clientUpdatedAt AS updatedAt, decision, canceledAt, trialEndsAt, previousAmount, priceChangedAt, ` +
+  `alert, sources, billedVia FROM subscriptions`;
 
 export async function getSubscriptions(status?: string): Promise<Subscription[]> {
   const database = await getDatabase();
   if (status) {
     return database.getAllAsync<Subscription>(
-      `${SUBSCRIPTION_SELECT} WHERE status = ? ORDER BY nextExpectedAt ASC`,
+      `${SUBSCRIPTION_SELECT} WHERE status = ? ORDER BY nextExpectedAt ASC, id ASC`,
       [status],
     );
   }
-  return database.getAllAsync<Subscription>(`${SUBSCRIPTION_SELECT} ORDER BY nextExpectedAt ASC`);
+  return database.getAllAsync<Subscription>(`${SUBSCRIPTION_SELECT} ORDER BY nextExpectedAt ASC, id ASC`);
 }
 
 export async function getSubscriptionById(id: string): Promise<Subscription | null> {
@@ -801,18 +848,26 @@ export async function getSubscriptionById(id: string): Promise<Subscription | nu
   return database.getFirstAsync<Subscription>(`${SUBSCRIPTION_SELECT} WHERE id = ?`, [id]);
 }
 
-type SubscriptionUpsert = Omit<Subscription, 'createdAt' | 'updatedAt'> & { createdAt?: string };
+export type SubscriptionUpsert = Omit<Subscription, 'createdAt' | 'updatedAt'> & { createdAt?: string };
 
 /**
- * Write what the detection engine (or the email scan) found.
+ * The detection engine's write (and the email scan's): insert the
+ * subscription, or update what was found about it.
+ *
+ * On an existing row it never changes `decision`, `canceledAt` or the user's
+ * `cancelNotes`, and while there is a decision `status` stays the one that
+ * follows it, whatever the engine proposes — enforced in the UPDATE itself
+ * (sync/subscription-rows.ts). A Phase 6 field left undefined keeps what is
+ * stored; null clears it. A new row takes a decision only if one is given.
  *
  * The row is stamped and marked dirty only when a value actually changed. A
  * re-scan re-derives every subscription from the same ledger, and stamping
  * them all would re-upload every one of them on every scan — and, worse, make
  * this device's unchanged copy "newer" than an edit made on another device.
+ * Returns true when it wrote.
  */
-export async function upsertSubscription(sub: SubscriptionUpsert): Promise<void> {
-  const next: Record<(typeof SUBSCRIPTION_FIELDS)[number], SqlBindValue> = {
+export async function upsertSubscription(sub: SubscriptionUpsert): Promise<boolean> {
+  const values: DetectedSubscriptionWrite['values'] = {
     merchantDisplay: sub.merchantDisplay,
     merchantNormalized: sub.merchantNormalized,
     cadence: sub.cadence,
@@ -822,55 +877,59 @@ export async function upsertSubscription(sub: SubscriptionUpsert): Promise<void>
     lastChargedAt: sub.lastChargedAt ?? null,
     nextExpectedAt: sub.nextExpectedAt ?? null,
     status: sub.status,
-    cancelUrl: sub.cancelUrl ?? null,
-    cancelNotes: sub.cancelNotes ?? null,
-    source: sub.source ?? 'transaction',
+    cancelUrl: sub.cancelUrl,
+    cancelNotes: sub.cancelNotes,
+    source: sub.source || 'transaction',
+    decision: sub.decision,
+    canceledAt: sub.canceledAt,
+    trialEndsAt: sub.trialEndsAt,
+    previousAmount: sub.previousAmount,
+    priceChangedAt: sub.priceChangedAt,
+    alert: sub.alert,
+    sources: sub.sources,
+    billedVia: sub.billedVia,
   };
-
+  const at = nowISO();
   const changed = await withWriteLock((db) =>
-    inTransaction(db, async () => {
-      const existing = await db.getFirstAsync<Record<string, SqlBindValue>>(
-        `SELECT ${SUBSCRIPTION_FIELDS.join(', ')} FROM subscriptions WHERE id = ?`,
-        [sub.id],
-      );
-      const at = nowISO();
-
-      if (!existing) {
-        await db.runAsync(
-          `INSERT INTO subscriptions (id, ${SUBSCRIPTION_FIELDS.join(', ')}, createdAt, clientUpdatedAt, dirty, syncError)
-           VALUES (?, ${SUBSCRIPTION_FIELDS.map(() => '?').join(', ')}, ?, ?, 1, NULL)`,
-          [sub.id, ...SUBSCRIPTION_FIELDS.map((f) => next[f]), sub.createdAt ?? at, at],
-        );
-        await clearTombstone(db, 'subscriptions', sub.id);
-        return true;
-      }
-
-      if (SUBSCRIPTION_FIELDS.every((f) => (existing[f] ?? null) === next[f])) return false;
-
-      await db.runAsync(
-        `UPDATE subscriptions
-         SET ${SUBSCRIPTION_FIELDS.map((f) => `${f} = ?`).join(', ')},
-             clientUpdatedAt = ?, dirty = 1, syncError = NULL
-         WHERE id = ?`,
-        [...SUBSCRIPTION_FIELDS.map((f) => next[f]), at, sub.id],
-      );
-      return true;
-    }),
+    inTransaction(db, () => writeDetectedSubscription(db, { id: sub.id, values, createdAt: sub.createdAt, at })),
   );
   if (changed) notifyLocalMutation();
+  return changed;
 }
 
-export async function updateSubscriptionStatus(
+/**
+ * The user's decision about a subscription: keep → confirmed, cancel →
+ * canceled (canceledAt `opts.canceledAt`, by default today's local date),
+ * dismiss → dismissed, null → possible (back to the engine). A user write:
+ * stamps clientUpdatedAt, marks the row for sync and tells the listeners.
+ * Returns false, changing nothing, when the row is missing or already says this.
+ */
+export async function setSubscriptionDecision(
   id: string,
-  status: 'confirmed' | 'possible' | 'canceled',
-): Promise<void> {
-  await withWriteLock((db) =>
-    db.runAsync(
-      `UPDATE subscriptions SET status = ?, clientUpdatedAt = ?, dirty = 1, syncError = NULL WHERE id = ?`,
-      [status, nowISO(), id],
-    ),
+  decision: SubscriptionDecision | null,
+  opts: { canceledAt?: string } = {},
+): Promise<boolean> {
+  if (decision !== null && !isSubscriptionDecision(decision)) {
+    throw new Error(`Not a subscription decision: ${String(decision)}`);
+  }
+  const canceledAt = decision === 'cancel' ? (opts.canceledAt ?? todayISO()) : null;
+  const changed = await withWriteLock((db) =>
+    writeSubscriptionDecision(db, id, decision, { canceledAt, at: nowISO() }),
   );
-  notifyLocalMutation();
+  if (changed) notifyLocalMutation();
+  return changed;
+}
+
+/**
+ * The Phase 5 screens' write, kept for them until they move to
+ * setSubscriptionDecision: a status that follows a decision sets it
+ * (confirmed → keep, canceled → cancel, dismissed → dismiss); any other takes
+ * the decision back.
+ */
+export async function updateSubscriptionStatus(id: string, status: SubscriptionStatus): Promise<void> {
+  const decision: SubscriptionDecision | null =
+    status === 'confirmed' ? 'keep' : status === 'canceled' ? 'cancel' : status === 'dismissed' ? 'dismiss' : null;
+  await setSubscriptionDecision(id, decision);
 }
 
 export async function updateSubscriptionCancelInfo(
@@ -888,22 +947,38 @@ export async function updateSubscriptionCancelInfo(
   notifyLocalMutation();
 }
 
+/**
+ * Delete a subscription outright, with a tombstone so the deletion syncs.
+ * For the engine's merges only: in the app a user's "delete" is a dismissal
+ * (setSubscriptionDecision(id, 'dismiss')), which a later import cannot undo.
+ */
 export async function deleteSubscription(id: string): Promise<void> {
-  await withWriteLock((db) =>
+  const deleted = await withWriteLock((db) =>
     inTransaction(db, async () => {
       await db.runAsync(`DELETE FROM subscription_occurrences WHERE subscriptionId = ?`, [id]);
       const result = await db.runAsync(`DELETE FROM subscriptions WHERE id = ?`, [id]);
       if (result.changes > 0) await writeTombstone(db, 'subscriptions', id, nowISO());
+      return result.changes > 0;
     }),
   );
-  notifyLocalMutation();
+  if (deleted) notifyLocalMutation();
+}
+
+/**
+ * Move a subscription's charge history onto another, when the engine merges
+ * `fromId` into `toId`; a charge `toId` already holds is not doubled. Local
+ * only (occurrences never sync), so it neither stamps nor notifies. Returns
+ * how many moved.
+ */
+export async function moveSubscriptionOccurrences(fromId: string, toId: string): Promise<number> {
+  return withWriteLock((db) => inTransaction(db, () => moveOccurrenceRows(db, fromId, toId)));
 }
 
 export async function getSubscriptionOccurrences(subscriptionId: string): Promise<SubscriptionOccurrence[]> {
   const database = await getDatabase();
   return database.getAllAsync<SubscriptionOccurrence>(
     `SELECT id, subscriptionId, transactionId, chargedAt, amount FROM subscription_occurrences
-     WHERE subscriptionId = ? ORDER BY chargedAt DESC`,
+     WHERE subscriptionId = ? ORDER BY chargedAt DESC, id ASC`,
     [subscriptionId],
   );
 }
@@ -915,16 +990,12 @@ export async function getSubscriptionOccurrences(subscriptionId: string): Promis
  * `id` must be deterministic (see occurrenceId in lib/subscriptions/engine).
  * It used to be generated randomly here and then guarded with INSERT OR
  * IGNORE — which had nothing to collide with, so every scan re-appended the
- * same occurrences and the charge history grew without bound.
+ * same occurrences and the charge history grew without bound. A charge moved
+ * here from a merged subscription keeps its old id, so the same transaction
+ * under the same subscription is not recorded twice either.
  */
 export async function addSubscriptionOccurrence(occ: SubscriptionOccurrence): Promise<void> {
-  await withWriteLock((db) =>
-    db.runAsync(
-      `INSERT OR IGNORE INTO subscription_occurrences (id, subscriptionId, transactionId, chargedAt, amount)
-       VALUES (?, ?, ?, ?, ?)`,
-      [occ.id, occ.subscriptionId, occ.transactionId, occ.chargedAt, occ.amount],
-    ),
-  );
+  await withWriteLock((db) => insertOccurrenceRow(db, occ));
 }
 
 /** Delete every subscription, as deletions the server receives. */
@@ -942,6 +1013,165 @@ export async function clearSubscriptions(): Promise<void> {
     }),
   );
   notifyLocalMutation();
+}
+
+// ── Email findings (a local cache, never synced) ─────────────────────────────
+//
+// What the server read from the user's mailboxes, as pulled from
+// GET /email/findings (EmailFindingDTO, I-EMAIL-API). The detection engine
+// reads them beside the ledger. Not a synced table: no dirty flag, no
+// clientUpdatedAt, nothing pushed and no listener told — the server has them
+// and can send them again. Deleted with the user's file on sign-out.
+
+export type EmailFindingKind = 'renewal' | 'receipt' | 'trial_ending' | 'price_change' | 'cancellation' | 'other';
+export type EmailFindingSource = 'gmail' | 'outlook' | 'forwarding';
+
+/** One finding as the server sends it (EmailFindingDTO); `id` is the server's. */
+export interface LocalEmailFinding {
+  id: string;
+  connectionId: string | null;
+  source: EmailFindingSource;
+  kind: EmailFindingKind;
+  merchant: string | null;
+  senderDomain: string | null;
+  billedVia: BilledVia | null;
+  amount: number | null;
+  currency: string | null;
+  cadence: SubscriptionCadence;
+  chargedISO: string | null;
+  emailDateISO: string | null;
+  nextChargeISO: string | null;
+  trialEndsISO: string | null;
+  previousAmount: number | null;
+  confidence: number;
+  /** ISO time the server stored it: the findings cursor. */
+  receivedAt: string;
+}
+
+const EMAIL_FINDING_COLUMNS = [
+  'id',
+  'connectionId',
+  'source',
+  'kind',
+  'merchant',
+  'senderDomain',
+  'billedVia',
+  'amount',
+  'currency',
+  'cadence',
+  'chargedISO',
+  'emailDateISO',
+  'nextChargeISO',
+  'trialEndsISO',
+  'previousAmount',
+  'confidence',
+  'receivedAt',
+] as const satisfies readonly (keyof LocalEmailFinding)[];
+
+const FINDING_KINDS: readonly string[] = ['renewal', 'receipt', 'trial_ending', 'price_change', 'cancellation', 'other'];
+const FINDING_SOURCES: readonly string[] = ['gmail', 'outlook', 'forwarding'];
+const FINDING_CADENCES: readonly string[] = ['weekly', 'biweekly', 'monthly', 'quarterly', 'semiannual', 'yearly', 'unknown'];
+const BILLED_VIA: readonly string[] = ['apple', 'google_play', 'paypal'];
+
+const textOrNull = (v: unknown): string | null => (typeof v === 'string' && v !== '' ? v : null);
+const numberOrNull = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : null);
+const oneOf = (v: unknown, allowed: readonly string[], fallback: string | null): string | null =>
+  typeof v === 'string' && allowed.includes(v) ? v : fallback;
+
+/**
+ * A finding as it is stored, or null for one that cannot be (no id, no time).
+ * The server's values pass through; anything outside the DTO's types becomes
+ * its "unknown" (null, 'other', 'unknown', confidence 0) rather than garbage.
+ */
+function toFindingRow(raw: LocalEmailFinding): SqlBindValue[] | null {
+  const id = textOrNull(raw?.id);
+  const receivedAt = textOrNull(raw?.receivedAt);
+  if (!id || !receivedAt) return null;
+  const row: Record<(typeof EMAIL_FINDING_COLUMNS)[number], SqlBindValue> = {
+    id,
+    connectionId: textOrNull(raw.connectionId),
+    source: oneOf(raw.source, FINDING_SOURCES, 'forwarding'),
+    kind: oneOf(raw.kind, FINDING_KINDS, 'other'),
+    merchant: textOrNull(raw.merchant),
+    senderDomain: textOrNull(raw.senderDomain),
+    billedVia: oneOf(raw.billedVia, BILLED_VIA, null),
+    amount: numberOrNull(raw.amount),
+    currency: textOrNull(raw.currency),
+    cadence: oneOf(raw.cadence, FINDING_CADENCES, 'unknown'),
+    chargedISO: textOrNull(raw.chargedISO),
+    emailDateISO: textOrNull(raw.emailDateISO),
+    nextChargeISO: textOrNull(raw.nextChargeISO),
+    trialEndsISO: textOrNull(raw.trialEndsISO),
+    previousAmount: numberOrNull(raw.previousAmount),
+    confidence: numberOrNull(raw.confidence) ?? 0,
+    receivedAt,
+  };
+  return EMAIL_FINDING_COLUMNS.map((c) => row[c]);
+}
+
+/**
+ * Store findings pulled from the server, replacing any held under the same id.
+ * One that has no id or no receivedAt is skipped. Returns how many were not
+ * held before.
+ */
+export async function upsertEmailFindings(rows: readonly LocalEmailFinding[]): Promise<number> {
+  const prepared = rows.map(toFindingRow).filter((r): r is SqlBindValue[] => r !== null);
+  if (prepared.length === 0) return 0;
+  const assignments = EMAIL_FINDING_COLUMNS.filter((c) => c !== 'id').map((c) => `${c} = excluded.${c}`);
+  const ids = [...new Set(prepared.map((values) => values[0] as string))];
+  return withWriteLock((db) =>
+    inTransaction(db, async () => {
+      const held = new Set<string>();
+      for (let i = 0; i < ids.length; i += 400) {
+        const part = ids.slice(i, i + 400);
+        const rows = await db.getAllAsync<{ id: string }>(
+          `SELECT id FROM email_findings WHERE id IN (${part.map(() => '?').join(', ')})`,
+          part,
+        );
+        for (const r of rows) held.add(r.id);
+      }
+      for (const values of prepared) {
+        await db.runAsync(
+          `INSERT INTO email_findings (${EMAIL_FINDING_COLUMNS.join(', ')})
+           VALUES (${EMAIL_FINDING_COLUMNS.map(() => '?').join(', ')})
+           ON CONFLICT(id) DO UPDATE SET ${assignments.join(', ')}`,
+          values,
+        );
+      }
+      return ids.filter((id) => !held.has(id)).length;
+    }),
+  );
+}
+
+/** Every cached finding, oldest first by when the server stored it. */
+export async function getEmailFindings(): Promise<LocalEmailFinding[]> {
+  const database = await getDatabase();
+  return database.getAllAsync<LocalEmailFinding>(
+    `SELECT ${EMAIL_FINDING_COLUMNS.join(', ')} FROM email_findings ORDER BY receivedAt ASC, id ASC`,
+  );
+}
+
+/**
+ * Forget findings: those with the given ids, or every one when no list is
+ * given. An empty list deletes nothing. Returns how many went.
+ */
+export async function deleteEmailFindings(ids?: readonly string[]): Promise<number> {
+  if (ids !== undefined && ids.length === 0) return 0;
+  return withWriteLock((db) =>
+    inTransaction(db, async () => {
+      if (ids === undefined) return (await db.runAsync(`DELETE FROM email_findings`)).changes;
+      let deleted = 0;
+      for (let i = 0; i < ids.length; i += 400) {
+        const part = ids.slice(i, i + 400);
+        const result = await db.runAsync(
+          `DELETE FROM email_findings WHERE id IN (${part.map(() => '?').join(', ')})`,
+          [...part],
+        );
+        deleted += result.changes;
+      }
+      return deleted;
+    }),
+  );
 }
 
 // ── Custom (user-created) categories ─────────────────────────────────────────

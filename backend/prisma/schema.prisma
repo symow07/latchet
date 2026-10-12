@@ -360,59 +360,121 @@ model PlaidAccount {
   updatedAt      DateTime  @updatedAt
 }
 
-// The user's email-forwarding inbox. One per user: `email` holds a synthetic
-// `forwarding:<userId>` value, so the [userId, email] unique key stops two racing
-// first requests from creating a second inbox. `inboundToken` forms the private
-// address u_<inboundToken>@<INBOUND_EMAIL_DOMAIN>; `forwardingVerified` flips
-// true when the first real forwarded email arrives (Gmail's own confirmation
-// email does not count — it is stored separately so the app can show its code).
+// One mailbox Budget reads billing email from, for one user (Phase 6).
 //
-// This table used to hold Gmail OAuth connections too, with encrypted refresh
-// tokens. That path was removed; the migration drops its columns and any rows.
+// `provider` is forwarding | gmail | outlook. `email` is the account's address,
+// lower-case, for gmail and outlook; for forwarding it is the synthetic
+// `forwarding:<userId>`, so the [userId, email] unique key stops two racing
+// first requests from creating a second inbox. A user may connect several.
+//
+// Forwarding: `inboundToken` forms the private address
+// u_<inboundToken>@<INBOUND_EMAIL_DOMAIN>; `forwardingVerified` flips true when
+// the first real forwarded email arrives (Gmail's own confirmation email does
+// not count — it is stored separately so the app can show its code).
+//
+// Gmail and Outlook: `refreshTokenEnc` is the OAuth refresh token, encrypted at
+// rest (lib/crypto); `scope` what the user granted. `syncCursor` is the
+// provider's incremental position (Gmail historyId, a Graph delta link) and
+// `backfillCursor` the one-year backfill's page position until
+// `backfillDoneAt`. `status` is active | needs_reauth | error and `syncState`
+// idle | backfilling | syncing; `lastError` is a short code, never mail text.
+// `messagesScanned` and `findingsCount` are counters for the connect screen.
+//
+// Deleting a connection deletes its findings (InboxEmail.connectionId cascades).
 model EmailConnection {
-  id                 String   @id @default(cuid())
+  id                 String       @id @default(cuid())
   userId             String
-  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  provider           String   @default("forwarding")
+  user               User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider           String       @default("forwarding") // forwarding | gmail | outlook
   email              String
-  inboundToken       String?  @unique
-  forwardingVerified Boolean  @default(false)
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  inboundToken       String?      @unique
+  forwardingVerified Boolean      @default(false)
+  refreshTokenEnc    String?
+  scope              String?
+  status             String       @default("active") // active | needs_reauth | error
+  syncState          String       @default("idle") // idle | backfilling | syncing
+  syncCursor         String?
+  backfillCursor     String?
+  backfillDoneAt     DateTime?
+  lastSyncedAt       DateTime?
+  /// A short error code (e.g. "invalid_grant"), never text from a message.
+  lastError          String?
+  messagesScanned    Int          @default(0)
+  findingsCount      Int          @default(0)
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+  findings           InboxEmail[]
 
   @@unique([userId, email])
 }
 
-// One parsed billing/receipt email received at a user's private inbound address.
-// The raw email is parsed (OpenAI) into subscription fields and discarded; we
-// keep only the extracted summary. The mobile app pulls these and merges them
-// into the local subscription store + spending.
-// A forwarded billing email, reduced to what the subscription detector needs.
+// That a user once granted Budget access to a mailbox provider, kept for life.
 //
-// The raw sender address and subject line are deliberately not stored. Receipt
-// subjects routinely carry order numbers, invoice references and the amount
-// itself, and keeping them indefinitely contradicted the privacy policy's
-// promise to retain only merchant, amount, currency, cycle and date.
-// `label` is a digit-stripped remnant kept solely so the inbox screen can show
-// something for an email the parser failed to identify.
-model InboxEmail {
+// Google caps an unverified app at 100 users over its lifetime, counting every
+// account that ever granted access, so our own counter must count the same
+// way: a row here outlives the connection and the account. Deliberately no
+// relation to User, so deleting the account leaves it; `userKey` is the
+// sha256 of the user id, which identifies nobody once the account is gone.
+model EmailOAuthGrant {
   id             String   @id @default(cuid())
+  provider       String // gmail | outlook
+  /// sha256 (hex) of the user id.
+  userKey        String
+  firstGrantedAt DateTime @default(now())
+
+  @@unique([provider, userKey])
+}
+
+// One email finding from any source: a billing email (forwarded, or read from
+// a connected Gmail or Outlook mailbox) reduced to what the subscription
+// detector needs. The phone pulls these (by `receivedAt`, the insert time and
+// the findings cursor) and runs detection on them alongside its ledger; a
+// finding never becomes a transaction.
+//
+// The raw email is never stored: not the body, not the sender address, not the
+// subject line. Receipt subjects routinely carry order numbers, invoice
+// references and the amount itself, and keeping them indefinitely contradicted
+// the privacy policy's promise to retain only merchant, amount, currency, cycle
+// and date. `label` is a digit-stripped remnant kept solely so the inbox screen
+// can show something for an email the parser failed to identify.
+//
+// `messageKey` (sha256 of `provider:messageId`) makes reading the same message
+// twice — a re-sync, a retried webhook — store it once per user. `currency` is
+// null when the email does not say: unknown stays unknown.
+model InboxEmail {
+  id             String           @id @default(cuid())
   userId         String
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  connectionId   String?
+  connection     EmailConnection? @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  source         String           @default("forwarding") // forwarding | gmail | outlook
+  messageKey     String?
+  /// renewal | receipt | trial_ending | price_change | cancellation | other
+  kind           String           @default("other")
   /// Sender's domain only (e.g. "netflix.com") — identifies the merchant, not the person.
   senderDomain   String?
   /// Sanitised subject remnant, no digits. May be empty.
-  label          String   @default("")
+  label          String           @default("")
   merchant       String?
   amount         Float?
-  currency       String   @default("USD")
-  cadence        String   @default("unknown") // weekly | monthly | yearly | unknown
+  currency       String?
+  /// weekly | biweekly | monthly | quarterly | semiannual | yearly | unknown
+  cadence        String           @default("unknown")
   chargedISO     String? // YYYY-MM-DD best-effort charge date
-  isSubscription Boolean  @default(false)
-  status         String   @default("parsed") // parsed | imported | ignored
-  receivedAt     DateTime @default(now())
+  emailDateISO   String? // YYYY-MM-DD the email was sent
+  nextChargeISO  String? // YYYY-MM-DD the next charge, when the email says
+  trialEndsISO   String? // YYYY-MM-DD a free trial ends, when the email says
+  previousAmount Float? // the old price, for a price-change email
+  confidence     Float            @default(0)
+  parser         String           @default("rules") // rules | ai
+  billedVia      String? // apple | google_play | paypal: where the charge is billed
+  isSubscription Boolean          @default(false)
+  status         String           @default("parsed") // parsed | imported | ignored | confirmation
+  receivedAt     DateTime         @default(now())
 
+  @@unique([userId, messageKey])
   @@index([userId, receivedAt])
+  @@index([connectionId])
 }
 
 model Group {
@@ -555,9 +617,31 @@ model CustomCategory {
   @@index([userId, serverUpdatedAt])
 }
 
-// A recurring charge the user confirmed, or the detector proposed, on the
-// phone. `syncId` is the phone's own id for it; `id` is this table's key.
-// Occurrences are derived on the device from the ledger and are not stored.
+// A recurring charge found on the phone, from any source: the ledger it
+// keeps (hand entry, statement imports, bank transactions arriving by sync) or
+// a billing email (InboxEmail). `syncId` is the phone's own id for it; `id` is
+// this table's key. Occurrences are derived on the device and are not stored.
+//
+// Two kinds of state live side by side, and the user's always wins (Phase 6
+// decision 3):
+//   decision  the user's: keep | cancel | dismiss, or null while they have not
+//             said. Detection never writes it, never revives a dismissed row
+//             and never resets a cancellation; deleting a subscription in the
+//             app is a dismissal, so a later import cannot recreate it.
+//   status    the engine's reading — possible | active | trial | ended — while
+//             there is no decision; once there is one it follows it: keep →
+//             confirmed, cancel → canceled, dismiss → dismissed.
+// A push from a phone older than Phase 6 carries no decision: it keeps the
+// stored one, and its own confirmed/canceled status becomes the decision only
+// where none was made yet, as the Phase 6 migration read them
+// (lib/sync/subscription-fields.ts).
+//
+// The engine's other findings: `trialEndsAt` (a free trial converts that day),
+// `previousAmount` and `priceChangedAt` (the last price rise), `alert` (what
+// to warn about: price_rise | charged_after_cancel | trial_ending), `sources`
+// (every source that saw it, a comma list of transaction | import | bank |
+// email | manual; `source` is the first one) and `billedVia` (apple |
+// google_play | paypal: where it must be cancelled). Dates are YYYY-MM-DD.
 model Subscription {
   id                 String   @id @default(cuid())
   userId             String
@@ -565,16 +649,31 @@ model Subscription {
   syncId             String
   merchantDisplay    String
   merchantNormalized String
+  /// weekly | biweekly | monthly | quarterly | semiannual | yearly | unknown
   cadence            String   @default("monthly")
   typicalAmount      Float    @default(0)
   currency           String   @default("USD")
   confidenceScore    Float    @default(0)
   lastChargedAt      String?
   nextExpectedAt     String?
-  status             String   @default("possible") // confirmed|possible|canceled
+  /// possible | active | trial | ended (the engine's), or confirmed | canceled | dismissed (following `decision`)
+  status             String   @default("possible")
+  /// keep | cancel | dismiss: the user's, never the engine's.
+  decision           String?
+  /// YYYY-MM-DD the user cancelled it.
+  canceledAt         String?
+  trialEndsAt        String?
+  previousAmount     Float?
+  priceChangedAt     String?
+  /// price_rise | charged_after_cancel | trial_ending
+  alert              String?
   cancelUrl          String?
   cancelNotes        String?
-  source             String   @default("transaction") // transaction|email
+  source             String   @default("transaction") // transaction | import | bank | email | manual
+  /// Comma list of every source that saw it.
+  sources            String   @default("")
+  /// apple | google_play | paypal
+  billedVia          String?
   createdAt          DateTime @default(now())
   clientUpdatedAt    DateTime @default(now())
   /// Set by trigger (clock_timestamp()); see the sync note at the top.

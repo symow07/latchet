@@ -41,10 +41,13 @@ const settingsRow = (cu: string, over: Record<string, unknown> = {}) => ({
   currency: "EUR", currencySymbol: "€", monthlyIncome: 3000, savingsGoal: 200, spendingStyle: "moderate",
   primaryGoal: "save", locale: "fr", ...over,
 });
+// A Phase 6 phone's subscription: every field, the Phase 6 ones included.
 const subRow = (id: string, cu: string) => ({
   id, clientUpdatedAt: cu, merchantDisplay: "Netflix", merchantNormalized: "netflix", cadence: "monthly",
   typicalAmount: 13.99, currency: "EUR", confidenceScore: 80, lastChargedAt: "2026-10-01", nextExpectedAt: "2026-11-01",
-  status: "confirmed", cancelUrl: null, cancelNotes: null, source: "transaction", createdAt: cu,
+  status: "confirmed", cancelUrl: null, cancelNotes: null, source: "transaction",
+  decision: "keep", canceledAt: null, trialEndsAt: null, previousAmount: 11.99, priceChangedAt: "2026-10-01",
+  alert: "price_rise", sources: "transaction,email", billedVia: null, createdAt: cu,
 });
 // The four Phase 4 entities, in their wire shape (I-WIRE-4).
 const recRow = (id: string, cu: string, over: Record<string, unknown> = {}) => ({

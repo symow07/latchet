@@ -6,10 +6,23 @@
  * is harmless), and the tests run it against an in-memory SQLite. It imports
  * nothing, on purpose: it has to load under `bun test`.
  *
- * Why there are no in-place migrations here. The old shared `real_budget.db`
- * grew its schema through v2-v6 ALTERs. Per-user files are new, so each one
- * starts at this schema directly; the `migrations` table is kept so that a
- * future LOCAL_SCHEMA_VERSION can migrate the files that exist by then.
+ * Versions. The old shared `real_budget.db` grew its schema through v2-v6
+ * ALTERs; per-user files started over at version 1. A file records each
+ * version it was created at or brought to as a `migrations` row (schema_v1,
+ * schema_v2, …). LOCAL_SCHEMA_SQL is always the complete schema of the
+ * current version, so a new file is created at it directly; a file made by an
+ * earlier build is brought up to it by upgradeLocalSchema, step by step
+ * (LOCAL_SCHEMA_STEPS), before LOCAL_SCHEMA_SQL runs on it — db.ts does this
+ * as it opens the file. A table a step adds is created by LOCAL_SCHEMA_SQL
+ * too (IF NOT EXISTS); a column a step adds to an existing table cannot be,
+ * so the step adds it. The step also writes the new version's marker, which is
+ * what keeps user-db.ts from taking the file for a new one and seeding it
+ * again (bringing back a default account its user had deleted).
+ *
+ * Version 2 (Phase 6, I-LOCAL in .unlazy/phase6/PLAN.md): subscriptions gain
+ * the user's decision beside the engine's status and what detection found
+ * (decision, canceledAt, trialEndsAt, previousAmount, priceChangedAt, alert,
+ * sources, billedVia), and the unsynced `email_findings` cache appears.
  *
  * Sync bookkeeping (I-LOCAL-SCHEMA in .unlazy/phase3/PLAN.md). Each synced
  * table carries three columns:
@@ -27,18 +40,18 @@
  * else.
  *
  * Not synced, by design: `health_profile` (device-only health data, see
- * sync-redaction.ts) and `subscription_occurrences` (derived by the detection
- * engine from the ledger, so each device re-derives them).
+ * sync-redaction.ts), `subscription_occurrences` (derived by the detection
+ * engine from the ledger, so each device re-derives them) and `email_findings`
+ * (the server's findings from the user's email, pulled from it and re-pullable,
+ * never pushed: a cache, with no sync bookkeeping).
  *
  * Phase 4 added four synced tables (recurring series, bill reminders, category
  * budgets, net-worth snapshots; I-WIRE-4 in .unlazy/phase4/PLAN.md). They are
  * new tables, not changes to existing ones, so a file created by an earlier
  * build gains them the next time it is opened — every statement here is
- * IF NOT EXISTS — and LOCAL_SCHEMA_VERSION stays 1: bumping it would re-run
- * the seed on every existing file and bring back a default account its user
- * had deleted. What such a file lacks is their rows, which the sync store
- * fetches with one full pull when it sees the synced entity set has grown
- * (SYNC_ENTITY_SIGNATURE in sync/sqlite-store.ts).
+ * IF NOT EXISTS — and LOCAL_SCHEMA_VERSION stayed 1. What such a file lacks is
+ * their rows, which the sync store fetches with one full pull when it sees the
+ * synced entity set has grown (SYNC_ENTITY_SIGNATURE in sync/sqlite-store.ts).
  *
  * Journal mode stays SQLite's default (DELETE), not WAL. Signing out deletes
  * the user's file with expo-sqlite's deleteDatabaseAsync, which removes the
@@ -46,11 +59,19 @@
  * holding the user's most recent writes.
  */
 
-/** Bump with a migration step in db.ts's initializer when this DDL changes. */
-export const LOCAL_SCHEMA_VERSION = 1;
+/**
+ * Bump, with a step in LOCAL_SCHEMA_STEPS, when this DDL changes a table an
+ * existing file already has.
+ */
+export const LOCAL_SCHEMA_VERSION = 2;
 
-/** The `migrations` key that marks a file as created at LOCAL_SCHEMA_VERSION. */
-export const LOCAL_SCHEMA_KEY = `schema_v${LOCAL_SCHEMA_VERSION}`;
+/** The `migrations` key of a schema version. */
+export function localSchemaKey(version: number): string {
+  return `schema_v${version}`;
+}
+
+/** The `migrations` key that marks a file as created at, or brought up to, LOCAL_SCHEMA_VERSION. */
+export const LOCAL_SCHEMA_KEY = localSchemaKey(LOCAL_SCHEMA_VERSION);
 
 /** clientUpdatedAt of a row nobody has edited: the server's version always wins. */
 export const EPOCH_ISO = '1970-01-01T00:00:00.000Z';
@@ -113,6 +134,36 @@ export const DEFAULT_ACCOUNT = {
   color: '#22c55e',
   icon: 'wallet',
 } as const;
+
+/**
+ * The email findings the server read from the user's mailboxes (EmailFindingDTO
+ * in .unlazy/phase6/PLAN.md, I-EMAIL-API), as pulled; `id` is the server's.
+ * A cache the detection engine reads: never dirty-tracked, never pushed, and
+ * deleted with the rest of the user's file on sign-out.
+ */
+const EMAIL_FINDINGS_SQL = `
+    CREATE TABLE IF NOT EXISTS email_findings (
+      id TEXT PRIMARY KEY,
+      connectionId TEXT,
+      source TEXT NOT NULL DEFAULT 'forwarding',
+      kind TEXT NOT NULL DEFAULT 'other',
+      merchant TEXT,
+      senderDomain TEXT,
+      billedVia TEXT,
+      amount REAL,
+      currency TEXT,
+      cadence TEXT NOT NULL DEFAULT 'unknown',
+      chargedISO TEXT,
+      emailDateISO TEXT,
+      nextChargeISO TEXT,
+      trialEndsISO TEXT,
+      previousAmount REAL,
+      confidence REAL NOT NULL DEFAULT 0,
+      receivedAt TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_email_findings_received ON email_findings(receivedAt);
+`;
 
 export const LOCAL_SCHEMA_SQL = `
     CREATE TABLE IF NOT EXISTS migrations (
@@ -191,6 +242,10 @@ export const LOCAL_SCHEMA_SQL = `
       syncError TEXT
     );
 
+    -- The version 2 (Phase 6) columns come last, in the order the upgrade
+    -- adds them to an older file, so every file has the same columns in the
+    -- same order. (No comments inside a CREATE TABLE: SQLite keeps its text,
+    -- and a later DROP COLUMN rewriting it can trip over one.)
     CREATE TABLE IF NOT EXISTS subscriptions (
       id TEXT PRIMARY KEY,
       merchantDisplay TEXT NOT NULL,
@@ -208,7 +263,15 @@ export const LOCAL_SCHEMA_SQL = `
       createdAt TEXT NOT NULL,
       clientUpdatedAt TEXT NOT NULL DEFAULT '1970-01-01T00:00:00.000Z',
       dirty INTEGER NOT NULL DEFAULT 0,
-      syncError TEXT
+      syncError TEXT,
+      decision TEXT,
+      canceledAt TEXT,
+      trialEndsAt TEXT,
+      previousAmount REAL,
+      priceChangedAt TEXT,
+      alert TEXT,
+      sources TEXT NOT NULL DEFAULT '',
+      billedVia TEXT
     );
 
     CREATE INDEX IF NOT EXISTS idx_subscriptions_status ON subscriptions(status);
@@ -223,7 +286,7 @@ export const LOCAL_SCHEMA_SQL = `
     );
 
     CREATE INDEX IF NOT EXISTS idx_sub_occurrences_sub ON subscription_occurrences(subscriptionId);
-
+${EMAIL_FINDINGS_SQL}
     -- A recurring series. accountId is where the server books its occurrences
     -- (null: the default account). No foreign key, on purpose: the account
     -- can be deleted here or on another device before the series is told,
@@ -355,4 +418,146 @@ export function localSeedStatements(userId: string, nowISO: string): SeedStateme
       ],
     },
   ];
+}
+
+// ── Upgrading a file made by an earlier build ────────────────────────────────
+
+/** A column a version added to a table that files of earlier versions already have. */
+export interface AddedColumn {
+  table: string;
+  column: string;
+  /** The column definition after its name, as ALTER TABLE … ADD COLUMN takes it. */
+  definition: string;
+}
+
+/** What it takes to bring a file of the previous version to `version`. */
+export interface LocalSchemaStep {
+  version: number;
+  /** Added if missing, so a step interrupted before its marker can run again. */
+  columns: readonly AddedColumn[];
+  /** Run after the columns, in order. Each must be safe to run twice. */
+  statements: readonly string[];
+}
+
+/**
+ * The sync store's sync_meta key for the entity signature its pull cursor was
+ * read under (SYNC_META.entities in sync/sqlite-store.ts, which imports this
+ * file, so the value is repeated here; sqlite-store.test.ts holds them equal).
+ * Deleting it makes the next pull a full one.
+ */
+export const PULL_SIGNATURE_META_KEY = 'pull_entities';
+
+export const LOCAL_SCHEMA_STEPS: readonly LocalSchemaStep[] = [
+  {
+    // Phase 6: the user's decision and detection's findings on subscriptions;
+    // the email findings cache.
+    version: 2,
+    columns: [
+      { table: 'subscriptions', column: 'decision', definition: 'TEXT' },
+      { table: 'subscriptions', column: 'canceledAt', definition: 'TEXT' },
+      { table: 'subscriptions', column: 'trialEndsAt', definition: 'TEXT' },
+      { table: 'subscriptions', column: 'previousAmount', definition: 'REAL' },
+      { table: 'subscriptions', column: 'priceChangedAt', definition: 'TEXT' },
+      { table: 'subscriptions', column: 'alert', definition: 'TEXT' },
+      { table: 'subscriptions', column: 'sources', definition: "TEXT NOT NULL DEFAULT ''" },
+      { table: 'subscriptions', column: 'billedVia', definition: 'TEXT' },
+    ],
+    statements: [
+      // What the server's Phase 6 migration does to its copies, so a row
+      // reads the same here as there: the decision a Phase 5 status stood for
+      // (and a dismissal this build's server may already have sent), and
+      // sources from source. Not stamped, not dirty — the server made the
+      // same change itself.
+      `UPDATE subscriptions
+          SET decision = CASE status WHEN 'confirmed' THEN 'keep' WHEN 'canceled' THEN 'cancel'
+                                     WHEN 'dismissed' THEN 'dismiss' END
+        WHERE decision IS NULL AND status IN ('confirmed', 'canceled', 'dismissed')`,
+      `UPDATE subscriptions SET sources = source WHERE sources = ''`,
+      EMAIL_FINDINGS_SQL,
+      // Rows pulled by the earlier build arrived without the new fields — a
+      // decision or an alert set on a newer phone among them — and its cursor
+      // is past them. One full pull restates every row with all its fields.
+      `DELETE FROM sync_meta WHERE key = '${PULL_SIGNATURE_META_KEY}'`,
+    ],
+  },
+];
+
+type LocalBindValue = string | number | null | boolean | Uint8Array;
+type LocalBindParams = LocalBindValue[] | Record<string, LocalBindValue>;
+
+/**
+ * The slice of a SQLite database the upgrade uses: expo-sqlite's database,
+ * db.ts's SqlDb and the test adapters all satisfy it.
+ */
+export interface LocalSchemaDb {
+  getAllAsync<T>(source: string, params?: LocalBindParams): Promise<T[]>;
+  getFirstAsync<T>(source: string, params?: LocalBindParams): Promise<T | null>;
+  runAsync(source: string, params?: LocalBindParams): Promise<unknown>;
+  execAsync(source: string): Promise<void>;
+}
+
+export type LocalSchemaUpgrade =
+  /** A brand-new file, or one that is already current: nothing done. */
+  | 'none'
+  /** A file whose creation never finished: columns added, left for the initializer to seed. */
+  | 'repaired'
+  /** A file of an earlier version, brought to LOCAL_SCHEMA_VERSION. */
+  | 'upgraded';
+
+/**
+ * Bring a file made by an earlier build to LOCAL_SCHEMA_VERSION, before the
+ * initializer (user-db.ts initializeUserDatabase) runs LOCAL_SCHEMA_SQL on it.
+ *
+ * The file's version is the highest schema_vN marker it holds. A file with
+ * none was never finished being created (the seed and its marker are one
+ * transaction): its tables only gain the columns they lack, and the
+ * initializer seeds and marks it as it would a new one. A file at version N
+ * runs every later step in one transaction, then gains this version's marker,
+ * so the initializer treats it as created and does not seed it again.
+ */
+export async function upgradeLocalSchema(db: LocalSchemaDb, nowISO: string): Promise<LocalSchemaUpgrade> {
+  const hasMigrations = await db.getFirstAsync<{ name: string }>(
+    `SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'migrations'`,
+  );
+  if (!hasMigrations) return 'none';
+
+  const markers = await db.getAllAsync<{ key: string }>(`SELECT key FROM migrations`);
+  const version = markers.reduce((max, { key }) => {
+    const m = /^schema_v(\d+)$/.exec(key);
+    return m ? Math.max(max, Number(m[1])) : max;
+  }, 0);
+  if (version >= LOCAL_SCHEMA_VERSION) return 'none';
+
+  const steps = LOCAL_SCHEMA_STEPS.filter((step) => step.version > version);
+  await db.execAsync('BEGIN');
+  try {
+    for (const step of steps) {
+      for (const added of step.columns) {
+        const table = await db.getFirstAsync<{ name: string }>(
+          `SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?`,
+          [added.table],
+        );
+        // A table the file lacks is created whole by LOCAL_SCHEMA_SQL.
+        if (!table) continue;
+        const columns = await db.getAllAsync<{ name: string }>(`PRAGMA table_info(${added.table})`);
+        if (columns.some((c) => c.name === added.column)) continue;
+        await db.execAsync(`ALTER TABLE ${added.table} ADD COLUMN ${added.column} ${added.definition}`);
+      }
+      // A file never finished holds nobody's data: its columns are enough.
+      if (version === 0) continue;
+      for (const statement of step.statements) await db.execAsync(statement);
+    }
+    if (version > 0) {
+      await db.runAsync(`INSERT OR IGNORE INTO migrations (key, appliedAt) VALUES (?, ?)`, [LOCAL_SCHEMA_KEY, nowISO]);
+    }
+    await db.execAsync('COMMIT');
+  } catch (e) {
+    try {
+      await db.execAsync('ROLLBACK');
+    } catch {
+      // Nothing to roll back, or the connection is already gone.
+    }
+    throw e;
+  }
+  return version === 0 ? 'repaired' : 'upgraded';
 }

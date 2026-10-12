@@ -1,8 +1,18 @@
 import { test, expect, mock, beforeEach, describe } from 'bun:test';
 import { createMemorySqlite } from './test-support/memory-sqlite';
-import { defaultAccountId, EPOCH_ISO } from './local-schema';
+import { todayISO } from './dates';
+import {
+  defaultAccountId,
+  EPOCH_ISO,
+  LOCAL_SCHEMA_KEY,
+  LOCAL_SCHEMA_SQL,
+  LOCAL_SYNC_TABLES,
+  SYNC_ENTITIES,
+  upgradeLocalSchema,
+} from './local-schema';
 import { createSqliteSyncStore } from './sync/sqlite-store';
-import type { SqlDb } from './db';
+import { writeDetectedSubscription } from './sync/subscription-rows';
+import type { LocalEmailFinding, SqlDb } from './db';
 
 /**
  * db.ts's writes, run for real: its SQL against SQLite (bun:sqlite) behind a
@@ -236,9 +246,434 @@ describe('subscriptions', () => {
     await handle.runAsync(`UPDATE subscriptions SET dirty = 0, clientUpdatedAt = ?`, [EPOCH_ISO]);
     await db.updateSubscriptionStatus('sub_netflix', 'canceled');
     expect((await syncState('subscriptions', 'id', 'sub_netflix'))?.dirty).toBe(1);
+    expect(await db.getSubscriptionById('sub_netflix')).toMatchObject({ status: 'canceled', decision: 'cancel' });
     await db.deleteSubscription('sub_netflix');
     expect(await tombstones()).toEqual([{ entity: 'subscriptions', id: 'sub_netflix' }]);
   });
+
+  test('a read returns every Phase 6 field, null or empty until something sets it', async () => {
+    await db.upsertSubscription(detected);
+    expect(await db.getSubscriptionById('sub_netflix')).toMatchObject({
+      decision: null,
+      canceledAt: null,
+      trialEndsAt: null,
+      previousAmount: null,
+      priceChangedAt: null,
+      alert: null,
+      sources: '',
+      billedVia: null,
+    });
+  });
+});
+
+describe('user decision wins', () => {
+  const found = {
+    id: 'sub_gym',
+    merchantDisplay: 'City Gym',
+    merchantNormalized: 'city gym',
+    cadence: 'monthly' as const,
+    typicalAmount: 30,
+    currency: 'EUR',
+    confidenceScore: 0.9,
+    lastChargedAt: '2026-10-01',
+    nextExpectedAt: '2026-11-01',
+    status: 'active' as const,
+    cancelUrl: null,
+    cancelNotes: null,
+    source: 'bank' as const,
+    trialEndsAt: null,
+    previousAmount: null,
+    priceChangedAt: null,
+    alert: null,
+    sources: 'bank',
+    billedVia: null,
+  };
+  /** The engine's next run: a price rise, a new charge, and its own idea of the status. */
+  const rescan = (status: 'possible' | 'active' | 'trial' | 'ended') => ({
+    ...found,
+    typicalAmount: 35,
+    previousAmount: 30,
+    priceChangedAt: '2026-11-01',
+    alert: 'price_rise' as const,
+    lastChargedAt: '2026-11-01',
+    nextExpectedAt: '2026-12-01',
+    sources: 'bank,email',
+    status,
+  });
+  /** As if the sync engine had uploaded the row. */
+  const markSynced = () =>
+    handle.runAsync(`UPDATE subscriptions SET dirty = 0, clientUpdatedAt = '2026-10-02T00:00:00.000Z'`);
+
+  test('an engine write over a kept row updates the amount and dates, never the decision or its status', async () => {
+    await db.upsertSubscription(found);
+    await db.setSubscriptionDecision('sub_gym', 'keep');
+    await markSynced();
+    expect(await db.upsertSubscription(rescan('possible'))).toBe(true);
+    expect(await db.getSubscriptionById('sub_gym')).toMatchObject({
+      decision: 'keep',
+      status: 'confirmed',
+      canceledAt: null,
+      typicalAmount: 35,
+      previousAmount: 30,
+      priceChangedAt: '2026-11-01',
+      alert: 'price_rise',
+      lastChargedAt: '2026-11-01',
+      nextExpectedAt: '2026-12-01',
+      sources: 'bank,email',
+    });
+    // A detection that changed something is an edit to sync.
+    expect((await syncState('subscriptions', 'id', 'sub_gym'))?.dirty).toBe(1);
+  });
+
+  test('an engine write over a cancelled row keeps the cancellation and its date, even when the engine sees it active', async () => {
+    await db.upsertSubscription(found);
+    await db.setSubscriptionDecision('sub_gym', 'cancel', { canceledAt: '2026-10-15' });
+    await db.upsertSubscription({ ...rescan('active'), decision: 'keep', canceledAt: null });
+    expect(await db.getSubscriptionById('sub_gym')).toMatchObject({
+      decision: 'cancel',
+      canceledAt: '2026-10-15',
+      status: 'canceled',
+      typicalAmount: 35,
+      lastChargedAt: '2026-11-01',
+    });
+  });
+
+  test('an engine write never revives a dismissed row; one that changes nothing else stamps nothing', async () => {
+    await db.upsertSubscription(found);
+    await db.setSubscriptionDecision('sub_gym', 'dismiss');
+    await markSynced();
+    mutations = 0;
+    // Only the engine's status differs from what is stored: nothing to write.
+    expect(await db.upsertSubscription({ ...found, status: 'possible' })).toBe(false);
+    expect(await syncState('subscriptions', 'id', 'sub_gym')).toEqual({
+      clientUpdatedAt: '2026-10-02T00:00:00.000Z',
+      dirty: 0,
+      syncError: null,
+    });
+    expect(mutations).toBe(0);
+    await db.upsertSubscription(rescan('trial'));
+    expect(await db.getSubscriptionById('sub_gym')).toMatchObject({ decision: 'dismiss', status: 'dismissed', typicalAmount: 35 });
+  });
+
+  test('the rule is in the SQL, not the caller: a direct engine write cannot set a decision on an existing row', async () => {
+    await db.upsertSubscription(found);
+    await db.setSubscriptionDecision('sub_gym', 'keep');
+    await db.withWriteLock((sql) =>
+      writeDetectedSubscription(sql, {
+        id: 'sub_gym',
+        values: { ...rescan('ended'), decision: 'dismiss', canceledAt: '2026-01-01', cancelNotes: 'engine' },
+        at: new Date().toISOString(),
+      }),
+    );
+    expect(await db.getSubscriptionById('sub_gym')).toMatchObject({
+      decision: 'keep',
+      status: 'confirmed',
+      canceledAt: null,
+      cancelNotes: null,
+      typicalAmount: 35,
+    });
+  });
+
+  test('setSubscriptionDecision is the user’s edit: stamped, dirty, announced, with the status that follows it', async () => {
+    await db.upsertSubscription(found);
+    const cases = [
+      ['keep', 'confirmed', null],
+      ['cancel', 'canceled', todayISO()],
+      ['dismiss', 'dismissed', null],
+      [null, 'possible', null],
+    ] as const;
+    for (const [decision, status, canceledAt] of cases) {
+      await markSynced();
+      mutations = 0;
+      expect(await db.setSubscriptionDecision('sub_gym', decision)).toBe(true);
+      const state = await syncState('subscriptions', 'id', 'sub_gym');
+      expect(state?.dirty).toBe(1);
+      expect(state?.syncError).toBeNull();
+      expect(state?.clientUpdatedAt).not.toBe('2026-10-02T00:00:00.000Z');
+      expect(isRecent(state?.clientUpdatedAt)).toBe(true);
+      expect(mutations).toBe(1);
+      expect(await db.getSubscriptionById('sub_gym')).toMatchObject({ decision, status, canceledAt });
+    }
+    // Saying it again changes nothing; a given cancellation date is kept.
+    await markSynced();
+    mutations = 0;
+    expect(await db.setSubscriptionDecision('sub_gym', null)).toBe(false);
+    expect(mutations).toBe(0);
+    expect((await syncState('subscriptions', 'id', 'sub_gym'))?.dirty).toBe(0);
+    await db.setSubscriptionDecision('sub_gym', 'cancel', { canceledAt: '2026-09-30' });
+    expect(await db.getSubscriptionById('sub_gym')).toMatchObject({ decision: 'cancel', canceledAt: '2026-09-30' });
+    expect(await db.setSubscriptionDecision('missing', 'keep')).toBe(false);
+  });
+
+  test('a caller that predates the Phase 6 fields leaves them as they are; the user’s notes outlive a re-scan', async () => {
+    await db.upsertSubscription({ ...found, trialEndsAt: '2026-10-20', alert: 'trial_ending', billedVia: 'apple' });
+    await db.updateSubscriptionCancelInfo('sub_gym', 'https://gym.example/cancel', 'call them');
+    const {
+      trialEndsAt: _t,
+      previousAmount: _p,
+      priceChangedAt: _c,
+      alert: _a,
+      sources: _s,
+      billedVia: _b,
+      ...phase5
+    } = found;
+    await db.upsertSubscription({ ...phase5, typicalAmount: 31, cancelUrl: null, cancelNotes: null });
+    expect(await db.getSubscriptionById('sub_gym')).toMatchObject({
+      typicalAmount: 31,
+      trialEndsAt: '2026-10-20',
+      alert: 'trial_ending',
+      billedVia: 'apple',
+      sources: 'bank',
+      cancelUrl: null,
+      cancelNotes: 'call them',
+    });
+  });
+
+  test('a new row may carry a decision (a merge moving it to a new id), and its status follows it', async () => {
+    await db.upsertSubscription({ ...found, id: 'sub_gym_2', decision: 'cancel', canceledAt: '2026-10-01', status: 'active' });
+    expect(await db.getSubscriptionById('sub_gym_2')).toMatchObject({ decision: 'cancel', canceledAt: '2026-10-01', status: 'canceled' });
+    await db.upsertSubscription({ ...found, id: 'sub_gym_3', decision: 'keep', canceledAt: '2026-10-01' });
+    expect(await db.getSubscriptionById('sub_gym_3')).toMatchObject({ decision: 'keep', canceledAt: null, status: 'confirmed' });
+  });
+
+  test('merging moves the charge history once; the target never counts a charge twice', async () => {
+    await db.upsertSubscription(found);
+    await db.upsertSubscription({ ...found, id: 'sub_gym_old' });
+    const occ = (id: string, subscriptionId: string, transactionId: string | null, chargedAt: string) => ({
+      id,
+      subscriptionId,
+      transactionId,
+      chargedAt,
+      amount: 30,
+    });
+    await db.addSubscriptionOccurrence(occ('o1', 'sub_gym_old', 'tx_1', '2026-08-01'));
+    await db.addSubscriptionOccurrence(occ('o2', 'sub_gym_old', 'tx_2', '2026-09-01'));
+    await db.addSubscriptionOccurrence(occ('o3', 'sub_gym_old', null, '2026-07-01'));
+    await db.addSubscriptionOccurrence(occ('n2', 'sub_gym', 'tx_2', '2026-09-01'));
+    await db.addSubscriptionOccurrence(occ('n3', 'sub_gym', null, '2026-07-01'));
+    mutations = 0;
+
+    expect(await db.moveSubscriptionOccurrences('sub_gym_old', 'sub_gym')).toBe(1);
+    const history = await db.getSubscriptionOccurrences('sub_gym');
+    expect(history.map((o) => o.id).sort()).toEqual(['n2', 'n3', 'o1']);
+    expect(await db.getSubscriptionOccurrences('sub_gym_old')).toEqual([]);
+    // The engine re-deriving the moved charge under its new id adds nothing.
+    await db.addSubscriptionOccurrence(occ('n1', 'sub_gym', 'tx_1', '2026-08-01'));
+    expect((await db.getSubscriptionOccurrences('sub_gym')).length).toBe(3);
+    expect(mutations).toBe(0);
+
+    await db.deleteSubscription('sub_gym_old');
+    expect(await tombstones()).toEqual([{ entity: 'subscriptions', id: 'sub_gym_old' }]);
+    expect(await db.moveSubscriptionOccurrences('sub_gym', 'sub_gym')).toBe(0);
+  });
+});
+
+describe('email findings cache', () => {
+  const finding = (id: string, over: Partial<LocalEmailFinding> = {}): LocalEmailFinding => ({
+    id,
+    connectionId: 'conn_1',
+    source: 'gmail',
+    kind: 'renewal',
+    merchant: 'Netflix',
+    senderDomain: 'netflix.com',
+    billedVia: null,
+    amount: 15.49,
+    currency: 'EUR',
+    cadence: 'monthly',
+    chargedISO: '2026-10-03',
+    emailDateISO: '2026-10-03',
+    nextChargeISO: '2026-11-03',
+    trialEndsISO: null,
+    previousAmount: null,
+    confidence: 0.92,
+    receivedAt: '2026-10-03T08:00:00.000Z',
+    ...over,
+  });
+
+  test('upsert stores findings and replaces by id; nothing is dirty, nothing announced, nothing to sync', async () => {
+    expect(await db.upsertEmailFindings([finding('f1'), finding('f2', { receivedAt: '2026-10-04T08:00:00.000Z' })])).toBe(2);
+    expect(
+      await db.upsertEmailFindings([
+        finding('f1', { amount: 17.99, previousAmount: 15.49, kind: 'price_change', currency: null }),
+        finding('f3', { receivedAt: '2026-10-05T08:00:00.000Z', kind: 'trial_ending', trialEndsISO: '2026-10-20' }),
+      ]),
+    ).toBe(1);
+    const all = await db.getEmailFindings();
+    expect(all.map((f) => f.id)).toEqual(['f1', 'f2', 'f3']);
+    expect(all[0]).toEqual(finding('f1', { amount: 17.99, previousAmount: 15.49, kind: 'price_change', currency: null }));
+    expect(all[2]).toMatchObject({ kind: 'trial_ending', trialEndsISO: '2026-10-20' });
+    expect(mutations).toBe(0);
+    expect((await db.countUnsyncedChanges()).total).toBe(0);
+    expect(await tombstones()).toEqual([]);
+  });
+
+  test('a malformed finding is skipped or reduced to its unknowns, never stored as garbage', async () => {
+    const junk = {
+      ...finding('f9'),
+      kind: 'spam',
+      cadence: 'fortnightly',
+      source: 'pigeon',
+      billedVia: 'venmo',
+      amount: Number.NaN,
+      confidence: 'high',
+    } as unknown as LocalEmailFinding;
+    const missing = [{ ...finding(''), id: '' }, { ...finding('f8'), receivedAt: '' }];
+    expect(await db.upsertEmailFindings([junk, ...missing])).toBe(1);
+    expect(await db.getEmailFindings()).toEqual([
+      finding('f9', { kind: 'other', cadence: 'unknown', source: 'forwarding', billedVia: null, amount: null, confidence: 0 }),
+    ]);
+  });
+
+  test('a page of a thousand counts what is new once, an id sent twice included', async () => {
+    const page = Array.from({ length: 1000 }, (_, i) => finding(`f${String(i).padStart(4, '0')}`));
+    expect(await db.upsertEmailFindings(page)).toBe(1000);
+    expect(await db.upsertEmailFindings([...page.slice(0, 500), finding('new'), finding('new', { amount: 1 })])).toBe(1);
+    expect((await db.getEmailFindings()).length).toBe(1001);
+    expect((await db.getEmailFindings()).find((f) => f.id === 'new')?.amount).toBe(1);
+    expect(await db.deleteEmailFindings(page.map((f) => f.id))).toBe(1000);
+  });
+
+  test('delete by ids, nothing for an empty list, and everything when no list is given', async () => {
+    await db.upsertEmailFindings([finding('f1'), finding('f2'), finding('f3')]);
+    expect(await db.deleteEmailFindings(['f2', 'nope'])).toBe(1);
+    expect((await db.getEmailFindings()).map((f) => f.id)).toEqual(['f1', 'f3']);
+    expect(await db.deleteEmailFindings([])).toBe(0);
+    expect((await db.getEmailFindings()).length).toBe(2);
+    expect(await db.deleteEmailFindings()).toBe(2);
+    expect(await db.getEmailFindings()).toEqual([]);
+  });
+
+  test('the table is not a synced entity: absent from the sync lists, without sync columns', async () => {
+    expect(SYNC_ENTITIES as readonly string[]).not.toContain('emailFindings');
+    expect(Object.values(LOCAL_SYNC_TABLES).map((t) => t.table)).not.toContain('email_findings');
+    const columns = (await handle.getAllAsync<{ name: string }>(`PRAGMA table_info(email_findings)`)).map((c) => c.name);
+    expect(columns).toContain('receivedAt');
+    for (const sync of ['dirty', 'clientUpdatedAt', 'syncError']) expect(columns).not.toContain(sync);
+  });
+});
+
+describe('local schema version 2', () => {
+  /** A file as the Phase 5 build left it: version 1, without the Phase 6 columns or the cache. */
+  async function phase5File(owner: string): Promise<InstanceType<typeof Database>> {
+    const file = new Database(':memory:');
+    file.exec(LOCAL_SCHEMA_SQL);
+    for (const column of ['decision', 'canceledAt', 'trialEndsAt', 'previousAmount', 'priceChangedAt', 'alert', 'sources', 'billedVia']) {
+      file.exec(`ALTER TABLE subscriptions DROP COLUMN ${column}`);
+    }
+    file.exec(`DROP TABLE email_findings`);
+    file.query(`INSERT INTO local_meta (key, value) VALUES ('owner', ?)`).run(owner);
+    file.query(`INSERT INTO migrations (key, appliedAt) VALUES ('schema_v1', '2026-09-01T00:00:00.000Z')`).run();
+    file.query(`INSERT INTO settings (id, monthlyBudget, clientUpdatedAt, dirty) VALUES (1, 900, '2026-09-02T00:00:00.000Z', 0)`).run();
+    // The user deleted the default account long ago; the deletion was sent.
+    const sub = file.query(
+      `INSERT INTO subscriptions (id, merchantDisplay, merchantNormalized, status, source, createdAt, clientUpdatedAt, dirty)
+       VALUES (?, ?, ?, ?, ?, '2026-09-01T00:00:00.000Z', '2026-09-03T00:00:00.000Z', ?)`,
+    );
+    sub.run('sub_kept', 'Netflix', 'netflix', 'confirmed', 'transaction', 0);
+    sub.run('sub_gone', 'Gym', 'gym', 'canceled', 'email', 1);
+    sub.run('sub_maybe', 'News', 'news', 'possible', 'transaction', 0);
+    file.query(`INSERT INTO sync_meta (key, value) VALUES ('pull_cursor', 'c42'), ('pull_entities', ?)`).run(SYNC_ENTITIES.join(','));
+    return file;
+  }
+
+  test('a file the Phase 5 build made is brought to version 2 as it opens: columns, decisions, the cache, one full pull, no second seed', async () => {
+    const owner = `${userId}_v1`;
+    mem.files.set(`budget_${owner}.db`, await phase5File(owner));
+    await db.openUserDatabase(owner);
+    const file = await db.getDatabase();
+
+    const markers = await file.getAllAsync<{ key: string }>(`SELECT key FROM migrations ORDER BY key`);
+    expect(markers.map((m) => m.key)).toEqual(['schema_v1', LOCAL_SCHEMA_KEY]);
+    expect(LOCAL_SCHEMA_KEY).toBe('schema_v2');
+    // Not seeded again: the deleted default account stays deleted, the settings stay the user's.
+    expect(await db.getAccountById(defaultAccountId(owner))).toBeNull();
+    expect((await db.getSettings()).monthlyBudget).toBe(900);
+
+    expect((await db.getSubscriptions()).map((s) => [s.id, s.decision, s.status, s.sources])).toEqual([
+      ['sub_gone', 'cancel', 'canceled', 'email'],
+      ['sub_kept', 'keep', 'confirmed', 'transaction'],
+      ['sub_maybe', null, 'possible', 'transaction'],
+    ]);
+    // Read as the server's migration reads them: nothing stamped, nothing newly dirty.
+    const states = await file.getAllAsync<{ id: string; dirty: number; clientUpdatedAt: string }>(
+      `SELECT id, dirty, clientUpdatedAt FROM subscriptions ORDER BY id`,
+    );
+    expect(states).toEqual([
+      { id: 'sub_gone', dirty: 1, clientUpdatedAt: '2026-09-03T00:00:00.000Z' },
+      { id: 'sub_kept', dirty: 0, clientUpdatedAt: '2026-09-03T00:00:00.000Z' },
+      { id: 'sub_maybe', dirty: 0, clientUpdatedAt: '2026-09-03T00:00:00.000Z' },
+    ]);
+    // The cursor the old build stored no longer counts: the next pull is full.
+    expect(await file.getFirstAsync(`SELECT value FROM sync_meta WHERE key = 'pull_entities'`)).toBeNull();
+    const store = createSqliteSyncStore({ run: (fn) => db.withWriteLock((sql) => fn(sql)) });
+    expect(await store.getPullState()).toEqual({ cursor: null, resyncActive: false });
+
+    // The cache exists, and an engine write works on the upgraded table.
+    expect(await db.upsertEmailFindings([{ ...finding, id: 'f1' }])).toBe(1);
+    await db.setSubscriptionDecision('sub_maybe', 'dismiss');
+    expect(await db.getSubscriptionById('sub_maybe')).toMatchObject({ decision: 'dismiss', status: 'dismissed' });
+
+    // Opening it again is a no-op.
+    await db.closeUserDatabase();
+    await db.openUserDatabase(owner);
+    expect(await db.getSubscriptionById('sub_maybe')).toMatchObject({ decision: 'dismiss' });
+    expect((await (await db.getDatabase()).getAllAsync(`SELECT key FROM migrations`)).length).toBe(2);
+  });
+
+  test('a new file is created at version 2 directly, and the upgrade leaves it alone', async () => {
+    const markers = await handle.getAllAsync<{ key: string }>(`SELECT key FROM migrations`);
+    expect(markers).toEqual([{ key: 'schema_v2' }]);
+    expect(await upgradeLocalSchema(handle, new Date().toISOString())).toBe('none');
+  });
+
+  test('a file whose creation never finished only gains its columns; the initializer seeds it as new', async () => {
+    const owner = `${userId}_half`;
+    const half = await phase5File(owner);
+    half.exec(`DELETE FROM migrations; DELETE FROM local_meta; DELETE FROM subscriptions; DELETE FROM sync_meta`);
+    mem.files.set(`budget_${owner}.db`, half);
+    await db.openUserDatabase(owner);
+    expect((await (await db.getDatabase()).getAllAsync<{ key: string }>(`SELECT key FROM migrations`)).map((m) => m.key)).toEqual([
+      'schema_v2',
+    ]);
+    expect(await db.getAccountById(defaultAccountId(owner))).not.toBeNull();
+    await db.upsertSubscription({ ...emptySub, id: 'sub_new', alert: 'price_rise' });
+    expect(await db.getSubscriptionById('sub_new')).toMatchObject({ alert: 'price_rise', sources: '' });
+  });
+
+  const finding: LocalEmailFinding = {
+    id: 'f0',
+    connectionId: null,
+    source: 'forwarding',
+    kind: 'receipt',
+    merchant: null,
+    senderDomain: null,
+    billedVia: null,
+    amount: null,
+    currency: null,
+    cadence: 'unknown',
+    chargedISO: null,
+    emailDateISO: null,
+    nextChargeISO: null,
+    trialEndsISO: null,
+    previousAmount: null,
+    confidence: 0,
+    receivedAt: '2026-10-01T00:00:00.000Z',
+  };
+  const emptySub = {
+    id: 'sub_x',
+    merchantDisplay: 'X',
+    merchantNormalized: 'x',
+    cadence: 'monthly' as const,
+    typicalAmount: 1,
+    currency: 'USD',
+    confidenceScore: 0.5,
+    lastChargedAt: null,
+    nextExpectedAt: null,
+    status: 'possible' as const,
+    cancelUrl: null,
+    cancelNotes: null,
+    source: 'manual' as const,
+  };
 });
 
 describe('custom categories', () => {
