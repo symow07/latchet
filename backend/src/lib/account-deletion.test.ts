@@ -48,7 +48,7 @@ test("a clean deletion reports what it revoked", async () => {
 
   expect(result).toEqual({
     deleted: true,
-    revoked: { banks: 1 },
+    revoked: { banks: 1, inboxes: 0 },
     unrevoked: [],
   });
 });
@@ -88,7 +88,7 @@ test("an account with nothing linked still deletes", async () => {
   const result = await deleteAccount("u1", impl);
 
   expect(order).toEqual(["delete-user"]);
-  expect(result).toEqual({ deleted: true, revoked: { banks: 0 }, unrevoked: [] });
+  expect(result).toEqual({ deleted: true, revoked: { banks: 0, inboxes: 0 }, unrevoked: [] });
 });
 
 test("every linked bank is revoked, not just the first", async () => {
@@ -113,4 +113,58 @@ test("a near miss is not a confirmation", () => {
   expect(confirmationMatches("", "a@example.com")).toBe(false);
   expect(confirmationMatches(undefined, "a@example.com")).toBe(false);
   expect(confirmationMatches(null, "a@example.com")).toBe(false);
+});
+
+// ── Mailboxes (Gmail, Outlook) ───────────────────────────────────────────────
+
+const gmailConn = { id: "conn_g", provider: "gmail", address: "me@gmail.com", refreshTokenEnc: "enc-g" };
+const outlookConn = { id: "conn_o", provider: "outlook", address: "me@outlook.com", refreshTokenEnc: "enc-o" };
+
+test("revocation: mailbox grants and banks are revoked before the user is deleted", async () => {
+  const order: string[] = [];
+  const result = await deleteAccount("u1", {
+    async loadTargets() {
+      return { plaidItems: [plaidItem], emailConnections: [gmailConn, outlookConn] };
+    },
+    async revokePlaidItem() {
+      order.push("revoke-plaid");
+    },
+    async revokeEmailGrant(conn) {
+      order.push(`revoke-${conn.provider}`);
+      return conn.provider === "outlook"
+        ? { revoked: false, manualRevokeUrl: "https://account.live.com/consent/Manage" }
+        : { revoked: true };
+    },
+    async deleteUser() {
+      order.push("delete-user");
+    },
+  });
+  expect(order).toEqual(["revoke-plaid", "revoke-gmail", "revoke-outlook", "delete-user"]);
+  expect(result.revoked).toEqual({ banks: 1, inboxes: 1 });
+  // Microsoft has no server-side revocation for personal accounts: always named.
+  expect(result.unrevoked).toEqual([
+    { kind: "email", label: "me@outlook.com", manualRevokeUrl: "https://account.live.com/consent/Manage" },
+  ]);
+});
+
+test("revocation: a Google revoke that fails is named with Google's page and does not block deletion", async () => {
+  const order: string[] = [];
+  const result = await deleteAccount("u1", {
+    async loadTargets() {
+      return { plaidItems: [], emailConnections: [gmailConn] };
+    },
+    async revokePlaidItem() {},
+    async revokeEmailGrant() {
+      order.push("revoke-gmail");
+      throw new Error("Google is down");
+    },
+    async deleteUser() {
+      order.push("delete-user");
+    },
+  });
+  expect(order).toEqual(["revoke-gmail", "delete-user"]);
+  expect(result.revoked).toEqual({ banks: 0, inboxes: 0 });
+  expect(result.unrevoked).toEqual([
+    { kind: "email", label: "me@gmail.com", manualRevokeUrl: "https://myaccount.google.com/permissions" },
+  ]);
 });

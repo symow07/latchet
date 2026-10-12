@@ -22,6 +22,7 @@ import { payrollRouter } from "./routes/payroll";
 import { startRecurringProcessor } from "./jobs/recurring-processor";
 import { startBillReminderChecker } from "./jobs/bill-reminder-checker";
 import { startRetentionJob } from "./jobs/retention";
+import { startEmailSyncJob } from "./jobs/email-sync";
 import { debugRouter } from "./routes/debug";
 import { aiRouter } from "./routes/ai";
 import { achievementsRouter } from "./routes/achievements";
@@ -30,7 +31,7 @@ import { plaidRouter } from "./routes/plaid";
 import { ratesRouter } from "./routes/rates";
 import { meRouter } from "./routes/me";
 import { revenueCatRouter } from "./routes/revenuecat";
-import { emailRouter } from "./routes/email";
+import { emailRouter, isPublicEmailPath } from "./routes/email";
 import { syncRouter } from "./routes/sync";
 import { installErrorHandlers } from "./lib/http-errors";
 import { prisma } from "./prisma";
@@ -101,8 +102,11 @@ installErrorHandlers(app, { isProduction: env.NODE_ENV === "production" });
 // Skipped for /api/auth/* because BetterAuth's own handler resolves the session
 // itself; calling auth.api.getSession() here is redundant DB work and consumes
 // the 5s timeout budget that should be available to auth.handler.
+// Skipped too for the email OAuth callback and the inbound-mail webhook, which
+// never act on a session: the callback's user is named by its OAuth state, the
+// webhook is the mail worker's (routes/email.ts).
 app.use("*", async (c, next) => {
-  if (c.req.path.startsWith("/api/auth/")) {
+  if (c.req.path.startsWith("/api/auth/") || isPublicEmailPath(c.req.path)) {
     c.set("user", null);
     c.set("session", null);
     return next();
@@ -249,6 +253,7 @@ if (import.meta.main) {
   startRecurringProcessor();
   startBillReminderChecker();
   startRetentionJob();
+  startEmailSyncJob();
 }
 
 const port = Number(process.env.PORT) || 3000;

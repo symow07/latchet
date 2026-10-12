@@ -1,7 +1,15 @@
-import { test, expect } from "bun:test";
-import { parseInboundToken, isGmailForwardConfirm, extractConfirmationCode } from "./inbound-email";
+import { test, expect, afterEach } from "bun:test";
+import {
+  decodeBase64Message,
+  extractConfirmationCode,
+  isGmailForwardConfirm,
+  legacyPayloadToMime,
+  parseInboundToken,
+} from "./inbound-email";
+import { parseMime } from "./email-parse";
+import worker from "../../docs/inbound-email-worker.js";
 
-// ── parseInboundToken ────────────────────────────────────────────────────────
+// ── Routing and Gmail's confirmation ─────────────────────────────────────────
 
 test("extracts token from a bare address", () => {
   expect(parseInboundToken("u_ab12cd34@in.example.com")).toBe("ab12cd34");
@@ -19,9 +27,8 @@ test("returns null for non-matching recipients", () => {
   expect(parseInboundToken("someone@example.com")).toBeNull();
   expect(parseInboundToken("")).toBeNull();
   expect(parseInboundToken("user_x@example.com")).toBeNull();
+  expect(parseInboundToken("menu_ab12cd34@example.com")).toBeNull();
 });
-
-// ── isGmailForwardConfirm ────────────────────────────────────────────────────
 
 test("detects Gmail confirmation by sender", () => {
   expect(isGmailForwardConfirm("forwarding-noreply@google.com", "anything")).toBe(true);
@@ -36,8 +43,6 @@ test("regular receipts are not confirmations", () => {
   expect(isGmailForwardConfirm("billing@netflix.com", "Your Netflix receipt")).toBe(false);
 });
 
-// ── extractConfirmationCode ──────────────────────────────────────────────────
-
 test("pulls the numeric code from subject or body", () => {
   expect(extractConfirmationCode("(#584031299) Gmail Forwarding Confirmation", "")).toBe("584031299");
   expect(extractConfirmationCode("Confirmation", "your code is 123456 — enter it in Gmail")).toBe("123456");
@@ -47,70 +52,197 @@ test("ignores short numbers and returns null when absent", () => {
   expect(extractConfirmationCode("Order 42", "totally 99 problems")).toBeNull();
 });
 
-// ── Subject sanitising ───────────────────────────────────────────────────────
+// ── The payload ──────────────────────────────────────────────────────────────
 
-import { sanitizeSubjectLabel, senderDomain } from "./inbound-email";
-
-test("order numbers and amounts are stripped from the label", () => {
-  // The exact shape the policy promised we would not keep.
-  expect(sanitizeSubjectLabel("Your receipt for order #114-2937461 — $84.32")).toBe(
-    "Your receipt for order"
-  );
+test("forwarding: the raw message comes back byte for byte from the worker's base64", () => {
+  const bytes = new Uint8Array([0x46, 0x72, 0x6f, 0x6d, 0x3a, 0x20, 0xe9, 0x80, 0x00, 0xff, 0x0d, 0x0a]);
+  const b64 = Buffer.from(bytes).toString("base64");
+  expect(Buffer.from(decodeBase64Message(b64)!).equals(Buffer.from(bytes))).toBe(true);
+  expect(Buffer.from(decodeBase64Message(Buffer.from(bytes).toString("base64url"))!).equals(Buffer.from(bytes))).toBe(true);
+  expect(Buffer.from(decodeBase64Message(b64.replace(/(.{4})/g, "$1\r\n"))!).equals(Buffer.from(bytes))).toBe(true);
+  expect(decodeBase64Message("")).toBeNull();
+  expect(decodeBase64Message("not base64!")).toBeNull();
 });
 
-test("the merchant-identifying words survive", () => {
-  expect(sanitizeSubjectLabel("Netflix subscription renewal")).toBe(
-    "Netflix subscription renewal"
-  );
-  expect(sanitizeSubjectLabel("Your Spotify Premium invoice")).toBe(
-    "Your Spotify Premium invoice"
-  );
+test("forwarding: an old worker's decoded fields become a message the parser reads, with no header injection", async () => {
+  const raw = legacyPayloadToMime({
+    from: "Café Crème <billing@cafe-creme.fr>",
+    subject: "Votre reçu\r\nBcc: victim@example.com",
+    text: "Montant payé : 4,50 €",
+  });
+  const msg = await parseMime(raw);
+  expect(msg.fromAddress).toBe("billing@cafe-creme.fr");
+  expect(msg.fromName).toBe("Café Crème");
+  expect(msg.subject).toBe("Votre reçu Bcc: victim@example.com");
+  expect(msg.text).toContain("4,50 €");
+  expect(Buffer.from(raw).toString("utf8")).not.toMatch(/^Bcc:/m);
 });
 
-test("account fragments and invoice references do not survive", () => {
-  expect(sanitizeSubjectLabel("Invoice INV-99213 for account ending 4412")).not.toMatch(/\d/);
-  expect(sanitizeSubjectLabel("Payment of £12.99 received")).not.toMatch(/\d/);
+// ── The Cloudflare Email Worker, under bun with a fake message ───────────────
+
+const realFetch = globalThis.fetch;
+afterEach(() => {
+  globalThis.fetch = realFetch;
 });
 
-test("no digit ever survives, whatever the shape", () => {
-  for (const s of [
-    "Receipt 2026-08-19",
-    "Order no. 8891123",
-    "Your card ending in 0042 was charged",
-    "Renewal — 1 year — €119,88",
-  ]) {
-    expect(sanitizeSubjectLabel(s)).not.toMatch(/\d/);
+/** A message as Cloudflare hands it to `email()`. */
+function cfMessage(to: string, raw: Uint8Array) {
+  const seen = { rejected: null as string | null, forwarded: [] as string[] };
+  const message = {
+    to,
+    from: "sender@example.com",
+    raw: new Response(raw).body,
+    rawSize: raw.byteLength,
+    headers: new Headers({ from: "Netflix <info@account.netflix.com>" }),
+    setReject(reason: string) {
+      seen.rejected = reason;
+    },
+    async forward(address: string) {
+      seen.forwarded.push(address);
+    },
+  };
+  return { message, seen };
+}
+
+/** A Workers KV namespace in memory. */
+function kv() {
+  const store = new Map<string, string>();
+  return {
+    store,
+    async put(k: string, v: string) {
+      store.set(k, v);
+    },
+    async get(k: string) {
+      return store.get(k) ?? null;
+    },
+    async delete(k: string) {
+      store.delete(k);
+    },
+    async list({ prefix, limit }: { prefix: string; limit: number }) {
+      return { keys: [...store.keys()].filter((k) => k.startsWith(prefix)).sort().slice(0, limit).map((name) => ({ name })) };
+    },
+  };
+}
+
+type Call = { url: string; headers: Headers; body: { to: string; raw: string } };
+/** Stub fetch: answers in order (a status, or "down" for a network error), recording each call. */
+function backend(answers: (number | "down" | { status: number; json: unknown })[]) {
+  const calls: Call[] = [];
+  globalThis.fetch = (async (url: string, init: RequestInit) => {
+    calls.push({ url, headers: new Headers(init.headers), body: JSON.parse(String(init.body)) });
+    const a = answers.length > 1 ? answers.shift()! : answers[0]!;
+    if (a === "down") throw new TypeError("fetch failed");
+    if (typeof a === "number") return new Response(JSON.stringify({}), { status: a });
+    return new Response(JSON.stringify(a.json), { status: a.status });
+  }) as typeof fetch;
+  return calls;
+}
+
+const ENV = { BACKEND_URL: "https://budget.example/", INBOUND_SECRET: "s3cret", RETRY_DELAYS_MS: "0,0,0" };
+// A real message with non-ASCII bytes in an 8-bit body: the worker must not touch them.
+const RAW = new Uint8Array(Buffer.concat([
+  Buffer.from("From: Netflix <info@account.netflix.com>\r\nSubject: Your receipt\r\nContent-Type: text/plain; charset=ISO-8859-1\r\nContent-Transfer-Encoding: 8bit\r\n\r\nMontant : 13,49 "),
+  Buffer.from([0xa4, 0xe9, 0x0d, 0x0a]),
+]));
+const TO = "u_ab12cd34ef56ab12cd@in.budget.example";
+
+test("forwarding: the worker posts the raw message untouched, base64, with the shared secret", async () => {
+  const calls = backend([200]);
+  const { message, seen } = cfMessage(TO, RAW);
+  await worker.email(message, ENV);
+  expect(calls.length).toBe(1);
+  expect(calls[0]!.url).toBe("https://budget.example/api/v1/email/inbound");
+  expect(calls[0]!.headers.get("x-inbound-secret")).toBe("s3cret");
+  expect(calls[0]!.body.to).toBe(TO);
+  expect(Buffer.from(calls[0]!.body.raw, "base64").equals(Buffer.from(RAW))).toBe(true);
+  expect(seen).toEqual({ rejected: null, forwarded: [] });
+});
+
+test("forwarding: the worker retries a sleeping or failing backend instead of bouncing", async () => {
+  const calls = backend(["down", 503, 200]);
+  const { message, seen } = cfMessage(TO, RAW);
+  await worker.email(message, ENV);
+  expect(calls.length).toBe(3);
+  expect(seen.rejected).toBeNull();
+});
+
+test("forwarding: during an outage the message is parked, then the cron delivers it — never a bounce", async () => {
+  const PARKED = kv();
+  backend([503]);
+  const { message, seen } = cfMessage(TO, RAW);
+  await worker.email(message, { ...ENV, PARKED });
+  expect(seen.rejected).toBeNull();
+  expect(PARKED.store.size).toBe(1);
+  const parked = JSON.parse([...PARKED.store.values()][0]!);
+  expect(Buffer.from(parked.raw, "base64").equals(Buffer.from(RAW))).toBe(true);
+
+  // Still down at the next cron: kept.
+  backend(["down"]);
+  await worker.scheduled({}, { ...ENV, PARKED });
+  expect(PARKED.store.size).toBe(1);
+  // Back up: delivered once and removed.
+  const calls = backend([200]);
+  await worker.scheduled({}, { ...ENV, PARKED });
+  expect(calls.length).toBe(1);
+  expect(calls[0]!.body).toEqual(parked);
+  expect(PARKED.store.size).toBe(0);
+});
+
+test("forwarding: the worker rejects only addresses that are not ours", async () => {
+  // Not a Budget address at all: refused without asking the backend.
+  let calls = backend([200]);
+  for (const to of ["postmaster@in.budget.example", "u_@in.budget.example", "u_ab12cd34ef56ab12cd@other.example"]) {
+    const { message, seen } = cfMessage(to, RAW);
+    await worker.email(message, { ...ENV, INBOUND_DOMAIN: "in.budget.example" });
+    expect(seen.rejected).toBe("Address does not exist");
+  }
+  expect(calls.length).toBe(0);
+
+  // A well-formed address no user has: the backend says so, and only then is it refused.
+  calls = backend([{ status: 404, json: { error: "unknown_recipient" } }]);
+  const unknown = cfMessage(TO, RAW);
+  await worker.email(unknown.message, ENV);
+  expect(unknown.seen.rejected).toBe("Address does not exist");
+  expect(calls.length).toBe(1);
+
+  // Our own misconfiguration (a wrong secret, a wrong URL) is not the sender's problem: kept.
+  for (const answer of [401, 404, 400]) {
+    const PARKED = kv();
+    backend([answer]);
+    const { message, seen } = cfMessage(TO, RAW);
+    await worker.email(message, { ...ENV, PARKED });
+    expect(seen.rejected).toBeNull();
+    expect(PARKED.store.size).toBe(1);
   }
 });
 
-test("labels are capped and never end mid-word", () => {
-  const long = "Thank you for your purchase from the wonderful and extremely verbose merchant name";
-  const label = sanitizeSubjectLabel(long, 40);
-
-  expect(label.length).toBeLessThanOrEqual(40);
-  expect(long.startsWith(label)).toBe(true);
-  expect(label.endsWith(" ")).toBe(false);
+test("forwarding: without a KV namespace the message goes to the fallback mailbox", async () => {
+  backend(["down"]);
+  const { message, seen } = cfMessage(TO, RAW);
+  await worker.email(message, { ...ENV, FALLBACK_FORWARD: "ops@budget.example" });
+  expect(seen).toEqual({ rejected: null, forwarded: ["ops@budget.example"] });
 });
 
-test("orphaned punctuation is trimmed", () => {
-  expect(sanitizeSubjectLabel("Receipt — #12345")).toBe("Receipt");
-  expect(sanitizeSubjectLabel("  - Invoice 900 -  ")).toBe("Invoice");
+test("forwarding: with nowhere to keep it, the worker throws rather than reject the mail", async () => {
+  backend([500]);
+  const { message, seen } = cfMessage(TO, RAW);
+  await expect(worker.email(message, ENV)).rejects.toThrow("Budget backend unavailable");
+  expect(seen.rejected).toBeNull();
 });
 
-test("an empty or all-numeric subject yields an empty label", () => {
-  expect(sanitizeSubjectLabel("")).toBe("");
-  expect(sanitizeSubjectLabel("   ")).toBe("");
-  expect(sanitizeSubjectLabel("#4402911")).toBe("");
-});
-
-test("the sender domain identifies the merchant without the address", () => {
-  expect(senderDomain("billing@netflix.com")).toBe("netflix.com");
-  expect(senderDomain("Netflix <no-reply@netflix.com>")).toBe("netflix.com");
-  expect(senderDomain("receipts@mail.spotify.co.uk")).toBe("mail.spotify.co.uk");
-  expect(senderDomain("BILLING@Netflix.COM")).toBe("netflix.com");
-});
-
-test("a malformed sender yields nothing rather than garbage", () => {
-  expect(senderDomain("not an address")).toBeNull();
-  expect(senderDomain("")).toBeNull();
+test("forwarding: without a native encoder the worker's plain-JS base64 gives the same bytes", async () => {
+  const native = Object.getOwnPropertyDescriptor(Uint8Array.prototype, "toBase64");
+  const NodeBuffer = globalThis.Buffer;
+  const big = new Uint8Array(200_000).map((_, i) => (i * 7919) % 256);
+  const calls = backend([200]);
+  const { message } = cfMessage(TO, big);
+  try {
+    if (native) delete (Uint8Array.prototype as { toBase64?: unknown }).toBase64;
+    (globalThis as { Buffer?: unknown }).Buffer = undefined;
+    await worker.email(message, ENV);
+  } finally {
+    if (native) Object.defineProperty(Uint8Array.prototype, "toBase64", native);
+    (globalThis as { Buffer?: unknown }).Buffer = NodeBuffer;
+  }
+  expect(Buffer.from(calls[0]!.body.raw, "base64").equals(Buffer.from(big))).toBe(true);
 });

@@ -14,9 +14,13 @@ import { TOMBSTONE_RETENTION_DAYS } from "../lib/sync/constants";
  *
  * What is kept and for how long:
  *
- *   Forwarded emails   90 days. Long enough to spot an annual renewal cycle;
- *                      the subscription detected from one is stored separately
- *                      and is unaffected.
+ *   Email findings     90 days from when they were stored (InboxEmail.receivedAt),
+ *                      whatever their source — forwarded, or read from Gmail or
+ *                      Outlook — and however old the email was (a first sync
+ *                      reads a year back). The phone pulls them within that
+ *                      time, and the subscriptions detected from them
+ *                      are synced rows of their own, so nothing is lost when an
+ *                      old finding goes. (PRIVACY.md promises 90 days.)
  *   Confirmation codes 24 hours. A Gmail forwarding code is useful for minutes.
  *   Expired sessions   7 days past expiry, so a support question about a
  *                      recent sign-in is still answerable.

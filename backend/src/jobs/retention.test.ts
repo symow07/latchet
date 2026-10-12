@@ -35,7 +35,7 @@ const daysBefore = (from: Date, cutoff: Date) =>
 const hoursBefore = (from: Date, cutoff: Date) =>
   Math.round((from.getTime() - cutoff.getTime()) / 3_600_000);
 
-test("forwarded emails are kept for 90 days", () => {
+test("email findings are kept for 90 days from when they were stored", () => {
   const { deps, cutoffs } = spyDeps();
   return enforceRetention(deps, NOW).then(() => {
     expect(daysBefore(NOW, cutoffs.inbox!)).toBe(INBOX_RETENTION_DAYS);

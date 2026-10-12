@@ -1,7 +1,12 @@
 import { test, expect, beforeAll, afterAll } from "bun:test";
 import { Hono } from "hono";
 import { prisma } from "../prisma";
-import { meRouter } from "./me";
+import { meRouter, deletionDeps } from "./me";
+import { deleteAccount } from "../lib/account-deletion";
+import { processCipher } from "../lib/email-providers";
+import { gmailProvider } from "../lib/email-providers/gmail";
+import { recordGrant, userKeyFor } from "../lib/email-providers/oauth";
+import { startFake, TEST_CONFIG } from "../lib/email-providers/test-fakes";
 
 /**
  * PUT /me/timezone (Phase 5 decision 1): the time zone the user's phone
@@ -86,4 +91,40 @@ test("user's local day: setting the time zone requires a session", async () => {
   actingAs = "";
   expect((await putZone({ timeZone: "Europe/Paris" })).status).toBe(401);
   expect(await storedZone()).toBe("Africa/Casablanca");
+});
+
+// ── Account deletion's real steps, with mailboxes ────────────────────────────
+
+test("revocation: deleting the account revokes Gmail at Google, names Outlook, and keeps only the lifetime Gmail ledger", async () => {
+  const id = `${U}_del`;
+  const now = new Date();
+  await prisma.user.create({ data: { id, name: id, email: `${id}@x.test`, createdAt: now, updatedAt: now } });
+  const fake = startFake({ codeD: { gmailAddress: "del@gmail.com", gmail: [], outlook: [] } });
+  const grant = await gmailProvider(TEST_CONFIG.google!, fake.http).exchangeCode({ code: "codeD", codeVerifier: "v".repeat(43), redirectUri: "r" });
+  const gmail = await prisma.emailConnection.create({
+    data: { userId: id, provider: "gmail", email: "del@gmail.com", refreshTokenEnc: processCipher.encrypt(grant.refreshToken!) },
+  });
+  await prisma.emailConnection.create({
+    data: { userId: id, provider: "outlook", email: "del@outlook.com", refreshTokenEnc: processCipher.encrypt("m-refresh-x") },
+  });
+  await prisma.inboxEmail.create({ data: { userId: id, connectionId: gmail.id, source: "gmail", kind: "renewal", messageKey: `${id}-k` } });
+  await recordGrant("gmail", id);
+
+  try {
+    const result = await deleteAccount(id, deletionDeps({ http: fake.http, cipher: processCipher }));
+    expect(fake.log.googleRevoked).toEqual([grant.refreshToken!]);
+    expect(result).toEqual({
+      deleted: true,
+      revoked: { banks: 0, inboxes: 1 },
+      unrevoked: [{ kind: "email", label: "del@outlook.com", manualRevokeUrl: "https://account.live.com/consent/Manage" }],
+    });
+    expect(await prisma.user.count({ where: { id } })).toBe(0);
+    expect(await prisma.emailConnection.count({ where: { userId: id } })).toBe(0);
+    expect(await prisma.inboxEmail.count({ where: { userId: id } })).toBe(0);
+    // Google counts the user for life; so does the cap's ledger.
+    expect(await prisma.emailOAuthGrant.count({ where: { provider: "gmail", userKey: userKeyFor(id) } })).toBe(1);
+  } finally {
+    await prisma.user.deleteMany({ where: { id } });
+    await prisma.emailOAuthGrant.deleteMany({ where: { userKey: userKeyFor(id) } });
+  }
 });

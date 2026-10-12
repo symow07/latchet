@@ -18,6 +18,7 @@ import {
   confirmationMatches,
   type DeletionDeps,
 } from "../lib/account-deletion";
+import { emailServicesFromEnv, revokeConnection, type EmailServices } from "../lib/email-providers";
 
 const router = new Hono<{
   Variables: {
@@ -173,14 +174,39 @@ const deleteSchema = z.object({
   confirmEmail: z.string().min(1).max(320),
 });
 
-const prismaDeps: DeletionDeps = {
+/**
+ * The real deletion steps. `email` is how mailbox grants are revoked: the
+ * process's providers, or a test's fake.
+ */
+export const deletionDeps = (email: Pick<EmailServices, "http" | "cipher"> = emailServicesFromEnv()): DeletionDeps => ({
   async loadTargets(userId) {
-    const plaidItems = await prisma.plaidItem.findMany({
-      where: { userId },
-      select: { id: true, accessTokenEnc: true, institutionName: true },
-    });
-    return { plaidItems };
+    const [plaidItems, mailboxes] = await Promise.all([
+      prisma.plaidItem.findMany({
+        where: { userId },
+        select: { id: true, accessTokenEnc: true, institutionName: true },
+      }),
+      prisma.emailConnection.findMany({
+        where: { userId, provider: { in: ["gmail", "outlook"] } },
+        orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+        select: { id: true, provider: true, email: true, refreshTokenEnc: true },
+      }),
+    ]);
+    return {
+      plaidItems,
+      emailConnections: mailboxes.map((m) => ({
+        id: m.id,
+        provider: m.provider,
+        address: m.email,
+        refreshTokenEnc: m.refreshTokenEnc,
+      })),
+    };
   },
+
+  // Google: revoked through its endpoint. Outlook: Microsoft offers no
+  // revocation a server can call for personal accounts, so it is reported
+  // with the page where the user removes the consent.
+  revokeEmailGrant: (target) =>
+    revokeConnection(target, { http: email.http, cipher: email.cipher }),
 
   async revokePlaidItem(accessTokenEnc) {
     const provider = getProvider(DEFAULT_PROVIDER_ID);
@@ -197,9 +223,13 @@ const prismaDeps: DeletionDeps = {
     // reminders, recurring rules, net worth, category budgets, achievements,
     // push tokens, Plaid items and accounts, email connections, inbox emails,
     // owned business, team memberships, expenses and salaries with it.
+    // EmailOAuthGrant has no relation to User on purpose: Google's cap on an
+    // unverified app counts users for life, and so does our ledger.
     await prisma.user.delete({ where: { id: userId } });
   },
-};
+});
+
+const prismaDeps = deletionDeps();
 
 /**
  * Delete the account and everything belonging to it.
