@@ -43,6 +43,10 @@ model User {
   /// RevenueCat's app_user_id. Equals `id` once the client calls setUserId,
   /// which is what lets a webhook find the account a purchase belongs to.
   revenueCatUserId      String?
+  /// The IANA time zone the user's phone last reported (PUT /me/timezone).
+  /// The server's "today" for this user — recurring bookings, bill reminders —
+  /// is their local date in it (lib/user-day.ts); null means UTC.
+  timezone              String?
   createdAt             DateTime               @default(now())
   updatedAt             DateTime               @updatedAt
   sessions              Session[]

@@ -163,9 +163,11 @@ router.put("/:id", zValidator("json", recurringUpdateSchema), async (c) => {
 // Replaces what the app used to do itself: post a transaction and then set
 // nextDate to today, after which the job booked a second one. This books
 // through the job's own code (jobs/recurring-booking.ts) under the job's own
-// occurrence id, tx_rec_<id>_<YYYY-MM-DD> (UTC), so the two can never both
-// book a day, on one instance or several. The booked row, and the series
-// moved past today, reach the phone through sync like any server write.
+// occurrence id, tx_rec_<id>_<YYYY-MM-DD>, so the two can never both book a
+// day, on one instance or several. The date is the user's own: today in the
+// time zone their phone reported (PUT /me/timezone), UTC's until it has
+// (Phase 5 decision 1). The booked row, and the series moved past today,
+// reach the phone through sync like any server write.
 //
 // 201 { transactionId, nextDate } when this call booked it; 200 with the same
 // id when today's occurrence was already booked. A series that is not the

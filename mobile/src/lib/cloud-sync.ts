@@ -16,6 +16,12 @@
  *   - leaving for the background, if a local write is still waiting to go
  *   - sign-out                   flushBeforeSignOut()
  *
+ * Beside the sync, the same triggers report the phone's time zone to the
+ * server (lib/timezone-report.ts), which dates recurring bookings and bill
+ * reminders by the user's own day: after activation, then whenever it has
+ * changed, checked as the app comes to the front and on the interval. Fire
+ * and forget: a failed report waits for the next trigger and blocks nothing.
+ *
  * Every outbound payload goes through redactDeviceOnly (sync-redaction.ts).
  *
  * A sync belongs to one user's database. The engine is created for the user
@@ -37,6 +43,7 @@ import {
   type SyncTransport,
 } from './sync/protocol';
 import { createSqliteSyncStore, type SyncDbAccess, type SyncSqlDb } from './sync/sqlite-store';
+import { createTimezoneReporter, deviceTimeZone } from './timezone-report';
 
 export type { SyncReport };
 
@@ -167,6 +174,27 @@ function afterCycle(report: SyncReport): SyncReport {
 }
 
 /**
+ * The phone's time zone, reported for the signed-in user (PUT /me/timezone).
+ * Not while sign-out is under way: that user is leaving.
+ */
+const timezoneReporter = createTimezoneReporter({
+  userId: () => {
+    const userId = activeUserId();
+    return session?.userId === userId && session.suspended ? null : userId;
+  },
+  zone: deviceTimeZone,
+  // Like every payload this file sends: it carries nothing device-only, and
+  // stays that way by construction (sync-redaction.ts).
+  send: (timeZone) => api.put('/api/v1/me/timezone', redactDeviceOnly({ timeZone })),
+  // A 400 is the server refusing this zone; anything else may pass.
+  isRejected: (e) => e instanceof ApiError && e.status === 400,
+});
+
+function reportTimezone(): void {
+  void timezoneReporter.report();
+}
+
+/**
  * Run a sync cycle that starts now or after the one in progress, and resolve
  * with its report. Null when nobody is signed in, or sign-out has begun.
  */
@@ -227,7 +255,10 @@ function scheduleAfterLocalChange(): void {
 
 function startInterval(): void {
   if (intervalTimer) return;
-  intervalTimer = setInterval(syncSoon, SYNC_INTERVAL_MS);
+  intervalTimer = setInterval(() => {
+    syncSoon();
+    reportTimezone();
+  }, SYNC_INTERVAL_MS);
 }
 
 function stopInterval(): void {
@@ -275,6 +306,7 @@ export interface CloudSyncOptions {
  * Wire the triggers for the active user. The root layout starts this once
  * that user's database is ready and calls the returned teardown when the user
  * changes, so no timer set for one user fires into the next one's session.
+ * Starting it is the activation: the phone's time zone is reported here.
  */
 export function startCloudSync(options: CloudSyncOptions = {}): () => void {
   unsubscribeAll?.();
@@ -286,6 +318,8 @@ export function startCloudSync(options: CloudSyncOptions = {}): () => void {
     if (state === 'active') {
       startInterval();
       syncSoon();
+      // The zone may have changed while the app was away (a flight).
+      reportTimezone();
     } else if (state === 'background') {
       stopInterval();
       // A write still waiting for its debounce goes now, while iOS still
@@ -295,6 +329,8 @@ export function startCloudSync(options: CloudSyncOptions = {}): () => void {
   };
   const appState = AppState.addEventListener('change', onAppStateChange);
   if (AppState.currentState === 'active') startInterval();
+  // Activation: this user's database is open, so the server learns where they are.
+  reportTimezone();
 
   const teardown = () => {
     stopLocal();

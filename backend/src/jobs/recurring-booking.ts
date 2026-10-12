@@ -1,25 +1,35 @@
 import type { Prisma, PrismaClient, RecurringTransaction } from "@prisma/client";
 import { prisma } from "../prisma";
 import { anchorDayOf, computeNextDate } from "../lib/recurrence";
-import { dbNow, dbToday } from "../lib/distributed/clock";
+import { dbNow } from "../lib/distributed/clock";
+import { userToday } from "../lib/user-day";
 
 /**
  * Booking one occurrence of a recurring transaction — the one piece of code
  * both the recurring job and "run now" (POST /recurring/:id/run) go through,
  * so the two can never book the same day twice.
  *
- * An occurrence is named by its series and its UTC date, tx_rec_<id>_<date>,
- * and the date comes from the database's clock: two instances whose clocks
+ * An occurrence is named by its series and the owner's own calendar date,
+ * tx_rec_<id>_<date> (Phase 5 decision 1): the date in the time zone their
+ * phone reported (User.timezone), or UTC's when it has not. The instant that
+ * date is read at comes from the database's clock: two instances whose clocks
  * straddle midnight would otherwise name one occurrence two ways.
  *
  * Booking is a claim, then an insert, in one transaction. The claim is a
  * conditional update of the series row — "set lastCreated to today, where
- * lastCreated is not already today and the row is still what I read" — so of
- * any number of instances (or a job tick and a tap on "run now") racing for the
+ * lastCreated is before today and the row is still what I read" — so of any
+ * number of instances (or a job tick and a tap on "run now") racing for the
  * same occurrence, exactly one updates the row and books it; the others' update
  * matches nothing once the winner commits. The insert also skips an id that
  * already exists, so even a series whose lastCreated was edited back cannot
  * produce a second row for the same day.
+ *
+ * "Before today", not "other than today": a user's day can go backwards. A
+ * phone that reports a zone west of the one it reported before (or of UTC,
+ * for a series booked before it ever reported) makes today a date earlier
+ * than one already booked. That day has had its occurrence; booking the
+ * earlier date as well would charge it twice. The series waits until its own
+ * calendar passes the last booking (bookedThrough).
  *
  * "Still what I read" covers every field the booking copies, not only
  * nextDate: an edit that lands between the read and the claim (a sync push, a
@@ -41,6 +51,30 @@ import { dbNow, dbToday } from "../lib/distributed/clock";
 
 export function occurrenceId(recurringId: string, dateISO: string): string {
   return `tx_rec_${recurringId}_${dateISO}`;
+}
+
+/**
+ * Whether a series whose last booking was `lastCreated` has had its
+ * occurrence for `today` — or for a later date, when the user's day has gone
+ * backwards since (a zone further west). Either way nothing is booked today.
+ * Dates are YYYY-MM-DD, so string order is date order.
+ */
+export function bookedThrough(lastCreated: string | null, today: string): boolean {
+  return lastCreated !== null && lastCreated >= today;
+}
+
+/** The claim's half of bookedThrough: rows whose last booking is before `today`. */
+function notBookedThrough(today: string): Prisma.RecurringTransactionWhereInput {
+  return { OR: [{ lastCreated: null }, { lastCreated: { lt: today } }] };
+}
+
+/**
+ * `userId`'s today at `now`: their calendar date in the time zone their
+ * phone last reported, or UTC's (lib/user-day.ts).
+ */
+export async function userTodayOf(db: PrismaClient, userId: string, now: Date): Promise<string> {
+  const user = await db.user.findUnique({ where: { id: userId }, select: { timezone: true } });
+  return userToday(user?.timezone, now);
 }
 
 /**
@@ -106,9 +140,10 @@ export async function bookingAccountId(
 }
 
 /**
- * Claim `rec`'s occurrence for `today` and book it, moving the series on to
- * `nextDate`. Claims only while the row is still exactly what `rec` was read
- * as (and, for the job, is still active), so a stale read books nothing.
+ * Claim `rec`'s occurrence for `today` (the owner's own date) and book it,
+ * moving the series on to `nextDate`. Claims only while the row is still
+ * exactly what `rec` was read as (and, for the job, is still active), and has
+ * not been booked for today or later, so a stale read books nothing.
  */
 export async function bookOccurrence(
   rec: BookableRecurring,
@@ -136,7 +171,7 @@ export async function bookOccurrence(
         frequency: rec.frequency,
         startDate: rec.startDate,
         ...(opts.requireActive ? { isActive: true } : {}),
-        OR: [{ lastCreated: null }, { lastCreated: { not: today } }],
+        ...notBookedThrough(today),
       },
       data: { lastCreated: today, nextDate, clientUpdatedAt: now },
     });
@@ -177,46 +212,54 @@ export interface RunNowResult {
  * "Run now": book today's occurrence of the caller's own series and move it
  * on past today. Null when `id` is not a series of `userId`'s.
  *
- * The series restarts from today: nextDate becomes the first date after today
- * on its schedule (anchored on its start date, as the job does). This is what
- * the app used to ask for — it posted its own transaction and set nextDate to
- * today for the job to advance — without the second transaction the job then
- * booked on top of it.
+ * Today is the user's own (userTodayOf), read at the database's clock unless
+ * `opts.now` names the instant (tests). The series restarts from today:
+ * nextDate becomes the first date after today on its schedule (anchored on
+ * its start date, as the job does). This is what the app used to ask for —
+ * it posted its own transaction and set nextDate to today for the job to
+ * advance — without the second transaction the job then booked on top of it.
  *
  * Idempotent: when today's occurrence is already booked, by an earlier tap or
  * by the job, nothing new is booked and the existing id comes back with 200.
+ * So is a series booked for a later date than today — the user's day went
+ * backwards (bookedThrough): that occurrence is the one returned, and the
+ * series moves on past it.
  */
 export async function runRecurringNow(
   id: string,
   userId: string,
-  db: PrismaClient = prisma
+  db: PrismaClient = prisma,
+  opts: { now?: Date } = {}
 ): Promise<RunNowResult | null> {
-  const today = await dbToday(db);
-  const transactionId = occurrenceId(id, today);
+  const today = await userTodayOf(db, userId, opts.now ?? (await dbNow(db)));
 
   // A claim can lose to a concurrent write that moved nextDate (an edit, the
   // job); reading again and retrying settles it in a step or two.
   for (let attempt = 0; attempt < 5; attempt++) {
     const rec = await db.recurringTransaction.findFirst({ where: { id, userId } });
     if (!rec) return null;
-    const nextDate = computeNextDate(today, rec.frequency, anchorDayOf(rec.startDate));
+    const anchor = anchorDayOf(rec.startDate);
 
-    if (rec.lastCreated === today) {
+    if (rec.lastCreated !== null && bookedThrough(rec.lastCreated, today)) {
       // Booked already. The job may have booked an overdue series and moved it
-      // just one step, still on or before today; finish moving it.
-      if (rec.nextDate > today) return { status: 200, transactionId, nextDate: rec.nextDate };
+      // just one step, still on or before that day; finish moving it.
+      const bookedDay = rec.lastCreated;
+      const transactionId = occurrenceId(id, bookedDay);
+      if (rec.nextDate > bookedDay) return { status: 200, transactionId, nextDate: rec.nextDate };
+      const nextDate = computeNextDate(bookedDay, rec.frequency, anchor);
       // A server write like the claim: stamped by the database clock.
       const moved = await db.recurringTransaction.updateMany({
-        where: { id, nextDate: rec.nextDate, lastCreated: today },
+        where: { id, nextDate: rec.nextDate, lastCreated: bookedDay },
         data: { nextDate, clientUpdatedAt: await dbNow(db) },
       });
       if (moved.count === 1) return { status: 200, transactionId, nextDate };
       continue;
     }
 
+    const nextDate = computeNextDate(today, rec.frequency, anchor);
     const booking = await bookOccurrence(rec, today, nextDate, { requireActive: false, db });
     if (booking.claimed) {
-      return { status: booking.created ? 201 : 200, transactionId, nextDate };
+      return { status: booking.created ? 201 : 200, transactionId: occurrenceId(id, today), nextDate };
     }
   }
   throw new Error(`run-now for ${id} kept losing its claim to concurrent writes`);

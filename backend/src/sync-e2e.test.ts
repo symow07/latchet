@@ -1284,3 +1284,64 @@ describe("phase4 offline", () => {
     await quiet(p);
   }, TIMEOUT);
 });
+
+describe("phase5 time zone", () => {
+  /** 10:30 UTC on 12 October 2026: already 00:30 on the 13th at UTC+14. */
+  const AT = new Date("2026-10-12T10:30:00Z");
+  const ZONE = "Pacific/Kiritimati";
+
+  test("user's local day: a phone at UTC+14 reports its zone; the job books its series on the phone's own today, once, on both phones, and its bill is pushed in its language", async () => {
+    const user = await newUser("e2e-p5-zone");
+    const p1 = await phone(user, "phone 1");
+    const p2 = await phone(user, "phone 2");
+
+    // The phone's report (mobile lib/timezone-report.ts), through the real API.
+    expect((await request(app, user.session, "PUT", "/api/v1/me/timezone", { timeZone: "Mars/Olympus_Mons" })).status).toBe(400);
+    expect(await request(app, user.session, "PUT", "/api/v1/me/timezone", { timeZone: ZONE }))
+      .toMatchObject({ status: 200, json: { timeZone: ZONE } });
+
+    // Made on the phone for its own today, the 13th, while UTC's is the 12th;
+    // and its language and currency, synced like any setting.
+    const rent = await p1.write.addRecurring({
+      accountId: p1.defaultAccountId, name: "Rent", amount: 700, category: "Other", type: "Expense", isImpulse: false,
+      frequency: "monthly", startDate: "2026-10-13", nextDate: "2026-10-13", currency: "EUR",
+    });
+    const bill = await p1.write.addBillReminder({ name: "Power", amount: 64.5, dueDay: 13, category: "Other", isRecurring: true, nextDueDate: "2026-10-13" });
+    await p1.write.updateSettings({ locale: "fr", currency: "EUR", currencySymbol: "€" });
+    await synced(p1);
+
+    // The job, at that instant and again later the same local day.
+    expect(await processRecurring({ userIds: [user.id], now: AT })).toBe(1);
+    expect(await processRecurring({ userIds: [user.id], now: new Date("2026-10-13T08:00:00Z") })).toBe(0);
+    const booked = occurrence(rent, "2026-10-13");
+    expect(await serverTransactionIds(user.id)).toEqual([booked]);
+    expect(await serverTransaction(booked)).toMatchObject({ dateISO: "2026-10-13", amount: 700, accountId: p1.defaultAccountId });
+
+    // The bill: from nine in the morning of the 13th where the phone is.
+    const pushes: Array<{ title: string; body: string }> = [];
+    const checker = {
+      ...billReminderDeps,
+      findDueBills: async (day: string, start: Date) => (await billReminderDeps.findDueBills(day, start)).filter((b) => b.userId === user.id),
+      sendPush: async (_u: string, title: string, body: string) => {
+        pushes.push({ title, body });
+      },
+    };
+    await checkBillReminders(checker, { now: AT });
+    expect(pushes).toEqual([]);
+    await checkBillReminders(checker, { now: new Date("2026-10-12T19:30:00Z") });
+    await checkBillReminders(checker, { now: new Date("2026-10-13T08:00:00Z") });
+    expect(pushes).toEqual([{ title: "Facture à régler 💸", body: "« Power » — 64,50 € à régler aujourd’hui." }]);
+
+    for (const p of [p1, p2]) {
+      await synced(p);
+      expect(ids(await p.rows("transactions"))).toEqual([booked]);
+      expect(await p.row("transactions", booked)).toMatchObject({ dateISO: "2026-10-13", dirty: 0 });
+      expect(await p.row("recurring", rent)).toMatchObject({ lastCreated: "2026-10-13", nextDate: "2026-11-13", dirty: 0 });
+      expect(await p.row("billReminders", bill)).toMatchObject({ nextDueDate: "2026-11-13", dirty: 0 });
+      expect(await balances(p)).toEqual({ [p.defaultAccountId]: -700 });
+    }
+    expect(await p2.view()).toEqual(await p1.view());
+    await quiet(p1);
+    await quiet(p2);
+  }, TIMEOUT);
+});

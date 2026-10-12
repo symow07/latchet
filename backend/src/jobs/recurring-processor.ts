@@ -1,9 +1,10 @@
 import type { PrismaClient } from "@prisma/client";
 import { prisma } from "../prisma";
 import { computeNextDate, anchorDayOf } from "../lib/recurrence";
-import { dbToday } from "../lib/distributed/clock";
+import { dbNow } from "../lib/distributed/clock";
 import { withJobLease } from "../lib/distributed/lease";
-import { bookOccurrence } from "./recurring-booking";
+import { latestToday, userToday } from "../lib/user-day";
+import { bookOccurrence, bookedThrough } from "./recurring-booking";
 
 /** The lease every instance's tick competes for (lib/distributed/lease). */
 export const RECURRING_LEASE = "recurring-processor";
@@ -11,7 +12,10 @@ export const RECURRING_LEASE = "recurring-processor";
 const LEASE_TTL_MS = 2 * 60_000;
 
 /**
- * Book today's occurrence of every active series that is due.
+ * Book today's occurrence of every active series that is due, where today is
+ * each owner's own calendar date (Phase 5 decision 1): one tick serves users
+ * in every time zone, each by their own day, read at one instant of the
+ * database's clock (`opts.now` in tests).
  *
  * Each series is claimed before it is booked (jobs/recurring-booking.ts), so
  * this is safe to run on any number of instances at once: the lease keeps
@@ -28,25 +32,44 @@ export async function processRecurring(
     signal?: AbortSignal;
     /** Only these users' series. For tests, which share a database. */
     userIds?: string[];
+    /** The instant to book at, instead of the database's clock. For tests. */
+    now?: Date;
   } = {}
 ): Promise<number> {
   const db = opts.db ?? prisma;
-  const today = await dbToday(db);
+  const now = opts.now ?? (await dbNow(db));
+  // No one's today is later than this, so the query can be coarse; the exact
+  // cut is each owner's own today, below.
+  const latest = latestToday(now);
 
-  const due = await db.recurringTransaction.findMany({
+  const candidates = await db.recurringTransaction.findMany({
     where: {
       ...(opts.userIds ? { userId: { in: opts.userIds } } : {}),
       isActive: true,
-      nextDate: { lte: today },
-      // Already booked today: the claim would refuse it anyway.
-      OR: [{ lastCreated: null }, { lastCreated: { not: today } }],
+      nextDate: { lte: latest },
+      // Booked for the latest today or after: the claim would refuse it anyway.
+      OR: [{ lastCreated: null }, { lastCreated: { lt: latest } }],
     },
+    include: { user: { select: { timezone: true } } },
     orderBy: { id: "asc" },
   });
 
+  // One owner, one today, even across a tick that takes a while.
+  const todays = new Map<string, string>();
+  const todayOf = (userId: string, timeZone: string | null) => {
+    let today = todays.get(userId);
+    if (today === undefined) {
+      today = userToday(timeZone, now);
+      todays.set(userId, today);
+    }
+    return today;
+  };
+
   let booked = 0;
-  for (const rec of due) {
+  for (const { user, ...rec } of candidates) {
     if (opts.signal?.aborted) break;
+    const today = todayOf(rec.userId, user.timezone);
+    if (rec.nextDate > today || bookedThrough(rec.lastCreated, today)) continue;
     try {
       // Anchor on the series' start date: clamping to February must not
       // permanently shorten every month that follows.

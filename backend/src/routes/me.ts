@@ -12,6 +12,7 @@ import {
   fetchEntitlementFromRevenueCat,
 } from "../lib/user-entitlement";
 import { getProvider, DEFAULT_PROVIDER_ID } from "../lib/bank-providers";
+import { canonicalTimeZone, MAX_TIME_ZONE_LENGTH } from "../lib/user-day";
 import {
   deleteAccount,
   confirmationMatches,
@@ -41,6 +42,31 @@ router.get("/", async (c) => {
       expiresAt: state.expiresAt?.toISOString() ?? null,
     },
   });
+});
+
+const timeZoneSchema = z.object({
+  /** An IANA name, e.g. "Europe/Paris": what the phone's Intl reports. */
+  timeZone: z.string().min(1).max(MAX_TIME_ZONE_LENGTH),
+});
+
+/**
+ * The time zone the user's phone is in (Phase 5 decision 1). A device fact,
+ * not a synced setting: the phone reports it after it signs in and whenever
+ * it changes (mobile lib/timezone-report.ts). The server's "today" for this
+ * user — the date recurring occurrences are booked on, the day a bill
+ * reminder fires — is their local date in it (lib/user-day.ts).
+ *
+ * Stored in its canonical spelling; a name this server's tz database does not
+ * know is a 400, and the stored zone is left as it was.
+ */
+router.put("/timezone", zValidator("json", timeZoneSchema), async (c) => {
+  const user = c.get("user")!;
+  const timeZone = canonicalTimeZone(c.req.valid("json").timeZone);
+  if (!timeZone) {
+    return c.json({ error: "Unknown time zone", code: "invalid_timezone" }, 400);
+  }
+  await prisma.user.update({ where: { id: user.id }, data: { timezone: timeZone } });
+  return c.json({ timeZone });
 });
 
 /**
