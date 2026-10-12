@@ -11,10 +11,8 @@
 import { I18n } from 'i18n-js';
 import { enUS, fr as frLocale, zhCN, ar as arLocale, type Locale as DateFnsLocale } from 'date-fns/locale';
 
-import en from './locales/en.json';
-import fr from './locales/fr.json';
-import zh from './locales/zh.json';
-import ar from './locales/ar.json';
+// The base files plus the feature fragments (locales/catalog.ts).
+import { en, fr, zh, ar } from './locales/catalog';
 
 export const SUPPORTED_LOCALES = ['en', 'fr', 'zh', 'ar'] as const;
 export type AppLocale = (typeof SUPPORTED_LOCALES)[number];

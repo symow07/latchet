@@ -1,9 +1,8 @@
 import { test, expect } from 'bun:test';
 import { I18n } from 'i18n-js';
-import en from './locales/en.json';
-import fr from './locales/fr.json';
-import zh from './locales/zh.json';
-import ar from './locales/ar.json';
+// The full catalogue — base files and feature fragments — so every check
+// below covers the fragments too.
+import { en, fr, zh, ar, BASE, FRAGMENTS } from './locales/catalog';
 // The real configuration, plural rules and all — not a reimplementation.
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -634,3 +633,21 @@ test('Traditional tags narrow to Simplified rather than falling back to English'
   expect(normalizeLocale('zh-Hant-TW')).toBe('zh');
   expect(normalizeLocale('zh-HK')).toBe('zh');
 });
+
+// ── Fragments ────────────────────────────────────────────────────────────────
+
+test('a fragment never shadows a top-level key of the base files', () => {
+  const clashes = Object.keys(FRAGMENTS).filter((ns) =>
+    Object.values(BASE).some((base) => ns in base)
+  );
+  expect(clashes).toEqual([]);
+});
+
+test('every fragment carries all four languages', () => {
+  for (const [ns, fragment] of Object.entries(FRAGMENTS)) {
+    for (const lang of SUPPORTED_LOCALES) {
+      expect({ ns, lang, present: typeof fragment[lang] === 'object' }).toEqual({ ns, lang, present: true });
+    }
+  }
+});
+

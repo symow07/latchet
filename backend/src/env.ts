@@ -69,7 +69,9 @@ const envSchema = z.object({
   // boots without them; the Plaid routes return 503 until they are set.
   PLAID_CLIENT_ID: z.string().optional(),
   PLAID_SECRET: z.string().optional(),
-  PLAID_ENV: z.enum(["sandbox", "development", "production"]).optional().default("sandbox"),
+  // Plaid retired its "development" environment in 2024; sandbox is free and
+  // production needs Plaid's approval. Anything else refuses to boot.
+  PLAID_ENV: z.enum(["sandbox", "production"]).optional().default("sandbox"),
   // Countries this Plaid account is actually enabled for, comma-separated ISO
   // codes (e.g. "US,CA,GB,FR"). The Link flow narrows this by the user's own
   // currency; requesting a country the account is not enabled for errors, so
@@ -89,6 +91,41 @@ const envSchema = z.object({
   // Both optional → the forwarding endpoints 503 until configured.
   INBOUND_EMAIL_DOMAIN: z.string().optional(),
   INBOUND_EMAIL_SECRET: z.string().optional(),
+  // Inbox reading (routes/email.ts, lib/email-providers). Each provider is off
+  // until its OAuth client is set. The OAuth callback is
+  // ${BACKEND_URL}/api/v1/email/oauth/<gmail|outlook>/callback — register that
+  // exact URL with Google and Microsoft.
+  //
+  // Gmail uses the restricted gmail.readonly scope. Until Google verifies the
+  // app (which needs the paid security assessment), Google caps it at 100
+  // users for the app's lifetime and warns each user that the app is
+  // unverified. GOOGLE_OAUTH_VERIFIED=true lifts the app's own cap and its
+  // warning once Google has verified it; nothing else changes.
+  GOOGLE_CLIENT_ID: z.string().optional(),
+  GOOGLE_CLIENT_SECRET: z.string().optional(),
+  GOOGLE_OAUTH_VERIFIED: z.enum(["true", "false"]).optional().default("false"),
+  GMAIL_USER_CAP: z.string().regex(/^[1-9]\d*$/, "GMAIL_USER_CAP must be a positive whole number").optional().default("100"),
+  // Microsoft Graph, Mail.Read for personal Outlook.com accounts. "consumers"
+  // admits personal accounts only; "common" also admits work and school ones.
+  MICROSOFT_CLIENT_ID: z.string().optional(),
+  MICROSOFT_CLIENT_SECRET: z.string().optional(),
+  MICROSOFT_TENANT: z.string().optional().default("consumers"),
+  // How often the background job looks for new mail in each connected inbox
+  // while the server is awake. The app also asks for a sync when it opens.
+  EMAIL_SYNC_INTERVAL_MINUTES: z
+    .string()
+    .regex(/^\d+$/, "EMAIL_SYNC_INTERVAL_MINUTES must be a whole number of minutes")
+    .refine((v) => Number(v) >= 5, "EMAIL_SYNC_INTERVAL_MINUTES must be at least 5")
+    .optional()
+    .default("60"),
+  // Development and tests only: every Google and Microsoft call goes to this
+  // base URL instead — `https://oauth2.googleapis.com/token` becomes
+  // `${EMAIL_PROVIDER_BASE_OVERRIDE}/oauth2.googleapis.com/token` — so the
+  // whole inbox flow runs against a fake provider. Ignored in production.
+  EMAIL_PROVIDER_BASE_OVERRIDE: z.url().optional(),
+  // Development only: every user counts as Pro, so bank linking can be tried
+  // without a purchase. Ignored when NODE_ENV is production.
+  DEV_PRO_OVERRIDE: z.enum(["true", "false"]).optional().default("false"),
 })
   .superRefine((e, ctx) => {
     // A production server silently opening a developer default would come up
