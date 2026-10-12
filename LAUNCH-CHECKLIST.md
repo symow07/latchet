@@ -92,12 +92,16 @@ The listing needs a public URL, and App Review compares it with what the app doe
 
 ## 8. First device build and a walk-through on your iPhone (30–60 min) → tell me
 
-I'll start the build; Apple sign-in and registering your phone have to be you.
+I tried it on 12 October (`eas build --profile preview --platform ios --non-interactive`): it stops at "couldn't find any credentials suitable for internal distribution", because no device build has ever been set up. The first run has to be interactive, with your Apple sign-in. After that I can start builds myself.
 
-1. Register your iPhone with EAS: in `mobile/`, run `eas device:create`, choose **Website**, open the link it prints on your iPhone and install the profile it offers.
-2. Run `eas build --profile preview --platform ios`. When it asks, sign in with your Apple Developer account and let EAS create the distribution certificate and provisioning profile (it includes the device you just registered). The App Group `group.com.realbudget.app` must be enabled for the App ID — EAS will offer to do it.
-3. When the build finishes, open its page (it prints a link and a QR code) on your iPhone and install.
-4. Walk it, especially what the simulator can't test:
+1. Give EAS builds the RevenueCat public SDK keys (they're in your local `mobile/.env`, which EAS doesn't upload; public SDK keys aren't secret). In `mobile/`:
+   1. `eas env:create --name EXPO_PUBLIC_REVENUECAT_APPLE_KEY --value "<appl_… key>" --visibility plaintext --environment preview --environment production`
+   2. `eas env:create --name EXPO_PUBLIC_REVENUECAT_GOOGLE_KEY --value "<goog_… key>" --visibility plaintext --environment preview --environment production`
+   Without them the app runs, but Pro and the paywall are switched off in that build.
+2. Register your iPhone with EAS: in `mobile/`, run `eas device:create`, choose **Website**, open the link it prints on your iPhone and install the profile it offers.
+3. Run `eas build --profile preview --platform ios` (interactive). When it asks, sign in with your Apple Developer account and let EAS create the distribution certificate and the ad hoc provisioning profile (it includes the device you just registered). The App Group `group.com.realbudget.app` must be enabled for the App ID and the share extension — EAS will offer to do it.
+4. When the build finishes, open its page (it prints a link and a QR code) on your iPhone and install.
+5. Walk it, especially what the simulator can't test:
    1. Sign up, onboarding, add an expense, sign out and back in (data comes back).
    2. **Face ID** lock (Settings → security), then background and return.
    3. **Notifications**: allow them; add a bill due today and wait for the reminder; the quick-add notification action.
@@ -106,7 +110,7 @@ I'll start the build; Apple sign-in and registering your phone have to be you.
    6. **Voice**: hold to speak a spending.
    7. **Business mode**: create a business, add an expense, check Approve isn't offered on your own.
    8. Airplane mode: add a bill and a budget, turn it off again, check they sync.
-5. **→ tell me** what you saw, with a screenshot of anything wrong.
+6. **→ tell me** what you saw, with a screenshot of anything wrong.
 
 ## 9. App Store Connect listing (1–2 hours)
 
