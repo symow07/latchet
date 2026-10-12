@@ -1,15 +1,19 @@
 import { addWeeks, addMonths, addYears } from 'date-fns';
 import { api } from './api/api';
+import { request } from './api-errors';
 import { normalizeMerchant, displayMerchant } from './subscription-detection';
 import { findCancelEntry } from './cancel-directory';
 import { getSubscriptions, upsertSubscription, type Subscription } from './db';
-import type { DetectedSubscription } from './business-subscription-detection';
+import { cancelGuidanceFor, type DetectedSubscription } from './business-subscription-detection';
 
 /**
  * Client for email forwarding (backend routes/email.ts): the user forwards
  * billing emails to a private address, the server parses them, and
  * importInboxSubscriptions merges the results into the local SQLite store so
  * they flow through the existing subscriptions UI.
+ *
+ * The server calls reject with an ApiFailure (lib/api-errors), whose message
+ * is already in the reader's language.
  */
 
 export interface EmailSubscription {
@@ -43,25 +47,25 @@ export interface InboxItem {
 }
 
 export async function getEmailStatus(): Promise<EmailStatus> {
-  return api.get<EmailStatus>('/api/email/status');
+  return request(() => api.get<EmailStatus>('/api/email/status'));
 }
 
 // ── Forward-to-inbox ("inbox inside Budget") ─────────────────────────────────
 
 /** Provision (once) and return this user's private forwarding address. */
 export async function getInboxAddress(): Promise<{ address: string; verified: boolean }> {
-  return api.get<{ address: string; verified: boolean }>('/api/email/inbox-address');
+  return request(() => api.get<{ address: string; verified: boolean }>('/api/email/inbox-address'));
 }
 
 /** All parsed inbox items (invoices + Gmail confirmation codes), newest first. */
 export async function getInbox(): Promise<InboxItem[]> {
-  const { items } = await api.get<{ items: InboxItem[] }>('/api/email/inbox');
+  const { items } = await request(() => api.get<{ items: InboxItem[] }>('/api/email/inbox'));
   return items ?? [];
 }
 
 async function markInboxImported(ids: string[]): Promise<void> {
   if (ids.length === 0) return;
-  await api.post('/api/email/inbox/imported', { ids });
+  await request(() => api.post('/api/email/inbox/imported', { ids }));
 }
 
 /**
@@ -152,7 +156,10 @@ function monthlyize(amount: number, cadence: Subscription['cadence']): number {
 /** Convert an email-detected SQLite subscription into the business screen's
  *  DetectedSubscription shape so it can be merged into that view. */
 export function emailSubToDetected(sub: Subscription): DetectedSubscription {
-  const entry = findCancelEntry(sub.merchantNormalized);
+  // The same guidance the business screen gives a detected charge: the
+  // directory's steps for a known service, else the generic steps in the
+  // reader's language. This used to fall back to a sentence of English.
+  const cancel = cancelGuidanceFor(sub.merchantNormalized);
   return {
     key: sub.id,
     name: sub.merchantDisplay,
@@ -162,10 +169,8 @@ export function emailSubToDetected(sub: Subscription): DetectedSubscription {
     nextChargeDate: sub.nextExpectedAt ?? new Date(Date.now() + 30 * 86400000).toISOString(),
     isRecurring: true,
     monthlyCount: 1,
-    cancelInstructions:
-      entry?.steps.join(' → ') ??
-      'Visit the service\'s account or billing settings page and select "Cancel" or "End subscription".',
-    cancelUrl: sub.cancelUrl ?? entry?.cancelUrl,
+    cancelInstructions: cancel.instructions,
+    cancelUrl: sub.cancelUrl ?? cancel.url,
   };
 }
 

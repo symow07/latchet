@@ -1662,5 +1662,31 @@
     "resendIn": "Encore %{seconds} s",
     "resendLabel": "Envoyer un lien de vérification à %{email}",
     "failed": "Impossible d'envoyer le lien. Réessayez dans un instant."
+  },
+  "notifications": {
+    "quickAddAction": "Noter",
+    "quickAddSave": "Enregistrer",
+    "quickAddPlaceholder": "ex. 12,50 café",
+    "streakTitle": "Ne cassez pas votre série 🔥",
+    "streakBody": "Notez vos dépenses du jour pour prolonger votre série de saisies.",
+    "channelName": "Rappels et alertes"
+  },
+  "apiErrors": {
+    "network": "Impossible de joindre le serveur. Vérifiez votre connexion et réessayez.",
+    "timeout": "Le serveur met trop de temps à répondre. Réessayez dans un instant.",
+    "unauthorized": "Votre session a expiré. Reconnectez-vous pour continuer.",
+    "forbidden": "Vous n'avez pas l'autorisation de faire cela.",
+    "notFound": "Élément introuvable. Il a peut-être été supprimé.",
+    "conflict": "Cet élément existe déjà. Actualisez et réessayez.",
+    "validation": "Une information saisie n'est pas valide. Vérifiez-la et réessayez.",
+    "tooLarge": "C'est trop volumineux pour être envoyé. Essayez un fichier plus petit.",
+    "rateLimited": "Trop de tentatives. Patientez quelques minutes, puis réessayez.",
+    "upgrade": "Cette fonction nécessite Budget Pro. Vous pouvez passer à Pro dans les réglages.",
+    "server": "Un problème est survenu de notre côté. Réessayez dans un instant.",
+    "unknown": "Une erreur est survenue. Réessayez.",
+    "inviteInvalid": "Ce code d'invitation n'est pas valide. Vérifiez-le et réessayez.",
+    "alreadyMember": "Vous en êtes déjà membre.",
+    "typedMismatch": "Votre saisie ne correspond pas. Saisissez-la exactement comme indiqué.",
+    "imageUnusable": "Cette image ne peut pas être utilisée. Essayez-en une autre."
   }
 }

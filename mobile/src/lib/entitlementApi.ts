@@ -7,6 +7,7 @@
  * backend/src/lib/entitlement.ts.
  */
 import { api } from './api/api';
+import { request } from './api-errors';
 
 export type Tier = 'free' | 'pro';
 
@@ -21,9 +22,13 @@ interface MeResponse {
   entitlement?: { tier?: string; expiresAt?: string | null };
 }
 
+// Both calls reject with an ApiFailure (lib/api-errors), whose message is
+// already in the reader's language. It keeps the status and the body, so
+// isUpgradeRequired below reads it as it read the client's own error.
+
 /** The tier the server currently holds for this account. */
 export async function fetchEntitlement(): Promise<Entitlement> {
-  const res = await api.get<MeResponse>('/api/me');
+  const res = await request(() => api.get<MeResponse>('/api/me'));
   return {
     tier: res?.entitlement?.tier === 'pro' ? 'pro' : 'free',
     expiresAt: res?.entitlement?.expiresAt ?? null,
@@ -37,9 +42,8 @@ export async function fetchEntitlement(): Promise<Entitlement> {
  * the user should not be looking at a paywall they have just paid to dismiss.
  */
 export async function refreshEntitlement(): Promise<Entitlement> {
-  const res = await api.post<{ tier?: string; expiresAt?: string | null }>(
-    '/api/me/entitlement/refresh',
-    {}
+  const res = await request(() =>
+    api.post<{ tier?: string; expiresAt?: string | null }>('/api/me/entitlement/refresh', {}),
   );
   return {
     tier: res?.tier === 'pro' ? 'pro' : 'free',

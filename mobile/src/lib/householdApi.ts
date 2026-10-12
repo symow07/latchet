@@ -8,6 +8,7 @@
  * as "not shared" rather than as zero.
  */
 import { authedFetch } from './api/api';
+import { readJson, request, type RequestPurpose } from './api-errors';
 
 const getBackendUrl = (): string => {
   const url = process.env.EXPO_PUBLIC_BACKEND_URL;
@@ -15,7 +16,7 @@ const getBackendUrl = (): string => {
   return url;
 };
 
-const base = () => `${getBackendUrl()}/api/v1/household`;
+const HOUSEHOLD = '/api/v1/household';
 
 export const SHARE_LEVELS = ['summary', 'categories', 'full'] as const;
 export type ShareLevel = (typeof SHARE_LEVELS)[number];
@@ -94,31 +95,40 @@ export interface VisibilityMember {
   sharedAccounts: { id: string; name: string }[];
 }
 
-async function json<T>(res: Response): Promise<T> {
-  if (!res.ok) {
-    const body = (await res.json().catch(() => ({}))) as { error?: string };
-    throw new Error(body.error ?? `Request failed (${res.status})`);
-  }
-  return (await res.json()) as T;
+type Init = Parameters<typeof authedFetch>[1];
+
+/** A request carrying `payload` as JSON. */
+const withJson = (method: string, payload: unknown): Init => ({
+  method,
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify(payload),
+});
+
+/**
+ * One call to the backend, resolving to its JSON answer.
+ *
+ * It rejects with an ApiFailure (lib/api-errors), whose message is already a
+ * sentence in the reader's language — the join and consent screens show it as
+ * it is. It used to be the server's English, or "Request failed (404)".
+ */
+function call<T>(path: string, init?: Init, purpose?: RequestPurpose): Promise<T> {
+  return request(
+    async () => readJson<T>(await authedFetch(`${getBackendUrl()}${path}`, init), purpose),
+    purpose,
+  );
 }
 
 export async function getHousehold(): Promise<HouseholdResponse> {
-  return json(await authedFetch(base()));
+  return call(HOUSEHOLD);
 }
 
 export async function createHousehold(name: string): Promise<{ household: Household; inviteCode: string }> {
-  return json(
-    await authedFetch(base(), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name }),
-    })
-  );
+  return call(HOUSEHOLD, withJson('POST', { name }));
 }
 
 /** Read before joining. This is what the consent screen renders. */
 export async function previewInvite(code: string): Promise<JoinPreview> {
-  return json(await authedFetch(`${base()}/preview?code=${encodeURIComponent(code)}`));
+  return call(`${HOUSEHOLD}/preview?code=${encodeURIComponent(code)}`, undefined, 'invite');
 }
 
 /**
@@ -130,57 +140,39 @@ export async function joinHousehold(
   code: string,
   acknowledgedShareLevel: ShareLevel
 ): Promise<{ household: Household }> {
-  return json(
-    await authedFetch(`${base()}/join`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code, acknowledgedShareLevel }),
-    })
-  );
+  return call(`${HOUSEHOLD}/join`, withJson('POST', { code, acknowledgedShareLevel }), 'invite');
 }
 
 export async function setMyShareLevel(
   shareLevel: ShareLevel
 ): Promise<{ shareLevel: ShareLevel; previous: ShareLevel; notifyGroup: boolean }> {
-  return json(
-    await authedFetch(`${base()}/my-share-level`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ shareLevel }),
-    })
-  );
+  return call(`${HOUSEHOLD}/my-share-level`, withJson('PATCH', { shareLevel }));
 }
 
 export async function getVisibility(): Promise<{ householdName: string; members: VisibilityMember[] }> {
-  return json(await authedFetch(`${base()}/visibility`));
+  return call(`${HOUSEHOLD}/visibility`);
 }
 
 export async function getDashboard(month?: string): Promise<HouseholdDashboard> {
   const q = month ? `?month=${encodeURIComponent(month)}` : '';
-  return json(await authedFetch(`${base()}/dashboard${q}`));
+  return call(`${HOUSEHOLD}/dashboard${q}`);
 }
 
 export async function getInviteCode(): Promise<{ code: string; householdName: string }> {
-  return json(await authedFetch(`${base()}/invite-code`));
+  return call(`${HOUSEHOLD}/invite-code`);
 }
 
 export async function refreshInviteCode(): Promise<{ code: string }> {
-  return json(await authedFetch(`${base()}/invite-code/refresh`, { method: 'POST' }));
+  return call(`${HOUSEHOLD}/invite-code/refresh`, { method: 'POST' });
 }
 
 /** Unilateral and immediate. No owner approval, no grace period. */
 export async function leaveHousehold(): Promise<{ ok: true }> {
-  return json(await authedFetch(`${base()}/leave`, { method: 'DELETE' }));
+  return call(`${HOUSEHOLD}/leave`, { method: 'DELETE' });
 }
 
 export async function deleteHousehold(confirmName: string): Promise<{ ok: true }> {
-  return json(
-    await authedFetch(base(), {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ confirmName }),
-    })
-  );
+  return call(HOUSEHOLD, withJson('DELETE', { confirmName }), 'typedName');
 }
 
 /** Opt one account in to (or out of, with null) a household. */
@@ -188,11 +180,5 @@ export async function setAccountSharing(
   accountId: string,
   groupId: string | null
 ): Promise<{ id: string; sharedWithGroupId: string | null }> {
-  return json(
-    await authedFetch(`${getBackendUrl()}/api/v1/accounts/${encodeURIComponent(accountId)}/share`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ groupId }),
-    })
-  );
+  return call(`/api/v1/accounts/${encodeURIComponent(accountId)}/share`, withJson('PUT', { groupId }));
 }

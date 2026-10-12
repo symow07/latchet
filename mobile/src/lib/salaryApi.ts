@@ -1,4 +1,5 @@
 import { authedFetch } from './api/api';
+import { ensureOk, readJson, request } from './api-errors';
 const getBackendUrl = (): string => {
   const url = process.env.EXPO_PUBLIC_BACKEND_URL;
   if (!url) throw new Error('EXPO_PUBLIC_BACKEND_URL is not configured');
@@ -49,15 +50,29 @@ export interface PayrollData {
 }
 
 // ─── API calls ────────────────────────────────────────────────────────────────
+//
+// Every call rejects with an ApiFailure (lib/api-errors): its message is
+// already a sentence in the reader's language, which is what the screens show.
+
+type Init = Parameters<typeof authedFetch>[1];
+
+/** A request carrying `payload` as JSON. */
+const withJson = (method: string, payload: unknown): Init => ({
+  method,
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify(payload),
+});
+
+/** One call whose answer is JSON. */
+function call<T>(path: string, init?: Init): Promise<T> {
+  return request(async () => readJson<T>(await authedFetch(`${getBackendUrl()}${path}`, init)));
+}
 
 export async function getPayroll(month?: number, year?: number): Promise<PayrollData> {
   const params = new URLSearchParams();
   if (month) params.set('month', String(month));
   if (year)  params.set('year',  String(year));
-  const res = await authedFetch(`${getBackendUrl()}/api/payroll?${params}`);
-  const data = await res.json() as PayrollData & { error?: string };
-  if (!res.ok) throw new Error((data as { error?: string }).error ?? 'Failed to fetch payroll');
-  return data;
+  return call<PayrollData>(`/api/payroll?${params}`);
 }
 
 export async function setSalary(payload: {
@@ -66,24 +81,14 @@ export async function setSalary(payload: {
   title?: string | null;
   currency?: string;
 }): Promise<SalaryRecord> {
-  const res = await authedFetch(`${getBackendUrl()}/api/payroll`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  const data = await res.json() as { salary: SalaryRecord; error?: string };
-  if (!res.ok) throw new Error(data.error ?? 'Failed to save salary');
+  const data = await call<{ salary: SalaryRecord }>('/api/payroll', withJson('POST', payload));
   return data.salary;
 }
 
 export async function deleteSalary(id: string): Promise<void> {
-  const res = await authedFetch(`${getBackendUrl()}/api/payroll/${id}`, {
-    method: 'DELETE',
-  });
-  if (!res.ok) {
-    const data = await res.json() as { error?: string };
-    throw new Error(data.error ?? 'Failed to delete salary');
-  }
+  await request(async () =>
+    ensureOk(await authedFetch(`${getBackendUrl()}/api/payroll/${id}`, { method: 'DELETE' })),
+  );
 }
 
 export async function markPaid(
@@ -92,13 +97,10 @@ export async function markPaid(
   year: number,
   note?: string
 ): Promise<SalaryPaymentRecord> {
-  const res = await authedFetch(`${getBackendUrl()}/api/payroll/${id}/pay`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ month, year, note: note ?? null }),
-  });
-  const data = await res.json() as { payment: SalaryPaymentRecord; error?: string };
-  if (!res.ok) throw new Error(data.error ?? 'Failed to mark as paid');
+  const data = await call<{ payment: SalaryPaymentRecord }>(
+    `/api/payroll/${id}/pay`,
+    withJson('PATCH', { month, year, note: note ?? null }),
+  );
   return data.payment;
 }
 
@@ -107,12 +109,9 @@ export async function markUnpaid(
   month: number,
   year: number
 ): Promise<SalaryPaymentRecord> {
-  const res = await authedFetch(`${getBackendUrl()}/api/payroll/${id}/unpay`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ month, year }),
-  });
-  const data = await res.json() as { payment: SalaryPaymentRecord; error?: string };
-  if (!res.ok) throw new Error(data.error ?? 'Failed to mark as unpaid');
+  const data = await call<{ payment: SalaryPaymentRecord }>(
+    `/api/payroll/${id}/unpay`,
+    withJson('PATCH', { month, year }),
+  );
   return data.payment;
 }

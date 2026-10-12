@@ -292,6 +292,12 @@ const INTERNAL = new Set([
   'timed out after ms',
 ]);
 
+/**
+ * A developer's error, naming the build variable that is missing. It cannot
+ * happen in a configured build, and is written for whoever configures one.
+ */
+const DEVELOPER_ONLY = /\bEXPO_PUBLIC_[A-Z_]+\b/;
+
 const UI_ATTRS = 'placeholder|title|label|subtitle|body|message|header|description|buttonTitle|hint|stage';
 const CODEISH = /=>|\);|;\s|\bconst\b|\blet\b|\breturn\b|useState|React\.|StyleProp|Promise|\?:|&&|\|\||:\s*(string|number|boolean)|\bprops\b|\bcase\b|[{}=()`]|Record</;
 const NOISE = /^(https?:|\/|#[0-9a-fA-F]{3,8}$|rgba?\(|PlusJakartaSans|(bg|text|font|border|flex|items|justify|rounded|px|py|mt|mb|ml|mr|w|h|gap)-|[a-z]+Idx$|en-US|UTC)/;
@@ -302,6 +308,7 @@ function isProse(value: string): boolean {
   if (NOISE.test(s) || CODEISH.test(s)) return false;
   if (!/[A-Za-z]{3}/.test(s)) return false;
   if (/^[a-z0-9_.-]+$/.test(s)) return false;   // identifiers and keys
+  if (/^[a-z]+\/[a-z0-9.+-]+$/.test(s)) return false; // MIME types: 'application/json'
   // A dotted camelCase literal is an i18n key chosen by a ternary inside t(),
   // e.g. t(n === 1 ? 'a.one' : 'a.other') — a key, not something a user reads.
   if (/^[a-z][A-Za-z0-9]*(\.[A-Za-z0-9]+)+$/.test(s)) return false;
@@ -380,7 +387,7 @@ function scanForHardcodedStrings(source: string): string[] {
   // first, so an apostrophe in one cannot open a string. `://` is kept.
   const code = src.replace(/(^|[^:'"`\\])\/\/.*$/gm, '$1');
   for (const text of callArgumentStrings(code)) {
-    if (isProse(text) && !INTERNAL.has(text)) found.push(text);
+    if (isProse(text) && !INTERNAL.has(text) && !DEVELOPER_ONLY.test(text)) found.push(text);
   }
   return found;
 }
@@ -401,20 +408,22 @@ const SRC = join(import.meta.dir, '..', '..');
  *
  * Every module that translates — imports the i18n core — builds something a
  * user reads (a label, an alert, an insight), so all of them are read. The
- * two named here are read whatever they import: they returned English
+ * ones named here are read whatever they import: they returned English
  * sentences that screens print (Health Score's suggestions, the advisor's
  * quick insights) without ever translating, which is exactly what a rule
- * keyed on the import could not see. The i18n machinery itself is excluded.
+ * keyed on the import could not see. notifications.ts writes on the lock
+ * screen, and api-errors.ts builds the sentence every failed request shows.
+ * The i18n machinery itself is excluded.
  */
-const SCREEN_TEXT_LIB = ['health-score.ts', 'ai-analysis.ts'];
+const SCREEN_TEXT_LIB = ['health-score.ts', 'ai-analysis.ts', 'notifications.ts', 'api-errors.ts'];
 
 /**
- * Translating modules left out, each with its reason. notifications.ts puts
- * its words on the lock screen, not on a screen of the app: an action button
- * registered once at launch and a scheduled nudge, both still English, which
- * need re-registering on a language change to fix — a separate piece of work.
+ * The server clients. They translate nothing themselves, yet what they throw
+ * is shown: screens put `e.message` on screen, and these used to throw the
+ * server's English or their own "Failed to …". So all of them are read, by
+ * name, whatever they import.
  */
-const NOT_SCREEN_TEXT = ['notifications.ts'];
+const API_CLIENT = /\/lib\/\w+Api\.ts$/;
 
 /**
  * Functions whose strings are written for the model, not for a person: the
@@ -430,8 +439,8 @@ const MODEL_FACING: Record<string, string[]> = {
 function screenTextLibModules(): string[] {
   return sourceFiles(join(SRC, 'lib'), ['.ts']).filter((file) => {
     if (file.includes(`${join('lib', 'i18n')}/`)) return false;
-    if (NOT_SCREEN_TEXT.some((name) => file.endsWith(`/lib/${name}`))) return false;
     if (SCREEN_TEXT_LIB.some((name) => file.endsWith(`/lib/${name}`))) return true;
+    if (API_CLIENT.test(file)) return true;
     return /from '(?:\.{1,2}\/)+(?:lib\/)?i18n\/core'|from '@\/lib\/i18n(?:\/core)?'/.test(readFileSync(file, 'utf8'));
   });
 }
@@ -522,8 +531,27 @@ test('call arguments are scanned in the lib modules that put words on screen', (
   for (const name of ['health-score.ts', 'ai-analysis.ts', 'behavior-detection.ts', 'business-subscription-detection.ts', 'expense-meta.ts']) {
     expect(modules).toContain(name);
   }
-  // A module that only talks to the server is not among them.
-  expect(modules).not.toContain('expenseApi.ts');
+  // The ones Phase 5 found: the lock screen, and every server client, whose
+  // errors screens show through e.message.
+  for (const name of [
+    'notifications.ts', 'api-errors.ts', 'emailSubscriptionApi.ts',
+    'accountApi.ts', 'achievementsApi.ts', 'budgetApi.ts', 'businessApi.ts',
+    'entitlementApi.ts', 'expenseApi.ts', 'householdApi.ts', 'salaryApi.ts',
+  ]) {
+    expect(modules).toContain(name);
+  }
+  // A module with nothing a person reads is not among them.
+  expect(modules).not.toContain('merchant-memory.ts');
+});
+
+test('call arguments: a server client throwing English is caught, its build-variable check is not', () => {
+  // The Phase 4 shape, which screens showed through e.message, next to the
+  // developer's error every client raises when the build has no backend URL.
+  const fixture = `
+    if (!url) throw new Error('EXPO_PUBLIC_BACKEND_URL is not configured');
+    if (!res.ok) throw new Error(data.error ?? 'Failed to approve expense');
+  `;
+  expect(scanForHardcodedStrings(fixture)).toEqual(['Failed to approve expense']);
 });
 
 // ── Every count pluralises ───────────────────────────────────────────────────

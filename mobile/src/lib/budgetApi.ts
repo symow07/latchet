@@ -1,4 +1,6 @@
 import { authedFetch } from './api/api';
+import { readJson, request } from './api-errors';
+
 const getBackendUrl = (): string => {
   const url = process.env.EXPO_PUBLIC_BACKEND_URL;
   if (!url) throw new Error('EXPO_PUBLIC_BACKEND_URL is not configured');
@@ -24,24 +26,26 @@ export interface BudgetData {
   };
 }
 
+// Every call rejects with an ApiFailure (lib/api-errors), whose message is
+// already in the reader's language — the screens show it as it is.
+
 export async function getBudget(): Promise<BudgetData> {
-  const res = await authedFetch(`${getBackendUrl()}/api/business/budget`, {
-  });
-  const data = await res.json() as BudgetData & { error?: string };
-  if (!res.ok) throw new Error((data as { error?: string }).error ?? 'Failed to fetch budget');
-  return data;
+  return request(async () =>
+    readJson<BudgetData>(await authedFetch(`${getBackendUrl()}/api/business/budget`)),
+  );
 }
 
 export async function setBudget(payload: {
   totalMonthly: number;
   categories: Partial<Record<BudgetCategory, number>>;
 }): Promise<{ budget: { totalMonthly: number; categories: Partial<Record<BudgetCategory, number>> } }> {
-  const res = await authedFetch(`${getBackendUrl()}/api/business/budget`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  const data = await res.json() as { budget: { totalMonthly: number; categories: Partial<Record<BudgetCategory, number>> }; error?: string };
-  if (!res.ok) throw new Error(data.error ?? 'Failed to save budget');
-  return data;
+  return request(async () =>
+    readJson(
+      await authedFetch(`${getBackendUrl()}/api/business/budget`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      }),
+    ),
+  );
 }

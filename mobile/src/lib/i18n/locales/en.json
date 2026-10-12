@@ -1662,5 +1662,31 @@
     "resendIn": "Again in %{seconds} s",
     "resendLabel": "Send a verification link to %{email}",
     "failed": "Couldn't send the link. Try again in a moment."
+  },
+  "notifications": {
+    "quickAddAction": "Log it",
+    "quickAddSave": "Save",
+    "quickAddPlaceholder": "e.g. 12.50 coffee",
+    "streakTitle": "Don't break your streak 🔥",
+    "streakBody": "Log today's spending to keep your logging streak alive.",
+    "channelName": "Reminders and alerts"
+  },
+  "apiErrors": {
+    "network": "Can't reach the server. Check your connection and try again.",
+    "timeout": "The server is taking too long to answer. Try again in a moment.",
+    "unauthorized": "Your session has ended. Sign in again to continue.",
+    "forbidden": "You don't have permission to do that.",
+    "notFound": "We couldn't find that. It may have been removed.",
+    "conflict": "That already exists. Refresh and try again.",
+    "validation": "Something you entered isn't valid. Check it and try again.",
+    "tooLarge": "That's too large to send. Try a smaller file.",
+    "rateLimited": "Too many attempts. Wait a few minutes and try again.",
+    "upgrade": "This needs Budget Pro. You can upgrade in Settings.",
+    "server": "Something went wrong on our side. Try again in a moment.",
+    "unknown": "Something went wrong. Try again.",
+    "inviteInvalid": "That invite code isn't valid. Check it and try again.",
+    "alreadyMember": "You're already a member.",
+    "typedMismatch": "What you typed doesn't match. Type it exactly as shown.",
+    "imageUnusable": "That image can't be used. Try a different one."
   }
 }

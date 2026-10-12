@@ -9,12 +9,26 @@
  *
  * Everything degrades gracefully: on web, on a simulator without push support,
  * or when permission is denied, the helpers no-op instead of throwing.
+ *
+ * The words handed to the OS — the quick-add action, the nudge, the Android
+ * channel's name — are built in i18n/notification-copy, in the app's language,
+ * and handed over again whenever that language changes (see the bottom of this
+ * file): iOS keeps what it was given, and nothing else would reword it.
  */
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import { Platform } from 'react-native';
 import { api } from './api/api';
-import { t } from './i18n/core';
+import { onLocaleChange, t } from './i18n/core';
+import {
+  DEFAULT_NUDGE_TIME,
+  findNudge,
+  notificationChannelName,
+  rewordNotifications,
+  scheduleNudge,
+  setQuickAddCategory,
+  type NotificationIds,
+} from './i18n/notification-copy';
 
 // Show alerts + play sound even when the app is foregrounded.
 Notifications.setNotificationHandler({
@@ -39,31 +53,41 @@ const STREAK_NUDGE_ID = 'daily-streak-nudge';
 export const QUICK_ADD_CATEGORY = 'quick-add';
 export const QUICK_ADD_ACTION = 'quick-add-log';
 
+const IDS: NotificationIds = {
+  category: QUICK_ADD_CATEGORY,
+  action: QUICK_ADD_ACTION,
+  nudge: STREAK_NUDGE_ID,
+};
+
 /**
- * Register the "Log it" action with its inline text field.
+ * Notification work, one piece at a time, in the order it was asked for.
+ *
+ * A language change rewords the nudge while the root layout may be scheduling
+ * it, and both replace the same request: run side by side, the one that
+ * finished last would win, in whichever language it read. In turn, the later
+ * request always sees what the earlier one did.
+ */
+let queue: Promise<unknown> = Promise.resolve();
+function inTurn<T>(work: () => Promise<T>): Promise<T> {
+  const run = queue.then(work, work);
+  queue = run.catch(() => {});
+  return run;
+}
+
+/**
+ * Register the quick-add action ("Log it", with its inline text field), in the
+ * app's language.
  *
  * Safe to call repeatedly; setNotificationCategoryAsync replaces by id.
  */
 export async function registerQuickAddCategory(): Promise<void> {
-  try {
-    await Notifications.setNotificationCategoryAsync(QUICK_ADD_CATEGORY, [
-      {
-        identifier: QUICK_ADD_ACTION,
-        buttonTitle: 'Log it',
-        textInput: {
-          submitButtonTitle: 'Save',
-          placeholder: 'e.g. 12.50 coffee',
-        },
-        options: {
-          // Not opening the app is the whole point — logging from the lock
-          // screen costs the seconds the action exists to save.
-          opensAppToForeground: false,
-        },
-      },
-    ]);
-  } catch (e) {
-    console.warn('[notifications] registerQuickAddCategory failed:', e);
-  }
+  return inTurn(async () => {
+    try {
+      await setQuickAddCategory(Notifications, IDS);
+    } catch (e) {
+      console.warn('[notifications] registerQuickAddCategory failed:', e);
+    }
+  });
 }
 
 /**
@@ -86,18 +110,25 @@ async function ensurePermission(): Promise<boolean> {
 }
 
 /**
+ * Android's one notification channel. Its id stays 'default' — Expo delivers
+ * pushes to it — and its name is what Android's settings list, so it is in the
+ * app's language. Setting it again renames it.
+ */
+function setDefaultChannel(): Promise<unknown> {
+  return Notifications.setNotificationChannelAsync('default', {
+    name: notificationChannelName(),
+    importance: Notifications.AndroidImportance.DEFAULT,
+  });
+}
+
+/**
  * Request permission, fetch the Expo push token, and register it with the
  * backend. Safe to call on every login — the backend upserts by token.
  * Returns the token, or null if unavailable.
  */
 export async function registerForPushNotifications(): Promise<string | null> {
   try {
-    if (Platform.OS === 'android') {
-      await Notifications.setNotificationChannelAsync('default', {
-        name: 'default',
-        importance: Notifications.AndroidImportance.DEFAULT,
-      });
-    }
+    if (Platform.OS === 'android') await setDefaultChannel();
     // A push token identifies real hardware; a simulator cannot have one.
     if (!Device.isDevice) return null;
     if (!(await ensurePermission())) return null;
@@ -133,7 +164,7 @@ export async function presentBadgeEarned(badge: string): Promise<void> {
 
 /** Stop the daily nudge. Safe to call when nothing is scheduled. */
 export async function cancelStreakReminder(): Promise<void> {
-  await Notifications.cancelScheduledNotificationAsync(STREAK_NUDGE_ID).catch(() => {});
+  await inTurn(() => Notifications.cancelScheduledNotificationAsync(STREAK_NUDGE_ID).catch(() => {}));
 }
 
 /**
@@ -141,42 +172,48 @@ export async function cancelStreakReminder(): Promise<void> {
  *
  * Read from the system rather than a stored flag, so a reminder the user
  * turned off in iOS Settings, or one lost to a reinstall, is reported honestly
- * instead of showing a toggle that claims to be on.
+ * instead of showing a toggle that claims to be on. In turn, so it answers
+ * after any schedule or cancel already asked for.
  */
 export async function isStreakReminderScheduled(): Promise<boolean> {
-  try {
-    const scheduled = await Notifications.getAllScheduledNotificationsAsync();
-    return scheduled.some((n) => n.identifier === STREAK_NUDGE_ID);
-  } catch {
-    return false;
-  }
+  return inTurn(async () => (await findNudge(Notifications, IDS)) !== null);
 }
 
 /**
  * Schedule (or reschedule) a daily local reminder to log spending so the user
- * keeps their streak. Idempotent: cancels the previous nudge first.
+ * keeps their streak. Idempotent: replaces the previous nudge.
  */
-export async function scheduleStreakReminder(hour = 20, minute = 0): Promise<void> {
-  try {
-    if (!(await ensurePermission())) return;
-    await Notifications.cancelScheduledNotificationAsync(STREAK_NUDGE_ID).catch(() => {});
-    // The category has to exist before a notification referencing it is
-    // delivered, or iOS draws the notification with no actions on it.
-    await registerQuickAddCategory();
-    await Notifications.scheduleNotificationAsync({
-      identifier: STREAK_NUDGE_ID,
-      content: {
-        title: "Don't break your streak 🔥",
-        body: 'Log today\'s spending to keep your logging streak alive.',
-        categoryIdentifier: QUICK_ADD_CATEGORY,
-      },
-      trigger: {
-        type: Notifications.SchedulableTriggerInputTypes.DAILY,
-        hour,
-        minute,
-      },
-    });
-  } catch (e) {
-    console.warn('[notifications] scheduleStreakReminder failed:', e);
-  }
+export async function scheduleStreakReminder(
+  hour: number = DEFAULT_NUDGE_TIME.hour,
+  minute: number = DEFAULT_NUDGE_TIME.minute,
+): Promise<void> {
+  return inTurn(async () => {
+    try {
+      if (!(await ensurePermission())) return;
+      // The category has to exist before a notification referencing it is
+      // delivered, or iOS draws the notification with no actions on it.
+      await setQuickAddCategory(Notifications, IDS).catch((e) => {
+        console.warn('[notifications] registerQuickAddCategory failed:', e);
+      });
+      await scheduleNudge(Notifications, IDS, hour, minute);
+    } catch (e) {
+      console.warn('[notifications] scheduleStreakReminder failed:', e);
+    }
+  });
 }
+
+/**
+ * Reword what the OS holds whenever the language changes.
+ *
+ * The action was registered, and the nudge scheduled, in the language of that
+ * moment, and iOS shows those words until it is handed new ones. This covers
+ * every change: the device language at launch, the account's language once its
+ * data opens, and a choice made in Settings. Android's channel is renamed too;
+ * that step is last, so a failure there cannot cost the other two.
+ */
+onLocaleChange(() => {
+  void inTurn(async () => {
+    await rewordNotifications(Notifications, IDS);
+    if (Platform.OS === 'android') await setDefaultChannel().catch(() => {});
+  }).catch(() => {});
+});

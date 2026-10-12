@@ -4,6 +4,7 @@
  * so they survive reinstalls and changing transactions.
  */
 import { api } from './api/api';
+import { request } from './api-errors';
 
 export interface Achievement {
   id: string;
@@ -21,11 +22,14 @@ export interface SyncResult extends AchievementsState {
   newlyEarned: string[];
 }
 
+// Both calls reject with an ApiFailure (lib/api-errors), whose message is
+// already in the reader's language.
+
 export async function getAchievements(): Promise<AchievementsState> {
-  return api.get<AchievementsState>('/api/achievements');
+  return request(() => api.get<AchievementsState>('/api/achievements'));
 }
 
 /** Push locally-unlocked badges + current streak; returns any newly-earned. */
 export async function syncAchievements(badges: string[], streak: number): Promise<SyncResult> {
-  return api.post<SyncResult>('/api/achievements/sync', { badges, streak });
+  return request(() => api.post<SyncResult>('/api/achievements/sync', { badges, streak }));
 }

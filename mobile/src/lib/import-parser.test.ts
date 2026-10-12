@@ -1,4 +1,6 @@
 import { describe, test, expect } from 'bun:test';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import {
   parseCSV,
   parseStatement,
@@ -11,6 +13,10 @@ import {
   inspectCsv,
   missingColumns,
   emptyMapping,
+  generateImportPreview,
+  importHistory,
+  preferHistory,
+  type ExistingTransaction,
 } from './import-parser';
 import { buildMerchantMemory } from './merchant-memory';
 
@@ -487,4 +493,118 @@ describe('categorises by region', () => {
       true, false, true, true, true, true, false,
     ]);
   });
+});
+
+// ── Import history: the import screen gives every parse the user's own past ──
+//
+// The parser has taken a merchant memory since Phase 3, and Siri, quick-add
+// and shared receipts all passed one; the import screen passed only the
+// currency, so a CSV import ignored every choice the user had made. These go
+// through importHistory — what the screen now builds from the transactions it
+// already reads for duplicates — and then the real parser.
+
+/** A transaction already in the app. */
+const had = (note: string, category: string, dateISO = '2026-08-01', amount = 10): ExistingTransaction => ({
+  note,
+  category,
+  dateISO,
+  amount,
+});
+
+test("import history: a CSV row goes where the user filed that merchant, not where the keyword table would", () => {
+  // Carrefour is Food to the table; this user buys their electronics there.
+  const history = importHistory(
+    [had('CARREFOUR CITY', 'Shopping'), had('Carrefour Lyon', 'Shopping', '2026-08-09')],
+    'EUR',
+  );
+  const csv = ['Date,Description,Amount', '2026-09-03,CARREFOUR MARKET 4412,-89.00', '2026-09-04,STARBUCKS,-4.50'].join('\n');
+
+  expect(parseCSV(csv, {}, undefined, { currency: 'EUR' }).map((r) => r.suggestedCategory)).toEqual(['Food', 'Food']);
+  // Only the merchant they have filed moves; the rest still gets the table.
+  expect(parseCSV(csv, {}, undefined, history.context).map((r) => r.suggestedCategory)).toEqual(['Shopping', 'Food']);
+});
+
+test('import history: a merchant no table knows, and a category the user made up, are learned', () => {
+  const history = importHistory([had('Boulangerie Paul Gare', 'Bakery'), had('ATELIER MOULIN', 'Hobbies')], 'MAD');
+  const csv = [
+    'Date,Libellé,Montant',
+    '03/09/2026,PAIEMENT CB BOULANGERIE PAUL,"-12,40"',
+    '04/09/2026,ATELIER MOULIN RABAT,"-300,00"',
+    '05/09/2026,QUINCAILLERIE NOUR,"-45,00"',
+  ].join('\n');
+  expect(parseStatement(csv, 'bank', {}, history.context).map((r) => r.suggestedCategory)).toEqual([
+    'Bakery',
+    'Hobbies',
+    // A hardware shop they have never filed: the table's answer.
+    'Shopping',
+  ]);
+});
+
+test('import history: Alipay and WeChat bills learn from it too', () => {
+  // 盒马鲜生 is a supermarket to the table; this user files it as Groceries.
+  const history = importHistory([had('盒马鲜生', 'Groceries'), had('瑞幸咖啡', 'Coffee')], 'CNY');
+  expect(parseStatement(ALIPAY, 'alipay', {}, history.context).map((r) => r.suggestedCategory)).toEqual([
+    'Groceries',
+    'Transport',
+    'Other',
+  ]);
+  expect(parseStatement(WECHAT, 'wechat', {}, history.context)[0]!.suggestedCategory).toBe('Coffee');
+});
+
+test('import history: an undecided history, or one left on Other, leaves the keyword table its say', () => {
+  const history = importHistory(
+    [
+      ...Array.from({ length: 6 }, (_, i) => had('Carrefour', 'Food', `2026-08-0${i + 1}`)),
+      ...Array.from({ length: 5 }, (_, i) => had('Carrefour', 'Shopping', `2026-07-0${i + 1}`)),
+      // "Other" is usually no decision at all, so it teaches nothing.
+      had('STARBUCKS', 'Other'),
+    ],
+    'EUR',
+  );
+  const csv = ['Date,Description,Amount', '2026-09-03,CARREFOUR,-30.00', '2026-09-04,STARBUCKS,-4.50'].join('\n');
+  expect(parseCSV(csv, {}, undefined, history.context).map((r) => r.suggestedCategory)).toEqual(['Food', 'Food']);
+});
+
+test('import history: a category the file states still wins over the history', () => {
+  const history = importHistory([had('CARREFOUR', 'Shopping')], 'EUR');
+  const csv = ['Date,Description,Amount,Category', '2026-09-03,CARREFOUR,-30.00,Gym'].join('\n');
+  expect(parseCSV(csv, {}, undefined, history.context)[0]!.suggestedCategory).toBe('Gym');
+});
+
+test("import history: a PDF row the model guessed goes where the user filed it", () => {
+  const history = importHistory([had('MARJANE CASABLANCA', 'Groceries')], 'MAD');
+  expect(preferHistory('MARJANE RABAT 0042', 'Shopping', history.context)).toBe('Groceries');
+  expect(preferHistory('AFRIQUIA STATION', 'Transport', history.context)).toBe('Transport');
+});
+
+test('import history: the rows already in the app are skipped as duplicates', () => {
+  const history = importHistory([had('CARREFOUR MARKET 4412', 'Shopping', '2026-09-03', 89)], 'EUR');
+  const csv = ['Date,Description,Amount', '2026-09-03,CARREFOUR MARKET 4412,-89.00', '2026-09-04,CARREFOUR,-12.00'].join('\n');
+  const preview = generateImportPreview(parseCSV(csv, {}, undefined, history.context), history.existingKeys);
+  expect(preview.duplicatesFound).toBe(1);
+  expect(preview.transactions.map((r) => [r.description, r.suggestedCategory])).toEqual([['CARREFOUR', 'Shopping']]);
+});
+
+test('import history: every parse on the import screen is given it', () => {
+  // The screen cannot render under bun test, so its source is read. Every
+  // parse — the first, the remembered bank, the hand mapping, and each
+  // re-parse after a corrected convention — must be handed the history's
+  // context; a bare { currency } is exactly the Phase 4 gap.
+  const screen = readFileSync(join(import.meta.dir, '..', 'app', 'import.tsx'), 'utf8');
+  const parses: string[] = [];
+  for (const m of screen.matchAll(/\b(?:parseCSV|parseStatement)\(/g)) {
+    let depth = 1;
+    let j = m.index! + m[0].length;
+    for (; depth > 0 && j < screen.length; j++) {
+      if (screen[j] === '(') depth++;
+      else if (screen[j] === ')') depth--;
+    }
+    parses.push(screen.slice(m.index!, j));
+  }
+  expect(parses.length).toBeGreaterThanOrEqual(6);
+  // The last argument of each is the history's context.
+  expect(parses.filter((call) => !/\.context\s*,?\s*\)$/.test(call))).toEqual([]);
+  // Built from the user's own transactions, and used for the PDF path too.
+  expect(screen).toMatch(/importHistory\(await getTransactions\(\)/);
+  expect(screen).toMatch(/preferHistory\(r\.note, r\.category, known\.context\)/);
 });

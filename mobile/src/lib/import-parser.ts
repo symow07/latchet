@@ -1,4 +1,9 @@
-import { suggestCategory, type MerchantMemory } from './merchant-memory';
+import {
+  buildMerchantMemory,
+  suggestCategory,
+  type LearnableTransaction,
+  type MerchantMemory,
+} from './merchant-memory';
 import { fallbackCategory, mentionsAny } from './category-keywords';
 import { convertCurrency } from './currencies';
 
@@ -112,6 +117,15 @@ export function detectImpulse(
 
   // Food delivery and sales.
   return mentionsAny(description, IMPULSE_WORDS, NOT_IMPULSE);
+}
+
+/**
+ * A category someone else guessed — the PDF reader's model — unless this user
+ * has filed the merchant before. Their own choice beats a model's guess for
+ * the same reason it beats the keyword table.
+ */
+export function preferHistory(description: string, guessed: string, context: CategoryContext): string {
+  return (context.memory ? suggestCategory(description, context.memory) : null) || guessed;
 }
 
 /**
@@ -893,6 +907,54 @@ export function parseDate(
   return null;
 }
 
+// ── What the user already has ────────────────────────────────────────────────
+
+/** A transaction already in the app, as an import reads it. */
+export interface ExistingTransaction extends LearnableTransaction {
+  dateISO: string;
+  amount: number;
+}
+
+/**
+ * The key a row is matched on to skip one already imported: its date, its
+ * amount and the start of its description.
+ */
+export function duplicateKey(
+  dateISO: string,
+  amount: number,
+  description: string | null | undefined,
+): string {
+  return `${dateISO}_${amount}_${(description ?? '').substring(0, 20)}`;
+}
+
+export interface ImportHistory {
+  /** The duplicateKey of every transaction already in the app. */
+  existingKeys: Set<string>;
+  /** What every parse of the file is given: how this user files each merchant, and their currency. */
+  context: CategoryContext;
+}
+
+/**
+ * What the user's own transactions tell an import: which rows are already in,
+ * and how they file each merchant.
+ *
+ * The import screen used to pass the parser only the currency, so a CSV import
+ * ignored the history that Siri, quick-add and shared receipts all learn from:
+ * Carrefour filed under Shopping a hundred times still arrived as the keyword
+ * table's Food. Built once per file from the transactions the screen already
+ * reads for duplicates, and given to every parse of that file — the first, and
+ * each re-parse after a corrected convention or column.
+ */
+export function importHistory(
+  existing: readonly ExistingTransaction[],
+  currency: string | null | undefined,
+): ImportHistory {
+  return {
+    existingKeys: new Set(existing.map((tx) => duplicateKey(tx.dateISO, tx.amount, tx.note))),
+    context: { memory: buildMerchantMemory(existing), currency: currency ?? null },
+  };
+}
+
 // Generate import preview
 export function generateImportPreview(
   transactions: ParsedTransaction[],
@@ -901,8 +963,7 @@ export function generateImportPreview(
   let duplicatesFound = 0;
   const uniqueTransactions = transactions.filter(tx => {
     // Simple duplicate detection based on date, amount, description
-    const key = `${tx.date}_${tx.amount}_${tx.description.substring(0, 20)}`;
-    if (existingTransactionIds.has(key)) {
+    if (existingTransactionIds.has(duplicateKey(tx.date, tx.amount, tx.description))) {
       duplicatesFound++;
       return false;
     }

@@ -36,6 +36,9 @@ import {
   parseCSV,
   inspectCsv,
   missingColumns,
+  importHistory,
+  preferHistory,
+  type ImportHistory,
   type CsvFormat,
   type CsvInspection,
   type ColumnMapping,
@@ -47,6 +50,7 @@ import { findProfileFor, rememberProfile } from '@/lib/import-profiles';
 import { useEntitlement } from '@/lib/useEntitlement';
 import { isUpgradeRequired } from '@/lib/entitlementApi';
 import { api } from '@/lib/api/api';
+import { toApiFailure } from '@/lib/api-errors';
 import { t } from '@/lib/i18n/core';
 import { categoryLabel } from '@/lib/category-meta';
 import { categoryIcon } from '@/components/category-icon';
@@ -175,9 +179,12 @@ export default function ImportScreen() {
   const [activeMapping, setActiveMapping] = useState<ColumnMapping | null>(null);
   const [rememberedBank, setRememberedBank] = useState(false);
   const [analyzingPdf, setAnalyzingPdf] = useState(false);
-  // The user's currency, which picks the regional brands the keyword fallback
-  // recognises (Marjane in dirhams, Tesco in pounds). Kept for the re-parses.
-  const [userCurrency, setUserCurrency] = useState<string | null>(null);
+  // What the user's own transactions say, read once per file: the rows already
+  // in (skipped as duplicates), how they file each merchant, and their
+  // currency, which picks the regional brands the keyword fallback knows
+  // (Marjane in dirhams, Tesco in pounds). Every parse of the file gets it —
+  // the re-parses too, or a corrected column would forget the history.
+  const [history, setHistory] = useState<ImportHistory | null>(null);
 
   /**
    * Read a PDF statement via the vision model.
@@ -220,22 +227,22 @@ export default function ImportScreen() {
         return;
       }
 
+      const settings = await getSettings().catch(() => null);
+      const known = importHistory(await getTransactions(), settings?.currency ?? null);
       const parsed: ParsedTransaction[] = rows.map((r, i) => ({
         id: `pdf_${Date.now()}_${i}`,
         date: r.dateISO,
         description: r.note,
         amount: r.amount,
         type: r.type,
-        suggestedCategory: r.category,
+        // The model only guesses; a merchant this user has filed before
+        // goes where they filed it.
+        suggestedCategory: preferHistory(r.note, r.category, known.context),
         originalData: {},
         isImpulse: false,
       }));
 
-      const existingTxs = await getTransactions();
-      const existingKeys = new Set(
-        existingTxs.map(tx => `${tx.dateISO}_${tx.amount}_${tx.note?.substring(0, 20) || ''}`),
-      );
-      const importPreview = generateImportPreview(parsed, existingKeys);
+      const importPreview = generateImportPreview(parsed, known.existingKeys);
 
       setPreview(importPreview);
       setTransactions(importPreview.transactions);
@@ -258,7 +265,7 @@ export default function ImportScreen() {
         isUpgradeRequired(e) ? t('subscription.proFeatureTitle') : t('import.pdfReadFailedTitle'),
         isUpgradeRequired(e)
           ? t('subscription.pdfProBody')
-          : e instanceof Error && /429/.test(e.message)
+          : toApiFailure(e).kind === 'rateLimited'
             ? t('import.aiLimit')
             : t('import.pdfAnalyseFailed'),
       );
@@ -357,8 +364,10 @@ export default function ImportScreen() {
       const settings = await getSettings().catch(() => null);
       const fallbackDate: DateConvention =
         settings?.currency === 'USD' ? 'mdy' : 'dmy';
-      const currency = settings?.currency ?? null;
-      setUserCurrency(currency);
+      // Read before the first parse, so it is categorised by the user's own
+      // history and not only by the keyword table.
+      const known = importHistory(await getTransactions(), settings?.currency ?? null);
+      setHistory(known);
 
       let detected: CsvFormat | null = null;
       let usedMapping: ColumnMapping | null = null;
@@ -375,9 +384,7 @@ export default function ImportScreen() {
         if (remembered) {
           detected = remembered.format;
           usedMapping = remembered.mapping;
-          parsedTransactions = parseCSV(content, remembered.format, remembered.mapping, {
-            currency,
-          });
+          parsedTransactions = parseCSV(content, remembered.format, remembered.mapping, known.context);
           setRememberedBank(true);
         } else if (found.missing.length > 0) {
           // A header we cannot read is a question, not a dead end.
@@ -391,12 +398,12 @@ export default function ImportScreen() {
         } else {
           detected = detectCsvFormat(content, fallbackDate);
           usedMapping = found.mapping;
-          parsedTransactions = parseCSV(content, detected, undefined, { currency });
+          parsedTransactions = parseCSV(content, detected, undefined, known.context);
           setRememberedBank(false);
         }
       } else {
         // Alipay / WeChat bills have a fixed, known shape.
-        parsedTransactions = parseStatement(content, source, {}, { currency });
+        parsedTransactions = parseStatement(content, source, {}, known.context);
       }
 
       if (parsedTransactions.length === 0) {
@@ -411,14 +418,8 @@ export default function ImportScreen() {
         return;
       }
 
-      // Get existing transactions for duplicate detection
-      const existingTxs = await getTransactions();
-      const existingKeys = new Set(
-        existingTxs.map(tx => `${tx.dateISO}_${tx.amount}_${tx.note?.substring(0, 20) || ''}`)
-      );
-
-      // Generate preview
-      const importPreview = generateImportPreview(parsedTransactions, existingKeys);
+      // Generate preview, skipping rows already in the app
+      const importPreview = generateImportPreview(parsedTransactions, known.existingKeys);
       setPreview(importPreview);
       setTransactions(importPreview.transactions);
       setRawContent(content);
@@ -441,33 +442,35 @@ export default function ImportScreen() {
    * ordering, and an all-positive amount column gives none of its direction.
    */
   const applyFormat = useCallback(
-    async (patch: Partial<CsvFormat>) => {
-      if (!rawContent || !format) return;
+    (patch: Partial<CsvFormat>) => {
+      if (!rawContent || !format || !history) return;
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
       const next = { ...format, ...patch };
-      const reparsed = parseStatement(rawContent, rawSource, next, { currency: userCurrency });
-
-      const existingTxs = await getTransactions();
-      const existingKeys = new Set(
-        existingTxs.map(tx => `${tx.dateISO}_${tx.amount}_${tx.note?.substring(0, 20) || ''}`)
-      );
-      const importPreview = generateImportPreview(reparsed, existingKeys);
+      // A bank statement keeps the columns it was parsed with — remembered,
+      // or pointed out by hand on the mapping step. Re-detecting them would
+      // lose a mapping the header alone cannot give, and the preview would
+      // come back empty.
+      const reparsed =
+        rawSource === 'bank' && activeMapping
+          ? parseCSV(rawContent, next, activeMapping, history.context)
+          : parseStatement(rawContent, rawSource, next, history.context);
+      const importPreview = generateImportPreview(reparsed, history.existingKeys);
 
       setFormat(next);
       setPreview(importPreview);
       setTransactions(importPreview.transactions);
     },
-    [rawContent, rawSource, format, userCurrency]
+    [rawContent, rawSource, format, history, activeMapping]
   );
 
   /** Parse with the user's column mapping and move on to the preview. */
-  const confirmMapping = useCallback(async () => {
-    if (!rawContent || !inspection) return;
+  const confirmMapping = useCallback(() => {
+    if (!rawContent || !inspection || !history) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     const merged = { ...inspection.mapping, ...mapping };
-    const parsed = parseCSV(rawContent, {}, merged, { currency: userCurrency });
+    const parsed = parseCSV(rawContent, {}, merged, history.context);
 
     if (parsed.length === 0) {
       Alert.alert(
@@ -477,11 +480,7 @@ export default function ImportScreen() {
       return;
     }
 
-    const existingTxs = await getTransactions();
-    const existingKeys = new Set(
-      existingTxs.map(tx => `${tx.dateISO}_${tx.amount}_${tx.note?.substring(0, 20) || ''}`)
-    );
-    const importPreview = generateImportPreview(parsed, existingKeys);
+    const importPreview = generateImportPreview(parsed, history.existingKeys);
 
     setPreview(importPreview);
     setTransactions(importPreview.transactions);
@@ -489,7 +488,7 @@ export default function ImportScreen() {
     setActiveMapping(merged);
     setStep('preview');
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-  }, [rawContent, inspection, mapping, userCurrency]);
+  }, [rawContent, inspection, mapping, history]);
 
   const updateTransactionCategory = (txId: string, category: Category) => {
     setTransactions(prev =>

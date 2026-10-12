@@ -5,6 +5,7 @@
  * account creation (Guideline 5.1.1(v)).
  */
 import { api } from './api/api';
+import { request } from './api-errors';
 
 export interface OwnedGroupImpact {
   id: string;
@@ -42,9 +43,12 @@ export interface DeletionResult {
   unrevoked: UnrevokedGrant[];
 }
 
+// Both calls reject with an ApiFailure (lib/api-errors), whose message is
+// already in the reader's language.
+
 /** What deleting this account would destroy. */
 export function fetchDeletionPreview(): Promise<DeletionPreview> {
-  return api.get<DeletionPreview>('/api/me/deletion-preview');
+  return request(() => api.get<DeletionPreview>('/api/me/deletion-preview'));
 }
 
 /**
@@ -52,5 +56,5 @@ export function fetchDeletionPreview(): Promise<DeletionPreview> {
  * `confirmEmail` must match the signed-in address exactly.
  */
 export function deleteAccount(confirmEmail: string): Promise<DeletionResult> {
-  return api.delete<DeletionResult>('/api/me', { confirmEmail });
+  return request(() => api.delete<DeletionResult>('/api/me', { confirmEmail }), 'typedName');
 }

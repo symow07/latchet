@@ -1,4 +1,5 @@
 import { authedFetch } from './api/api';
+import { readJson, request } from './api-errors';
 const getBackendUrl = (): string => {
   const url = process.env.EXPO_PUBLIC_BACKEND_URL;
   if (!url) throw new Error('EXPO_PUBLIC_BACKEND_URL is not configured');
@@ -35,6 +36,16 @@ export interface Expense {
 }
 
 // ─── API calls ────────────────────────────────────────────────────────────────
+//
+// Every call rejects with an ApiFailure (lib/api-errors): its message is
+// already a sentence in the reader's language, which is what the screens show.
+
+type Init = Parameters<typeof authedFetch>[1];
+
+/** One call whose answer is JSON. */
+function call<T>(path: string, init?: Init): Promise<T> {
+  return request(async () => readJson<T>(await authedFetch(`${getBackendUrl()}${path}`, init)));
+}
 
 export async function submitExpense(data: {
   amount: number;
@@ -43,40 +54,25 @@ export async function submitExpense(data: {
   /** The receipt itself, base64. The server stores it and fills in imageUrl. */
   image?: string | null;
 }): Promise<Expense> {
-  const res = await authedFetch(`${getBackendUrl()}/api/expenses`, {
+  const json = await call<{ expense: Expense }>('/api/expenses', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
-  const json = await res.json() as { expense: Expense; error?: string };
-  if (!res.ok) throw new Error(json.error ?? 'Failed to submit expense');
   return json.expense;
 }
 
 export async function getExpenses(status?: ExpenseStatus): Promise<Expense[]> {
-  const url = status
-    ? `${getBackendUrl()}/api/expenses?status=${status}`
-    : `${getBackendUrl()}/api/expenses`;
-  const res = await authedFetch(url);
-  const json = await res.json() as { expenses: Expense[]; error?: string };
-  if (!res.ok) throw new Error(json.error ?? 'Failed to fetch expenses');
+  const json = await call<{ expenses: Expense[] }>(status ? `/api/expenses?status=${status}` : '/api/expenses');
   return json.expenses;
 }
 
 export async function approveExpense(id: string): Promise<Expense> {
-  const res = await authedFetch(`${getBackendUrl()}/api/expenses/${id}/approve`, {
-    method: 'PATCH',
-  });
-  const json = await res.json() as { expense: Expense; error?: string };
-  if (!res.ok) throw new Error(json.error ?? 'Failed to approve expense');
+  const json = await call<{ expense: Expense }>(`/api/expenses/${id}/approve`, { method: 'PATCH' });
   return json.expense;
 }
 
 export async function rejectExpense(id: string): Promise<Expense> {
-  const res = await authedFetch(`${getBackendUrl()}/api/expenses/${id}/reject`, {
-    method: 'PATCH',
-  });
-  const json = await res.json() as { expense: Expense; error?: string };
-  if (!res.ok) throw new Error(json.error ?? 'Failed to reject expense');
+  const json = await call<{ expense: Expense }>(`/api/expenses/${id}/reject`, { method: 'PATCH' });
   return json.expense;
 }

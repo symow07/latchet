@@ -104,6 +104,26 @@ i18n.pluralization.register('ar', (_i18n, count) => {
 
 let activeLocale: AppLocale = 'en';
 
+/**
+ * Who wants to know when the language changes.
+ *
+ * Most text is read through t() when it is drawn, and the remount the locale
+ * store triggers takes care of it. A few words are handed to the operating
+ * system once and kept there — the lock-screen action's button, a nudge
+ * scheduled for tonight — and nothing redraws those. Their owners listen here
+ * and hand the system the new words.
+ */
+type LocaleListener = (locale: AppLocale) => void;
+const localeListeners = new Set<LocaleListener>();
+
+/** Call `listener` after every change of language. Returns the unsubscribe. */
+export function onLocaleChange(listener: LocaleListener): () => void {
+  localeListeners.add(listener);
+  return () => {
+    localeListeners.delete(listener);
+  };
+}
+
 /** Narrow an arbitrary tag ("fr-CA", "zh-Hant-TW") to a locale we ship. */
 /**
  * Narrow a device tag to a language we ship.
@@ -122,8 +142,20 @@ export function normalizeLocale(tag: string | null | undefined): AppLocale | nul
 }
 
 export function setLocale(locale: AppLocale): void {
+  const changed = locale !== activeLocale;
   activeLocale = locale;
   i18n.locale = locale;
+  // Only a real change: applyChosenLocale sets the same language twice on
+  // purpose, and the listeners re-register things with the OS.
+  if (!changed) return;
+  for (const listener of [...localeListeners]) {
+    try {
+      listener(locale);
+    } catch (e) {
+      // A listener's failure is its own; the language has already changed.
+      console.warn('[i18n] a locale listener failed:', e);
+    }
+  }
 }
 
 export function getLocale(): AppLocale {

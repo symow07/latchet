@@ -1662,5 +1662,31 @@
     "resendIn": "%{seconds} 秒后重发",
     "resendLabel": "向 %{email} 发送验证链接",
     "failed": "链接发送失败，请稍后再试。"
+  },
+  "notifications": {
+    "quickAddAction": "记一笔",
+    "quickAddSave": "保存",
+    "quickAddPlaceholder": "例如 12.50 咖啡",
+    "streakTitle": "别让连续记录中断 🔥",
+    "streakBody": "记下今天的支出，让连续记录继续下去。",
+    "channelName": "提醒与通知"
+  },
+  "apiErrors": {
+    "network": "无法连接服务器。请检查网络后重试。",
+    "timeout": "服务器响应太慢。请稍后重试。",
+    "unauthorized": "登录已失效。请重新登录后继续。",
+    "forbidden": "你没有执行此操作的权限。",
+    "notFound": "找不到该内容，它可能已被删除。",
+    "conflict": "该内容已存在。请刷新后重试。",
+    "validation": "你输入的内容有误。请检查后重试。",
+    "tooLarge": "内容太大，无法发送。请换一个较小的文件。",
+    "rateLimited": "尝试次数过多。请等几分钟后再试。",
+    "upgrade": "此功能需要 Budget Pro。你可以在设置中升级。",
+    "server": "我们这边出了问题。请稍后重试。",
+    "unknown": "出了点问题。请重试。",
+    "inviteInvalid": "邀请码无效。请检查后重试。",
+    "alreadyMember": "你已经是成员了。",
+    "typedMismatch": "输入的内容不一致。请按显示的内容准确输入。",
+    "imageUnusable": "这张图片无法使用。请换一张。"
   }
 }
