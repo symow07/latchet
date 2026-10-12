@@ -42,6 +42,8 @@ Notifications.setNotificationHandler({
 });
 
 const STREAK_NUDGE_ID = 'daily-streak-nudge';
+/** Device key: the nudge's on-by-default was applied here (storage-keys.ts). */
+const STREAK_DEFAULT_KEY = 'streak_reminder_default_v1';
 
 /**
  * The actionable-notification category the streak nudge carries.
@@ -177,6 +179,20 @@ export async function cancelStreakReminder(): Promise<void> {
  */
 export async function isStreakReminderScheduled(): Promise<boolean> {
   return inTurn(async () => (await findNudge(Notifications, IDS)) !== null);
+}
+
+/**
+ * Turn the streak nudge on the first time on this device, and never again:
+ * after that, the Settings switch alone decides (lib/streak-reminder-default).
+ */
+export async function applyDefaultStreakReminder(): Promise<void> {
+  const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+  const { applyStreakReminderDefault } = await import('./streak-reminder-default');
+  await applyStreakReminderDefault({
+    isApplied: async () => (await AsyncStorage.getItem(STREAK_DEFAULT_KEY)) !== null,
+    markApplied: () => AsyncStorage.setItem(STREAK_DEFAULT_KEY, '1'),
+    schedule: () => scheduleStreakReminder(),
+  });
 }
 
 /**

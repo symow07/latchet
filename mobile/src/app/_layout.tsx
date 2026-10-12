@@ -23,7 +23,7 @@ import { isBiometricAvailable, authenticateWithBiometrics } from '@/lib/biometri
 import { useSafeAreaInsets, SafeAreaProvider } from 'react-native-safe-area-context';
 import { useAccountTypeStore, type AccountTypeStore } from '@/lib/account-type-store';
 import { profileRedirect } from '@/lib/profile-route';
-import { registerForPushNotifications, scheduleStreakReminder } from '@/lib/notifications';
+import { applyDefaultStreakReminder, registerForPushNotifications } from '@/lib/notifications';
 import { setUserId, logoutUser } from '@/lib/revenuecatClient';
 import { S, useC, useScheme, type Palette } from '@/lib/design';
 import { IconTile, PrimaryButton, Type } from '@/components/kit';
@@ -462,14 +462,15 @@ function RootLayoutNav({ colorScheme }: { colorScheme: 'light' | 'dark' | null |
   }, [pendingRoute, sessionLoading, accountTypeLoaded, dbReady, router, clearPendingRoute]);
 
   // Register the device for push notifications (bill reminders, badge alerts)
-  // and schedule the daily streak nudge — once per authenticated user.
+  // and turn the daily streak nudge on by default the first time on this
+  // device — after that the Settings switch alone decides.
   const pushRegisteredFor = useRef<string | null>(null);
   useEffect(() => {
     const userId = session?.user?.id;
     if (!userId || pushRegisteredFor.current === userId) return;
     pushRegisteredFor.current = userId;
     registerForPushNotifications().catch(() => {});
-    scheduleStreakReminder().catch(() => {});
+    applyDefaultStreakReminder().catch(() => {});
   }, [session?.user?.id]);
 
   // Tell RevenueCat who this is — once per authenticated user, and log out

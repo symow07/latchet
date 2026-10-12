@@ -40,6 +40,7 @@ export const DEVICE_STORAGE_KEYS = [
   '@exchange_rates_v1',
   'pending_capture_seen_v1',
   'pending_share_seen_v1',
+  'streak_reminder_default_v1',
 ] as const;
 
 /**
