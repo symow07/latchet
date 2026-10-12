@@ -84,7 +84,9 @@
           }
         }
       ],
-      "./plugins/withIosDeploymentTarget"
+      "./plugins/withIosDeploymentTarget",
+      "@sentry/react-native",
+      "./plugins/withSentryOptionalUpload"
     ],
     "experiments": {
       "typedRoutes": true

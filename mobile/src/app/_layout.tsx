@@ -35,6 +35,12 @@ import { shouldRelock } from '@/lib/biometric-relock';
 import { usePendingNavigationStore } from '@/lib/pending-navigation-store';
 import { listenForQuickAdd } from '@/lib/quick-add-notify';
 import { listenForNotificationTaps } from '@/lib/notification-taps';
+import * as Sentry from '@sentry/react-native';
+import { initCrashReporting, setCrashReportingUser } from '@/lib/crash-reporting';
+
+// Crash reporting first, so the rest of startup is covered. Off unless the
+// build has a DSN; nothing personal is sent (lib/crash-reporting.ts).
+initCrashReporting(Sentry);
 
 // Silence verbose console.log in release builds (startup/gate/api tracing stays
 // available in dev via expo.log). warn/error still surface for crash reporting.
@@ -492,6 +498,13 @@ function RootLayoutNav({ colorScheme }: { colorScheme: 'light' | 'dark' | null |
     setUserId(userId).catch(() => {});
   }, [session?.user?.id]);
 
+  // Crashes carry the signed-in account's opaque id and nothing else about
+  // them — no email, no name — and no one once the session ends.
+  useEffect(() => {
+    if (sessionLoading) return;
+    setCrashReportingUser(userId);
+  }, [sessionLoading, userId]);
+
   // Surface session-fetch errors with a visible Retry instead of silently
   // forcing a logged-out state. The 6s sessionTimedOut backstop below remains
   // as the final escape hatch ("Continue offline" → fall through to public stack).
@@ -728,7 +741,7 @@ function usePendingCaptures(dbUser: string | null) {
   }, [dbUser, setPendingRoute]);
 }
 
-export default function RootLayout() {
+function RootLayout() {
   const localeVersion = useLocaleStore((s) => s.version);
   // The user's theme choice, not the raw OS value: otherwise React
   // Navigation paints dark chrome underneath a light-themed app.
@@ -841,3 +854,7 @@ export default function RootLayout() {
     </QueryClientProvider>
   );
 }
+
+// Wrapped for crash reporting. Its touch breadcrumbs name the component
+// touched, never what is on it; while crash reporting is off it records nothing.
+export default Sentry.wrap(RootLayout);

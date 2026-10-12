@@ -11,13 +11,15 @@
         "simulator": true
       },
       "env": {
-        "EXPO_PUBLIC_BACKEND_URL": "https://budget-production-5a9d.up.railway.app"
+        "EXPO_PUBLIC_BACKEND_URL": "https://budget-production-5a9d.up.railway.app",
+        "EXPO_PUBLIC_SENTRY_ENVIRONMENT": "development"
       }
     },
     "preview": {
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_BACKEND_URL": "https://budget-production-5a9d.up.railway.app"
+        "EXPO_PUBLIC_BACKEND_URL": "https://budget-production-5a9d.up.railway.app",
+        "EXPO_PUBLIC_SENTRY_ENVIRONMENT": "preview"
       }
     },
     "preview-simulator": {
@@ -26,14 +28,16 @@
         "simulator": true
       },
       "env": {
-        "EXPO_PUBLIC_BACKEND_URL": "https://budget-production-5a9d.up.railway.app"
+        "EXPO_PUBLIC_BACKEND_URL": "https://budget-production-5a9d.up.railway.app",
+        "EXPO_PUBLIC_SENTRY_ENVIRONMENT": "preview"
       }
     },
     "production": {
       "distribution": "store",
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_BACKEND_URL": "https://budget-production-5a9d.up.railway.app"
+        "EXPO_PUBLIC_BACKEND_URL": "https://budget-production-5a9d.up.railway.app",
+        "EXPO_PUBLIC_SENTRY_ENVIRONMENT": "production"
       }
     }
   },

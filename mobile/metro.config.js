@@ -3,13 +3,17 @@
 // SVG imports are handled by react-native-svg-transformer; `.svg` is moved from
 // assetExts to sourceExts in the resolver below.
 
-const { getDefaultConfig } = require("expo/metro-config");
+const { getSentryExpoConfig } = require("@sentry/react-native/metro");
 const { withNativeWind } = require("nativewind/metro");
 const path = require("path");
 const fs = require("fs");
 
+// Expo's default config with Sentry's serializer, which writes the same debug
+// ID into the bundle and its source map, so a crash's stack trace is matched
+// to the right source map when it is symbolicated. Everything below builds on
+// it; nothing replaces config.serializer.
 /** @type {import('expo/metro-config').MetroConfig} */
-const config = getDefaultConfig(__dirname);
+const config = getSentryExpoConfig(__dirname);
 
 // Only configure shared folder if it exists (may not exist during Docker build)
 const sharedFolder = path.resolve(__dirname, "../shared");
