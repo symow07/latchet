@@ -1,0 +1,9 @@
+{
+  "kind": "renewal",
+  "merchant": "腾讯视频",
+  "amount": 25,
+  "currency": "CNY",
+  "cadence": "monthly",
+  "nextChargeISO": "2026-10-15",
+  "chargedISO": null
+}

@@ -1,0 +1,9 @@
+{
+  "kind": "price_change",
+  "merchant": "SFR",
+  "amount": 35.99,
+  "previousAmount": 32.99,
+  "currency": "EUR",
+  "cadence": "monthly",
+  "nextChargeISO": "2026-12-12"
+}

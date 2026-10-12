@@ -1,0 +1,58 @@
+From: Spotify <no-reply@spotify.com>
+To: Emily Carter <emily.carter@example.com>
+Subject: Your Spotify Premium receipt
+Date: Sat, 10 Oct 2026 08:14:22 +0000
+Message-ID: <20261010081422.7f3a91c2e1@spotify.com>
+MIME-Version: 1.0
+Content-Type: text/html; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+
+<!DOCTYPE html>
+<html><head><meta charset=3D"utf-8"><title>Spotify receipt</title>
+<style>.btn{background:#1db954;color:#fff}@media (max-width:600px){.hide-mo=
+bile{display:none!important}}</style></head>
+<body style=3D"margin:0;padding:0;background:#f4f4f4">
+<div style=3D"display:none;font-size:1px;color:#ffffff;line-height:1px;max-=
+height:0px;max-width:0px;opacity:0;overflow:hidden;">Thanks for your paymen=
+t &ndash; here&rsquo;s your receipt. $0.00 due today.</div>
+<!--[if mso]><table role=3D"presentation"><tr><td>View this email in your b=
+rowser: $99.99</td></tr></table><![endif]-->
+<table width=3D"100%" cellpadding=3D"0" cellspacing=3D"0" role=3D"presentat=
+ion"><tr><td align=3D"center">
+<table width=3D"600" cellpadding=3D"0" cellspacing=3D"0" role=3D"presentati=
+on" style=3D"background:#ffffff">
+<tr><td style=3D"padding:24px"><img src=3D"https://cdn.example-spotify.com/=
+logo.png" alt=3D"Spotify" width=3D"120" height=3D"36"></td></tr>
+<tr><td style=3D"padding:0 24px"><h1 style=3D"font-size:24px;margin:0">Than=
+ks for your payment</h1>
+<p>Hi Emily,</p>
+<p>This is a receipt for your Spotify Premium Individual subscription. Your=
+ payment was processed on October 10, 2026.</p></td></tr>
+<tr><td style=3D"padding:0 24px">
+<table width=3D"100%" cellpadding=3D"6" cellspacing=3D"0" style=3D"border-t=
+op:1px solid #ddd">
+<tr><td>Premium Individual</td><td align=3D"right">Monthly subscription</td=
+></tr>
+<tr><td>Billing period</td><td align=3D"right">Oct 10, 2026 &ndash; Nov 9, =
+2026</td></tr>
+<tr><td>Subtotal</td><td align=3D"right">$11.08</td></tr>
+<tr><td>Tax</td><td align=3D"right">$0.91</td></tr>
+<tr><td><strong>Total</strong></td><td align=3D"right"><strong>$11.99</stro=
+ng></td></tr>
+<tr><td>Payment method</td><td align=3D"right">Visa ending in 4417</td></tr=
+>
+</table></td></tr>
+<tr><td style=3D"padding:12px 24px"><p>Your next payment of $11.99 will be =
+charged on November 10, 2026.</p>
+<p><a class=3D"btn" href=3D"https://www.spotify.com/account/">Manage your p=
+lan</a></p></td></tr>
+<tr><td style=3D"padding:30px 24px;font-size:12px;color:#888888">
+<p>Want to share Premium? Get Premium Family for $19.99/month and add up to=
+ 6 accounts.</p>
+<p>Spotify USA Inc., 4 World Trade Center, 150 Greenwich Street, 62nd Floor=
+, New York, NY 10007, USA</p>
+<p><a href=3D"https://www.spotify.com/us/legal/privacy-policy/">Privacy Pol=
+icy</a> &middot; <a href=3D"https://www.spotify.com/us/legal/">Terms of Use=
+</a> &middot; <a href=3D"https://www.spotify.com/account/">Account</a></p>
+<p>&copy; 2026 Spotify AB</p></td></tr>
+</table></td></tr></table></body></html>

@@ -1,0 +1,9 @@
+{
+  "kind": "renewal",
+  "merchant": "Amazon",
+  "amount": 95,
+  "currency": "GBP",
+  "cadence": "yearly",
+  "chargedISO": "2026-10-08",
+  "nextChargeISO": "2027-10-08"
+}

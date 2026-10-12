@@ -1,0 +1,51 @@
+From: The New York Times <nytdirect@nytimes.com>
+To: oliver.reed@example.com
+Subject: An update to your subscription rate
+Date: Wed, 07 Oct 2026 11:30:00 -0400
+Message-ID: <nyt-rate-2026-10-a91f@nytimes.com>
+MIME-Version: 1.0
+Content-Type: multipart/alternative; boundary="----=_Part_alternative_7fa4_4"
+
+------=_Part_alternative_7fa4_4
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
+
+Dear Oliver,
+
+Thank you for being a New York Times subscriber. We're writing to let you know about an upcoming change to your subscription rate.
+
+Starting with your first bill on or after November 15, 2026, your subscription rate will change from $17.00 per month to $25.00 per month, plus applicable sales tax.
+
+This rate supports the independent journalism of more than 1,800 journalists around the world. You don't need to do anything to keep your subscription.
+
+If you have questions, visit our Help Center.
+
+Sincerely,
+The New York Times
+
+The New York Times Company, 620 Eighth Avenue, New York, NY 10018
+Unsubscribe | Privacy Policy | Contact Us
+------=_Part_alternative_7fa4_4
+Content-Type: text/html; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+
+<html><body><table width=3D"600" align=3D"center" style=3D"font-family:Geor=
+gia,serif">
+<tr><td><img src=3D"https://static.example-nyt.com/logo.png" alt=3D"The New=
+ York Times"></td></tr>
+<tr><td><p>Dear Oliver,</p>
+<p>Thank you for being a New York Times subscriber. We&rsquo;re writing to =
+let you know about an upcoming change to your subscription rate.</p>
+<p>Starting with your first bill on or after <b>November 15, 2026</b>, your=
+ subscription rate will change from <b>$17.00 per month</b> to <b>$25.00 pe=
+r month</b>, plus applicable sales tax.</p>
+<p>This rate supports the independent journalism of more than 1,800 journal=
+ists around the world. You don&rsquo;t need to do anything to keep your sub=
+scription.</p>
+<p>Sincerely,<br>The New York Times</p></td></tr>
+<tr><td style=3D"font-size:11px;color:#999">The New York Times Company, 620=
+ Eighth Avenue, New York, NY 10018<br><a href=3D"https://example-nyt.com/un=
+sub">Unsubscribe</a> | <a href=3D"https://example-nyt.com/privacy">Privacy =
+Policy</a></td></tr>
+</table></body></html>
+------=_Part_alternative_7fa4_4--

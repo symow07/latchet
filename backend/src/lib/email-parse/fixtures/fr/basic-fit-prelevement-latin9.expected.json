@@ -1,0 +1,9 @@
+{
+  "kind": "renewal",
+  "merchant": "Basic-Fit",
+  "amount": 29.99,
+  "currency": "EUR",
+  "cadence": "monthly",
+  "chargedISO": "2026-10-06",
+  "nextChargeISO": "2026-11-06"
+}

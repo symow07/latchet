@@ -1,0 +1,7 @@
+{
+  "kind": "receipt",
+  "merchant": "Free Mobile",
+  "amount": 19.99,
+  "currency": "EUR",
+  "cadence": "monthly"
+}

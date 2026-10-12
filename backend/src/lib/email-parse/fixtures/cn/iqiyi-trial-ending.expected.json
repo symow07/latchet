@@ -1,0 +1,8 @@
+{
+  "kind": "trial_ending",
+  "merchant": "爱奇艺",
+  "trialEndsISO": "2026-10-14",
+  "amount": 25,
+  "currency": "CNY",
+  "cadence": "monthly"
+}

@@ -1,0 +1,9 @@
+{
+  "kind": "price_change",
+  "merchant": "The New York Times",
+  "amount": 25,
+  "previousAmount": 17,
+  "currency": "USD",
+  "cadence": "monthly",
+  "nextChargeISO": "2026-11-15"
+}

@@ -23,6 +23,10 @@
     "@prisma/client": "5",
     "better-auth": "^1.5.0",
     "hono": "4.6.0",
+    "iconv-lite": "0.7.3",
+    "mailparser": "3.9.38",
+    "tldts": "7.4.18",
+    "unpdf": "1.8.1",
     "zod": "4.1.11"
   }
 }

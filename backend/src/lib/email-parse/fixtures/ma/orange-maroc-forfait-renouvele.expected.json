@@ -1,0 +1,9 @@
+{
+  "kind": "renewal",
+  "merchant": "Orange Maroc",
+  "amount": 99,
+  "currency": "MAD",
+  "cadence": "monthly",
+  "chargedISO": "2026-10-10",
+  "nextChargeISO": "2026-11-10"
+}

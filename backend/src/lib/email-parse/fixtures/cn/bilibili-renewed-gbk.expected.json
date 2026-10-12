@@ -1,0 +1,9 @@
+{
+  "kind": "renewal",
+  "merchant": "哔哩哔哩",
+  "amount": 148,
+  "currency": "CNY",
+  "cadence": "yearly",
+  "chargedISO": "2026-10-08",
+  "nextChargeISO": "2027-10-08"
+}

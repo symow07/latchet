@@ -1,0 +1,7 @@
+{
+  "kind": "receipt",
+  "merchant": "Canal+",
+  "amount": 25.99,
+  "currency": "EUR",
+  "cadence": "monthly"
+}

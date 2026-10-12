@@ -1,0 +1,9 @@
+{
+  "kind": "receipt",
+  "merchant": "Bluebird Coffee Roasters",
+  "amount": 6.27,
+  "currency": "USD",
+  "cadence": "unknown",
+  "chargedISO": "2026-10-11",
+  "nextChargeISO": null
+}

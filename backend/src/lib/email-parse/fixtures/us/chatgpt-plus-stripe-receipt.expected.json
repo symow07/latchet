@@ -1,0 +1,8 @@
+{
+  "kind": "receipt",
+  "merchant": "OpenAI",
+  "amount": 20,
+  "currency": "USD",
+  "cadence": "monthly",
+  "chargedISO": "2026-10-03"
+}

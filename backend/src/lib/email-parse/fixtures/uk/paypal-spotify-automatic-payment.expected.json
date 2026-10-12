@@ -1,0 +1,9 @@
+{
+  "kind": "receipt",
+  "merchant": "Spotify",
+  "billedVia": "paypal",
+  "amount": 11.99,
+  "currency": "GBP",
+  "cadence": "unknown",
+  "chargedISO": "2026-10-09"
+}

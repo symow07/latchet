@@ -1,0 +1,9 @@
+{
+  "kind": "renewal",
+  "merchant": "Microsoft",
+  "amount": 99.99,
+  "currency": "USD",
+  "cadence": "yearly",
+  "nextChargeISO": "2026-11-02",
+  "chargedISO": null
+}

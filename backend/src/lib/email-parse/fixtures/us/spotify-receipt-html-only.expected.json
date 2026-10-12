@@ -1,0 +1,10 @@
+{
+  "kind": "receipt",
+  "merchant": "Spotify",
+  "amount": 11.99,
+  "currency": "USD",
+  "cadence": "monthly",
+  "chargedISO": "2026-10-10",
+  "nextChargeISO": "2026-11-10",
+  "previousAmount": null
+}

@@ -1,0 +1,10 @@
+{
+  "kind": "receipt",
+  "merchant": "Calm",
+  "billedVia": "apple",
+  "amount": 69.99,
+  "currency": "USD",
+  "cadence": "yearly",
+  "chargedISO": "2026-10-05",
+  "nextChargeISO": "2027-10-05"
+}

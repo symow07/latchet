@@ -1,0 +1,45 @@
+From: Orange <ne-pas-repondre@orange.fr>
+To: camille.durand@example.fr
+Subject: =?UTF-8?Q?R=C3=A9initialisation_de?=
+ =?UTF-8?Q?_votre_mot_de_passe?=
+Date: Wed, 07 Oct 2026 22:10:00 +0200
+Message-ID: <reset-pw-0a91@orange.fr>
+MIME-Version: 1.0
+Content-Type: multipart/alternative; boundary="----=_Part_alternative_1d3e9_15"
+
+------=_Part_alternative_1d3e9_15
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+
+Bonjour,
+
+Vous avez demand=C3=A9 la r=C3=A9initialisation du mot de passe de votre co=
+mpte Orange.
+
+Pour choisir un nouveau mot de passe, cliquez sur le lien ci-dessous (valab=
+le 30 minutes) :
+https://login.example-orange.fr/reset?k=3D8f2a91
+
+Si vous n'=C3=AAtes pas =C3=A0 l'origine de cette demande, ignorez ce messa=
+ge. Votre forfait Livebox =C3=A0 42,99 =E2=82=AC/mois n'est pas concern=C3=
+=A9.
+
+Orange SA =E2=80=93 111 quai du Pr=C3=A9sident Roosevelt, 92130 Issy-les-Mo=
+ulineaux
+------=_Part_alternative_1d3e9_15
+Content-Type: text/html; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+
+<html><head><meta http-equiv=3D"Content-Type" content=3D"text/html; charset=
+=3Dutf-8"></head><body><table width=3D"600" align=3D"center"><tr><td><p>Bon=
+jour,</p>
+<p>Vous avez demand=C3=A9 la r=C3=A9initialisation du mot de passe de votre=
+ compte Orange.</p>
+<p>Pour choisir un nouveau mot de passe, cliquez sur le lien ci-dessous (va=
+lable 30 minutes) :<br>https://login.example-orange.fr/reset?k=3D8f2a91</p>
+<p>Si vous n'=C3=AAtes pas =C3=A0 l'origine de cette demande, ignorez ce me=
+ssage. Votre forfait Livebox =C3=A0 42,99 =E2=82=AC/mois n'est pas concern=
+=C3=A9.</p>
+<p>Orange SA =E2=80=93 111 quai du Pr=C3=A9sident Roosevelt, 92130 Issy-les=
+-Moulineaux</p></td></tr></table></body></html>
+------=_Part_alternative_1d3e9_15--

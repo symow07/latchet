@@ -1,0 +1,104 @@
+From: Apple <no_reply@email.apple.com>
+To: emily.carter@example.com
+Subject: Your receipt from Apple.
+Date: Mon, 05 Oct 2026 19:02:11 -0700
+Message-ID: <MT7Q2K9XZ1.194028837162@email.apple.com>
+MIME-Version: 1.0
+Content-Type: multipart/alternative; boundary="----=_Part_alternative_41c6_2"
+
+------=_Part_alternative_41c6_2
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+
+Receipt
+
+Apple Account: emily.carter@example.com
+Date: Oct 5, 2026
+Order ID: MT7Q2K9XZ1
+Document: 194028837162
+
+App Store
+Calm
+Calm Premium (Annual)
+Renews Oct 5, 2027
+$69.99
+
+Subtotal $64.51
+Tax $5.48
+Total $69.99
+
+Billed To
+Visa .... 4242
+Emily Carter
+118 Linden Ave
+Springfield, IL 62704
+United States
+
+Report a Problem
+Get help with subscriptions and purchases. Visit Apple Support.
+Learn how to manage your password preferences for iTunes, Apple Books and A=
+pp Store purchases.
+
+Apple Account | Terms of Sale | Privacy Policy
+Copyright =C2=A9 2026 Apple Inc. One Apple Park Way, Cupertino, CA 95014, U=
+nited States. All rights reserved.
+------=_Part_alternative_41c6_2
+Content-Type: multipart/related; boundary="----=_Part_related_22d7_1"
+
+------=_Part_related_22d7_1
+Content-Type: text/html; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+
+<html><head><meta name=3D"viewport" content=3D"width=3Ddevice-width"><style=
+>td{font-family:-apple-system,Helvetica}</style></head><body>
+<table width=3D"660" align=3D"center" role=3D"presentation">
+<tr><td><img src=3D"cid:apple-logo@apple.com" alt=3D"Apple" width=3D"25"></=
+td><td align=3D"right" style=3D"font-size:28px">Receipt</td></tr>
+</table>
+<table width=3D"660" align=3D"center">
+<tr><td>Apple Account: <a href=3D"mailto:emily.carter@example.com">emily.ca=
+rter@example.com</a></td></tr>
+<tr><td>Date: Oct 5, 2026</td><td>Order ID: <a href=3D"https://reportaprobl=
+em.apple.com/?o=3DMT7Q2K9XZ1">MT7Q2K9XZ1</a></td><td>Document: 194028837162=
+</td></tr>
+</table>
+<table width=3D"660" align=3D"center">
+<tr><td colspan=3D"3" style=3D"font-weight:600;background:#f5f5f7">App Stor=
+e</td></tr>
+<tr><td><img src=3D"cid:app-icon@apple.com" alt=3D"" width=3D"64"></td>
+<td><div style=3D"font-weight:600">Calm</div><div>Calm Premium (Annual)</di=
+v><div style=3D"color:#666">Renews Oct 5, 2027</div><div><a href=3D"https:/=
+/reportaproblem.apple.com/">Report a Problem</a></div></td>
+<td align=3D"right" style=3D"font-weight:600">$69.99</td></tr>
+</table>
+<table width=3D"660" align=3D"center">
+<tr><td>Subtotal</td><td align=3D"right">$64.51</td></tr>
+<tr><td>Tax</td><td align=3D"right">$5.48</td></tr>
+<tr><td style=3D"font-weight:600">Total</td><td align=3D"right" style=3D"fo=
+nt-weight:600">$69.99</td></tr>
+</table>
+<table width=3D"660" align=3D"center"><tr><td>Billed To<br>Visa .... 4242<b=
+r>Emily Carter<br>118 Linden Ave<br>Springfield, IL 62704<br>United States<=
+/td></tr></table>
+<p style=3D"font-size:11px;color:#888">Apple Account | Terms of Sale | Priv=
+acy Policy<br>Copyright &copy; 2026 Apple Inc. One Apple Park Way, Cupertin=
+o, CA 95014, United States. All rights reserved.</p>
+</body></html>
+------=_Part_related_22d7_1
+Content-Type: image/png
+Content-Transfer-Encoding: base64
+Content-ID: <apple-logo@apple.com>
+Content-Disposition: inline; filename="apple.png"
+
+iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6
+kgAAAABJRU5ErkJggg==
+------=_Part_related_22d7_1
+Content-Type: image/png
+Content-Transfer-Encoding: base64
+Content-ID: <app-icon@apple.com>
+Content-Disposition: inline; filename="icon.png"
+
+iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6
+kgAAAABJRU5ErkJggg==
+------=_Part_related_22d7_1--
+------=_Part_alternative_41c6_2--

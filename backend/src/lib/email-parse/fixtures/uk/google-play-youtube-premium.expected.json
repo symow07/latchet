@@ -1,0 +1,9 @@
+{
+  "kind": "receipt",
+  "merchant": "YouTube Premium",
+  "billedVia": "google_play",
+  "amount": 12.99,
+  "currency": "GBP",
+  "cadence": "monthly",
+  "chargedISO": "2026-10-12"
+}

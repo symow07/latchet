@@ -1,0 +1,87 @@
+From: CANAL+ <noreply@canalplus.com>
+To: camille.durand@example.fr
+Subject: =?UTF-8?Q?Votre_facture_CANAL=2B?=
+ =?UTF-8?Q?_est_disponible?=
+Date: Mon, 05 Oct 2026 07:30:00 +0200
+Message-ID: <fac-2026-10-58213@canalplus.com>
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="----=_Part_mixed_1771c_12"
+
+------=_Part_mixed_1771c_12
+Content-Type: multipart/related; boundary="----=_Part_related_1582d_11"
+
+------=_Part_related_1582d_11
+Content-Type: multipart/alternative; boundary="----=_Part_alternative_1393e_10"
+
+------=_Part_alternative_1393e_10
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+
+Bonjour Camille,
+
+Votre facture du mois d'octobre est disponible.
+Vous la trouverez en pi=C3=A8ce jointe de ce message ainsi que dans votre E=
+space Client.
+
+Le montant sera pr=C3=A9lev=C3=A9 sur votre compte bancaire =C3=A0 partir d=
+u 15/10/2026.
+
+Merci de votre fid=C3=A9lit=C3=A9,
+Le Service Client CANAL+
+
+Groupe Canal+ SA =E2=80=93 50 rue Camille Desmoulins, 92130 Issy-les-Moulin=
+eaux
+Se d=C3=A9sabonner | Mentions l=C3=A9gales
+------=_Part_alternative_1393e_10
+Content-Type: text/html; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+
+<html><head><meta charset=3D"utf-8"><style>.t{font-family:Arial}</style></h=
+ead><body class=3D"t">
+<table width=3D"600" align=3D"center"><tr><td><img src=3D"cid:logo-canal@ca=
+nalplus.com" alt=3D"CANAL+" width=3D"140"></td></tr>
+<tr><td><p>Bonjour Camille,</p><p>Votre facture du mois d&#39;octobre est d=
+isponible.<br>Vous la trouverez en pi&egrave;ce jointe de ce message ainsi =
+que dans votre <a href=3D"https://client.example-canal.fr">Espace Client</a=
+>.</p>
+<p>Le montant sera pr&eacute;lev&eacute; sur votre compte bancaire &agrave;=
+ partir du 15/10/2026.</p>
+<p>Merci de votre fid&eacute;lit&eacute;,<br>Le Service Client CANAL+</p></=
+td></tr>
+<tr><td style=3D"font-size:10px;color:#888">Groupe Canal+ SA &ndash; 50 rue=
+ Camille Desmoulins, 92130 Issy-les-Moulineaux<br><a href=3D"#">Se d&eacute=
+;sabonner</a> | Mentions l&eacute;gales</td></tr></table></body></html>
+------=_Part_alternative_1393e_10--
+------=_Part_related_1582d_11
+Content-Type: image/png
+Content-Transfer-Encoding: base64
+Content-ID: <logo-canal@canalplus.com>
+Content-Disposition: inline; filename="logo.png"
+
+iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6
+kgAAAABJRU5ErkJggg==
+------=_Part_related_1582d_11--
+------=_Part_mixed_1771c_12
+Content-Type: application/pdf; name="Facture_CANAL+_octobre_2026.pdf"
+Content-Transfer-Encoding: base64
+Content-Disposition: attachment; filename="Facture_CANAL+_octobre_2026.pdf"
+
+JVBERi0xLjQKMSAwIG9iago8PCAvVHlwZSAvQ2F0YWxvZyAvUGFnZXMgMiAwIFIgPj4KZW5kb2Jq
+CjIgMCBvYmoKPDwgL1R5cGUgL1BhZ2VzIC9LaWRzIFs0IDAgUl0gL0NvdW50IDEgPj4KZW5kb2Jq
+CjMgMCBvYmoKPDwgL1R5cGUgL0ZvbnQgL1N1YnR5cGUgL1R5cGUxIC9CYXNlRm9udCAvSGVsdmV0
+aWNhIC9FbmNvZGluZyAvV2luQW5zaUVuY29kaW5nID4+CmVuZG9iago0IDAgb2JqCjw8IC9UeXBl
+IC9QYWdlIC9QYXJlbnQgMiAwIFIgL01lZGlhQm94IFswIDAgNTk1IDg0Ml0gL1Jlc291cmNlcyA8
+PCAvRm9udCA8PCAvRjEgMyAwIFIgPj4gPj4gL0NvbnRlbnRzIDUgMCBSID4+CmVuZG9iago1IDAg
+b2JqCjw8IC9MZW5ndGggNDAyID4+CnN0cmVhbQpCVCAvRjEgMTEgVGYgMTQgVEwgNTYgNzgwIFRk
+IChDQU5BTCspIFRqIFQqIChGYWN0dXJlIG5cMjYwIEZBQy0yMDI2LTEwLTU4MjEzKSBUaiBUKiAo
+RGF0ZSBkZSBmYWN0dXJlIDogMDUvMTAvMjAyNikgVGogVCogKENsaWVudCA6IENhbWlsbGUgRHVy
+YW5kIC0gQ29udHJhdCA0NDEwLTc3ODEyKSBUaiBUKiAoQWJvbm5lbWVudCBDQU5BTCsgRXNzZW50
+aWVsIFwobWVuc3VlbFwpKSBUaiBUKiAoUFwzNTFyaW9kZSBkdSAwNS8xMC8yMDI2IGF1IDA0LzEx
+LzIwMjYpIFRqIFQqIChNb250YW50IEhUIDIxLDY2IFwyMDApIFRqIFQqIChUVkEgMjAgJSA0LDMz
+IFwyMDApIFRqIFQqIChUb3RhbCBUVEMgMjUsOTkgXDIwMCkgVGogVCogKFByXDM1MWxcMzUwdmVt
+ZW50IFNFUEEgbGUgMTUvMTAvMjAyNikgVGogVCogRVQKZW5kc3RyZWFtCmVuZG9iagp4cmVmCjAg
+NgowMDAwMDAwMDAwIDY1NTM1IGYgCjAwMDAwMDAwMDkgMDAwMDAgbiAKMDAwMDAwMDA1OCAwMDAw
+MCBuIAowMDAwMDAwMTE1IDAwMDAwIG4gCjAwMDAwMDAyMTIgMDAwMDAgbiAKMDAwMDAwMDMzOCAw
+MDAwMCBuIAp0cmFpbGVyCjw8IC9TaXplIDYgL1Jvb3QgMSAwIFIgPj4Kc3RhcnR4cmVmCjc5MQol
+JUVPRgo=
+------=_Part_mixed_1771c_12--

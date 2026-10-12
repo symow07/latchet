@@ -1,0 +1,8 @@
+{
+  "kind": "renewal",
+  "merchant": "芒果TV",
+  "amount": 19,
+  "currency": "CNY",
+  "cadence": "monthly",
+  "chargedISO": "2026-10-09"
+}

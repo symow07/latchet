@@ -1,0 +1,35 @@
+From: inwi <facture@inwi.ma>
+To: youssef.elamrani@example.ma
+Subject: Votre facture inwi est disponible
+Date: Thu, 08 Oct 2026 12:00:00 +0100
+Message-ID: <inwi-fact-2609-5521@inwi.ma>
+MIME-Version: 1.0
+Content-Type: multipart/alternative; boundary="----=_Part_alternative_1f2d8_16"
+
+------=_Part_alternative_1f2d8_16
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+
+Bonjour Youssef,
+
+Votre facture inwi du mois de septembre 2026 est disponible.
+
+Offre : Forfait inwi Illimit=C3=A9 149 DH/mois
+Montant =C3=A0 payer : 149,00 DH
+Date limite de paiement : 20/10/2026
+
+Payez votre facture en ligne ou dans l'application My inwi.
+
+inwi =E2=80=93 Wana Corporate S.A.
+------=_Part_alternative_1f2d8_16
+Content-Type: text/html; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+
+<html dir=3D"ltr"><body><table width=3D"600" align=3D"center" dir=3D"ltr"><=
+tr><td><p>Bonjour Youssef,</p>
+<p>Votre facture inwi du mois de septembre 2026 est disponible.</p>
+<p>Offre : Forfait inwi Illimit=C3=A9 149 DH/mois<br>Montant =C3=A0 payer :=
+ 149,00 DH<br>Date limite de paiement : 20/10/2026</p>
+<p>Payez votre facture en ligne ou dans l'application My inwi.</p>
+<p>inwi =E2=80=93 Wana Corporate S.A.</p></td></tr></table></body></html>
+------=_Part_alternative_1f2d8_16--

@@ -1,0 +1,9 @@
+{
+  "kind": "price_change",
+  "merchant": "网易云音乐",
+  "amount": 18,
+  "previousAmount": 15,
+  "currency": "CNY",
+  "cadence": "monthly",
+  "nextChargeISO": "2026-11-20"
+}
