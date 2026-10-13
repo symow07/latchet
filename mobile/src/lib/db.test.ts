@@ -107,6 +107,13 @@ describe('per-user files', () => {
 });
 
 describe('transactions', () => {
+  test('a row saved by an import carries its origin in its id', async () => {
+    const imported = await db.addTransaction({ ...expense(), origin: 'import' });
+    const typed = await db.addTransaction(expense());
+    expect(imported.startsWith('imp_')).toBe(true);
+    expect(typed.startsWith('tx_')).toBe(true);
+  });
+
   test('adding one stamps it, marks it dirty, books it to the default account and says so', async () => {
     const id = await db.addTransaction(expense({ isImpulse: true }));
     const state = await syncState('transactions', 'id', id);

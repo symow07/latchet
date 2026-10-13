@@ -138,16 +138,21 @@ export interface ImportBatch {
  * A transaction row records no origin of its own, and an imported row gets a
  * phone-made id like any other; what tells it apart is that it was written
  * inside an import (import.tsx records each batch's span, per user). Rows
- * imported on another device read as typed by hand here, which costs only
- * precision: the engine folds a hand entry and a statement line for the same
- * payment only when they agree exactly.
+ * imported since ids carried their origin start `imp_` and read as imported
+ * on every device; older rows imported on another device read as typed by
+ * hand here, which costs only precision: the engine folds a hand entry and a
+ * statement line for the same payment only when they agree exactly.
  */
+/** Ids of rows saved by a statement import (db.ts addTransaction, origin 'import'). */
+export const IMPORTED_TRANSACTION_PREFIX = 'imp_';
+
 export function transactionSourceOf(batches: readonly ImportBatch[]): (tx: { id: string; createdAt?: string | null }) => ChargeSource {
   const spans = batches
     .map((b) => [Date.parse(b.from), Date.parse(b.to)] as const)
     .filter(([a, b]) => Number.isFinite(a) && Number.isFinite(b) && a <= b);
   return (tx) => {
     if (isBankTransactionId(tx.id)) return 'bank';
+    if (tx.id.startsWith(IMPORTED_TRANSACTION_PREFIX)) return 'import';
     const at = Date.parse(tx.createdAt ?? '');
     if (Number.isFinite(at) && spans.some(([a, b]) => at >= a && at <= b)) return 'import';
     return 'manual';

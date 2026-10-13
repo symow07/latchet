@@ -422,6 +422,12 @@ export interface TransactionInput {
   accountId?: string | null;
   currency?: string;
   createdAt?: string;
+  /**
+   * Where the row came from, when it was not typed by hand. An imported row's
+   * id starts `imp_`, so every device — not only the one that imported it —
+   * can tell the subscription detector it came from a statement.
+   */
+  origin?: 'import';
 }
 
 /** A transactions row as SQLite returns it. */
@@ -458,7 +464,7 @@ function toTransaction(row: TransactionRow): Transaction {
 }
 
 export async function addTransaction(transaction: TransactionInput): Promise<string> {
-  const id = newId('tx');
+  const id = newId(transaction.origin === 'import' ? 'imp' : 'tx');
   const at = nowISO();
   await withWriteLock((db) =>
     inTransaction(db, async () => {

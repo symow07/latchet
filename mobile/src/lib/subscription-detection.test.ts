@@ -416,3 +416,11 @@ describe('detection trigger', () => {
     expect(layout).toMatch(/syncEmailIfDue\(\)/);
   });
 });
+
+test('detection runner: an imported row is known as imported on every device by its id', () => {
+  const sourceOf = transactionSourceOf([]);
+  expect(sourceOf({ id: 'imp_1760000000000_ab12cd34e', createdAt: '2026-10-01T10:00:00.000Z' })).toBe('import');
+  expect(sourceOf({ id: 'plaid_abc', createdAt: null })).toBe('bank');
+  expect(sourceOf({ id: 'tx_1760000000000_ab12cd34e', createdAt: '2026-10-01T10:00:00.000Z' })).toBe('manual');
+});
+

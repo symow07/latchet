@@ -535,6 +535,7 @@ export default function ImportScreen() {
           note: tx.description,
           dateISO: tx.date,
           ...(tx.currency ? { currency: tx.currency } : {}),
+          origin: 'import',
         });
         count++;
         setImportedCount(count);
