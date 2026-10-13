@@ -115,6 +115,11 @@ describe('email screen', () => {
     // The screen asks again every few seconds only while something is being read.
     expect(pollInterval(list)).toBe(false);
     expect(pollInterval(dto({ connections: [conn({ id: 'g', syncState: 'backfilling' })] }))).toBe(4000);
+    // Connected a moment ago and its first read not begun: keep asking, so the screen sees it start.
+    expect(pollInterval(dto({ connections: [conn({ id: 'g', backfillDoneAt: null, lastSyncedAt: null })] }))).toBe(4000);
+    // A first read stopped by an error, or forwarding alone, is not polled.
+    expect(pollInterval(dto({ connections: [conn({ id: 'g', backfillDoneAt: null, lastError: 'provider_busy' })] }))).toBe(false);
+    expect(pollInterval(dto({ connections: [conn({ id: 'f', provider: 'forwarding', backfillDoneAt: null })] }))).toBe(false);
 
     expect(relativeTime('2026-10-13T11:59:30.000Z', NOW)).toBe(t('emailConnect.time.justNow'));
     expect(relativeTime('2026-10-13T11:55:00.000Z', NOW)).toBe(t('emailConnect.time.minutes', { count: 5 }));

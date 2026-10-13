@@ -18,6 +18,7 @@
 import { t } from './i18n/core';
 import { displayNameFor, merchantKey } from './subscriptions/merchant';
 import { currencyOf, formatMoney, shortDate } from './subscription-view';
+import { firstReadPending } from './email-connections';
 import type {
   ConnectProgress,
   ConnectResult,
@@ -185,7 +186,7 @@ export function connectionViews(dto: EmailConnectionsDTO | null | undefined, now
 
 /** How often to ask again while an inbox is being read: every few seconds, else not at all. */
 export function pollInterval(dto: EmailConnectionsDTO | null | undefined): number | false {
-  return (dto?.connections ?? []).some((c) => c.syncState !== 'idle') ? 4_000 : false;
+  return (dto?.connections ?? []).some(firstReadPending) ? 4_000 : false;
 }
 
 // ── Connecting ───────────────────────────────────────────────────────────────

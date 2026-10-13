@@ -6,6 +6,8 @@ import {
   confirmationCodeOf,
   createEmailClient,
   emailSyncDue,
+  firstReadPending,
+  hasUnpulledConnection,
   parseSyncState,
   readDisconnect,
   readEmailBrowserResult,
@@ -475,6 +477,60 @@ describe('email client', () => {
     expect(await t.client.syncEmailIfDue()).toBe(false);
     t.advance(31 * 60 * 1000);
     expect(await t.client.syncEmailIfDue()).toBe(true);
+  });
+
+  test('an inbox the app never heard back about is pulled once its first read is over, and only once', async () => {
+    // The server finished the connect, but the browser closed before the app
+    // heard back: the connection is listed, its findings are not here.
+    const reading = connection({ id: 'conn_g', syncState: 'backfilling', backfillDoneAt: null, lastSyncedAt: null });
+    const t = setup({
+      connections: [reading],
+      findings: [finding('f1', '2026-10-12T11:00:00.000Z'), finding('f2', '2026-10-12T11:01:00.000Z')],
+    });
+    // Still reading its year: left until it finishes, so nothing comes half-read.
+    expect(await t.client.pullNewConnections([reading])).toBe(false);
+    // Between the callback and the first pass: idle, but not read yet.
+    const queued = { ...reading, syncState: 'idle' as const };
+    expect(firstReadPending(queued)).toBe(true);
+    expect(await t.client.pullNewConnections([queued])).toBe(false);
+    expect(t.cache.size).toBe(0);
+
+    const done = connection({ id: 'conn_g' });
+    t.world.connections = [done];
+    expect(await t.client.pullNewConnections([done])).toBe(true);
+    expect([...t.cache.keys()].sort()).toEqual(['f1', 'f2']);
+    // Detection ran as one the user is watching, without asking for permission.
+    expect(t.detections()).toEqual([true]);
+    expect(t.interactives()).toEqual([false]);
+    expect(t.state().connectionIds).toEqual(['conn_g']);
+    // Known now: the screen's next poll pulls nothing more.
+    expect(await t.client.pullNewConnections([done])).toBe(false);
+    expect(t.detections()).toEqual([true]);
+  });
+
+  test('an inbox stopped by an error, or a forwarding address, has no first read to wait for', () => {
+    expect(firstReadPending(connection({ id: 'a', backfillDoneAt: null, lastError: 'provider_busy' }))).toBe(false);
+    expect(firstReadPending(connection({ id: 'b', backfillDoneAt: null, status: 'needs_reauth', lastError: 'reauth_required' }))).toBe(false);
+    expect(firstReadPending(connection({ id: 'c', provider: 'forwarding', backfillDoneAt: null }))).toBe(false);
+    expect(firstReadPending(connection({ id: 'd', syncState: 'syncing' }))).toBe(true);
+    expect(hasUnpulledConnection([connection({ id: 'a', backfillDoneAt: null, lastError: 'provider_busy' })], [])).toBe(true);
+    expect(hasUnpulledConnection([connection({ id: 'a' })], ['a'])).toBe(false);
+    expect(hasUnpulledConnection([], [])).toBe(false);
+  });
+
+  test('the app coming to the front syncs at once for an inbox this phone has never pulled from', async () => {
+    const now = Date.parse('2026-10-12T12:00:00.000Z');
+    expect(emailSyncDue({ connections: 1, lastSyncAt: '2026-10-12T11:55:00.000Z', now, unseen: true })).toBe(true);
+    expect(emailSyncDue({ connections: 0, lastSyncAt: null, now, unseen: true })).toBe(false);
+
+    const t = setup({ connections: [connection({ id: 'conn_g' })] });
+    expect(await t.client.syncEmailIfDue({ refresh: true })).toBe(true);
+    // Synced just now; then a second inbox is connected on another device.
+    t.world.connections = [connection({ id: 'conn_g' }), connection({ id: 'conn_o', provider: 'outlook' })];
+    expect(await t.client.syncEmailIfDue()).toBe(false);
+    expect(await t.client.syncEmailIfDue({ refresh: true })).toBe(true);
+    expect(t.state().connectionIds).toEqual(['conn_g', 'conn_o']);
+    expect(await t.client.syncEmailIfDue({ refresh: true })).toBe(false);
   });
 
   test('stored state survives junk', () => {

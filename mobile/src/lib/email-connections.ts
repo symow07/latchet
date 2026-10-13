@@ -257,10 +257,31 @@ export function connectedOne(
 }
 
 /** The app came to the front: sync email when an inbox is connected and the last sync is stale. */
-export function emailSyncDue(input: { connections: number; lastSyncAt: string | null; now: number }): boolean {
+export function emailSyncDue(input: { connections: number; lastSyncAt: string | null; now: number; unseen?: boolean }): boolean {
   if (input.connections <= 0) return false;
+  // An inbox this phone has never pulled from: its findings are waiting now.
+  if (input.unseen) return true;
   const last = Date.parse(input.lastSyncAt ?? '');
   return !Number.isFinite(last) || input.now - last >= FOREGROUND_SYNC_AFTER_MS || last > input.now;
+}
+
+/**
+ * Whether the server lists an inbox this phone has not pulled from yet and
+ * whose first read is over: connected in a browser the app never heard back
+ * from, or on another device. One still reading its year is left until it
+ * finishes (or stops on an error), so its findings come in one pull.
+ */
+export function hasUnpulledConnection(listed: readonly EmailConnectionDTO[], known: readonly string[]): boolean {
+  return listed.some((c) => !known.includes(c.id) && !firstReadPending(c));
+}
+
+/**
+ * Whether an inbox is being read, or its first read of the year is still to
+ * finish (active, no error, not done). A forwarding address has no first read.
+ */
+export function firstReadPending(c: EmailConnectionDTO): boolean {
+  if (c.syncState !== 'idle') return true;
+  return c.provider !== 'forwarding' && c.status === 'active' && c.lastError === null && !c.backfillDoneAt;
 }
 
 export function parseSyncState(raw: string | null | undefined): EmailSyncState {
@@ -328,6 +349,7 @@ export interface EmailClient {
   disconnectEmailConnection(id: string): Promise<DisconnectResult>;
   syncEmailNow(options?: SyncOptions): Promise<{ newFindings: number }>;
   pullEmailFindings(options?: { full?: boolean }): Promise<{ newFindings: number; full: boolean }>;
+  pullNewConnections(listed: readonly EmailConnectionDTO[]): Promise<boolean>;
   getForwardingAddress(): Promise<ForwardingAddress>;
   syncEmailIfDue(options?: { refresh?: boolean }): Promise<boolean>;
 }
@@ -553,18 +575,34 @@ export function createEmailClient(deps: EmailClientDeps): EmailClient {
     return { address: res.address, verified: !!res.verified, confirmationCode: confirmationCodeOf(res.confirmationCode) };
   }
 
+  /**
+   * Pull the findings of inboxes the server lists and this phone has not
+   * pulled from yet, then run detection; nothing when there are none.
+   * pullEmailFindings records the listed set, so each inbox is pulled once.
+   */
+  async function pullNewConnections(listed: readonly EmailConnectionDTO[]): Promise<boolean> {
+    const state = await deps.readState();
+    if (!hasUnpulledConnection(listed, state.connectionIds)) return false;
+    await pullEmailFindings();
+    await deps.detect(true, false);
+    return true;
+  }
+
   async function syncEmailIfDue(options: { refresh?: boolean } = {}): Promise<boolean> {
     try {
       const state = await deps.readState();
       let connections = state.connectionIds.length;
+      let unseen = false;
       if (options.refresh) {
         try {
-          connections = (await getEmailConnections()).connections.length;
+          const listed = (await getEmailConnections()).connections;
+          connections = listed.length;
+          unseen = hasUnpulledConnection(listed, state.connectionIds);
         } catch {
           // Offline: decide from what this phone last knew.
         }
       }
-      if (!emailSyncDue({ connections, lastSyncAt: state.lastSyncAt, now: deps.now() })) return false;
+      if (!emailSyncDue({ connections, lastSyncAt: state.lastSyncAt, now: deps.now(), unseen })) return false;
       await syncEmailNow();
       return true;
     } catch (e) {
@@ -579,6 +617,7 @@ export function createEmailClient(deps: EmailClientDeps): EmailClient {
     disconnectEmailConnection,
     syncEmailNow,
     pullEmailFindings,
+    pullNewConnections,
     getForwardingAddress,
     syncEmailIfDue,
   };
@@ -648,6 +687,12 @@ export const syncEmailNow = (options?: SyncOptions): Promise<{ newFindings: numb
 /** Pull new findings into this phone's cache (`full` re-reads them all). */
 export const pullEmailFindings = (options?: { full?: boolean }): Promise<{ newFindings: number; full: boolean }> =>
   app.pullEmailFindings(options);
+
+/**
+ * Pull the findings of any listed inbox this phone has not pulled from yet
+ * (once its first read is over) and run detection. True when it pulled.
+ */
+export const pullNewConnections = (listed: readonly EmailConnectionDTO[]): Promise<boolean> => app.pullNewConnections(listed);
 
 /** This user's private forwarding address (created on first ask), with Gmail's confirmation code once it has come. */
 export const getForwardingAddress = (): Promise<ForwardingAddress> => app.getForwardingAddress();

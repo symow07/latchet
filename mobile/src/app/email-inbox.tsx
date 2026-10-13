@@ -14,6 +14,7 @@ import {
   disconnectEmailConnection,
   getEmailConnections,
   getForwardingAddress,
+  pullNewConnections,
   syncEmailNow,
   type ConnectableProvider,
   type EmailConnectionDTO,
@@ -128,6 +129,23 @@ export default function EmailInboxScreen() {
     refetchInterval: (query) => pollInterval(query.state.data),
   });
   const dto = connections.data;
+  // An inbox listed here that this phone never pulled from (its browser
+  // closed before the app heard back, or it was connected on another device):
+  // bring its findings in once its first read is over.
+  const listed = dto?.connections;
+  useEffect(() => {
+    if (!listed) return;
+    pullNewConnections(listed)
+      .then((pulled) => {
+        if (!pulled) return;
+        void qc.invalidateQueries({ queryKey: QUERY_FINDINGS });
+        void qc.invalidateQueries({ queryKey: SUBSCRIPTIONS_QUERY_KEY });
+        void qc.invalidateQueries({ queryKey: ['email-detected-biz'] });
+      })
+      .catch(() => {
+        // Offline: the next sync brings them.
+      });
+  }, [listed, qc]);
   const forwardingOn = !!dto?.providers.forwarding.configured;
   const forwarding = useQuery({
     queryKey: QUERY_FORWARDING,
