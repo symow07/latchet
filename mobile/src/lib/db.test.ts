@@ -107,6 +107,28 @@ describe('per-user files', () => {
 });
 
 describe('transactions', () => {
+  test('a statement import is written in chunks: every row stamped, booked and dirty, one change notice', async () => {
+    const rows = Array.from({ length: 250 }, (_, i) => ({
+      ...expense({ amount: 1, note: `Row ${i}` }),
+      ...(i % 50 === 0 ? { type: 'Income' as const, amount: 10 } : {}),
+      origin: 'import' as const,
+    }));
+    const progress: number[] = [];
+    const ids = await db.addTransactions(rows, (n) => progress.push(n));
+
+    expect(ids).toHaveLength(250);
+    expect(ids.every((id) => id.startsWith('imp_'))).toBe(true);
+    expect(new Set(ids).size).toBe(250);
+    expect(progress).toEqual([100, 200, 250]);
+    expect(mutations).toBe(1);
+    const dirty = await handle.getFirstAsync<{ n: number }>('SELECT COUNT(*) AS n FROM transactions WHERE dirty = 1');
+    expect(dirty?.n).toBe(250);
+    const state = await syncState('transactions', 'id', ids[123]!);
+    expect(isRecent(state?.clientUpdatedAt)).toBe(true);
+    // 5 incomes of 10, 245 expenses of 1, all on the default account.
+    expect((await db.getAccountById(defaultAccountId(userId)))?.balance).toBe(50 - 245);
+  });
+
   test('a row saved by an import carries its origin in its id', async () => {
     const imported = await db.addTransaction({ ...expense(), origin: 'import' });
     const typed = await db.addTransaction(expense());

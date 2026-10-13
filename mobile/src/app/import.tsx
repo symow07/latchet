@@ -45,7 +45,7 @@ import {
   type DateConvention,
   type SignConvention,
 } from '@/lib/import-parser';
-import { addTransaction, getTransactions, getSettings } from '@/lib/db';
+import { addTransactions, getTransactions, getSettings } from '@/lib/db';
 import { findProfileFor, rememberProfile } from '@/lib/import-profiles';
 import { recordImportBatch, runDetection } from '@/lib/subscription-detection';
 import { base64ToBytes, decodeStatementBytes } from '@/lib/text-decode';
@@ -526,8 +526,10 @@ export default function ImportScreen() {
       setImporting(true);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
 
-      for (const tx of transactions) {
-        await addTransaction({
+      // One batch write (db.ts addTransactions): row by row managed about four
+      // rows a second, so a year of statements took minutes.
+      await addTransactions(
+        transactions.map((tx) => ({
           amount: tx.amount,
           category: tx.suggestedCategory,
           type: tx.type,
@@ -535,11 +537,13 @@ export default function ImportScreen() {
           note: tx.description,
           dateISO: tx.date,
           ...(tx.currency ? { currency: tx.currency } : {}),
-          origin: 'import',
-        });
-        count++;
-        setImportedCount(count);
-      }
+          origin: 'import' as const,
+        })),
+        (saved) => {
+          count = saved;
+          setImportedCount(saved);
+        },
+      );
 
       // Remember this bank's shape now that an import has actually succeeded —
       // including any correction the user made on the preview screen. Only

@@ -499,6 +499,71 @@ export async function addTransaction(transaction: TransactionInput): Promise<str
   return id;
 }
 
+/** Rows per transaction in addTransactions: big enough to be fast, small enough to let sync writes in between. */
+const BATCH_CHUNK = 100;
+
+/**
+ * Many transactions at once — a statement import.
+ *
+ * One row at a time cost a transaction, a balance update and a change notice
+ * each, about four rows a second: a year of statements took minutes. Rows are
+ * written in chunks, each chunk one transaction under the write lock (so a
+ * sync can still get in between chunks), and the change is announced once.
+ * Every row is stamped and marked dirty exactly as addTransaction does it.
+ *
+ * `onProgress` hears how many rows are saved after each chunk. A failure
+ * keeps the chunks already written (onProgress has reported them) and rethrows.
+ */
+export async function addTransactions(
+  inputs: readonly TransactionInput[],
+  onProgress?: (saved: number) => void,
+): Promise<string[]> {
+  const ids: string[] = [];
+  try {
+    for (let start = 0; start < inputs.length; start += BATCH_CHUNK) {
+      const chunk = inputs.slice(start, start + BATCH_CHUNK);
+      const chunkIds = await withWriteLock((db) =>
+        inTransaction(db, async () => {
+          const fallback = await db.getFirstAsync<{ id: string }>(
+            'SELECT id FROM accounts WHERE isDefault = 1 ORDER BY createdAt ASC LIMIT 1',
+          );
+          const written: string[] = [];
+          for (const transaction of chunk) {
+            const id = newId(transaction.origin === 'import' ? 'imp' : 'tx');
+            const at = nowISO();
+            const accountId = transaction.accountId ?? fallback?.id ?? null;
+            await db.runAsync(
+              `INSERT INTO transactions (${TRANSACTION_COLUMNS}, clientUpdatedAt, dirty, syncError)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, NULL)`,
+              [
+                id,
+                transaction.amount,
+                transaction.category,
+                transaction.type,
+                transaction.isImpulse ? 1 : 0,
+                transaction.note || null,
+                transaction.dateISO,
+                transaction.createdAt ?? at,
+                accountId,
+                transaction.currency || 'USD',
+                at,
+              ],
+            );
+            await adjustBalance(db, accountId, transaction, 1);
+            written.push(id);
+          }
+          return written;
+        }),
+      );
+      ids.push(...chunkIds);
+      onProgress?.(ids.length);
+    }
+  } finally {
+    if (ids.length > 0) notifyLocalMutation();
+  }
+  return ids;
+}
+
 export async function getTransactions(): Promise<Transaction[]> {
   const database = await getDatabase();
   const rows = await database.getAllAsync<TransactionRow>(

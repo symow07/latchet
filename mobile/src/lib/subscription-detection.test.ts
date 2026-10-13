@@ -398,7 +398,7 @@ describe('detection trigger', () => {
         .replace(/(^|[^:'"`\\])\/\/.*$/gm, '$1');
     const importScreen = src('app/import.tsx');
     // After the rows are saved, with the batch they were saved in.
-    const saved = importScreen.indexOf('await addTransaction(');
+    const saved = importScreen.indexOf('await addTransactions(');
     const recorded = importScreen.indexOf('recordImportBatch(startedAt');
     const detected = importScreen.indexOf("runDetection('import')");
     expect(saved).toBeGreaterThan(-1);
