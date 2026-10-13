@@ -6,6 +6,7 @@ import {
   calculateLoggingStreak,
   calculateWeekSpent,
   getDailySpendingData,
+  getUnlockedBadges,
 } from './calculations';
 import { daysAgoISO, daysAheadISO } from './dates';
 import type { Transaction } from './transaction';
@@ -212,3 +213,25 @@ describe('behaviour detection: daily spending series', () => {
     expect(series[13]).toEqual({ date: '2026-08-15', amount: 5 });
   });
 });
+
+describe('month badges', () => {
+  const today = daysAgoISO(0);
+  test('an empty month earns nothing', () => {
+    expect(getUnlockedBadges([], 0, 0, 0)).not.toContain('No Subscriptions');
+  });
+  test('spending this month with no subscription charge earns it', () => {
+    expect(getUnlockedBadges([tx(today, 12, { category: 'Food' })], 0, 12, 0)).toContain('No Subscriptions');
+  });
+  test('a subscription charge this month withholds it', () => {
+    const txs = [tx(today, 12, { category: 'Food' }), tx(today, 15.49, { category: 'Subscriptions' })];
+    expect(getUnlockedBadges(txs, 0, 27.49, 0)).not.toContain('No Subscriptions');
+  });
+});
+
+test('month badges: Budget Master needs spending this month, under the budget', () => {
+  const today = daysAgoISO(0);
+  expect(getUnlockedBadges([], 0, 0, 1000)).not.toContain('Budget Master');
+  expect(getUnlockedBadges([tx(today, 40)], 0, 40, 1000)).toContain('Budget Master');
+  expect(getUnlockedBadges([tx(today, 1200)], 0, 1200, 1000)).not.toContain('Budget Master');
+});
+

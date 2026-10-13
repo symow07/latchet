@@ -25,7 +25,7 @@ import {
   type EmailConnectionDTO,
 } from '@/lib/email-connections';
 import { bankLinkAvailability, deviceRegion, getBankLinkConfig, getLinkedBanks } from '@/lib/bank-linking';
-import { replanReminders, runDetection, type DetectionSummary } from '@/lib/subscription-detection';
+import { onDetectionChange, replanReminders, runDetection, type DetectionSummary } from '@/lib/subscription-detection';
 import { askForNotifications } from '@/lib/notifications';
 import {
   completeOnboarding,
@@ -246,6 +246,18 @@ export default function OnboardingScreen() {
         void qc.invalidateQueries({ queryKey: key });
       }
     }, [qc]),
+  );
+
+  // The import screen records its batch in the background as it closes, so
+  // the check on focus can run before the record exists. Detection runs right
+  // after the record is written; when it finishes, look again.
+  useEffect(
+    () =>
+      onDetectionChange(() => {
+        void qc.invalidateQueries({ queryKey: STATEMENT_IMPORTED_QUERY_KEY });
+        void qc.invalidateQueries({ queryKey: LINKED_BANKS_QUERY_KEY });
+      }),
+    [qc],
   );
 
   const model = connectModel({

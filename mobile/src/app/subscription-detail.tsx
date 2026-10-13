@@ -1,6 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Linking, Platform, ScrollView, View } from 'react-native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useFocusEffect } from '@react-navigation/native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
@@ -96,14 +97,26 @@ function NumberedSteps({ pal, steps }: { pal: Palette; steps: string[] }) {
 }
 
 export default function SubscriptionDetailScreen() {
+  const { id: rawId } = useLocalSearchParams<{ id: string }>();
+  const id = Array.isArray(rawId) ? rawId[0] : rawId;
+  // A reminder can open this screen for another subscription while it is
+  // already showing one, and the router then reuses the screen. Keyed by id,
+  // the open cancel guide, the undo and any error start afresh instead of
+  // showing Netflix's guide over Spotify.
+  return <SubscriptionDetail key={id ?? ''} id={id} />;
+}
+
+function SubscriptionDetail({ id }: { id: string | undefined }) {
   const C = useC();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const qc = useQueryClient();
-  const { id: rawId } = useLocalSearchParams<{ id: string }>();
-  const id = Array.isArray(rawId) ? rawId[0] : rawId;
 
   const [guideOpen, setGuideOpen] = useState(false);
+  // The guide is a modal, drawn above every screen. When a reminder pushes
+  // another subscription on top of this one, close it, or this one's guide
+  // would float over the screen the reminder opened.
+  useFocusEffect(useCallback(() => () => setGuideOpen(false), []));
   const [guideVisited, setGuideVisited] = useState(false);
   const [lastAction, setLastAction] = useState<{ decision: SubscriptionDecision; undo: UndoTarget } | null>(null);
   const [error, setError] = useState('');

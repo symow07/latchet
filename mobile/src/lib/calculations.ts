@@ -300,21 +300,22 @@ export function getUnlockedBadges(
     badges.push('30-Day Streak');
   }
 
-  // "Budget Master" badge - stayed under budget
-  if (monthlyBudget > 0 && monthlySpent <= monthlyBudget) {
+  // Badges about this month need something spent in it: an empty month earns
+  // nothing. A brand-new account, or the first morning of a month, used to be
+  // congratulated on its budget and its lack of subscriptions before anything
+  // was known.
+  const { start, end } = getMonthRange();
+  const monthExpenses = transactions.filter(
+    tx => tx.type === 'Expense' && tx.dateISO >= start && tx.dateISO <= end
+  );
+
+  // "Budget Master" badge - spending this month, and still under budget
+  if (monthlyBudget > 0 && monthExpenses.length > 0 && monthlySpent <= monthlyBudget) {
     badges.push('Budget Master');
   }
 
-  // "No Subscriptions" badge - no subscriptions this month
-  const { start, end } = getMonthRange();
-  const subscriptionTxs = transactions.filter(
-    tx =>
-      tx.category === 'Subscriptions' &&
-      tx.dateISO >= start &&
-      tx.dateISO <= end &&
-      tx.type === 'Expense'
-  );
-  if (subscriptionTxs.length === 0) {
+  // "No Subscriptions" badge - spending this month, none of it on subscriptions
+  if (monthExpenses.length > 0 && !monthExpenses.some(tx => tx.category === 'Subscriptions')) {
     badges.push('No Subscriptions');
   }
 
