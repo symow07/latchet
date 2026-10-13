@@ -32,14 +32,15 @@ export interface DeletionPreview {
 }
 
 export interface UnrevokedGrant {
-  kind: 'bank';
+  /** A bank Plaid could not be reached to unlink, or an inbox (Outlook always: Microsoft has no per-app revocation). */
+  kind: 'bank' | 'email';
   label: string;
   manualRevokeUrl: string;
 }
 
 export interface DeletionResult {
   deleted: true;
-  revoked: { banks: number };
+  revoked: { banks: number; inboxes: number };
   unrevoked: UnrevokedGrant[];
 }
 

@@ -132,6 +132,7 @@
     "deletedTitle": "Account deleted",
     "deletedBody": "Your account and data are gone. We couldn't automatically revoke everything though — please disconnect these yourself:",
     "bankConnection": "Bank connection",
+    "inboxConnection": "Inbox connection",
     "ownedBusinessBody": "You own this business, so deleting your account removes it entirely — including %{expenses} expenses and access for %{members} other team members. Their records go too.",
     "typeToConfirm": "Type %{email} to confirm.",
     "manualRevoke": "Your account and data are gone. We couldn't automatically revoke everything though — please disconnect these yourself:",

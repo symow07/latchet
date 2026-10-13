@@ -132,6 +132,7 @@
     "deletedTitle": "账户已删除",
     "deletedBody": "你的账户和数据已删除。但我们未能自动撤销全部授权——请手动断开以下连接：",
     "bankConnection": "银行连接",
+    "inboxConnection": "邮箱连接",
     "ownedBusinessBody": "你是这家企业的所有者，删除账户会将其完全移除——包括 %{expenses} 笔报销以及 %{members} 位其他成员的访问权限。他们的记录也会一并删除。",
     "typeToConfirm": "请输入 %{email} 以确认。",
     "manualRevoke": "你的账户和数据已删除。但有些内容我们无法自动撤销——请你自行断开这些连接：",

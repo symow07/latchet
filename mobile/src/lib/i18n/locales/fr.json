@@ -132,6 +132,7 @@
     "deletedTitle": "Compte supprimé",
     "deletedBody": "Votre compte et vos données ont disparu. Nous n'avons pas pu tout révoquer automatiquement — merci de déconnecter ceci vous-même :",
     "bankConnection": "Connexion bancaire",
+    "inboxConnection": "Connexion à la boîte mail",
     "ownedBusinessBody": "Vous êtes propriétaire de cette entreprise : supprimer votre compte la supprime entièrement — y compris %{expenses} dépenses et l'accès de %{members} autres membres. Leurs données disparaissent aussi.",
     "typeToConfirm": "Tapez %{email} pour confirmer.",
     "manualRevoke": "Votre compte et vos données ont été supprimés. Nous n'avons pas pu tout révoquer automatiquement — veuillez déconnecter ceci vous-même :",

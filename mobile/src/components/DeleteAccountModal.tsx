@@ -317,7 +317,7 @@ export function UnrevokedGrantsNotice({
               <InfoRow
                 pal={C}
                 title={g.label}
-                meta={t('deleteAccount.bankConnection')}
+                meta={t(g.kind === 'email' ? 'deleteAccount.inboxConnection' : 'deleteAccount.bankConnection')}
                 onPress={() => Linking.openURL(g.manualRevokeUrl).catch(() => {})}
                 trailing={<ExternalLink size={17} color={C.inkFaint} strokeWidth={S.stroke} />}
               />
