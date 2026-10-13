@@ -286,6 +286,9 @@ export default function OnboardingScreen() {
     stopSignals.current.push(signal);
     const run = connectEmailProvider(provider, {
       signal,
+      // The payoff is where onboarding asks for notification permission, and
+      // only when there is something to remind about — not mid-connect.
+      interactive: false,
       onProgress: (p) => {
         if (p.phase === 'authorizing') return;
         // Back from the browser, connected: the rest (the first year's read)
