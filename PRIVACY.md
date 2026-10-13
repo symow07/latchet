@@ -34,9 +34,9 @@ bank feed and in the statements you import.
 - **Gmail**, with Google's read-only `gmail.readonly` permission.
 - **Outlook** (Outlook.com, Hotmail and Live — personal Microsoft accounts),
   with Microsoft's read-only `Mail.Read` permission, plus `offline_access` so
-  our server can check for new mail while you are not using the app. If
-  Microsoft's prompt also asks to see your basic profile, we use it only to
-  show you which address is connected.
+  our server can check for new mail while you are not using the app, and
+  `openid` and `email`, which tell us only which address you connected so we
+  can show it to you.
 - **Forwarding**, for any other provider (iCloud, Yahoo, GMX and others): you
   create a filter that forwards billing emails to your private Real Budget
   address, and we only ever see what you forward.
