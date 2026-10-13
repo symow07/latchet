@@ -373,7 +373,7 @@ function appleGuide(name: string, generic: boolean, platform: CancelPlatform, se
   return {
     kind: 'apple',
     title: t('subsUi.guide.title', { name }),
-    intro: t('subsUi.guide.introStore', { store: t('subsUi.guide.storeApple') }),
+    intro: t('subsUi.guide.introApple'),
     steps: onPhone
       ? [t('subsUi.guide.apple.open'), which, t('subsUi.guide.apple.confirm')]
       : [t('subsUi.guide.apple.iphone'), t('subsUi.guide.apple.mac'), which, t('subsUi.guide.apple.confirm')],
@@ -390,7 +390,7 @@ function googleGuide(name: string, generic: boolean, service: CancelService | nu
   return {
     kind: 'google_play',
     title: t('subsUi.guide.title', { name }),
-    intro: t('subsUi.guide.introStore', { store: t('subsUi.guide.storeGoogle') }),
+    intro: t('subsUi.guide.introGoogle'),
     steps: [
       t('subsUi.guide.google.open'),
       generic ? t('subsUi.guide.whichOne') : t('subsUi.guide.google.choose', { name }),

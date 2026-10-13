@@ -29,6 +29,7 @@
     },
     "when": {
       "expected": "Expected %{date}",
+      "notSeen": "no charge seen yet",
       "today": "Today",
       "tomorrow": "Tomorrow",
       "inDays": {
@@ -154,10 +155,9 @@
     "guide": {
       "title": "How to cancel %{name}",
       "introService": "Budget can't cancel %{name} for you: only %{name} can. These steps take you there.",
-      "introStore": "%{store} bills this one, so only %{store} can stop it. Budget can't cancel it for you.",
+      "introApple": "The App Store bills this one, so only the App Store can stop it. Budget can't cancel it for you.",
+      "introGoogle": "Google Play bills this one, so only Google Play can stop it. Budget can't cancel it for you.",
       "introPayPal": "PayPal pays this one. Budget can't cancel it for you: these steps take you where you can.",
-      "storeApple": "The App Store",
-      "storeGoogle": "Google Play",
       "openCancelPage": "Open %{name}'s cancellation page",
       "openAccount": "Open your %{name} account",
       "openApple": "Open App Store subscriptions",
@@ -277,6 +277,7 @@
     },
     "when": {
       "expected": "Attendu le %{date}",
+      "notSeen": "aucun prélèvement vu pour l’instant",
       "today": "Aujourd'hui",
       "tomorrow": "Demain",
       "inDays": {
@@ -402,10 +403,9 @@
     "guide": {
       "title": "Résilier %{name}",
       "introService": "Budget ne peut pas résilier %{name} à votre place : seul %{name} le peut. Ces étapes vous y mènent.",
-      "introStore": "%{store} facture celui-ci : seul %{store} peut l'arrêter. Budget ne peut pas le résilier à votre place.",
+      "introApple": "L'App Store facture celui-ci : seul l'App Store peut l'arrêter. Budget ne peut pas le résilier à votre place.",
+      "introGoogle": "Google Play facture celui-ci : seul Google Play peut l'arrêter. Budget ne peut pas le résilier à votre place.",
       "introPayPal": "PayPal paie celui-ci. Budget ne peut pas le résilier à votre place : ces étapes vous y mènent.",
-      "storeApple": "L'App Store",
-      "storeGoogle": "Google Play",
       "openCancelPage": "Ouvrir la page de résiliation %{name}",
       "openAccount": "Ouvrir votre compte %{name}",
       "openApple": "Ouvrir les abonnements App Store",
@@ -525,6 +525,7 @@
     },
     "when": {
       "expected": "预计 %{date}",
+      "notSeen": "尚未看到扣款",
       "today": "今天",
       "tomorrow": "明天",
       "inDays": {
@@ -650,10 +651,9 @@
     "guide": {
       "title": "如何取消 %{name}",
       "introService": "Budget 无法替你取消 %{name}，只有 %{name} 可以。按以下步骤前往。",
-      "introStore": "这个订阅由 %{store} 扣款，只有 %{store} 能停止它。Budget 无法替你取消。",
+      "introApple": "这个订阅由 App Store 扣款，只有 App Store 能停止它。Budget 无法替你取消。",
+      "introGoogle": "这个订阅由 Google Play 扣款，只有 Google Play 能停止它。Budget 无法替你取消。",
       "introPayPal": "这个订阅通过 PayPal 付款。Budget 无法替你取消，以下步骤会带你去可以取消的地方。",
-      "storeApple": "App Store",
-      "storeGoogle": "Google Play",
       "openCancelPage": "打开 %{name} 的取消页面",
       "openAccount": "打开你的 %{name} 账户",
       "openApple": "打开 App Store 订阅",
@@ -773,6 +773,7 @@
     },
     "when": {
       "expected": "متوقَّع في %{date}",
+      "notSeen": "لم يظهر أي خصم بعد",
       "today": "اليوم",
       "tomorrow": "غدًا",
       "inDays": {
@@ -919,10 +920,9 @@
     "guide": {
       "title": "كيفية إلغاء %{name}",
       "introService": "لا يستطيع Budget إلغاء %{name} نيابةً عنك: وحده %{name} يستطيع ذلك. هذه الخطوات توصلك إليه.",
-      "introStore": "يُفوتر %{store} هذا الاشتراك، لذا وحده %{store} يستطيع إيقافه. لا يستطيع Budget إلغاءه نيابةً عنك.",
+      "introApple": "يُفوتر App Store هذا الاشتراك، لذا وحده App Store يستطيع إيقافه. لا يستطيع Budget إلغاءه نيابةً عنك.",
+      "introGoogle": "يُفوتر Google Play هذا الاشتراك، لذا وحده Google Play يستطيع إيقافه. لا يستطيع Budget إلغاءه نيابةً عنك.",
       "introPayPal": "يُدفع هذا الاشتراك عبر PayPal. لا يستطيع Budget إلغاءه نيابةً عنك: هذه الخطوات توصلك إلى حيث يمكنك ذلك.",
-      "storeApple": "App Store",
-      "storeGoogle": "Google Play",
       "openCancelPage": "افتح صفحة إلغاء %{name}",
       "openAccount": "افتح حسابك في %{name}",
       "openApple": "افتح اشتراكات App Store",

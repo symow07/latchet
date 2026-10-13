@@ -199,6 +199,12 @@ describe('subscription view', () => {
     expect(d.facts.filter((f) => f.label === t('subsUi.detail.fact.nextCharge'))).toEqual([]);
   });
 
+  test('subscription view: a next charge already past says it has not been seen, not "Expected" again', () => {
+    const s = sub({ id: 'sub_lawn', status: 'active', nextExpectedAt: '2026-10-01', lastChargedAt: '2026-09-01' });
+    const d = buildDetailView(s, [], opts);
+    expect(d.facts).toContainEqual({ label: t('subsUi.detail.fact.nextCharge'), value: `Oct 1, 2026 · ${t('subsUi.when.notSeen')}` });
+  });
+
   test('the detail: price history, next charge, where it was found, and every charge once, newest first', () => {
     const s = sub({
       id: 'sub_netflix',

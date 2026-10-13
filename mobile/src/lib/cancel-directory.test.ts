@@ -81,7 +81,8 @@ describe('cancel guide', () => {
     expect(viaApple.link?.url).toBe(APPLE_SUBSCRIPTIONS_URL);
     expect(APPLE_SUBSCRIPTIONS_URL).toBe('https://apps.apple.com/account/subscriptions');
     expect(viaApple.steps).toContain(t('subsUi.guide.apple.tap', { name: 'Netflix' }));
-    expect(viaApple.intro).toBe(t('subsUi.guide.introStore', { store: t('subsUi.guide.storeApple') }));
+    expect(viaApple.intro).toBe(t('subsUi.guide.introApple'));
+    expect(viaApple.intro).not.toMatch(/only The App Store/);
 
     const onAndroid = guide('netflix', 'Netflix', 'apple', 'android');
     expect(onAndroid.link?.url).toBe(APPLE_CANCEL_HELP_URL);

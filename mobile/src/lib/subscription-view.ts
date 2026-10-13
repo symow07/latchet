@@ -491,7 +491,13 @@ export function buildDetailView(
   const facts: DetailFact[] = [{ label: t('subsUi.detail.fact.cadence'), value: cadenceLabel(sub.cadence) }];
   if (trialEnd) facts.push({ label: t('subsUi.detail.fact.trialEnds'), value: longDate(trialEnd) });
   if (sub.nextExpectedAt && RUNNING_STATUSES.has(sub.status) && sub.nextExpectedAt.slice(0, 10) !== trialEnd) {
-    facts.push({ label: t('subsUi.detail.fact.nextCharge'), value: `${longDate(sub.nextExpectedAt)} · ${whenLabel(sub.nextExpectedAt, today)}` });
+    // A date already past says so, rather than repeating itself
+    // ("Oct 1, 2026 · Expected Oct 1"): the charge simply hasn't been seen.
+    const late = sub.nextExpectedAt.slice(0, 10) < today;
+    facts.push({
+      label: t('subsUi.detail.fact.nextCharge'),
+      value: `${longDate(sub.nextExpectedAt)} · ${late ? t('subsUi.when.notSeen') : whenLabel(sub.nextExpectedAt, today)}`,
+    });
   } else if (sub.nextExpectedAt && sub.status === 'possible') {
     facts.push({ label: t('subsUi.detail.fact.nextCharge'), value: longDate(sub.nextExpectedAt) });
   }
