@@ -1,6 +1,1015 @@
 {
-  "en": {},
-  "fr": {},
-  "zh": {},
-  "ar": {}
+  "en": {
+    "cadence": {
+      "weekly": "Weekly",
+      "biweekly": "Every two weeks",
+      "monthly": "Monthly",
+      "quarterly": "Every three months",
+      "semiannual": "Every six months",
+      "yearly": "Yearly",
+      "unknown": "Irregular"
+    },
+    "per": {
+      "weekly": "%{amount} a week",
+      "biweekly": "%{amount} every two weeks",
+      "monthly": "%{amount} a month",
+      "quarterly": "%{amount} every three months",
+      "semiannual": "%{amount} every six months",
+      "yearly": "%{amount} a year",
+      "unknown": "%{amount}"
+    },
+    "status": {
+      "possible": "To review",
+      "active": "Active",
+      "trial": "Free trial",
+      "ended": "Ended",
+      "confirmed": "Kept",
+      "canceled": "Cancelled",
+      "dismissed": "Not a subscription"
+    },
+    "when": {
+      "expected": "Expected %{date}",
+      "today": "Today",
+      "tomorrow": "Tomorrow",
+      "inDays": {
+        "one": "In %{count} day",
+        "other": "In %{count} days"
+      }
+    },
+    "billedVia": {
+      "apple": "The App Store",
+      "google_play": "Google Play",
+      "paypal": "PayPal"
+    },
+    "source": {
+      "bank": "Your bank",
+      "import": "A statement you imported",
+      "transaction": "Your transactions",
+      "email": "Your email",
+      "manual": "Added by you"
+    },
+    "list": {
+      "title": "Subscriptions",
+      "checkNow": "Check now",
+      "checking": "Checking…",
+      "totalLabel": "Subscriptions each month",
+      "running": {
+        "zero": "Nothing running yet",
+        "one": "%{count} subscription running",
+        "other": "%{count} subscriptions running"
+      },
+      "alsoMonthly": "And %{amount} a month",
+      "found": {
+        "zero": "Nothing new found",
+        "one": "Found %{count} new subscription",
+        "other": "Found %{count} new subscriptions"
+      },
+      "checkFailed": "Couldn't check your email just now. This is what Budget already knows.",
+      "upcoming": "Next 30 days",
+      "upcomingEmpty": "No charges expected in the next 30 days.",
+      "active": "Active",
+      "trials": "Free trials",
+      "review": "To review",
+      "reviewHint": "These look like subscriptions. Keep them, or tell Budget they're not.",
+      "ended": "Ended and cancelled",
+      "showEnded": {
+        "one": "Show %{count}",
+        "other": "Show %{count}"
+      },
+      "hideEnded": "Hide",
+      "trialEnds": "Trial ends",
+      "trialEndsToday": "Trial ends today",
+      "trialDaysLeft": {
+        "one": "%{count} day left in the trial",
+        "other": "%{count} days left in the trial"
+      },
+      "lastCharged": "Last charged %{date}",
+      "cancelledOn": "Cancelled %{date}",
+      "emptyTitle": "No subscriptions yet",
+      "emptyBody": "Budget finds them in your bank, your statements and your email receipts, then warns you before each charge.",
+      "connectEmail": "Connect your email",
+      "importStatement": "Import a statement"
+    },
+    "alert": {
+      "chargedAfterTitle": "%{name} charged you after you cancelled",
+      "chargedAfterBody": "%{amount} on %{date}. Check the cancellation went through.",
+      "priceRiseTitle": "%{name} went up",
+      "priceRiseSince": "%{from} → %{to}, since %{date}",
+      "priceRiseFrom": "%{from} → %{to}, from %{date}"
+    },
+    "detail": {
+      "notFound": "This subscription isn't here any more",
+      "notFoundBody": "It may have been merged with another one, or deleted on another device.",
+      "back": "Back",
+      "question": "Keep it, or did you forget?",
+      "askTrial": "The free trial ends on %{date}. Then it costs %{price}.",
+      "askNext": "It costs %{price}. The next charge is on %{date}.",
+      "askPrice": "It costs %{price}.",
+      "keep": "Keep it",
+      "cancelled": "I cancelled it",
+      "dismiss": "Not a subscription",
+      "howToCancel": "How to cancel",
+      "change": "Changed your mind?",
+      "undo": "Undo",
+      "delete": "Delete",
+      "deleteHint": "Deleting hides it for good: Budget won't propose it again, even after another charge.",
+      "saveFailed": "Couldn't save that. Try again.",
+      "didYouCancel": "Did you cancel %{name}?",
+      "done": {
+        "keep": "Kept. You'll hear from Budget before it charges.",
+        "cancel": "Marked as cancelled. Budget will warn you if it charges again.",
+        "dismiss": "Hidden. Budget won't propose it again."
+      },
+      "state": {
+        "keep": "You're keeping this one.",
+        "cancel": "You cancelled it on %{date}.",
+        "cancelNoDate": "You cancelled it.",
+        "dismiss": "Not a subscription. It's hidden from your lists."
+      },
+      "details": "Details",
+      "fact": {
+        "cadence": "Billed",
+        "trialEnds": "Free trial ends",
+        "nextCharge": "Next charge",
+        "lastCharge": "Last charge",
+        "billedVia": "Billed through",
+        "foundIn": "Found in"
+      },
+      "listSeparator": ", ",
+      "priceHistory": "Price history",
+      "priceWentUp": "Went up on %{date}",
+      "priceWentDown": "Went down on %{date}",
+      "priceGoesUp": "Goes up on %{date}",
+      "priceGoesDown": "Goes down on %{date}",
+      "chargedAfterTitle": "Charged after you cancelled",
+      "chargedAfterBody": "%{amount} on %{date}, after you cancelled on %{cancelled}. If the cancellation went through, ask %{name} for a refund; your bank can also help.",
+      "charges": "Charges",
+      "noCharges": "No charges recorded yet.",
+      "chargesCount": {
+        "zero": "No charges recorded",
+        "one": "%{count} charge",
+        "other": "%{count} charges"
+      }
+    },
+    "guide": {
+      "title": "How to cancel %{name}",
+      "introService": "Budget can't cancel %{name} for you: only %{name} can. These steps take you there.",
+      "introStore": "%{store} bills this one, so only %{store} can stop it. Budget can't cancel it for you.",
+      "introPayPal": "PayPal pays this one. Budget can't cancel it for you: these steps take you where you can.",
+      "storeApple": "The App Store",
+      "storeGoogle": "Google Play",
+      "openCancelPage": "Open %{name}'s cancellation page",
+      "openAccount": "Open your %{name} account",
+      "openApple": "Open App Store subscriptions",
+      "openAppleHelp": "Open Apple's guide",
+      "openGoogle": "Open Google Play subscriptions",
+      "openPayPal": "Open PayPal automatic payments",
+      "search": "Search how to cancel %{name}",
+      "searchQuery": "how to cancel %{name} subscription",
+      "openFailed": "Couldn't open that page.",
+      "more": "Also worth a look",
+      "afterTitle": "Done?",
+      "afterBody": "Once it's cancelled, tell Budget: it stops reminding you, and warns you if it charges again.",
+      "whichOne": "Find the subscription that matches this charge.",
+      "keepProof": "Keep the confirmation email: it shows the day you cancelled.",
+      "inAppNote": "Subscribed inside the app on your phone? Then the App Store or Google Play bills you: cancel it there instead.",
+      "autoDebitNote": "Paid with Alipay or WeChat Pay? Also turn off the automatic deduction in its payment settings.",
+      "pathSeparator": " › ",
+      "step": {
+        "openCancelPage": "Open %{name}'s cancellation page with the button below, and sign in.",
+        "openAccount": "Open your %{name} account with the button below, and sign in.",
+        "openApp": "Open the %{name} app and sign in.",
+        "goTo": "Go to %{path}.",
+        "choose": "Choose “%{action}” and follow the steps to the end."
+      },
+      "place": {
+        "account": "Account",
+        "profile": "Profile",
+        "settings": "Settings",
+        "billing": "Billing",
+        "plan": "Plan",
+        "plans": "Plans",
+        "membership": "Membership",
+        "subscription": "Subscription",
+        "subscriptions": "Subscriptions",
+        "payments": "Payments",
+        "services": "Services & subscriptions",
+        "admin": "Admin console",
+        "workspaceSettings": "Workspace settings",
+        "me": "Me",
+        "memberCenter": "VIP membership",
+        "autoRenew": "Automatic renewal"
+      },
+      "action": {
+        "cancelMembership": "Cancel membership",
+        "cancelSubscription": "Cancel subscription",
+        "cancelPlan": "Cancel plan",
+        "endMembership": "End membership",
+        "finishCancel": "Finish cancellation",
+        "downgradeFree": "Downgrade to Free",
+        "turnOffRenew": "Turn off auto-renew",
+        "closeAccount": "Close account"
+      },
+      "apple": {
+        "open": "Open your App Store subscriptions with the button below (or Settings › your name › Subscriptions).",
+        "tap": "Tap %{name}.",
+        "confirm": "Tap Cancel Subscription, then confirm.",
+        "iphone": "On an iPhone or iPad: Settings › your name › Subscriptions.",
+        "mac": "On a Mac: App Store › your name › Account Settings › Subscriptions.",
+        "note": "Deleting the app doesn't stop the subscription."
+      },
+      "google": {
+        "open": "Open Google Play subscriptions with the button below, signed in with the Google account that pays.",
+        "choose": "Choose %{name}.",
+        "confirm": "Tap Cancel subscription and follow the steps.",
+        "note": "Deleting the app doesn't stop the subscription."
+      },
+      "paypal": {
+        "open": "Open PayPal's automatic payments with the button below, and sign in.",
+        "choose": "Choose %{name}.",
+        "confirm": "Tap Cancel, then confirm.",
+        "note": "That stops PayPal paying. Cancel with %{name} too, or it may bill you another way."
+      },
+      "contract": {
+        "step1": "Phone, internet and TV plans usually end by contacting %{name}: in your online account, by phone or by letter.",
+        "step2": "Check your contract for a notice period and any early-termination fee.",
+        "step3": "Ask for written confirmation of the end date."
+      },
+      "membership": {
+        "step1": "Look in your %{name} member account or app for the option to cancel.",
+        "step2": "Some memberships need a letter, an email or a visit, with a notice period: check your contract.",
+        "step3": "Ask for written confirmation of the end date."
+      },
+      "generic": {
+        "step1": "Sign in to your %{name} account on its website or app, and look for Billing, Plan or Subscription.",
+        "step2": "Subscribed on your phone? Check your App Store or Google Play subscriptions.",
+        "step3": "Can't find it? Your bank can show who charges you, and can stop future payments to them."
+      }
+    }
+  },
+  "fr": {
+    "cadence": {
+      "weekly": "Hebdomadaire",
+      "biweekly": "Toutes les deux semaines",
+      "monthly": "Mensuel",
+      "quarterly": "Trimestriel",
+      "semiannual": "Semestriel",
+      "yearly": "Annuel",
+      "unknown": "Irrégulier"
+    },
+    "per": {
+      "weekly": "%{amount} par semaine",
+      "biweekly": "%{amount} toutes les deux semaines",
+      "monthly": "%{amount} par mois",
+      "quarterly": "%{amount} par trimestre",
+      "semiannual": "%{amount} par semestre",
+      "yearly": "%{amount} par an",
+      "unknown": "%{amount}"
+    },
+    "status": {
+      "possible": "À vérifier",
+      "active": "Actif",
+      "trial": "Essai gratuit",
+      "ended": "Terminé",
+      "confirmed": "Gardé",
+      "canceled": "Résilié",
+      "dismissed": "Pas un abonnement"
+    },
+    "when": {
+      "expected": "Attendu le %{date}",
+      "today": "Aujourd'hui",
+      "tomorrow": "Demain",
+      "inDays": {
+        "one": "Dans %{count} jour",
+        "other": "Dans %{count} jours"
+      }
+    },
+    "billedVia": {
+      "apple": "L'App Store",
+      "google_play": "Google Play",
+      "paypal": "PayPal"
+    },
+    "source": {
+      "bank": "Votre banque",
+      "import": "Un relevé importé",
+      "transaction": "Vos transactions",
+      "email": "Vos e-mails",
+      "manual": "Ajouté par vous"
+    },
+    "list": {
+      "title": "Abonnements",
+      "checkNow": "Vérifier",
+      "checking": "Vérification…",
+      "totalLabel": "Abonnements par mois",
+      "running": {
+        "zero": "Aucun abonnement en cours",
+        "one": "%{count} abonnement en cours",
+        "other": "%{count} abonnements en cours"
+      },
+      "alsoMonthly": "Et %{amount} par mois",
+      "found": {
+        "zero": "Rien de nouveau",
+        "one": "%{count} nouvel abonnement trouvé",
+        "other": "%{count} nouveaux abonnements trouvés"
+      },
+      "checkFailed": "Impossible de vérifier vos e-mails pour l'instant. Voici ce que Budget sait déjà.",
+      "upcoming": "30 prochains jours",
+      "upcomingEmpty": "Aucun prélèvement prévu dans les 30 prochains jours.",
+      "active": "Actifs",
+      "trials": "Essais gratuits",
+      "review": "À vérifier",
+      "reviewHint": "Ils ressemblent à des abonnements. Gardez-les, ou dites à Budget que non.",
+      "ended": "Terminés et résiliés",
+      "showEnded": {
+        "one": "Afficher %{count}",
+        "other": "Afficher %{count}"
+      },
+      "hideEnded": "Masquer",
+      "trialEnds": "Fin de l'essai",
+      "trialEndsToday": "L'essai se termine aujourd'hui",
+      "trialDaysLeft": {
+        "one": "Encore %{count} jour d'essai",
+        "other": "Encore %{count} jours d'essai"
+      },
+      "lastCharged": "Dernier prélèvement le %{date}",
+      "cancelledOn": "Résilié le %{date}",
+      "emptyTitle": "Aucun abonnement pour l'instant",
+      "emptyBody": "Budget les trouve dans votre banque, vos relevés et vos reçus par e-mail, puis vous prévient avant chaque prélèvement.",
+      "connectEmail": "Connecter vos e-mails",
+      "importStatement": "Importer un relevé"
+    },
+    "alert": {
+      "chargedAfterTitle": "%{name} vous a prélevé après résiliation",
+      "chargedAfterBody": "%{amount} le %{date}. Vérifiez que la résiliation a bien abouti.",
+      "priceRiseTitle": "%{name} a augmenté",
+      "priceRiseSince": "%{from} → %{to}, depuis le %{date}",
+      "priceRiseFrom": "%{from} → %{to}, à partir du %{date}"
+    },
+    "detail": {
+      "notFound": "Cet abonnement n'est plus là",
+      "notFoundBody": "Il a peut-être été fusionné avec un autre, ou supprimé sur un autre appareil.",
+      "back": "Retour",
+      "question": "Vous le gardez, ou vous l'aviez oublié ?",
+      "askTrial": "L'essai gratuit se termine le %{date}. Ensuite, %{price}.",
+      "askNext": "Il coûte %{price}. Prochain prélèvement le %{date}.",
+      "askPrice": "Il coûte %{price}.",
+      "keep": "Je le garde",
+      "cancelled": "Je l'ai résilié",
+      "dismiss": "Pas un abonnement",
+      "howToCancel": "Comment résilier",
+      "change": "Vous avez changé d'avis ?",
+      "undo": "Annuler",
+      "delete": "Supprimer",
+      "deleteHint": "Le supprimer le masque pour de bon : Budget ne le proposera plus, même après un autre prélèvement.",
+      "saveFailed": "Impossible d'enregistrer. Réessayez.",
+      "didYouCancel": "Avez-vous résilié %{name} ?",
+      "done": {
+        "keep": "Gardé. Budget vous préviendra avant chaque prélèvement.",
+        "cancel": "Marqué comme résilié. Budget vous préviendra s'il prélève encore.",
+        "dismiss": "Masqué. Budget ne le proposera plus."
+      },
+      "state": {
+        "keep": "Vous gardez celui-ci.",
+        "cancel": "Vous l'avez résilié le %{date}.",
+        "cancelNoDate": "Vous l'avez résilié.",
+        "dismiss": "Pas un abonnement. Il est masqué de vos listes."
+      },
+      "details": "Détails",
+      "fact": {
+        "cadence": "Facturation",
+        "trialEnds": "Fin de l'essai gratuit",
+        "nextCharge": "Prochain prélèvement",
+        "lastCharge": "Dernier prélèvement",
+        "billedVia": "Facturé par",
+        "foundIn": "Trouvé dans"
+      },
+      "listSeparator": ", ",
+      "priceHistory": "Historique des prix",
+      "priceWentUp": "A augmenté le %{date}",
+      "priceWentDown": "A baissé le %{date}",
+      "priceGoesUp": "Augmente le %{date}",
+      "priceGoesDown": "Baisse le %{date}",
+      "chargedAfterTitle": "Prélevé après résiliation",
+      "chargedAfterBody": "%{amount} le %{date}, après votre résiliation du %{cancelled}. Si elle a abouti, demandez un remboursement à %{name} ; votre banque peut aussi vous aider.",
+      "charges": "Prélèvements",
+      "noCharges": "Aucun prélèvement enregistré.",
+      "chargesCount": {
+        "zero": "Aucun prélèvement",
+        "one": "%{count} prélèvement",
+        "other": "%{count} prélèvements"
+      }
+    },
+    "guide": {
+      "title": "Résilier %{name}",
+      "introService": "Budget ne peut pas résilier %{name} à votre place : seul %{name} le peut. Ces étapes vous y mènent.",
+      "introStore": "%{store} facture celui-ci : seul %{store} peut l'arrêter. Budget ne peut pas le résilier à votre place.",
+      "introPayPal": "PayPal paie celui-ci. Budget ne peut pas le résilier à votre place : ces étapes vous y mènent.",
+      "storeApple": "L'App Store",
+      "storeGoogle": "Google Play",
+      "openCancelPage": "Ouvrir la page de résiliation %{name}",
+      "openAccount": "Ouvrir votre compte %{name}",
+      "openApple": "Ouvrir les abonnements App Store",
+      "openAppleHelp": "Ouvrir le guide d'Apple",
+      "openGoogle": "Ouvrir les abonnements Google Play",
+      "openPayPal": "Ouvrir les paiements automatiques PayPal",
+      "search": "Chercher comment résilier %{name}",
+      "searchQuery": "comment résilier abonnement %{name}",
+      "openFailed": "Impossible d'ouvrir cette page.",
+      "more": "À voir aussi",
+      "afterTitle": "C'est fait ?",
+      "afterBody": "Une fois résilié, dites-le à Budget : il cesse de vous le rappeler, et vous prévient s'il prélève encore.",
+      "whichOne": "Trouvez l'abonnement qui correspond à ce prélèvement.",
+      "keepProof": "Gardez l'e-mail de confirmation : il prouve la date de résiliation.",
+      "inAppNote": "Abonné depuis l'application sur votre téléphone ? C'est alors l'App Store ou Google Play qui vous facture : résiliez-le là.",
+      "autoDebitNote": "Payé par Alipay ou WeChat Pay ? Désactivez aussi le prélèvement automatique dans ses réglages de paiement.",
+      "pathSeparator": " › ",
+      "step": {
+        "openCancelPage": "Ouvrez la page de résiliation %{name} avec le bouton ci-dessous, et connectez-vous.",
+        "openAccount": "Ouvrez votre compte %{name} avec le bouton ci-dessous, et connectez-vous.",
+        "openApp": "Ouvrez l'application %{name} et connectez-vous.",
+        "goTo": "Allez dans %{path}.",
+        "choose": "Choisissez « %{action} » et suivez les étapes jusqu'au bout."
+      },
+      "place": {
+        "account": "Compte",
+        "profile": "Profil",
+        "settings": "Paramètres",
+        "billing": "Facturation",
+        "plan": "Forfait",
+        "plans": "Forfaits",
+        "membership": "Abonnement",
+        "subscription": "Abonnement",
+        "subscriptions": "Abonnements",
+        "payments": "Paiements",
+        "services": "Services et abonnements",
+        "admin": "Console d'administration",
+        "workspaceSettings": "Paramètres de l'espace",
+        "me": "Moi",
+        "memberCenter": "Espace VIP",
+        "autoRenew": "Renouvellement automatique"
+      },
+      "action": {
+        "cancelMembership": "Annuler l'abonnement",
+        "cancelSubscription": "Résilier l'abonnement",
+        "cancelPlan": "Annuler le forfait",
+        "endMembership": "Mettre fin à l'abonnement",
+        "finishCancel": "Terminer l'annulation",
+        "downgradeFree": "Passer à l'offre gratuite",
+        "turnOffRenew": "Désactiver le renouvellement",
+        "closeAccount": "Fermer le compte"
+      },
+      "apple": {
+        "open": "Ouvrez vos abonnements App Store avec le bouton ci-dessous (ou Réglages › votre nom › Abonnements).",
+        "tap": "Touchez %{name}.",
+        "confirm": "Touchez Annuler l'abonnement, puis confirmez.",
+        "iphone": "Sur iPhone ou iPad : Réglages › votre nom › Abonnements.",
+        "mac": "Sur Mac : App Store › votre nom › Réglages du compte › Abonnements.",
+        "note": "Supprimer l'application n'arrête pas l'abonnement."
+      },
+      "google": {
+        "open": "Ouvrez les abonnements Google Play avec le bouton ci-dessous, avec le compte Google qui paie.",
+        "choose": "Choisissez %{name}.",
+        "confirm": "Touchez Résilier l'abonnement et suivez les étapes.",
+        "note": "Supprimer l'application n'arrête pas l'abonnement."
+      },
+      "paypal": {
+        "open": "Ouvrez les paiements automatiques PayPal avec le bouton ci-dessous, et connectez-vous.",
+        "choose": "Choisissez %{name}.",
+        "confirm": "Touchez Annuler, puis confirmez.",
+        "note": "Cela arrête les paiements PayPal. Résiliez aussi auprès de %{name}, sinon il peut vous facturer autrement."
+      },
+      "contract": {
+        "step1": "Les forfaits téléphone, internet et TV se résilient en général auprès de %{name} : espace client, téléphone ou courrier.",
+        "step2": "Vérifiez dans votre contrat le préavis et les éventuels frais de résiliation.",
+        "step3": "Demandez une confirmation écrite de la date de fin."
+      },
+      "membership": {
+        "step1": "Cherchez l'option de résiliation dans votre espace membre ou l'application %{name}.",
+        "step2": "Certains abonnements exigent un courrier, un e-mail ou un passage sur place, avec un préavis : vérifiez votre contrat.",
+        "step3": "Demandez une confirmation écrite de la date de fin."
+      },
+      "generic": {
+        "step1": "Connectez-vous à votre compte %{name} sur son site ou son application, et cherchez Facturation, Forfait ou Abonnement.",
+        "step2": "Abonné depuis votre téléphone ? Regardez vos abonnements App Store ou Google Play.",
+        "step3": "Introuvable ? Votre banque peut vous dire qui vous prélève, et bloquer ses prochains prélèvements."
+      }
+    }
+  },
+  "zh": {
+    "cadence": {
+      "weekly": "每周",
+      "biweekly": "每两周",
+      "monthly": "每月",
+      "quarterly": "每季度",
+      "semiannual": "每半年",
+      "yearly": "每年",
+      "unknown": "不定期"
+    },
+    "per": {
+      "weekly": "每周 %{amount}",
+      "biweekly": "每两周 %{amount}",
+      "monthly": "每月 %{amount}",
+      "quarterly": "每季度 %{amount}",
+      "semiannual": "每半年 %{amount}",
+      "yearly": "每年 %{amount}",
+      "unknown": "%{amount}"
+    },
+    "status": {
+      "possible": "待确认",
+      "active": "生效中",
+      "trial": "免费试用",
+      "ended": "已结束",
+      "confirmed": "保留",
+      "canceled": "已取消",
+      "dismissed": "不是订阅"
+    },
+    "when": {
+      "expected": "预计 %{date}",
+      "today": "今天",
+      "tomorrow": "明天",
+      "inDays": {
+        "one": "%{count} 天后",
+        "other": "%{count} 天后"
+      }
+    },
+    "billedVia": {
+      "apple": "App Store",
+      "google_play": "Google Play",
+      "paypal": "PayPal"
+    },
+    "source": {
+      "bank": "你的银行",
+      "import": "你导入的账单",
+      "transaction": "你的交易记录",
+      "email": "你的邮件",
+      "manual": "你手动添加"
+    },
+    "list": {
+      "title": "订阅",
+      "checkNow": "立即检查",
+      "checking": "正在检查…",
+      "totalLabel": "每月订阅支出",
+      "running": {
+        "zero": "暂无进行中的订阅",
+        "one": "%{count} 个订阅进行中",
+        "other": "%{count} 个订阅进行中"
+      },
+      "alsoMonthly": "另加每月 %{amount}",
+      "found": {
+        "zero": "没有新发现",
+        "one": "发现 %{count} 个新订阅",
+        "other": "发现 %{count} 个新订阅"
+      },
+      "checkFailed": "暂时无法检查你的邮件。以下是 Budget 已知的内容。",
+      "upcoming": "未来 30 天",
+      "upcomingEmpty": "未来 30 天内没有预计扣款。",
+      "active": "生效中",
+      "trials": "免费试用",
+      "review": "待确认",
+      "reviewHint": "这些看起来像订阅。保留，或告诉 Budget 它们不是。",
+      "ended": "已结束和已取消",
+      "showEnded": {
+        "one": "显示 %{count} 个",
+        "other": "显示 %{count} 个"
+      },
+      "hideEnded": "收起",
+      "trialEnds": "试用结束",
+      "trialEndsToday": "试用今天结束",
+      "trialDaysLeft": {
+        "one": "试用还剩 %{count} 天",
+        "other": "试用还剩 %{count} 天"
+      },
+      "lastCharged": "上次扣款 %{date}",
+      "cancelledOn": "%{date} 已取消",
+      "emptyTitle": "还没有订阅",
+      "emptyBody": "Budget 会从你的银行、账单和邮件收据中找到订阅，并在每次扣款前提醒你。",
+      "connectEmail": "连接你的邮箱",
+      "importStatement": "导入账单"
+    },
+    "alert": {
+      "chargedAfterTitle": "%{name} 在你取消后仍然扣款",
+      "chargedAfterBody": "%{date} 扣款 %{amount}。请确认取消是否成功。",
+      "priceRiseTitle": "%{name} 涨价了",
+      "priceRiseSince": "%{from} → %{to}，自 %{date} 起",
+      "priceRiseFrom": "%{from} → %{to}，%{date} 起生效"
+    },
+    "detail": {
+      "notFound": "这个订阅已不在了",
+      "notFoundBody": "它可能已与另一个订阅合并，或在另一台设备上被删除。",
+      "back": "返回",
+      "question": "保留它，还是你忘了？",
+      "askTrial": "免费试用将于 %{date} 结束，之后 %{price}。",
+      "askNext": "费用为 %{price}。下次扣款在 %{date}。",
+      "askPrice": "费用为 %{price}。",
+      "keep": "保留",
+      "cancelled": "我已取消",
+      "dismiss": "不是订阅",
+      "howToCancel": "如何取消",
+      "change": "改变主意了？",
+      "undo": "撤销",
+      "delete": "删除",
+      "deleteHint": "删除后将永久隐藏：即使再次扣款，Budget 也不会再提示它。",
+      "saveFailed": "保存失败，请重试。",
+      "didYouCancel": "你取消 %{name} 了吗？",
+      "done": {
+        "keep": "已保留。扣款前 Budget 会提醒你。",
+        "cancel": "已标记为取消。如果再次扣款，Budget 会提醒你。",
+        "dismiss": "已隐藏。Budget 不会再提示它。"
+      },
+      "state": {
+        "keep": "你保留了这个订阅。",
+        "cancel": "你在 %{date} 取消了它。",
+        "cancelNoDate": "你已取消它。",
+        "dismiss": "不是订阅。已从列表中隐藏。"
+      },
+      "details": "详情",
+      "fact": {
+        "cadence": "计费周期",
+        "trialEnds": "免费试用结束",
+        "nextCharge": "下次扣款",
+        "lastCharge": "上次扣款",
+        "billedVia": "扣款渠道",
+        "foundIn": "发现于"
+      },
+      "listSeparator": "、",
+      "priceHistory": "价格记录",
+      "priceWentUp": "%{date} 涨价",
+      "priceWentDown": "%{date} 降价",
+      "priceGoesUp": "将于 %{date} 涨价",
+      "priceGoesDown": "将于 %{date} 降价",
+      "chargedAfterTitle": "取消后仍被扣款",
+      "chargedAfterBody": "你在 %{cancelled} 取消后，%{date} 仍被扣款 %{amount}。如果取消已成功，请向 %{name} 申请退款；你的银行也可以提供帮助。",
+      "charges": "扣款记录",
+      "noCharges": "还没有扣款记录。",
+      "chargesCount": {
+        "zero": "没有扣款记录",
+        "one": "%{count} 笔扣款",
+        "other": "%{count} 笔扣款"
+      }
+    },
+    "guide": {
+      "title": "如何取消 %{name}",
+      "introService": "Budget 无法替你取消 %{name}，只有 %{name} 可以。按以下步骤前往。",
+      "introStore": "这个订阅由 %{store} 扣款，只有 %{store} 能停止它。Budget 无法替你取消。",
+      "introPayPal": "这个订阅通过 PayPal 付款。Budget 无法替你取消，以下步骤会带你去可以取消的地方。",
+      "storeApple": "App Store",
+      "storeGoogle": "Google Play",
+      "openCancelPage": "打开 %{name} 的取消页面",
+      "openAccount": "打开你的 %{name} 账户",
+      "openApple": "打开 App Store 订阅",
+      "openAppleHelp": "打开 Apple 的说明",
+      "openGoogle": "打开 Google Play 订阅",
+      "openPayPal": "打开 PayPal 自动付款",
+      "search": "搜索如何取消 %{name}",
+      "searchQuery": "如何取消 %{name} 订阅",
+      "openFailed": "无法打开该页面。",
+      "more": "也可以看看",
+      "afterTitle": "完成了吗？",
+      "afterBody": "取消后请告诉 Budget：它将不再提醒你，并在再次扣款时提醒你。",
+      "whichOne": "找到与这笔扣款对应的订阅。",
+      "keepProof": "保留确认邮件：它能证明你取消的日期。",
+      "inAppNote": "是在手机上的应用内订阅的？那么由 App Store 或 Google Play 扣款，请在那里取消。",
+      "autoDebitNote": "用支付宝或微信支付付款？还要在其支付设置中关闭自动扣款。",
+      "pathSeparator": " › ",
+      "step": {
+        "openCancelPage": "用下方按钮打开 %{name} 的取消页面并登录。",
+        "openAccount": "用下方按钮打开你的 %{name} 账户并登录。",
+        "openApp": "打开 %{name} 应用并登录。",
+        "goTo": "前往 %{path}。",
+        "choose": "选择“%{action}”，按提示完成全部步骤。"
+      },
+      "place": {
+        "account": "账户",
+        "profile": "个人资料",
+        "settings": "设置",
+        "billing": "账单",
+        "plan": "套餐",
+        "plans": "套餐",
+        "membership": "会员",
+        "subscription": "订阅",
+        "subscriptions": "订阅",
+        "payments": "付款",
+        "services": "服务和订阅",
+        "admin": "管理控制台",
+        "workspaceSettings": "工作区设置",
+        "me": "我的",
+        "memberCenter": "会员中心",
+        "autoRenew": "自动续费管理"
+      },
+      "action": {
+        "cancelMembership": "取消会员",
+        "cancelSubscription": "取消订阅",
+        "cancelPlan": "取消套餐",
+        "endMembership": "终止会员",
+        "finishCancel": "完成取消",
+        "downgradeFree": "降级为免费版",
+        "turnOffRenew": "关闭自动续费",
+        "closeAccount": "注销账户"
+      },
+      "apple": {
+        "open": "用下方按钮打开你的 App Store 订阅（或前往 设置 › 你的名字 › 订阅）。",
+        "tap": "轻点 %{name}。",
+        "confirm": "轻点“取消订阅”，然后确认。",
+        "iphone": "在 iPhone 或 iPad 上：设置 › 你的名字 › 订阅。",
+        "mac": "在 Mac 上：App Store › 你的名字 › 账户设置 › 订阅。",
+        "note": "删除应用并不会停止订阅。"
+      },
+      "google": {
+        "open": "用下方按钮打开 Google Play 订阅，并登录付款的 Google 账户。",
+        "choose": "选择 %{name}。",
+        "confirm": "轻点“取消订阅”，按提示操作。",
+        "note": "删除应用并不会停止订阅。"
+      },
+      "paypal": {
+        "open": "用下方按钮打开 PayPal 自动付款并登录。",
+        "choose": "选择 %{name}。",
+        "confirm": "轻点“取消”，然后确认。",
+        "note": "这只会停止 PayPal 付款。也请在 %{name} 取消，否则它可能通过其他方式扣款。"
+      },
+      "contract": {
+        "step1": "手机、宽带和电视套餐通常需要联系 %{name} 办理：网上营业厅、电话或书面申请。",
+        "step2": "查看合同中的提前通知期和违约金。",
+        "step3": "索要终止日期的书面确认。"
+      },
+      "membership": {
+        "step1": "在你的 %{name} 会员账户或应用中查找取消选项。",
+        "step2": "有些会员需要书面申请、邮件或到店办理，并有提前通知期：请查看合同。",
+        "step3": "索要终止日期的书面确认。"
+      },
+      "generic": {
+        "step1": "在网站或应用中登录你的 %{name} 账户，查找“账单”“套餐”或“订阅”。",
+        "step2": "在手机上订阅的？查看 App Store 或 Google Play 订阅。",
+        "step3": "找不到？你的银行可以告诉你是谁在扣款，并能阻止其后续扣款。"
+      }
+    }
+  },
+  "ar": {
+    "cadence": {
+      "weekly": "أسبوعي",
+      "biweekly": "كل أسبوعين",
+      "monthly": "شهري",
+      "quarterly": "كل ثلاثة أشهر",
+      "semiannual": "كل ستة أشهر",
+      "yearly": "سنوي",
+      "unknown": "غير منتظم"
+    },
+    "per": {
+      "weekly": "%{amount} في الأسبوع",
+      "biweekly": "%{amount} كل أسبوعين",
+      "monthly": "%{amount} في الشهر",
+      "quarterly": "%{amount} كل ثلاثة أشهر",
+      "semiannual": "%{amount} كل ستة أشهر",
+      "yearly": "%{amount} في السنة",
+      "unknown": "%{amount}"
+    },
+    "status": {
+      "possible": "للمراجعة",
+      "active": "نشط",
+      "trial": "تجربة مجانية",
+      "ended": "منتهٍ",
+      "confirmed": "محتفَظ به",
+      "canceled": "ملغى",
+      "dismissed": "ليس اشتراكًا"
+    },
+    "when": {
+      "expected": "متوقَّع في %{date}",
+      "today": "اليوم",
+      "tomorrow": "غدًا",
+      "inDays": {
+        "zero": "اليوم",
+        "one": "بعد يوم واحد",
+        "two": "بعد يومين",
+        "few": "بعد %{count} أيام",
+        "many": "بعد %{count} يومًا",
+        "other": "بعد %{count} يوم"
+      }
+    },
+    "billedVia": {
+      "apple": "App Store",
+      "google_play": "Google Play",
+      "paypal": "PayPal"
+    },
+    "source": {
+      "bank": "بنكك",
+      "import": "كشف حساب استوردته",
+      "transaction": "معاملاتك",
+      "email": "بريدك الإلكتروني",
+      "manual": "أضفته بنفسك"
+    },
+    "list": {
+      "title": "الاشتراكات",
+      "checkNow": "تحقّق الآن",
+      "checking": "جارٍ التحقق…",
+      "totalLabel": "الاشتراكات شهريًا",
+      "running": {
+        "zero": "لا اشتراكات جارية بعد",
+        "one": "اشتراك واحد جارٍ",
+        "two": "اشتراكان جاريان",
+        "few": "%{count} اشتراكات جارية",
+        "many": "%{count} اشتراكًا جاريًا",
+        "other": "%{count} اشتراك جارٍ"
+      },
+      "alsoMonthly": "و%{amount} في الشهر",
+      "found": {
+        "zero": "لا جديد",
+        "one": "وُجد اشتراك جديد واحد",
+        "two": "وُجد اشتراكان جديدان",
+        "few": "وُجدت %{count} اشتراكات جديدة",
+        "many": "وُجد %{count} اشتراكًا جديدًا",
+        "other": "وُجد %{count} اشتراك جديد"
+      },
+      "checkFailed": "تعذّر التحقق من بريدك الآن. هذا ما يعرفه Budget حتى الآن.",
+      "upcoming": "الثلاثون يومًا القادمة",
+      "upcomingEmpty": "لا اقتطاعات متوقعة في الثلاثين يومًا القادمة.",
+      "active": "نشطة",
+      "trials": "تجارب مجانية",
+      "review": "للمراجعة",
+      "reviewHint": "تبدو هذه اشتراكات. احتفظ بها، أو أخبر Budget أنها ليست كذلك.",
+      "ended": "منتهية وملغاة",
+      "showEnded": {
+        "zero": "عرض %{count}",
+        "one": "عرض %{count}",
+        "two": "عرض %{count}",
+        "few": "عرض %{count}",
+        "many": "عرض %{count}",
+        "other": "عرض %{count}"
+      },
+      "hideEnded": "إخفاء",
+      "trialEnds": "نهاية التجربة",
+      "trialEndsToday": "تنتهي التجربة اليوم",
+      "trialDaysLeft": {
+        "zero": "تنتهي التجربة اليوم",
+        "one": "بقي يوم واحد من التجربة",
+        "two": "بقي يومان من التجربة",
+        "few": "بقيت %{count} أيام من التجربة",
+        "many": "بقي %{count} يومًا من التجربة",
+        "other": "بقي %{count} يوم من التجربة"
+      },
+      "lastCharged": "آخر اقتطاع في %{date}",
+      "cancelledOn": "أُلغي في %{date}",
+      "emptyTitle": "لا اشتراكات بعد",
+      "emptyBody": "يجدها Budget في بنكك وكشوف حسابك وإيصالات بريدك، ثم ينبّهك قبل كل اقتطاع.",
+      "connectEmail": "اربط بريدك الإلكتروني",
+      "importStatement": "استورد كشف حساب"
+    },
+    "alert": {
+      "chargedAfterTitle": "اقتطع %{name} مبلغًا بعد الإلغاء",
+      "chargedAfterBody": "%{amount} في %{date}. تأكد من أن الإلغاء تم فعلًا.",
+      "priceRiseTitle": "ارتفع سعر %{name}",
+      "priceRiseSince": "%{from} ← %{to}، منذ %{date}",
+      "priceRiseFrom": "%{from} ← %{to}، ابتداءً من %{date}"
+    },
+    "detail": {
+      "notFound": "لم يعد هذا الاشتراك موجودًا",
+      "notFoundBody": "ربما دُمج مع اشتراك آخر، أو حُذف على جهاز آخر.",
+      "back": "رجوع",
+      "question": "هل تحتفظ به، أم أنك نسيته؟",
+      "askTrial": "تنتهي التجربة المجانية في %{date}. بعدها يكلّف %{price}.",
+      "askNext": "يكلّف %{price}. الاقتطاع القادم في %{date}.",
+      "askPrice": "يكلّف %{price}.",
+      "keep": "احتفظ به",
+      "cancelled": "ألغيته",
+      "dismiss": "ليس اشتراكًا",
+      "howToCancel": "كيفية الإلغاء",
+      "change": "غيّرت رأيك؟",
+      "undo": "تراجع",
+      "delete": "حذف",
+      "deleteHint": "الحذف يخفيه نهائيًا: لن يقترحه Budget مجددًا، حتى بعد اقتطاع آخر.",
+      "saveFailed": "تعذّر الحفظ. حاول مرة أخرى.",
+      "didYouCancel": "هل ألغيت %{name}؟",
+      "done": {
+        "keep": "تم الاحتفاظ به. سينبّهك Budget قبل الاقتطاع.",
+        "cancel": "سُجّل كملغى. سينبّهك Budget إن اقتطع مجددًا.",
+        "dismiss": "أُخفي. لن يقترحه Budget مجددًا."
+      },
+      "state": {
+        "keep": "أنت تحتفظ بهذا الاشتراك.",
+        "cancel": "ألغيته في %{date}.",
+        "cancelNoDate": "لقد ألغيته.",
+        "dismiss": "ليس اشتراكًا. أُخفي من قوائمك."
+      },
+      "details": "التفاصيل",
+      "fact": {
+        "cadence": "الفوترة",
+        "trialEnds": "نهاية التجربة المجانية",
+        "nextCharge": "الاقتطاع القادم",
+        "lastCharge": "آخر اقتطاع",
+        "billedVia": "يُفوتر عبر",
+        "foundIn": "وُجد في"
+      },
+      "listSeparator": "، ",
+      "priceHistory": "سجل الأسعار",
+      "priceWentUp": "ارتفع في %{date}",
+      "priceWentDown": "انخفض في %{date}",
+      "priceGoesUp": "يرتفع في %{date}",
+      "priceGoesDown": "ينخفض في %{date}",
+      "chargedAfterTitle": "اقتطاع بعد الإلغاء",
+      "chargedAfterBody": "%{amount} في %{date}، بعد إلغائك في %{cancelled}. إن كان الإلغاء قد تم، فاطلب من %{name} استرداد المبلغ؛ ويمكن لبنكك المساعدة أيضًا.",
+      "charges": "الاقتطاعات",
+      "noCharges": "لا اقتطاعات مسجلة بعد.",
+      "chargesCount": {
+        "zero": "لا اقتطاعات مسجلة",
+        "one": "اقتطاع واحد",
+        "two": "اقتطاعان",
+        "few": "%{count} اقتطاعات",
+        "many": "%{count} اقتطاعًا",
+        "other": "%{count} اقتطاع"
+      }
+    },
+    "guide": {
+      "title": "كيفية إلغاء %{name}",
+      "introService": "لا يستطيع Budget إلغاء %{name} نيابةً عنك: وحده %{name} يستطيع ذلك. هذه الخطوات توصلك إليه.",
+      "introStore": "يُفوتر %{store} هذا الاشتراك، لذا وحده %{store} يستطيع إيقافه. لا يستطيع Budget إلغاءه نيابةً عنك.",
+      "introPayPal": "يُدفع هذا الاشتراك عبر PayPal. لا يستطيع Budget إلغاءه نيابةً عنك: هذه الخطوات توصلك إلى حيث يمكنك ذلك.",
+      "storeApple": "App Store",
+      "storeGoogle": "Google Play",
+      "openCancelPage": "افتح صفحة إلغاء %{name}",
+      "openAccount": "افتح حسابك في %{name}",
+      "openApple": "افتح اشتراكات App Store",
+      "openAppleHelp": "افتح دليل Apple",
+      "openGoogle": "افتح اشتراكات Google Play",
+      "openPayPal": "افتح المدفوعات التلقائية في PayPal",
+      "search": "ابحث عن طريقة إلغاء %{name}",
+      "searchQuery": "كيفية إلغاء اشتراك %{name}",
+      "openFailed": "تعذّر فتح تلك الصفحة.",
+      "more": "يستحق النظر أيضًا",
+      "afterTitle": "هل انتهيت؟",
+      "afterBody": "بعد الإلغاء أخبر Budget: سيتوقف عن تذكيرك، وينبّهك إن اقتطع مجددًا.",
+      "whichOne": "ابحث عن الاشتراك المطابق لهذا الاقتطاع.",
+      "keepProof": "احتفظ برسالة التأكيد: فهي تثبت تاريخ الإلغاء.",
+      "inAppNote": "هل اشتركت من داخل التطبيق على هاتفك؟ إذن يُفوترك App Store أو Google Play: ألغِه هناك.",
+      "autoDebitNote": "هل تدفع عبر Alipay أو WeChat Pay؟ أوقف أيضًا الاقتطاع التلقائي من إعدادات الدفع فيه.",
+      "pathSeparator": " › ",
+      "step": {
+        "openCancelPage": "افتح صفحة إلغاء %{name} بالزر أدناه، وسجّل الدخول.",
+        "openAccount": "افتح حسابك في %{name} بالزر أدناه، وسجّل الدخول.",
+        "openApp": "افتح تطبيق %{name} وسجّل الدخول.",
+        "goTo": "انتقل إلى %{path}.",
+        "choose": "اختر «%{action}» واتبع الخطوات حتى النهاية."
+      },
+      "place": {
+        "account": "الحساب",
+        "profile": "الملف الشخصي",
+        "settings": "الإعدادات",
+        "billing": "الفوترة",
+        "plan": "الخطة",
+        "plans": "الخطط",
+        "membership": "العضوية",
+        "subscription": "الاشتراك",
+        "subscriptions": "الاشتراكات",
+        "payments": "المدفوعات",
+        "services": "الخدمات والاشتراكات",
+        "admin": "وحدة تحكم المسؤول",
+        "workspaceSettings": "إعدادات مساحة العمل",
+        "me": "أنا",
+        "memberCenter": "مركز العضوية",
+        "autoRenew": "التجديد التلقائي"
+      },
+      "action": {
+        "cancelMembership": "إلغاء العضوية",
+        "cancelSubscription": "إلغاء الاشتراك",
+        "cancelPlan": "إلغاء الخطة",
+        "endMembership": "إنهاء العضوية",
+        "finishCancel": "إتمام الإلغاء",
+        "downgradeFree": "الرجوع إلى الخطة المجانية",
+        "turnOffRenew": "إيقاف التجديد التلقائي",
+        "closeAccount": "إغلاق الحساب"
+      },
+      "apple": {
+        "open": "افتح اشتراكاتك في App Store بالزر أدناه (أو الإعدادات › اسمك › الاشتراكات).",
+        "tap": "اضغط على %{name}.",
+        "confirm": "اضغط «إلغاء الاشتراك»، ثم أكّد.",
+        "iphone": "على iPhone أو iPad: الإعدادات › اسمك › الاشتراكات.",
+        "mac": "على Mac: App Store › اسمك › إعدادات الحساب › الاشتراكات.",
+        "note": "حذف التطبيق لا يوقف الاشتراك."
+      },
+      "google": {
+        "open": "افتح اشتراكات Google Play بالزر أدناه، بحساب Google الذي يدفع.",
+        "choose": "اختر %{name}.",
+        "confirm": "اضغط «إلغاء الاشتراك» واتبع الخطوات.",
+        "note": "حذف التطبيق لا يوقف الاشتراك."
+      },
+      "paypal": {
+        "open": "افتح المدفوعات التلقائية في PayPal بالزر أدناه، وسجّل الدخول.",
+        "choose": "اختر %{name}.",
+        "confirm": "اضغط «إلغاء»، ثم أكّد.",
+        "note": "هذا يوقف دفع PayPal فقط. ألغِ لدى %{name} أيضًا، وإلا فقد يفوترك بطريقة أخرى."
+      },
+      "contract": {
+        "step1": "تُنهى عادةً خطط الهاتف والإنترنت والتلفاز بالتواصل مع %{name}: عبر حسابك على الإنترنت أو بالهاتف أو برسالة.",
+        "step2": "راجع في عقدك مهلة الإشعار وأي رسوم إنهاء مبكر.",
+        "step3": "اطلب تأكيدًا كتابيًا لتاريخ الانتهاء."
+      },
+      "membership": {
+        "step1": "ابحث عن خيار الإلغاء في حساب العضوية أو تطبيق %{name}.",
+        "step2": "بعض العضويات تتطلب رسالة أو بريدًا إلكترونيًا أو زيارة، مع مهلة إشعار: راجع عقدك.",
+        "step3": "اطلب تأكيدًا كتابيًا لتاريخ الانتهاء."
+      },
+      "generic": {
+        "step1": "سجّل الدخول إلى حسابك في %{name} على موقعه أو تطبيقه، وابحث عن الفوترة أو الخطة أو الاشتراك.",
+        "step2": "اشتركت من هاتفك؟ راجع اشتراكاتك في App Store أو Google Play.",
+        "step3": "لم تجده؟ يمكن لبنكك أن يبيّن لك من يقتطع منك، وأن يوقف اقتطاعاته القادمة."
+      }
+    }
+  }
 }

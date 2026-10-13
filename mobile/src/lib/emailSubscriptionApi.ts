@@ -1,135 +1,108 @@
-import { daysAheadISO, todayISO } from './dates';
-import { getEmailFindings, getSubscriptions, type LocalEmailFinding, type Subscription } from './db';
-import { cancelGuidanceFor, type DetectedSubscription } from './business-subscription-detection';
-import { getEmailConnections, getForwardingAddress, pullEmailFindings } from './email-connections';
+import { todayISO } from './dates';
+import type { Subscription } from './db';
+import type { DetectedSubscription } from './business-subscription-detection';
+import { cancelGuide, type CancelPlatform } from './cancel-directory';
 import { monthlyFactor } from './subscriptions/cadence';
-import { runDetection } from './subscription-detection';
+import { convertAmount } from './subscription-detection';
 
 /**
- * The email screens' older calls, kept working over the Phase 6 email API
- * until those screens move to lib/email-connections (leaf 6.7).
+ * Business Tools' view of the subscriptions found in email.
  *
- * The routes these used to call — /email/status, /email/inbox and
- * /email/inbox/imported — are gone. What the server reads from a mailbox
- * (Gmail, Outlook, forwarding) is now a finding the phone pulls into its own
- * cache, and detection reads the findings itself after every email sync — no
- * "import" step, and no subscription written here: the one engine
- * (subscription-detection.ts) decides, so an email receipt and the bank's
- * charge for the same payment are one subscription, never two.
+ * Everything else that lived here — the forwarding status, the inbox list,
+ * the per-item "import" — went with the Phase 5 email screen: the email
+ * screen now reads lib/email-connections (I-EMAIL-API) and lib/email-screen,
+ * and detection reads every finding itself after each email sync, so an email
+ * receipt and the bank's charge for the same payment are one subscription.
  *
- * The server calls reject with an ApiFailure (lib/api-errors), whose message
- * is already in the reader's language.
+ * Business Tools finds a company's tools in its own expenses and adds the
+ * ones only email has seen, from here. It shows one figure a month per tool,
+ * in the business's currency, so a tool billed in another currency is
+ * converted at the cached rates, and left out when no rate is known rather
+ * than added at face value.
  */
 
-export interface EmailStatus {
-  forwarding: { address: string; verified: boolean } | null;
-  inboxConfigured: boolean;
-  inboxCount: number;
-}
+/** Still something the business pays for: running, or found and not yet answered. */
+const SHOWN: ReadonlySet<string> = new Set(['active', 'confirmed', 'trial', 'possible']);
 
-export interface InboxItem {
-  id: string;
-  /** Sender's domain only — the raw address is not stored. */
-  senderDomain: string | null;
-  /** Kept for the screen; findings carry no subject text. */
-  label: string;
-  merchant: string | null;
-  amount: number | null;
-  currency: string;
-  cadence: 'weekly' | 'biweekly' | 'monthly' | 'yearly' | 'unknown';
-  chargedISO: string | null;
-  isSubscription: boolean;
-  status: 'parsed' | 'imported' | 'ignored' | 'confirmation';
-  receivedAt: string;
-}
-
-/** Whether forwarding is set up on the server, its connection, and how much the inboxes found. */
-export async function getEmailStatus(): Promise<EmailStatus> {
-  const { connections, providers } = await getEmailConnections();
-  const forwarding = connections.find((c) => c.provider === 'forwarding') ?? null;
-  return {
-    forwarding: forwarding ? { address: forwarding.address, verified: !!forwarding.forwardingVerified } : null,
-    inboxConfigured: providers.forwarding.configured,
-    inboxCount: connections.reduce((n, c) => n + (Number(c.findingsCount) || 0), 0),
-  };
-}
-
-// ── Forward-to-inbox ("inbox inside Budget") ─────────────────────────────────
-
-/** Provision (once) and return this user's private forwarding address. */
-export async function getInboxAddress(): Promise<{ address: string; verified: boolean }> {
-  return getForwardingAddress();
-}
-
-const BILLING_KINDS = new Set(['renewal', 'receipt', 'trial_ending', 'price_change']);
-const SHOWN_CADENCES = new Set(['weekly', 'biweekly', 'monthly', 'yearly']);
-
-function toInboxItem(f: LocalEmailFinding): InboxItem {
-  const billing = BILLING_KINDS.has(f.kind);
-  return {
-    id: f.id,
-    senderDomain: f.senderDomain,
-    label: '',
-    merchant: f.merchant,
-    amount: f.amount,
-    currency: f.currency ?? '',
-    // Quarterly and half-yearly have no label on this screen yet: shown as none.
-    cadence: SHOWN_CADENCES.has(f.cadence) ? (f.cadence as InboxItem['cadence']) : 'unknown',
-    chargedISO: f.chargedISO ?? f.emailDateISO,
-    isSubscription: billing,
-    status: billing ? 'parsed' : 'ignored',
-    receivedAt: f.receivedAt,
-  };
+/** Found in email (as its first source or any later one). */
+export function seenInEmail(sub: Pick<Subscription, 'source' | 'sources'>): boolean {
+  return (sub.sources || sub.source || '')
+    .split(',')
+    .map((s) => s.trim())
+    .includes('email');
 }
 
 /**
- * What the inboxes found, newest first: pulls what is new, then reads this
- * phone's cache — so offline it still shows what it last had.
+ * One email-found subscription as Business Tools lists it: `amount` is its
+ * cost per month in `currency` (null when it cannot be converted), the next
+ * charge is the engine's (a trial's end for a trial), and the cancel steps
+ * follow whoever bills it. Null when it has no next date to show.
  */
-export async function getInbox(): Promise<InboxItem[]> {
-  await pullEmailFindings().catch((e) => console.warn('[email] pull failed', e?.kind ?? e));
-  const findings = await getEmailFindings();
-  return findings.map(toInboxItem).sort((a, b) => b.receivedAt.localeCompare(a.receivedAt));
-}
-
-/**
- * The screen's "Add" button: run detection over the findings now. Nothing is
- * imported item by item any more — the engine reads every finding beside the
- * ledger. Returns how many subscriptions this run found.
- */
-export async function importInboxSubscriptions(_items: InboxItem[]): Promise<number> {
-  const summary = await runDetection('email', { interactive: true, announce: false });
-  return summary.newSubscriptions.length;
-}
-
-/** Convert a subscription found in email into the business screen's DetectedSubscription shape. */
-export function emailSubToDetected(sub: Subscription): DetectedSubscription {
-  // The same guidance the business screen gives a detected charge: the
-  // directory's steps for a known service, else the generic steps in the
-  // reader's language. This used to fall back to a sentence of English.
-  const cancel = cancelGuidanceFor(sub.merchantNormalized);
+export function emailSubToDetected(
+  sub: Subscription,
+  o: { currency: string; rates: Readonly<Record<string, number>> | null; platform: CancelPlatform; charges?: number },
+): DetectedSubscription | null {
+  const next = (sub.status === 'trial' ? sub.trialEndsAt : null) ?? sub.nextExpectedAt ?? sub.trialEndsAt;
+  if (!next) return null;
+  const factor = monthlyFactor(sub.cadence);
+  // An irregular charge has no monthly cost of its own: its amount stands for one month.
+  const perMonth = (Number(sub.typicalAmount) || 0) * (factor || 1);
+  const amount = convertAmount(perMonth, sub.currency || o.currency, o.currency, o.rates);
+  if (amount === null) return null;
+  const guide = cancelGuide({
+    merchantKey: sub.merchantNormalized,
+    name: sub.merchantDisplay,
+    billedVia: sub.billedVia ?? null,
+    platform: o.platform,
+  });
   return {
     key: sub.id,
     name: sub.merchantDisplay,
-    // A month's worth at any cadence (it used to know only weekly and yearly).
-    amount: sub.typicalAmount * (monthlyFactor(sub.cadence) || 1),
+    amount: Math.round(amount * 100) / 100,
     category: 'Software',
     lastChargeDate: sub.lastChargedAt ?? todayISO(),
-    nextChargeDate: sub.nextExpectedAt ?? daysAheadISO(30),
-    isRecurring: true,
-    monthlyCount: 1,
-    cancelInstructions: cancel.instructions,
-    cancelUrl: sub.cancelUrl ?? cancel.url,
+    nextChargeDate: next.slice(0, 10),
+    isRecurring: sub.cadence !== 'unknown',
+    monthlyCount: Math.max(1, o.charges ?? 1),
+    cancelInstructions: guide.steps.join(' → '),
+    cancelUrl: sub.cancelUrl ?? guide.link?.url ?? undefined,
   };
 }
 
-const OVER = new Set(['canceled', 'dismissed', 'ended']);
+const RATES_WAIT_MS = 3_000;
+
+async function businessRates(): Promise<Record<string, number>> {
+  const { bundledSnapshot, loadRates } = await import('./rates');
+  const live = await Promise.race([
+    loadRates()
+      .then((s) => s.rates)
+      .catch(() => null),
+    new Promise<null>((resolve) => setTimeout(() => resolve(null), RATES_WAIT_MS)),
+  ]);
+  return { ...bundledSnapshot().rates, ...(live ?? {}) };
+}
 
 /**
- * Subscriptions first found in email, still running, mapped for the business
- * screen — which finds the rest in the business's own expenses.
+ * Subscriptions found in email and still being paid for (not ended, not
+ * cancelled, not "not a subscription"), mapped for Business Tools — which
+ * finds the rest in the business's own expenses.
  */
 export async function getEmailDetectedForBusiness(): Promise<DetectedSubscription[]> {
-  const all = await getSubscriptions();
-  return all.filter((s) => s.source === 'email' && !OVER.has(s.status)).map(emailSubToDetected);
+  const db = await import('./db');
+  const all = await db.getSubscriptions();
+  const found = all.filter((s) => SHOWN.has(s.status) && seenInEmail(s));
+  if (found.length === 0) return [];
+  const [settings, rates, platform] = await Promise.all([
+    db.getSettings(),
+    businessRates().catch(() => null),
+    import('react-native').then((rn) => (rn.Platform.OS === 'ios' || rn.Platform.OS === 'android' ? rn.Platform.OS : 'web') as CancelPlatform),
+  ]);
+  const currency = (settings.currency || 'USD').toUpperCase();
+  const out: DetectedSubscription[] = [];
+  for (const s of found) {
+    const charges = (await db.getSubscriptionOccurrences(s.id)).length;
+    const d = emailSubToDetected(s, { currency, rates, platform, charges });
+    if (d) out.push(d);
+  }
+  return out;
 }

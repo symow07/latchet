@@ -1,127 +1,194 @@
-import { useState } from 'react';
-import { ActivityIndicator, ScrollView, View } from 'react-native';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMemo, useState } from 'react';
+import { ActivityIndicator, RefreshControl, ScrollView, View } from 'react-native';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import { RefreshCw } from '@/components/icons';
-import { differenceInCalendarDays, format, parseISO } from 'date-fns';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { AlertTriangle, RefreshCw, Repeat } from '@/components/icons';
 
-import { getSubscriptions, type Subscription } from '@/lib/db';
+import { getSettings, getSubscriptions, type Subscription } from '@/lib/db';
 import { EmailScanCard } from '@/components/EmailScanCard';
+import { runDetection, SUBSCRIPTIONS_QUERY_KEY } from '@/lib/subscription-detection';
+import { EMAIL_CONNECTIONS_QUERY_KEY, getEmailConnections, syncEmailNow } from '@/lib/email-connections';
 import {
-  monthlySubscriptionTotal,
-  scanAndSaveSubscriptions,
-} from '@/lib/subscription-detection';
-import { formatCurrency } from '@/lib/calculations';
-import { R, S, useC } from '@/lib/design';
+  buildSubscriptionsView,
+  formatMoney,
+  moneyFormatter,
+  type SubscriptionRowView,
+} from '@/lib/subscription-view';
+import { todayISO } from '@/lib/dates';
+import { R, S, useC, type Palette } from '@/lib/design';
 import {
   BalanceCard,
   Card,
   CircleAction,
   Empty,
   InfoRow,
-  Meter,
+  PrimaryButton,
   Screen,
-  Segmented,
+  SectionHeader,
   SubHeader,
+  Touchable,
   Type,
 } from '@/components/kit';
-import { t, getDateFnsLocale } from '@/lib/i18n/core';
-
-type SegmentKey = 'confirmed' | 'possible' | 'canceled';
+import { t } from '@/lib/i18n/core';
 
 /**
- * Subscriptions — DESIGN-PROMPT.md §22: monthly total, then confirmed /
- * possible / cancelled.
+ * Subscriptions: what is about to charge you, and what you forgot.
  *
- * The old screen said the status four times over. Every row carried a status
- * icon, a status-tinted icon well, a violet cadence badge and — in the
- * "possible" segment — a confidence bar that changed between green, amber and
- * red at 60% and 40%. All of that sat under a segmented control that had
- * *already* filtered the list to one status, so every row in view was the
- * same status as every other. The colour was carrying no information at all.
+ * The screen leads with the value: the alerts first (charged after you
+ * cancelled, a price that went up — old → new), the monthly cost on the
+ * anchor (one figure per currency; euros are never added to dollars), the
+ * charges coming in the next 30 days with their dates, then what is running,
+ * the free trials and the days they have left, what Budget is unsure of ("To
+ * review"), and folded away at the end what has ended or been cancelled.
+ * Everything is worked out in lib/subscription-view; this file only lays it
+ * out.
  *
- * It now says it once: the segment. Rows are a merchant (its initial on a
- * neutral sunk tile — a merchant is not a category, and a colour per merchant
- * would be a rainbow), a cadence, when the next charge lands, and a price. Confidence keeps its bar because it is the
- * one number that varies inside a segment, and the bar is `accentMark` like
- * every other meter in the app rather than a traffic light.
- *
- * There is also one scan control instead of three. The header refresh always
- * works; the empty state offers the same action in words.
+ * Detection runs by itself (after imports, syncs and email); "Check now" and
+ * pulling down run it on demand, and pulling down also checks email first.
  */
-function segments(): readonly { key: SegmentKey; label: string }[] {
-  return [
-    { key: 'confirmed', label: t('subStatus.confirmed') },
-    { key: 'possible', label: t('subStatus.possible') },
-    { key: 'canceled', label: t('subStatus.canceled') },
-  ];
+function initialTile(pal: Palette, name: string) {
+  return (
+    <View
+      style={{
+        width: 40,
+        height: 40,
+        borderRadius: R.sm,
+        borderCurve: 'continuous',
+        backgroundColor: pal.groundSunk,
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      <Type role="cardTitle" color={pal.ink}>
+        {Array.from(name.trim())[0]?.toUpperCase() ?? '?'}
+      </Type>
+    </View>
+  );
 }
 
-/** When the next charge lands, in the words the app already has for it. */
-function nextChargeLabel(nextExpectedAt: string | null): string | null {
-  if (!nextExpectedAt) return null;
-  const next = parseISO(nextExpectedAt);
-  const days = differenceInCalendarDays(next, new Date());
-  const on = format(next, 'd MMM', { locale: getDateFnsLocale() });
-
-  if (days < 0) return `${t('subStatus.overdue')} · ${on}`;
-  if (days === 0) return t('subStatus.today');
-  if (days === 1) return t('subStatus.tomorrow');
-  return `${t('subStatus.inDays', { count: days })} · ${on}`;
+function RowList({
+  pal,
+  rows,
+  onOpen,
+}: {
+  pal: Palette;
+  rows: { key: string; title: string; meta: string; amount: number; currency: string }[];
+  onOpen: (id: string) => void;
+}) {
+  return (
+    <View style={{ paddingHorizontal: S.screen }}>
+      <Card pal={pal} padding={0} contentStyle={{ paddingHorizontal: S.card }}>
+        {rows.map((row, i) => (
+          <View key={row.key} style={i > 0 ? { borderTopWidth: 1, borderTopColor: pal.hairline } : undefined}>
+            <InfoRow
+              pal={pal}
+              title={row.title}
+              meta={row.meta}
+              amount={row.amount}
+              format={moneyFormatter(row.currency)}
+              lead={initialTile(pal, row.title)}
+              onPress={() => onOpen(row.key)}
+            />
+          </View>
+        ))}
+      </Card>
+    </View>
+  );
 }
+
+const asRows = (rows: SubscriptionRowView[]) =>
+  rows.map((r) => ({ key: r.sub.id, title: r.title, meta: r.meta, amount: r.amount, currency: r.currency }));
 
 export default function SubscriptionsScreen() {
   const C = useC();
   const router = useRouter();
-  const queryClient = useQueryClient();
-  const [segment, setSegment] = useState<SegmentKey>('confirmed');
-  const [isScanning, setIsScanning] = useState(false);
+  const insets = useSafeAreaInsets();
+  const qc = useQueryClient();
+  const [showEnded, setShowEnded] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const { data: all = [], isLoading } = useQuery<Subscription[]>({
-    queryKey: ['subscriptions'],
+  const { data: subs = [], isLoading } = useQuery<Subscription[]>({
+    queryKey: SUBSCRIPTIONS_QUERY_KEY,
     queryFn: () => getSubscriptions(),
   });
+  const { data: settings } = useQuery({ queryKey: ['settings'], queryFn: getSettings });
+  const { data: email } = useQuery({
+    queryKey: EMAIL_CONNECTIONS_QUERY_KEY,
+    queryFn: getEmailConnections,
+    retry: false,
+    staleTime: 60_000,
+  });
 
-  const filtered = all.filter((s) => s.status === segment);
-  const monthlyTotal = monthlySubscriptionTotal(all);
-  const activeCount = all.filter((s) => s.status !== 'canceled').length;
+  const userCurrency = (settings?.currency || 'USD').toUpperCase();
+  const today = todayISO();
+  const view = useMemo(() => buildSubscriptionsView(subs, { today, userCurrency }), [subs, today, userCurrency]);
+  const open = (id: string) => router.push({ pathname: '/subscription-detail', params: { id } });
 
-  async function handleScan() {
-    if (isScanning) return;
-    setIsScanning(true);
+  /** New subscriptions since `before`, counting only what is listed. */
+  async function newSince(before: ReadonlySet<string>): Promise<number> {
+    const after = await getSubscriptions();
+    return after.filter((s) => !before.has(s.id) && s.status !== 'dismissed').length;
+  }
+
+  async function refreshLists() {
+    await qc.invalidateQueries({ queryKey: SUBSCRIPTIONS_QUERY_KEY });
+    await qc.invalidateQueries({ queryKey: EMAIL_CONNECTIONS_QUERY_KEY });
+  }
+
+  const check = useMutation({
+    mutationFn: async () => {
+      const before = new Set(subs.map((s) => s.id));
+      await runDetection('manual');
+      return newSince(before);
+    },
+    onMutate: () => setNotice(null),
+    onSuccess: async (found) => {
+      setNotice(t('subsUi.list.found', { count: found }));
+      await refreshLists();
+    },
+  });
+
+  /** Pull to refresh: check the inboxes (if any), then detect over everything. */
+  async function onRefresh() {
+    if (refreshing) return;
+    setRefreshing(true);
+    setNotice(null);
+    const before = new Set(subs.map((s) => s.id));
+    let emailFailed = false;
     try {
-      await scanAndSaveSubscriptions();
-      await queryClient.invalidateQueries({ queryKey: ['subscriptions'] });
-    } catch (e) {
-      console.error('[Subscriptions] scan error:', e);
+      if ((email?.connections ?? []).length > 0) await syncEmailNow({ watched: true });
+    } catch {
+      emailFailed = true;
+    }
+    try {
+      await runDetection('manual');
+      const found = await newSince(before);
+      setNotice(emailFailed ? t('subsUi.list.checkFailed') : t('subsUi.list.found', { count: found }));
+      await refreshLists();
     } finally {
-      setIsScanning(false);
+      setRefreshing(false);
     }
   }
 
-  const emptyCopy: Record<SegmentKey, { title: string; body: string }> = {
-    confirmed: { title: t('subStatus.noConfirmed'), body: t('subStatus.noConfirmedBody') },
-    possible: { title: t('subStatus.noPossible'), body: t('subStatus.noPossibleBody') },
-    canceled: { title: t('subStatus.noCanceled'), body: t('misc2.noCanceledBody') },
-  };
+  const primary = view.totals[0] ?? { currency: userCurrency, monthly: 0 };
+  const busy = check.isPending || refreshing;
 
   return (
     <Screen pal={C}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingTop: 8, paddingBottom: 60 }}
+        contentContainerStyle={{ paddingTop: 8, paddingBottom: insets.bottom + S.section }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.accent} />}
       >
         <SubHeader
           pal={C}
-          title={t('subscriptionsScreen.title')}
+          title={t('subsUi.list.title')}
           onBack={() => router.back()}
           action={
-            <CircleAction
-              pal={C}
-              label={t('subscriptionsScreen.rescan')}
-              onPress={isScanning ? undefined : handleScan}
-            >
-              {isScanning ? (
+            <CircleAction pal={C} label={t('subsUi.list.checkNow')} onPress={busy ? undefined : () => check.mutate()}>
+              {busy ? (
                 <ActivityIndicator size="small" color={C.ink} />
               ) : (
                 <RefreshCw size={18} color={C.ink} strokeWidth={S.stroke} />
@@ -130,113 +197,144 @@ export default function SubscriptionsScreen() {
           }
         />
 
-        <BalanceCard
-          pal={C}
-          label={t('subscriptionsScreen.monthlyTotal')}
-          amount={monthlyTotal}
-          format={formatCurrency}
-          caption={t('subscriptionsScreen.activeCaption', { count: activeCount })}
-          style={{ paddingHorizontal: S.screen, marginTop: 24 }}
-        />
-
-        <Segmented
-          pal={C}
-          options={segments()}
-          value={segment}
-          onChange={setSegment}
-          style={{ marginTop: 24, marginHorizontal: S.screen }}
-        />
-
-        <View style={{ marginTop: S.section }}>
-          <EmailScanCard accent={C.accent} />
-        </View>
+        {notice ? (
+          <Type role="meta" color={C.inkDim} style={{ paddingHorizontal: S.screen, marginTop: S.tight, textAlign: 'center' }}>
+            {notice}
+          </Type>
+        ) : null}
 
         {isLoading ? (
           <View style={{ paddingTop: 48, alignItems: 'center' }}>
             <ActivityIndicator color={C.accent} />
           </View>
-        ) : filtered.length === 0 ? (
-          <Empty
-            pal={C}
-            // The anchor above is already this screen's espresso block.
-            actionVariant="secondary"
-            icon={<RefreshCw size={26} color={C.accent} strokeWidth={S.stroke} />}
-            title={emptyCopy[segment].title}
-            body={emptyCopy[segment].body}
-            // Only where scanning would actually change what is on screen —
-            // an offer to re-scan under an empty "cancelled" list is noise.
-            actionLabel={
-              segment !== 'canceled'
-                ? isScanning
-                  ? t('subscriptionsScreen.scanning')
-                  : t('subscriptionsScreen.scanFor')
-                : undefined
-            }
-            onAction={segment !== 'canceled' ? handleScan : undefined}
-            style={{ marginTop: 40 }}
-          />
+        ) : view.empty ? (
+          <>
+            <Empty
+              pal={C}
+              icon={<Repeat size={26} color={C.accent} strokeWidth={S.stroke} />}
+              title={t('subsUi.list.emptyTitle')}
+              body={t('subsUi.list.emptyBody')}
+              actionLabel={t('subsUi.list.connectEmail')}
+              onAction={() => router.push('/email-inbox')}
+              // Empty replaces the anchor here, so its action is the screen's one espresso button.
+              actionVariant="ink"
+              style={{ marginTop: 48 }}
+            />
+            <PrimaryButton
+              pal={C}
+              label={t('subsUi.list.importStatement')}
+              onPress={() => router.push('/import')}
+              variant="secondary"
+              style={{ marginTop: S.tight + 4, marginHorizontal: S.screen }}
+            />
+          </>
         ) : (
-          <View style={{ paddingHorizontal: S.screen }}>
-            <Card pal={C} padding={0} contentStyle={{ paddingHorizontal: S.card }}>
-              {filtered.map((sub, i) => {
-                const next = sub.status === 'canceled' ? null : nextChargeLabel(sub.nextExpectedAt);
-                const meta = [t(`frequency.${sub.cadence}`), next].filter(Boolean).join(' · ');
-                return (
-                  <View
-                    key={sub.id}
-                    style={i > 0 ? { borderTopWidth: 1, borderTopColor: C.hairline } : undefined}
-                  >
-                    <InfoRow
-                      pal={C}
-                      title={sub.merchantDisplay}
-                      meta={meta}
-                      amount={sub.typicalAmount}
-                      format={formatCurrency}
-                      onPress={() => router.push(`/subscription-detail?id=${sub.id}`)}
-                      lead={
-                        <View
-                          style={{
-                            width: 40,
-                            height: 40,
-                            borderRadius: R.sm,
-                            borderCurve: 'continuous',
-                            backgroundColor: C.groundSunk,
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                          }}
-                        >
+          <>
+            {/* What needs a look now: money already gone, or a price that rose. */}
+            {view.alerts.length > 0 ? (
+              <View style={{ paddingHorizontal: S.screen, marginTop: S.group, gap: S.tight + 4 }}>
+                {view.alerts.map((a) => (
+                  <Card key={`${a.kind}:${a.sub.id}`} pal={C} padding={0} contentStyle={{ paddingHorizontal: S.card }}>
+                    <Touchable pal={C} onPress={() => open(a.sub.id)} accessibilityLabel={a.title} style={{ paddingVertical: 14 }}>
+                      <View style={{ flexDirection: 'row', gap: 12 }}>
+                        <AlertTriangle
+                          size={20}
+                          color={a.kind === 'charged_after_cancel' ? C.negative : C.warning}
+                          strokeWidth={S.stroke}
+                          style={{ marginTop: 1 }}
+                        />
+                        <View style={{ flex: 1 }}>
                           <Type role="cardTitle" color={C.ink}>
-                            {sub.merchantDisplay.trim().charAt(0).toUpperCase() || '?'}
+                            {a.title}
+                          </Type>
+                          <Type role="meta" color={C.inkDim} style={{ marginTop: 2 }}>
+                            {a.body}
                           </Type>
                         </View>
-                      }
-                      // Confidence is the only figure that varies within the
-                      // "possible" segment, so it is the only one that earns
-                      // a meter — and it is one colour, not a traffic light.
-                      footer={
-                        segment === 'possible' ? (
-                          <View style={{ marginTop: 12, gap: 6 }}>
-                            <Type role="meta" color={C.inkDim}>
-                              {`${t('subscriptionsScreen.confidence')} ${Math.round(sub.confidenceScore)}%`}
-                            </Type>
-                            <Meter
-                              pal={C}
-                              ratio={sub.confidenceScore / 100}
-                              label={t('subscriptionsScreen.confidence')}
-                            />
-                          </View>
-                        ) : null
-                      }
-                    />
-                  </View>
-                );
-              })}
-            </Card>
+                      </View>
+                    </Touchable>
+                  </Card>
+                ))}
+              </View>
+            ) : null}
 
-            <Type role="meta" color={C.inkDim} style={{ marginTop: 12 }}>
-              {t('subscriptionsScreen.analyzesHint')}
-            </Type>
-          </View>
+            {/* The anchor: what running subscriptions cost a month, per currency. */}
+            <BalanceCard
+              pal={C}
+              label={t('subsUi.list.totalLabel')}
+              amount={primary.monthly}
+              format={moneyFormatter(primary.currency)}
+              caption={t('subsUi.list.running', { count: view.runningCount })}
+              style={{ paddingHorizontal: S.screen, marginTop: S.wide }}
+            >
+              {view.totals.slice(1).map((total) => (
+                <Type key={total.currency} role="meta" color={C.onEspressoDim} style={{ marginTop: 4 }}>
+                  {t('subsUi.list.alsoMonthly', { amount: formatMoney(total.monthly, total.currency) })}
+                </Type>
+              ))}
+            </BalanceCard>
+
+            <View style={{ marginTop: S.section }}>
+              <SectionHeader pal={C} title={t('subsUi.list.upcoming')} />
+              {view.upcoming.length === 0 ? (
+                <Type role="body" color={C.inkDim} style={{ paddingHorizontal: S.screen }}>
+                  {t('subsUi.list.upcomingEmpty')}
+                </Type>
+              ) : (
+                <RowList
+                  pal={C}
+                  onOpen={open}
+                  rows={view.upcoming.map((u) => ({
+                    key: u.sub.id,
+                    title: u.title,
+                    meta: [u.when, u.date, u.note].filter(Boolean).join(' · '),
+                    amount: u.amount,
+                    currency: u.currency,
+                  }))}
+                />
+              )}
+            </View>
+
+            {view.active.length > 0 ? (
+              <View style={{ marginTop: S.section }}>
+                <SectionHeader pal={C} title={t('subsUi.list.active')} />
+                <RowList pal={C} rows={asRows(view.active)} onOpen={open} />
+              </View>
+            ) : null}
+
+            {view.trials.length > 0 ? (
+              <View style={{ marginTop: S.section }}>
+                <SectionHeader pal={C} title={t('subsUi.list.trials')} />
+                <RowList pal={C} rows={asRows(view.trials)} onOpen={open} />
+              </View>
+            ) : null}
+
+            {view.review.length > 0 ? (
+              <View style={{ marginTop: S.section }}>
+                <SectionHeader pal={C} title={t('subsUi.list.review')} />
+                <Type role="meta" color={C.inkDim} style={{ paddingHorizontal: S.screen, marginTop: -4, marginBottom: 12 }}>
+                  {t('subsUi.list.reviewHint')}
+                </Type>
+                <RowList pal={C} rows={asRows(view.review)} onOpen={open} />
+              </View>
+            ) : null}
+
+            <View style={{ marginTop: S.section }}>
+              <EmailScanCard />
+            </View>
+
+            {view.ended.length > 0 ? (
+              <View style={{ marginTop: S.section }}>
+                <SectionHeader
+                  pal={C}
+                  title={t('subsUi.list.ended')}
+                  actionLabel={showEnded ? t('subsUi.list.hideEnded') : t('subsUi.list.showEnded', { count: view.ended.length })}
+                  onAction={() => setShowEnded((v) => !v)}
+                />
+                {showEnded ? <RowList pal={C} rows={asRows(view.ended)} onOpen={open} /> : null}
+              </View>
+            ) : null}
+          </>
         )}
       </ScrollView>
     </Screen>

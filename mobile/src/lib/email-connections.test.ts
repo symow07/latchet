@@ -3,9 +3,11 @@ import type { LocalEmailFinding } from './db';
 import {
   EMPTY_SYNC_STATE,
   FINDINGS_OVERLAP_MS,
+  confirmationCodeOf,
   createEmailClient,
   emailSyncDue,
   parseSyncState,
+  readDisconnect,
   readEmailBrowserResult,
   type BrowserResult,
   type ConnectProgress,
@@ -67,6 +69,10 @@ interface World {
   connectError: unknown;
   syncError: unknown;
   deleteError: unknown;
+  /** What DELETE /connections/:id answers for a connection (I-EMAIL-API, leaf 6.5). */
+  deleteBody: (conn: EmailConnectionDTO | undefined) => unknown;
+  /** What GET /inbox-address answers. */
+  inbox: Record<string, unknown>;
   browser: BrowserResult | Error;
   /** Called on every GET /connections: lets a test move the server along. */
   onPoll: (n: number) => void;
@@ -83,6 +89,13 @@ function setup(over: Partial<World> = {}) {
     connectError: null,
     syncError: null,
     deleteError: null,
+    // The server's answer: Google's grant is revoked through its API; Microsoft
+    // has no such call for personal accounts, so it names the page.
+    deleteBody: (conn) =>
+      conn?.provider === 'outlook'
+        ? { ok: true, revoked: false, manualRevokeUrl: 'https://account.live.com/consent/Manage' }
+        : { ok: true, revoked: true },
+    inbox: { address: 'u-7f3a@in.realbudget.app', verified: true, confirmationCode: null },
     browser: { type: 'success', url: 'realbudget://email/connected?provider=gmail&result=success' },
     onPoll: () => {},
     ...over,
@@ -92,6 +105,8 @@ function setup(over: Partial<World> = {}) {
   let clock = Date.parse('2026-10-12T12:00:00.000Z');
   let polls = 0;
   let detections: boolean[] = [];
+  /** Whether each run may ask for notification permission. */
+  let interactives: boolean[] = [];
 
   const deps: EmailClientDeps = {
     get: async <T>(path: string): Promise<T> => {
@@ -108,7 +123,7 @@ function setup(over: Partial<World> = {}) {
           .sort((a, b) => a.receivedAt.localeCompare(b.receivedAt) || a.id.localeCompare(b.id));
         return { findings: rows.slice(0, world.pageSize), serverTime: world.serverTime, more: rows.length > world.pageSize } as T;
       }
-      if (path === '/inbox-address') return { address: 'u-7f3a@in.realbudget.app', verified: true } as T;
+      if (path === '/inbox-address') return world.inbox as T;
       throw apiError(404, { error: 'Not found' });
     },
     post: async <T>(path: string, body: unknown): Promise<T> => {
@@ -127,9 +142,10 @@ function setup(over: Partial<World> = {}) {
       world.calls.push(`DELETE ${path}`);
       if (world.deleteError) throw world.deleteError;
       const id = decodeURIComponent(path.split('/').pop()!);
+      const gone = world.connections.find((c) => c.id === id);
       world.connections = world.connections.filter((c) => c.id !== id);
       world.findings = world.findings.filter((f) => f.connectionId !== id);
-      return { ok: true } as T;
+      return world.deleteBody(gone) as T;
     },
     createReturnUrl: async () => 'realbudget://email/connected',
     openAuthSession: async (url, returnUrl) => {
@@ -160,8 +176,9 @@ function setup(over: Partial<World> = {}) {
       for (const id of ids) if (cache.delete(id)) n++;
       return n;
     },
-    detect: async (interactive) => {
-      detections.push(interactive);
+    detect: async (watched, interactive) => {
+      detections.push(watched);
+      interactives.push(interactive ?? watched);
     },
     sleep: async (ms) => {
       clock += ms;
@@ -177,8 +194,10 @@ function setup(over: Partial<World> = {}) {
       state = { ...state, ...s };
     },
     detections: () => detections,
+    interactives: () => interactives,
     resetDetections: () => {
       detections = [];
+      interactives = [];
     },
     advance: (ms: number) => {
       clock += ms;
@@ -276,9 +295,30 @@ describe('email client', () => {
     expect([...t.cache.keys()].sort()).toEqual(['f1', 'f2']);
     // The user is waiting on this run: it may ask for notification permission.
     expect(t.detections()).toEqual([true]);
+    expect(t.interactives()).toEqual([true]);
     expect(t.state().connectionIds).toEqual(['conn_new', 'conn_old']);
     expect(t.state().serverTime).toBe('2026-10-12T12:00:00.000Z');
     expect(t.state().lastSyncAt).not.toBeNull();
+  });
+
+  test('a connect made during onboarding can keep its detection from asking for notification permission', async () => {
+    const t = setup();
+    t.world.onPoll = (n) => {
+      if (n === 2) t.world.connections = [connection({ id: 'conn_new' })];
+    };
+    expect(await t.client.connectEmailProvider('gmail', { interactive: false })).toEqual({ result: 'success' });
+    // Still watched (its finds are on screen, not announced), but it asks for nothing.
+    expect(t.detections()).toEqual([true]);
+    expect(t.interactives()).toEqual([false]);
+
+    // Left out, it is interactive as before.
+    t.resetDetections();
+    t.world.connections = [];
+    t.world.onPoll = (n) => {
+      if (n >= 1) t.world.connections = [connection({ id: 'conn_other', provider: 'outlook' })];
+    };
+    expect(await t.client.connectEmailProvider('outlook')).toEqual({ result: 'success' });
+    expect(t.interactives().at(-1)).toBe(true);
   });
 
   test('sync, then pull from the stored cursor, then detection; a sync refused for being too soon still pulls', async () => {
@@ -302,6 +342,11 @@ describe('email client', () => {
     expect(await t.client.syncEmailNow()).toEqual({ newFindings: 1 });
     expect(t.world.calls.at(-1)).toBe(`GET /findings?after=${encodeURIComponent('2026-10-12T12:00:05.000Z')}`);
     expect(t.detections()).toEqual([false, false]);
+
+    // Pulled to refresh: the user is looking, so detection runs as watched.
+    t.world.syncError = null;
+    await t.client.syncEmailNow({ watched: true });
+    expect(t.detections()).toEqual([false, false, true]);
   });
 
   test('paging moves past the server’s ten-minute overlap, keeps findings stored in the same instant, and ends', async () => {
@@ -357,6 +402,59 @@ describe('email client', () => {
     t.world.deleteError = apiError(500, { error: 'boom' });
     await expect(t.client.disconnectEmailConnection('conn_o')).rejects.toMatchObject({ name: 'ApiFailure', kind: 'server' });
     expect([...t.cache.keys()]).toEqual(['o1']);
+  });
+
+  test('disconnect says whether the grant was revoked, and for Outlook the page where the user removes it', async () => {
+    const t = setup({ connections: [connection({ id: 'conn_g' }), connection({ id: 'conn_o', provider: 'outlook' })] });
+    t.setState({ connectionIds: ['conn_g', 'conn_o'] });
+    expect(await t.client.disconnectEmailConnection('conn_g')).toEqual({ revoked: true, manualRevokeUrl: null });
+    expect(await t.client.disconnectEmailConnection('conn_o')).toEqual({
+      revoked: false,
+      manualRevokeUrl: 'https://account.live.com/consent/Manage',
+    });
+    expect(t.state().connectionIds).toEqual([]);
+
+    // Google refused the revoke: the server names Google's page instead.
+    const g = setup({ connections: [connection({ id: 'conn_g2' })] });
+    g.world.deleteBody = () => ({ ok: true, revoked: false, manualRevokeUrl: 'https://myaccount.google.com/permissions' });
+    expect(await g.client.disconnectEmailConnection('conn_g2')).toEqual({
+      revoked: false,
+      manualRevokeUrl: 'https://myaccount.google.com/permissions',
+    });
+
+    // What the answer can be: an older server's bare ok, junk, a link that is not https.
+    expect(readDisconnect({ ok: true } as never)).toEqual({ revoked: true, manualRevokeUrl: null });
+    expect(readDisconnect(null)).toEqual({ revoked: true, manualRevokeUrl: null });
+    expect(readDisconnect({ revoked: false })).toEqual({ revoked: false, manualRevokeUrl: null });
+    expect(readDisconnect({ revoked: false, manualRevokeUrl: 'javascript:alert(1)' })).toEqual({ revoked: false, manualRevokeUrl: null });
+    expect(readDisconnect({ revoked: true, manualRevokeUrl: 'https://account.live.com/consent/Manage' })).toEqual({
+      revoked: true,
+      manualRevokeUrl: null,
+    });
+  });
+
+  test('the forwarding address carries Gmail’s confirmation code once it has come, and nothing else', async () => {
+    const t = setup();
+    expect(await t.client.getForwardingAddress()).toEqual({
+      address: 'u-7f3a@in.realbudget.app',
+      verified: true,
+      confirmationCode: null,
+    });
+    t.world.inbox = { address: 'u-7f3a@in.realbudget.app', verified: false, confirmationCode: '583920174' };
+    expect(await t.client.getForwardingAddress()).toEqual({
+      address: 'u-7f3a@in.realbudget.app',
+      verified: false,
+      confirmationCode: '583920174',
+    });
+    // An older server sends no code at all.
+    t.world.inbox = { address: 'u-7f3a@in.realbudget.app' };
+    expect((await t.client.getForwardingAddress()).confirmationCode).toBeNull();
+
+    expect(confirmationCodeOf(' 583920174 ')).toBe('583920174');
+    expect(confirmationCodeOf('12345')).toBeNull();
+    expect(confirmationCodeOf('58392017x')).toBeNull();
+    expect(confirmationCodeOf(583920174)).toBeNull();
+    expect(confirmationCodeOf(undefined)).toBeNull();
   });
 
   test('the app coming to the front syncs only when an inbox is connected and the last sync is over half an hour old', async () => {

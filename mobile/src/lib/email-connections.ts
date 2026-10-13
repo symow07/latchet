@@ -65,6 +65,30 @@ export interface EmailConnectionsDTO {
   providers: EmailProvidersDTO;
 }
 
+/**
+ * How a disconnect left the provider's grant. Google's is revoked through its
+ * API; Microsoft has no such call for personal accounts, so the server names
+ * the page where the user removes Budget's access themselves.
+ */
+export interface DisconnectResult {
+  revoked: boolean;
+  /** Where to remove the access by hand, when it could not be revoked. */
+  manualRevokeUrl: string | null;
+}
+
+/** The private forwarding address, as GET /inbox-address returns it. */
+export interface ForwardingAddress {
+  address: string;
+  /** Mail has arrived at it (the forwarding works). */
+  verified: boolean;
+  /**
+   * The code Gmail sends to confirm a new forwarding address, read by the
+   * server from that email — the user types it back into Gmail. Null when
+   * none has arrived.
+   */
+  confirmationCode: string | null;
+}
+
 /** One finding, as GET /findings sends it: the cache's own shape. */
 export type EmailFindingDTO = LocalEmailFinding;
 
@@ -91,10 +115,25 @@ export interface ConnectProgress {
   connection: EmailConnectionDTO | null;
 }
 
+export interface SyncOptions {
+  /**
+   * The user asked for it and is looking at the result (pull to refresh): its
+   * finds are on screen rather than announced, and detection may ask for
+   * notification permission. A background sync leaves it unset.
+   */
+  watched?: boolean;
+}
+
 export interface ConnectOptions {
   onProgress?: (progress: ConnectProgress) => void;
   /** Set `aborted` to stop waiting for the backfill (the screen went away); the rest still runs. */
   signal?: { aborted: boolean };
+  /**
+   * Whether the detection run after the backfill may ask for notification
+   * permission (true by default: the user is here and acting). Onboarding
+   * passes false, so the one prompt comes at its payoff instead.
+   */
+  interactive?: boolean;
 }
 
 /** What expo-web-browser's openAuthSessionAsync resolves with. */
@@ -130,10 +169,11 @@ export interface EmailClientDeps {
   deleteFindings(ids?: readonly string[]): Promise<number>;
   /**
    * Run detection over the new evidence. `watched`: the user is waiting on it
-   * (the inbox they just connected): it may ask for notification permission,
-   * and its finds are on screen rather than announced.
+   * (the inbox they just connected): its finds are on screen rather than
+   * announced, and it may ask for notification permission unless
+   * `interactive` is false.
    */
-  detect(watched: boolean): Promise<unknown>;
+  detect(watched: boolean, interactive?: boolean): Promise<unknown>;
   sleep(ms: number): Promise<void>;
   now(): number;
 }
@@ -262,15 +302,33 @@ function normalizeConnections(raw: Partial<EmailConnectionsDTO> | null | undefin
   };
 }
 
+/**
+ * The server's answer to a disconnect. An older server answered `{ ok: true }`
+ * alone, which said nothing about the grant: read as revoked, as it then was
+ * for every provider it could revoke. A manual page is only ever an https link.
+ */
+export function readDisconnect(res: { revoked?: unknown; manualRevokeUrl?: unknown } | null | undefined): DisconnectResult {
+  const url = typeof res?.manualRevokeUrl === 'string' && /^https:\/\/[^\s]+$/.test(res.manualRevokeUrl) ? res.manualRevokeUrl : null;
+  const revoked = typeof res?.revoked === 'boolean' ? res.revoked : !url;
+  return { revoked, manualRevokeUrl: revoked ? null : url };
+}
+
+/** Gmail's forwarding confirmation code: digits only (nine today; the server reads 6 to 12), else none. */
+export function confirmationCodeOf(raw: unknown): string | null {
+  if (typeof raw !== 'string') return null;
+  const code = raw.trim();
+  return /^\d{6,12}$/.test(code) ? code : null;
+}
+
 // ── The client ───────────────────────────────────────────────────────────────
 
 export interface EmailClient {
   getEmailConnections(): Promise<EmailConnectionsDTO>;
   connectEmailProvider(provider: ConnectableProvider, options?: ConnectOptions): Promise<ConnectResult>;
-  disconnectEmailConnection(id: string): Promise<void>;
-  syncEmailNow(): Promise<{ newFindings: number }>;
+  disconnectEmailConnection(id: string): Promise<DisconnectResult>;
+  syncEmailNow(options?: SyncOptions): Promise<{ newFindings: number }>;
   pullEmailFindings(options?: { full?: boolean }): Promise<{ newFindings: number; full: boolean }>;
-  getForwardingAddress(): Promise<{ address: string; verified: boolean }>;
+  getForwardingAddress(): Promise<ForwardingAddress>;
   syncEmailIfDue(options?: { refresh?: boolean }): Promise<boolean>;
 }
 
@@ -365,7 +423,7 @@ export function createEmailClient(deps: EmailClientDeps): EmailClient {
     }
   }
 
-  async function syncOnce(): Promise<{ newFindings: number }> {
+  async function syncOnce(watched: boolean): Promise<{ newFindings: number }> {
     let started = true;
     try {
       const res = await request(() => deps.post<{ started?: number | boolean }>('/sync', {}));
@@ -381,14 +439,14 @@ export function createEmailClient(deps: EmailClientDeps): EmailClient {
     const { newFindings } = await pullEmailFindings();
     const state = await deps.readState();
     await deps.writeState({ ...state, lastSyncAt: new Date(deps.now()).toISOString() });
-    await deps.detect(false);
+    await deps.detect(watched);
     return { newFindings };
   }
 
   /** Sync every inbox now, pull, run detection. One at a time; callers join the one running. */
-  function syncEmailNow(): Promise<{ newFindings: number }> {
+  function syncEmailNow(options: SyncOptions = {}): Promise<{ newFindings: number }> {
     if (syncing) return syncing;
-    const run = syncOnce().finally(() => {
+    const run = syncOnce(!!options.watched).finally(() => {
       if (syncing === run) syncing = null;
     });
     syncing = run;
@@ -471,23 +529,28 @@ export function createEmailClient(deps: EmailClientDeps): EmailClient {
     } catch (e) {
       console.warn('[email] first pull failed', toApiFailure(e).kind);
     }
-    await deps.detect(true);
+    await deps.detect(true, options.interactive ?? true);
     options.onProgress?.({ phase: 'done', connection });
     return { result: 'success' };
   }
 
-  async function disconnectEmailConnection(id: string): Promise<void> {
-    await request(() => deps.del<{ ok?: boolean }>(`/connections/${encodeURIComponent(id)}`));
+  async function disconnectEmailConnection(id: string): Promise<DisconnectResult> {
+    const res = await request(() =>
+      deps.del<{ ok?: boolean; revoked?: boolean; manualRevokeUrl?: unknown }>(`/connections/${encodeURIComponent(id)}`),
+    );
     // The server deleted its findings; this phone's copy of them goes too.
     const mine = (await deps.getFindings()).filter((f) => f.connectionId === id).map((f) => f.id);
     await deps.deleteFindings(mine);
     const state = await deps.readState();
     await deps.writeState({ ...state, connectionIds: state.connectionIds.filter((x) => x !== id) });
+    return readDisconnect(res);
   }
 
-  async function getForwardingAddress(): Promise<{ address: string; verified: boolean }> {
-    const res = await request(() => deps.get<{ address: string; verified?: boolean }>('/inbox-address'));
-    return { address: res.address, verified: !!res.verified };
+  async function getForwardingAddress(): Promise<ForwardingAddress> {
+    const res = await request(() =>
+      deps.get<{ address: string; verified?: boolean; confirmationCode?: unknown }>('/inbox-address'),
+    );
+    return { address: res.address, verified: !!res.verified, confirmationCode: confirmationCodeOf(res.confirmationCode) };
   }
 
   async function syncEmailIfDue(options: { refresh?: boolean } = {}): Promise<boolean> {
@@ -553,7 +616,8 @@ const appDeps: EmailClientDeps = {
   upsertFindings: async (rows) => (await import('./db')).upsertEmailFindings(rows),
   getFindings: async () => (await import('./db')).getEmailFindings(),
   deleteFindings: async (ids) => (await import('./db')).deleteEmailFindings(ids),
-  detect: (watched) => (watched ? runDetection('email', { interactive: true, announce: false }) : runDetection('email')),
+  detect: (watched, interactive = watched) =>
+    watched ? runDetection('email', { interactive, announce: false }) : runDetection('email'),
   sleep: (ms) => new Promise<void>((resolve) => setTimeout(resolve, ms)),
   now: () => Date.now(),
 };
@@ -571,18 +635,22 @@ export const getEmailConnections = (): Promise<EmailConnectionsDTO> => app.getEm
 export const connectEmailProvider = (provider: ConnectableProvider, options?: ConnectOptions): Promise<ConnectResult> =>
   app.connectEmailProvider(provider, options);
 
-/** Disconnect an inbox: revoked and deleted on the server, its findings gone here. */
-export const disconnectEmailConnection = (id: string): Promise<void> => app.disconnectEmailConnection(id);
+/**
+ * Disconnect an inbox: revoked and deleted on the server, its findings gone
+ * here. Says whether the provider's grant was revoked, and if not (Outlook's
+ * personal accounts) the page where the user removes it.
+ */
+export const disconnectEmailConnection = (id: string): Promise<DisconnectResult> => app.disconnectEmailConnection(id);
 
 /** Sync every inbox now, pull the findings and run detection. */
-export const syncEmailNow = (): Promise<{ newFindings: number }> => app.syncEmailNow();
+export const syncEmailNow = (options?: SyncOptions): Promise<{ newFindings: number }> => app.syncEmailNow(options);
 
 /** Pull new findings into this phone's cache (`full` re-reads them all). */
 export const pullEmailFindings = (options?: { full?: boolean }): Promise<{ newFindings: number; full: boolean }> =>
   app.pullEmailFindings(options);
 
-/** This user's private forwarding address (created on first ask). */
-export const getForwardingAddress = (): Promise<{ address: string; verified: boolean }> => app.getForwardingAddress();
+/** This user's private forwarding address (created on first ask), with Gmail's confirmation code once it has come. */
+export const getForwardingAddress = (): Promise<ForwardingAddress> => app.getForwardingAddress();
 
 /**
  * Sync email if an inbox is connected and the last sync is over half an hour
