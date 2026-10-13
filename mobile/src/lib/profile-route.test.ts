@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { profileRedirect } from './profile-route';
+import { onboardingResumeRedirect, profileRedirect } from './profile-route';
 
 /**
  * The profile split on launch.
@@ -118,5 +118,43 @@ describe('the root layout', () => {
   it('no longer assumes "/" means personal', () => {
     expect(layout).not.toContain('accountType-personal-default');
     expect(layout).not.toMatch(/personal: default \(tabs\) route is correct/);
+  });
+});
+
+describe('join company: the invite-code screen', () => {
+  it('stays open for an account with no profile yet — joining is how it gets one', () => {
+    expect(profileRedirect(null, ['business-join'])).toBeNull();
+    // Anything else still goes to the picker.
+    expect(profileRedirect(null, ['onboarding'])).toBe('/account-type');
+  });
+
+  it('is registered behind the signed-in guard', () => {
+    const layout = readFileSync(join(import.meta.dir, '..', 'app', '_layout.tsx'), 'utf8');
+    const open = layout.indexOf('<Stack.Protected guard={signedIn && dbReady}>');
+    const close = layout.indexOf('</Stack.Protected>', open);
+    expect(layout.slice(open, close)).toContain('name="business-join"');
+  });
+});
+
+describe('onboarding flow: resuming after the app was closed', () => {
+  it('a personal account mid-onboarding that lands on its tabs goes back to onboarding', () => {
+    expect(onboardingResumeRedirect('personal', ['(tabs)'], true)).toBe('/onboarding');
+    expect(onboardingResumeRedirect('personal', ['(tabs)', 'insights'], true)).toBe('/onboarding');
+    expect(onboardingResumeRedirect('personal', [], true)).toBe('/onboarding');
+  });
+
+  it('leaves alone a finished onboarding, a business account, a deep link and the screens onboarding opens', () => {
+    expect(onboardingResumeRedirect('personal', ['(tabs)'], false)).toBeNull();
+    expect(onboardingResumeRedirect('business', ['(tabs)'], true)).toBeNull();
+    expect(onboardingResumeRedirect(null, ['(tabs)'], true)).toBeNull();
+    for (const top of ['onboarding', 'import', 'link-bank', 'subscription-detail', 'reset-password']) {
+      expect(onboardingResumeRedirect('personal', [top], true)).toBeNull();
+    }
+  });
+
+  it('the root layout asks it, kept current by the onboarding record', () => {
+    const layout = readFileSync(join(import.meta.dir, '..', 'app', '_layout.tsx'), 'utf8');
+    expect(layout).toMatch(/onboardingResumeRedirect\(\s*accountType\s*,\s*segments\s*,\s*onboardingPending\s*\)/);
+    expect(layout).toContain('onOnboardingChange(');
   });
 });

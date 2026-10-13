@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ScrollView, View } from 'react-native';
+import { Pressable, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Briefcase, User } from '@/components/icons';
@@ -123,8 +123,11 @@ export default function AccountTypeScreen() {
         contentContainerStyle={{ paddingTop: 24, paddingBottom: 24 }}
       >
         <View style={{ paddingHorizontal: S.screen }}>
+          {/* It said "Step 1 of 2", which was true of neither path: a
+              business ends here, and a personal account has four steps to
+              go. */}
           <Type role="meta" color={C.inkDim}>
-            {t('onboarding.stepOf')}
+            {t('onboardingFlow.accountType.intro')}
           </Type>
           {/* Sentence case, sitting directly on the ground with no card
               around it — §1.2. It used to sit under a 13px uppercase label
@@ -217,12 +220,48 @@ export default function AccountTypeScreen() {
           paddingBottom: insets.bottom + 12,
         }}
       >
-        <PrimaryButton
-          pal={C}
-          label={selected ? t('common.continue') : t('accountKind.selectPrompt')}
-          onPress={handleContinue}
-          disabled={!selected || isSaving}
-        />
+        {/* Business has two ways in, side by side: start a company here, or
+            join one that already exists with the invite code its owner or a
+            manager shared. Joining must not create a business of one's own,
+            which is what Continue does for Business. */}
+        {selected === 'business' ? (
+          <View style={{ flexDirection: 'row', gap: 12 }}>
+            <PrimaryButton
+              pal={C}
+              variant="secondary"
+              label={t('onboardingFlow.join.button')}
+              onPress={() => router.push('/business-join' as never)}
+              disabled={isSaving}
+              style={{ flex: 1 }}
+            />
+            <PrimaryButton
+              pal={C}
+              label={t('onboardingFlow.join.create')}
+              onPress={handleContinue}
+              disabled={isSaving}
+              style={{ flex: 1 }}
+            />
+          </View>
+        ) : (
+          <>
+            <PrimaryButton
+              pal={C}
+              label={selected ? t('common.continue') : t('accountKind.selectPrompt')}
+              onPress={handleContinue}
+              disabled={!selected || isSaving}
+            />
+            <Pressable
+              onPress={() => router.push('/business-join' as never)}
+              hitSlop={8}
+              accessibilityRole="button"
+              style={{ alignSelf: 'center', minHeight: 44, justifyContent: 'center', marginTop: 4 }}
+            >
+              <Type role="meta" color={C.accent}>
+                {t('onboardingFlow.join.link')}
+              </Type>
+            </Pressable>
+          </>
+        )}
       </View>
     </Screen>
   );

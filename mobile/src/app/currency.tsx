@@ -4,20 +4,25 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Search } from '@/components/icons';
-import { getSettings, updateSettings } from '@/lib/db';
-import { CURRENCIES, type Currency } from '@/lib/currencies';
+import { getSettings, setPersonalCurrency } from '@/lib/db';
+import { CURRENCIES, getPopularCurrencies, type Currency } from '@/lib/currencies';
 import { setActiveCurrency } from '@/lib/calculations';
 import { S, useC } from '@/lib/design';
 import { ChoiceRow, Empty, Field, Screen, SubHeader, Type } from '@/components/kit';
 import { t } from '@/lib/i18n/core';
 
 /**
- * Picking the currency amounts are shown in.
+ * Picking the currency amounts are shown in — from Settings, personal and
+ * business alike.
  *
  * Stored on the user's settings, not the business: someone in one company and
  * one household has one set of eyes, and the app formats every amount the same
  * way. Changing it does not convert anything — it changes the symbol and the
- * decimal places, which is why the note under the search field says so.
+ * decimal places, which is why the note under the search field says so. The
+ * default Cash account follows it (db.ts setPersonalCurrency): it used to stay
+ * in the dollars a new database seeds it with, whatever was picked.
+ *
+ * With no search, the popular ones come first.
  *
  * Searchable because there are 168 of them and scrolling to TND is not a
  * design. The list is a FlatList rather than 168 rows inside a ScrollView:
@@ -39,17 +44,20 @@ export default function CurrencyScreen() {
   const active = settings?.currency ?? 'USD';
 
   const needle = query.trim().toLowerCase();
+  const popular = getPopularCurrencies();
   const matches = needle
     ? CURRENCIES.filter(
         (c) => c.code.toLowerCase().includes(needle) || c.name.toLowerCase().includes(needle),
       )
-    : CURRENCIES;
+    : [...popular, ...CURRENCIES.filter((c) => !popular.some((p) => p.code === c.code))];
 
   const choose = async (currency: Currency) => {
     // Applied before the write so every amount on screen updates immediately;
     // the write is what makes it survive a restart.
     setActiveCurrency(currency.code, currency.symbol);
-    await updateSettings({ currency: currency.code, currencySymbol: currency.symbol }).catch(() => {});
+    await setPersonalCurrency(currency.code, currency.symbol).catch((e) =>
+      console.warn('[currency] not saved', e),
+    );
     await qc.invalidateQueries();
     router.back();
   };
@@ -58,7 +66,7 @@ export default function CurrencyScreen() {
     <Screen pal={B}>
       <SubHeader
         pal={B}
-        title={t('bizSettings.regionLabel')}
+        title={t('onboardingFlow.currencyScreen.title')}
         onBack={() => router.back()}
         style={{ marginTop: 8 }}
       />
@@ -76,7 +84,7 @@ export default function CurrencyScreen() {
           icon={<Search size={17} color={B.inkDim} strokeWidth={S.stroke} />}
         />
         <Type role="meta" color={B.inkDim} style={{ marginTop: 12 }}>
-          {t('bizSettings.currencyNote')}
+          {t('onboardingFlow.currencyScreen.note')}
         </Type>
       </View>
 

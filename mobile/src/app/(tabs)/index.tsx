@@ -6,6 +6,7 @@ import { useRouter } from 'expo-router';
 import { format } from 'date-fns';
 import { Camera, MessageCircle, Repeat, Wallet } from '@/components/icons';
 import { categoryIcon } from '@/components/category-icon';
+import { GettingStarted } from '@/components/GettingStarted';
 import { getAccounts, getSettings, getTransactions } from '@/lib/db';
 import {
   calculateBalance,
@@ -146,7 +147,9 @@ export default function HomeScreen() {
   const ROUTES: Record<InsightAction, string> = {
     seeSpending: '/analytics',
     setBudget: '/category-budgets',
-    setGoal: '/onboarding',
+    // The goal editor, which writes the goal alone. This used to open
+    // onboarding again, which reset the currency and the starting balance.
+    setGoal: '/goal',
     ask: '/(tabs)/advisor',
     seeImpulse: '/analytics?tab=insights',
   };
@@ -211,17 +214,21 @@ export default function HomeScreen() {
         />
 
         {firstRun ? (
-          <Empty
-            pal={C}
-            // Shown instead of the anchor, so its action is the espresso block.
-            actionVariant="ink"
-            icon={<Wallet size={26} color={C.accent} strokeWidth={S.stroke} />}
-            title={t('home.emptyTitle')}
-            body={t('home.emptyBody')}
-            actionLabel={t('home.emptyAction')}
-            onAction={() => router.push('/(tabs)/add')}
-            style={{ marginTop: 80 }}
-          />
+          <>
+            <Empty
+              pal={C}
+              // Shown instead of the anchor, so its action is the espresso block.
+              actionVariant="ink"
+              icon={<Wallet size={26} color={C.accent} strokeWidth={S.stroke} />}
+              title={t('home.emptyTitle')}
+              body={t('home.emptyBody')}
+              actionLabel={t('home.emptyAction')}
+              onAction={() => router.push('/(tabs)/add')}
+              style={{ marginTop: 80 }}
+            />
+            {/* What onboarding left to connect, until it is done or hidden. */}
+            <GettingStarted style={{ marginTop: S.section }} />
+          </>
         ) : (
           <>
             {/* 1 — the balance */}
@@ -326,6 +333,11 @@ export default function HomeScreen() {
                 onPress={() => router.push('/subscriptions')}
               />
             </View>
+
+            {/* What onboarding's Connect your data left undone, and a
+                savings goal: a short list that ticks itself off and goes
+                when it is done or hidden (components/GettingStarted.tsx). */}
+            <GettingStarted style={{ marginTop: S.section }} />
 
             {/* One insight, in plain English. The budget it would sit under
                 now lives inside the balance card. */}

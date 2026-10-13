@@ -39,13 +39,20 @@ const BUSINESS_ONLY = new Set([
 const AUTH_LANDINGS = new Set(['reset-password', 'verify-email']);
 
 /**
+ * Where an account with no profile yet may stand: the picker, and joining a
+ * company by invite code, which the picker opens and which records the
+ * profile itself once the code is accepted.
+ */
+const CHOOSING = new Set(['account-type', 'business-join']);
+
+/**
  * Where a signed-in account on `segments` should be sent, or null to stay.
  *
  * `segments` is Expo Router's `useSegments()`: the first entry is the group
  * or top-level screen, e.g. ['(business-tabs)', 'expenses'] or ['accounts'].
  *
  *   an auth landing  → stays, for every profile (AUTH_LANDINGS)
- *   no profile yet   → the profile picker, unless already on it
+ *   no profile yet   → the profile picker, unless on it or joining a company
  *   personal         → its tabs, from anything that belongs to business
  *   business         → its tabs, from the personal tabs or the picker
  *
@@ -59,9 +66,25 @@ export function profileRedirect(
 ): ProfileRedirect | null {
   const top = segments[0] ?? '';
   if (AUTH_LANDINGS.has(top)) return null;
-  if (!accountType) return top === 'account-type' ? null : '/account-type';
+  if (!accountType) return CHOOSING.has(top) ? null : '/account-type';
   if (accountType === 'personal') return BUSINESS_ONLY.has(top) ? '/(tabs)' : null;
   // Business. The picker is included because choosing Business there is
   // completed by this redirect, as it always was.
   return top === '(tabs)' || top === 'account-type' ? '/(business-tabs)' : null;
+}
+
+/**
+ * A personal account whose onboarding was started on this phone and not
+ * finished goes back to it when the app lands on its tabs — on a relaunch,
+ * that is "/" — so a closed app resumes at the step it was on. Anywhere else
+ * (a deep link, a pushed screen, the import onboarding opened) is left alone.
+ */
+export function onboardingResumeRedirect(
+  accountType: AccountType | null,
+  segments: readonly string[],
+  onboardingInProgress: boolean,
+): '/onboarding' | null {
+  if (accountType !== 'personal' || !onboardingInProgress) return null;
+  const top = segments[0] ?? '';
+  return top === '(tabs)' || top === '' ? '/onboarding' : null;
 }

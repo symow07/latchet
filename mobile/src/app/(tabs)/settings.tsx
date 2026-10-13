@@ -6,8 +6,8 @@ import { getSettings, updateSettings, getAccounts, resetAllData } from '@/lib/db
 import { exportTransactionsCSV, exportTransactionsJSON } from '@/lib/export-data';
 import {
   Award, Bell, Building2, ChevronRight, Cloud, CreditCard, Download, Eye, Fingerprint, Flame,
-  HeartPulse, Home, LogOut, Mail, Moon, PieChart, Repeat, RotateCcw, ShieldCheck, Smartphone,
-  Sparkles, Sun, Trash2, TrendingUp, Upload,
+  HeartPulse, Home, LogOut, Mail, MoneyIn, Moon, PieChart, Repeat, RotateCcw, ShieldCheck, Smartphone,
+  Sparkles, Sun, Target, Trash2, TrendingUp, Upload, Wallet,
 } from '@/components/icons';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -281,7 +281,42 @@ export default function SettingsScreen() {
           </>
         ) : null}
 
-        <Group pal={C} title={t('settings.sections.numbers')} style={{ marginTop: email ? S.section : 24 }}>
+        {/* Each opens its own editor, which changes that one thing: the
+            currency (and the Cash account with it; nothing is converted),
+            the monthly income, or the savings goal. None of them touches the
+            starting balance, which only the field below does. */}
+        <Group pal={C} title={t('onboardingFlow.settings.section')} style={{ marginTop: email ? S.section : 24 }}>
+          <LinkRow
+            pal={C}
+            icon={tile(Wallet)}
+            title={t('onboardingFlow.settings.currency')}
+            body={t('onboardingFlow.settings.currencyBody', {
+              code: settings?.currency ?? 'USD',
+              symbol: settings?.currencySymbol ?? '$',
+            })}
+            onPress={() => router.push('/currency')}
+          />
+          <LinkRow
+            pal={C}
+            icon={tile(MoneyIn)}
+            title={t('onboardingFlow.settings.income')}
+            body={(settings?.monthlyIncome ?? 0) > 0
+              ? t('onboardingFlow.settings.perMonth', { amount: formatCurrency(settings?.monthlyIncome ?? 0) })
+              : t('onboardingFlow.settings.notSet')}
+            onPress={() => router.push('/income' as never)}
+          />
+          <LinkRow
+            pal={C}
+            icon={tile(Target)}
+            title={t('onboardingFlow.settings.goal')}
+            body={(settings?.savingsGoal ?? 0) > 0
+              ? t('onboardingFlow.settings.perMonth', { amount: formatCurrency(settings?.savingsGoal ?? 0) })
+              : t('onboardingFlow.settings.notSet')}
+            onPress={() => router.push('/goal' as never)}
+          />
+        </Group>
+
+        <Group pal={C} title={t('settings.sections.numbers')} style={{ marginTop: S.section }}>
           <Field
             pal={C}
             label={t('settings.monthlyBudget')}

@@ -669,6 +669,41 @@ export async function updateSettings(settings: Partial<Settings>): Promise<void>
 }
 
 /**
+ * The user's currency: the settings and the default Cash account together,
+ * as one edit.
+ *
+ * A new database seeds its Cash account in USD before anyone has said what
+ * they use, and choosing a currency used to change only the settings, so the
+ * Cash account stayed in dollars whatever was picked. Every amount the app
+ * shows is in the settings currency (nothing is converted when it changes),
+ * so the account the app books to by default follows it. Other accounts keep
+ * theirs: a linked bank's is the bank's, and one the user made is their call.
+ */
+export async function setPersonalCurrency(code: string, symbol: string): Promise<void> {
+  await withWriteLock((db, userId) =>
+    inTransaction(db, async () => {
+      const at = nowISO();
+      await db.runAsync(`INSERT OR IGNORE INTO settings (id, clientUpdatedAt, dirty) VALUES (1, ?, 1)`, [
+        EPOCH_ISO,
+      ]);
+      await db.runAsync(
+        `UPDATE settings SET currency = ?, currencySymbol = ?, clientUpdatedAt = ?, dirty = 1, syncError = NULL
+         WHERE id = 1`,
+        [code, symbol, at],
+      );
+      // Only when it changes: re-choosing the same currency is not an edit.
+      await db.runAsync(
+        `UPDATE accounts SET currency = ?, clientUpdatedAt = ?, dirty = 1, syncError = NULL
+         WHERE id = ? AND currency <> ?`,
+        [code, at, defaultAccountId(userId), code],
+      );
+    }),
+  );
+  setActiveCurrency(code, symbol);
+  notifyLocalMutation();
+}
+
+/**
  * Fill in settings the device chose by itself, without claiming the user did.
  *
  * Only touches a row nobody has edited yet (clientUpdatedAt still the epoch),
@@ -728,10 +763,11 @@ export async function resetAllData(): Promise<void> {
         [at, keep],
       );
       await db.runAsync(`DELETE FROM accounts WHERE id <> ?`, [keep]);
+      // Re-created in the user's currency, not the seed's USD (setPersonalCurrency).
       await db.runAsync(
         `INSERT INTO accounts
            (id, name, type, balance, openingBalance, currency, color, icon, isDefault, createdAt, clientUpdatedAt, dirty, syncError)
-         VALUES (?, ?, ?, 0, 0, ?, ?, ?, 1, ?, ?, 1, NULL)
+         VALUES (?, ?, ?, 0, 0, COALESCE((SELECT currency FROM settings WHERE id = 1), ?), ?, ?, 1, ?, ?, 1, NULL)
          ON CONFLICT(id) DO UPDATE SET
            name = excluded.name, type = excluded.type, balance = 0, openingBalance = 0,
            color = excluded.color, icon = excluded.icon, isDefault = 1,

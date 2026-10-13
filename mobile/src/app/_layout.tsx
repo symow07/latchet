@@ -22,7 +22,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { isBiometricAvailable, authenticateWithBiometrics } from '@/lib/biometric';
 import { useSafeAreaInsets, SafeAreaProvider } from 'react-native-safe-area-context';
 import { useAccountTypeStore, type AccountTypeStore } from '@/lib/account-type-store';
-import { profileRedirect } from '@/lib/profile-route';
+import { onboardingResumeRedirect, profileRedirect } from '@/lib/profile-route';
+import { getOnboardingState, onOnboardingChange } from '@/lib/onboarding-storage';
 import {
   applyDefaultStreakReminder,
   clearSubscriptionNotifications,
@@ -472,6 +473,45 @@ function RootLayoutNav({ colorScheme }: { colorScheme: 'light' | 'dark' | null |
     router.replace(target);
   }, [sessionLoading, session?.user, accountType, accountTypeLoaded, dbReady, router, segments]);
 
+  // An onboarding started on this phone and not finished: the app reopens on
+  // it, at the step it was on (onboarding.tsx reads the saved progress), when
+  // it would otherwise land on the personal tabs. Read once the user's
+  // database is open and kept current as onboarding saves and finishes, so
+  // finishing it is what lets Home through.
+  const [onboardingPending, setOnboardingPending] = useState(false);
+  useEffect(() => {
+    if (!dbUser) {
+      setOnboardingPending(false);
+      return;
+    }
+    let live = true;
+    const stop = onOnboardingChange((state) => {
+      if (live) setOnboardingPending(state.inProgress);
+    });
+    getOnboardingState()
+      .then((state) => {
+        if (live) setOnboardingPending(state.inProgress);
+      })
+      .catch(() => {});
+    return () => {
+      live = false;
+      stop();
+    };
+  }, [dbUser]);
+
+  useEffect(() => {
+    if (sessionLoading || !session?.user || !accountTypeLoaded || !dbReady) return;
+    const target = onboardingResumeRedirect(accountType, segments, onboardingPending);
+    if (!target) return;
+    console.log(`[mobile:gate:redirect] resume onboarding from=/${segments.join('/')}`);
+    // A screen onboarding opened can land on the tabs itself (the import's
+    // "go to dashboard" replaces itself with them): onboarding is then still
+    // beneath, with whatever it was doing, so go back down to it rather than
+    // stack a second one. From a cold start there is nothing beneath.
+    if (router.canDismiss()) router.dismissAll();
+    else router.replace(target);
+  }, [sessionLoading, session?.user, accountType, accountTypeLoaded, dbReady, onboardingPending, router, segments]);
+
   // Open a receipt shared in from another app, once the auth gate has settled.
   // Any earlier and the redirect below replaces the route out from under it.
   const pendingRoute = usePendingNavigationStore((s) => s.route);
@@ -614,6 +654,12 @@ function RootLayoutNav({ colorScheme }: { colorScheme: 'light' | 'dark' | null |
           <Stack.Screen name="business-profile" options={{ headerShown: false }} />
           <Stack.Screen name="business-tax" options={{ headerShown: false }} />
           <Stack.Screen name="currency" options={{ headerShown: false }} />
+          {/* One thing each, from Home and Settings: the savings goal, the
+              monthly income; and joining a company by invite code, from the
+              profile picker. */}
+          <Stack.Screen name="goal" options={{ headerShown: false, presentation: 'modal' }} />
+          <Stack.Screen name="income" options={{ headerShown: false, presentation: 'modal' }} />
+          <Stack.Screen name="business-join" options={{ headerShown: false, presentation: 'modal' }} />
           {/* These read or write the signed-in user's own data — the health
               profile, the ledger, the household's accounts — so they wait for
               that user's database like the rest. Left undeclared they were

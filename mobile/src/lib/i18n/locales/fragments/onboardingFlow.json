@@ -1,6 +1,706 @@
 {
-  "en": {},
-  "fr": {},
-  "zh": {},
-  "ar": {}
+  "en": {
+    "stepCounter": "Step %{step} of %{total}",
+    "accountType": {
+      "intro": "Welcome to Budget"
+    },
+    "currency": {
+      "title": "Which currency do you use?",
+      "hint": "Amounts across the app are shown in it, and your Cash account uses it. You can change it later in Settings.",
+      "suggested": "Suggested from your phone's region",
+      "change": "Change",
+      "search": "Search currencies",
+      "popular": "Popular",
+      "all": "All currencies",
+      "noMatch": "No currency matches that",
+      "failed": "That didn't save. Try again."
+    },
+    "income": {
+      "title": "What comes in each month?",
+      "hint": "Optional. The advisor uses it to work out what you can save, and it can set your first monthly budget.",
+      "label": "Monthly income after tax",
+      "invalid": "Enter an amount, like 2500.",
+      "budgetTitle": "Your first monthly budget",
+      "budgetHint": "Home shows your spending against it. You can change it any time in Settings.",
+      "share": "%{amount} a month · %{percent}% of your income",
+      "noBudget": "No budget for now",
+      "noBudgetBody": "You can set one in Settings whenever you like.",
+      "skip": "Skip"
+    },
+    "connect": {
+      "title": "Connect your data",
+      "hint": "Budget finds your subscriptions and free trials in what you connect here. Each one is optional.",
+      "later": "Anything you skip waits on your Home screen until you set it up or hide it.",
+      "gmail": "Gmail",
+      "outlook": "Outlook",
+      "emailBody": "Looks only for receipts, renewals and trial emails, and keeps just what they say about a charge. Never sends or deletes anything.",
+      "unverified": "Google will say it hasn't verified Budget yet. To go on, tap Advanced, then the link to continue.",
+      "capReached": "Gmail is full for now: Google lets an app it hasn't verified connect 100 people. Use Outlook or a statement instead.",
+      "emailUnreachable": "Email can't be connected right now. You can connect it later from Home.",
+      "statement": "Import a bank statement",
+      "statementBody": "A CSV export from your bank's website.",
+      "bank": "Link your bank",
+      "bankBody": "New charges arrive by themselves.",
+      "connected": "Connected",
+      "imported": "Imported",
+      "linked": "Linked",
+      "waiting": "Finish signing in to %{provider} in the browser.",
+      "reading": "%{provider} is connected. Its emails are read in the background.",
+      "skip": "Skip for now",
+      "errors": {
+        "denied": "Access wasn't allowed, so nothing was connected.",
+        "notConfigured": "That inbox can't be connected right now.",
+        "capReached": "Gmail is full for now. Use Outlook or a statement instead.",
+        "locked": "A sign-in window is already open. Finish or close it first.",
+        "offline": "Can't reach the server. Check your connection and try again.",
+        "failed": "That didn't connect. Try again."
+      }
+    },
+    "detect": {
+      "title": "Looking for subscriptions",
+      "readingStart": "Reading your inbox…",
+      "reading": {
+        "one": "Reading your inbox: %{count} email so far",
+        "other": "Reading your inbox: %{count} emails so far"
+      },
+      "checking": "Checking your charges and receipts…",
+      "showNow": "Show what's found so far",
+      "hint": "A year of email can take a few minutes. Anything found later shows up in Subscriptions."
+    },
+    "payoff": {
+      "found": {
+        "one": "We found %{count} subscription, %{total}/month",
+        "other": "We found %{count} subscriptions, %{total}/month"
+      },
+      "foundNoTotal": {
+        "one": "We found %{count} subscription",
+        "other": "We found %{count} subscriptions"
+      },
+      "notInTotal": {
+        "one": "%{count} of them is billed in another currency, so it isn't in that total.",
+        "other": "%{count} of them are billed in other currencies, so they aren't in that total."
+      },
+      "more": {
+        "one": "and %{count} more",
+        "other": "and %{count} more"
+      },
+      "perWeek": "%{amount} a week",
+      "perTwoWeeks": "%{amount} every two weeks",
+      "perMonth": "%{amount} a month",
+      "perQuarter": "%{amount} every three months",
+      "perHalfYear": "%{amount} every six months",
+      "perYear": "%{amount} a year",
+      "amountOnly": "%{amount}",
+      "trialThen": "Free trial, then %{amount}",
+      "noneTitle": "Nothing found yet",
+      "noneStillReading": "Your inbox is still being read. Anything found shows up in Subscriptions.",
+      "noneWatching": "Your inbox is connected. Budget keeps checking it for new billing emails while you use the app, and anything it finds shows up in Subscriptions.",
+      "noneConnectEmail": "Subscriptions appear once a charge repeats. Connecting your email also catches renewals and free trials before they charge.",
+      "noneNothing": "Connect your email or import a bank statement, and Budget will find your subscriptions and free trials. Your Home screen keeps a list of what's left to set up.",
+      "remindAsk": "Want a reminder before each charge, and before a free trial turns paid?",
+      "remindOn": "You'll get a reminder before each charge, and before a free trial turns paid.",
+      "remindOff": "Notifications are off for Budget, so reminders can't reach you. You can turn them on in your phone's Settings.",
+      "remindButton": "Remind me",
+      "notNow": "Not now",
+      "done": "Go to Home",
+      "failed": "That didn't save. Try again."
+    },
+    "checklist": {
+      "title": "Finish setting up",
+      "progress": "%{done} of %{total} done",
+      "hide": "Hide",
+      "email": "Connect your email",
+      "emailBody": "Catches renewals and free trials from receipts",
+      "statement": "Import a bank statement",
+      "statementBody": "Finds the subscriptions in your charges",
+      "bank": "Link your bank",
+      "bankBody": "New charges arrive by themselves",
+      "goal": "Set a savings goal",
+      "goalBody": "How much to put aside each month",
+      "done": "Done"
+    },
+    "settings": {
+      "section": "Currency, income and goal",
+      "currency": "Currency",
+      "currencyBody": "%{code} · %{symbol}. Changing it converts nothing.",
+      "income": "Monthly income",
+      "goal": "Savings goal",
+      "notSet": "Not set",
+      "perMonth": "%{amount} a month"
+    },
+    "currencyScreen": {
+      "title": "Currency",
+      "note": "Amounts across the app are shown in this currency, and your Cash account uses it. Nothing is converted: what you've recorded keeps its number."
+    },
+    "goal": {
+      "title": "Savings goal",
+      "hint": "How much you want to put aside each month. Once your monthly income is set, Home tells you when you're on track for it.",
+      "label": "Each month",
+      "save": "Save goal",
+      "remove": "Remove goal",
+      "invalid": "Enter an amount, like 250.",
+      "failed": "That didn't save. Try again."
+    },
+    "incomeEditor": {
+      "title": "Monthly income",
+      "hint": "What comes in each month after tax. The advisor uses it to work out what you can save, and Home uses it with your savings goal.",
+      "label": "Each month",
+      "save": "Save income",
+      "remove": "Clear income",
+      "invalid": "Enter an amount, like 2500.",
+      "failed": "That didn't save. Try again."
+    },
+    "join": {
+      "link": "Have an invite code? Join a company",
+      "button": "Join a company",
+      "create": "Create a business",
+      "title": "Join a company",
+      "hint": "Enter the 6-character invite code your company's owner or a manager shared with you. You'll join as an employee.",
+      "label": "Invite code",
+      "submit": "Join",
+      "joining": "Joining…",
+      "errors": {
+        "empty": "Enter the invite code.",
+        "format": "An invite code is 6 letters and numbers, like 4F2A9C.",
+        "wrongCode": "No company has that code. Check it with whoever sent it.",
+        "rateLimited": "Too many tries. Wait 15 minutes, then try again.",
+        "alreadyMember": "You're already part of this company.",
+        "offline": "Can't reach the server. Check your connection and try again.",
+        "other": "That didn't work. Try again."
+      }
+    }
+  },
+  "fr": {
+    "stepCounter": "Étape %{step} sur %{total}",
+    "accountType": {
+      "intro": "Bienvenue dans Budget"
+    },
+    "currency": {
+      "title": "Quelle devise utilisez-vous ?",
+      "hint": "Les montants de l'app s'affichent dans cette devise, et votre compte Cash l'utilise. Vous pourrez la changer dans Réglages.",
+      "suggested": "Suggérée d'après la région de votre téléphone",
+      "change": "Changer",
+      "search": "Rechercher une devise",
+      "popular": "Populaires",
+      "all": "Toutes les devises",
+      "noMatch": "Aucune devise ne correspond",
+      "failed": "L'enregistrement a échoué. Réessayez."
+    },
+    "income": {
+      "title": "Combien gagnez-vous par mois ?",
+      "hint": "Facultatif. Le conseiller s'en sert pour calculer ce que vous pouvez épargner, et il peut fixer votre premier budget mensuel.",
+      "label": "Revenu mensuel net",
+      "invalid": "Saisissez un montant, par exemple 2500.",
+      "budgetTitle": "Votre premier budget mensuel",
+      "budgetHint": "L'accueil compare vos dépenses à ce budget. Modifiable à tout moment dans Réglages.",
+      "share": "%{amount} par mois · %{percent} % de vos revenus",
+      "noBudget": "Pas de budget pour l'instant",
+      "noBudgetBody": "Vous pourrez en fixer un dans Réglages quand vous voudrez.",
+      "skip": "Passer"
+    },
+    "connect": {
+      "title": "Connectez vos données",
+      "hint": "Budget trouve vos abonnements et essais gratuits dans ce que vous connectez ici. Tout est facultatif.",
+      "later": "Ce que vous passez vous attend sur l'accueil, jusqu'à ce que vous le configuriez ou le masquiez.",
+      "gmail": "Gmail",
+      "outlook": "Outlook",
+      "emailBody": "Ne cherche que les reçus, renouvellements et fins d'essai, et ne garde que ce qu'ils disent d'un paiement. N'envoie et ne supprime rien.",
+      "unverified": "Google indiquera ne pas avoir encore validé Budget. Pour continuer, touchez Paramètres avancés, puis le lien pour continuer.",
+      "capReached": "Gmail est complet pour l'instant : Google limite à 100 personnes une app non validée. Utilisez Outlook ou un relevé.",
+      "emailUnreachable": "Impossible de connecter un e-mail pour l'instant. Vous pourrez le faire plus tard depuis l'accueil.",
+      "statement": "Importer un relevé bancaire",
+      "statementBody": "Un export CSV du site de votre banque.",
+      "bank": "Lier votre banque",
+      "bankBody": "Les nouveaux paiements arrivent d'eux-mêmes.",
+      "connected": "Connecté",
+      "imported": "Importé",
+      "linked": "Liée",
+      "waiting": "Terminez la connexion à %{provider} dans le navigateur.",
+      "reading": "%{provider} est connecté. Ses e-mails sont lus en arrière-plan.",
+      "skip": "Passer pour l'instant",
+      "errors": {
+        "denied": "L'accès n'a pas été autorisé : rien n'a été connecté.",
+        "notConfigured": "Cette boîte ne peut pas être connectée pour l'instant.",
+        "capReached": "Gmail est complet pour l'instant. Utilisez Outlook ou un relevé.",
+        "locked": "Une fenêtre de connexion est déjà ouverte. Terminez-la ou fermez-la d'abord.",
+        "offline": "Impossible de joindre le serveur. Vérifiez votre connexion et réessayez.",
+        "failed": "La connexion a échoué. Réessayez."
+      }
+    },
+    "detect": {
+      "title": "Recherche d'abonnements",
+      "readingStart": "Lecture de votre boîte…",
+      "reading": {
+        "one": "Lecture de votre boîte : %{count} e-mail jusqu'ici",
+        "other": "Lecture de votre boîte : %{count} e-mails jusqu'ici"
+      },
+      "checking": "Vérification de vos paiements et reçus…",
+      "showNow": "Voir ce qui est trouvé",
+      "hint": "Un an d'e-mails peut prendre quelques minutes. Ce qui sera trouvé ensuite apparaîtra dans Abonnements."
+    },
+    "payoff": {
+      "found": {
+        "one": "Nous avons trouvé %{count} abonnement, %{total}/mois",
+        "other": "Nous avons trouvé %{count} abonnements, %{total}/mois"
+      },
+      "foundNoTotal": {
+        "one": "Nous avons trouvé %{count} abonnement",
+        "other": "Nous avons trouvé %{count} abonnements"
+      },
+      "notInTotal": {
+        "one": "%{count} d'entre eux est facturé dans une autre devise et n'est pas compté.",
+        "other": "%{count} d'entre eux sont facturés dans d'autres devises et ne sont pas comptés."
+      },
+      "more": {
+        "one": "et %{count} de plus",
+        "other": "et %{count} de plus"
+      },
+      "perWeek": "%{amount} par semaine",
+      "perTwoWeeks": "%{amount} toutes les deux semaines",
+      "perMonth": "%{amount} par mois",
+      "perQuarter": "%{amount} par trimestre",
+      "perHalfYear": "%{amount} par semestre",
+      "perYear": "%{amount} par an",
+      "amountOnly": "%{amount}",
+      "trialThen": "Essai gratuit, puis %{amount}",
+      "noneTitle": "Rien trouvé pour l'instant",
+      "noneStillReading": "Votre boîte est encore en cours de lecture. Ce qui sera trouvé apparaîtra dans Abonnements.",
+      "noneWatching": "Votre boîte est connectée. Budget continue d'y chercher les e-mails de facturation pendant que vous utilisez l'app, et ce qu'il trouve apparaît dans Abonnements.",
+      "noneConnectEmail": "Un abonnement apparaît dès qu'un paiement se répète. Connecter votre e-mail repère aussi renouvellements et essais avant le paiement.",
+      "noneNothing": "Connectez votre e-mail ou importez un relevé, et Budget trouvera vos abonnements et essais gratuits. L'accueil garde la liste de ce qui reste.",
+      "remindAsk": "Un rappel avant chaque paiement, et avant qu'un essai gratuit devienne payant ?",
+      "remindOn": "Vous recevrez un rappel avant chaque paiement, et avant qu'un essai gratuit devienne payant.",
+      "remindOff": "Les notifications de Budget sont désactivées : les rappels ne peuvent pas vous parvenir. Activez-les dans les Réglages du téléphone.",
+      "remindButton": "Me le rappeler",
+      "notNow": "Pas maintenant",
+      "done": "Aller à l'accueil",
+      "failed": "L'enregistrement a échoué. Réessayez."
+    },
+    "checklist": {
+      "title": "Terminer la configuration",
+      "progress": "%{done} sur %{total} fait",
+      "hide": "Masquer",
+      "email": "Connecter votre e-mail",
+      "emailBody": "Repère renouvellements et essais dans vos reçus",
+      "statement": "Importer un relevé bancaire",
+      "statementBody": "Trouve les abonnements dans vos paiements",
+      "bank": "Lier votre banque",
+      "bankBody": "Les nouveaux paiements arrivent d'eux-mêmes",
+      "goal": "Fixer un objectif d'épargne",
+      "goalBody": "Combien mettre de côté chaque mois",
+      "done": "Fait"
+    },
+    "settings": {
+      "section": "Devise, revenu et objectif",
+      "currency": "Devise",
+      "currencyBody": "%{code} · %{symbol}. La changer ne convertit rien.",
+      "income": "Revenu mensuel",
+      "goal": "Objectif d'épargne",
+      "notSet": "Non défini",
+      "perMonth": "%{amount} par mois"
+    },
+    "currencyScreen": {
+      "title": "Devise",
+      "note": "Les montants de l'app s'affichent dans cette devise, et votre compte Cash l'utilise. Rien n'est converti : ce que vous avez saisi garde son montant."
+    },
+    "goal": {
+      "title": "Objectif d'épargne",
+      "hint": "Combien vous voulez mettre de côté chaque mois. Une fois votre revenu saisi, l'accueil vous dit quand vous êtes en bonne voie.",
+      "label": "Chaque mois",
+      "save": "Enregistrer l'objectif",
+      "remove": "Supprimer l'objectif",
+      "invalid": "Saisissez un montant, par exemple 250.",
+      "failed": "L'enregistrement a échoué. Réessayez."
+    },
+    "incomeEditor": {
+      "title": "Revenu mensuel",
+      "hint": "Ce qui rentre chaque mois, net. Le conseiller s'en sert pour calculer votre épargne possible, et l'accueil avec votre objectif.",
+      "label": "Chaque mois",
+      "save": "Enregistrer le revenu",
+      "remove": "Effacer le revenu",
+      "invalid": "Saisissez un montant, par exemple 2500.",
+      "failed": "L'enregistrement a échoué. Réessayez."
+    },
+    "join": {
+      "link": "Un code d'invitation ? Rejoindre une entreprise",
+      "button": "Rejoindre une entreprise",
+      "create": "Créer une entreprise",
+      "title": "Rejoindre une entreprise",
+      "hint": "Saisissez le code de 6 caractères partagé par le propriétaire ou un responsable. Vous rejoindrez l'équipe en tant qu'employé.",
+      "label": "Code d'invitation",
+      "submit": "Rejoindre",
+      "joining": "Un instant…",
+      "errors": {
+        "empty": "Saisissez le code d'invitation.",
+        "format": "Un code d'invitation compte 6 lettres et chiffres, par exemple 4F2A9C.",
+        "wrongCode": "Aucune entreprise n'a ce code. Vérifiez-le auprès de qui vous l'a envoyé.",
+        "rateLimited": "Trop d'essais. Attendez 15 minutes, puis réessayez.",
+        "alreadyMember": "Vous faites déjà partie de cette entreprise.",
+        "offline": "Impossible de joindre le serveur. Vérifiez votre connexion et réessayez.",
+        "other": "Cela n'a pas fonctionné. Réessayez."
+      }
+    }
+  },
+  "zh": {
+    "stepCounter": "第 %{step} 步，共 %{total} 步",
+    "accountType": {
+      "intro": "欢迎使用 Budget"
+    },
+    "currency": {
+      "title": "你使用哪种货币？",
+      "hint": "应用中的金额都以它显示，你的 Cash 账户也使用它。之后可以在设置中更改。",
+      "suggested": "根据手机所在地区推荐",
+      "change": "更改",
+      "search": "搜索货币",
+      "popular": "常用",
+      "all": "全部货币",
+      "noMatch": "没有匹配的货币",
+      "failed": "保存失败，请重试。"
+    },
+    "income": {
+      "title": "每月收入多少？",
+      "hint": "可选。顾问会用它估算你能存下多少，也可以据此设定你的第一个月度预算。",
+      "label": "税后月收入",
+      "invalid": "请输入金额，例如 2500。",
+      "budgetTitle": "你的第一个月度预算",
+      "budgetHint": "首页会把你的支出和它对比。随时可以在设置中修改。",
+      "share": "每月 %{amount} · 收入的 %{percent}%",
+      "noBudget": "暂不设预算",
+      "noBudgetBody": "以后随时可以在设置中设定。",
+      "skip": "跳过"
+    },
+    "connect": {
+      "title": "连接你的数据",
+      "hint": "Budget 会在你连接的数据中找出订阅和免费试用。每一项都是可选的。",
+      "later": "跳过的项目会留在首页，直到你完成设置或将其隐藏。",
+      "gmail": "Gmail",
+      "outlook": "Outlook",
+      "emailBody": "只查找收据、续订和试用邮件，并只保留其中与扣费相关的信息。不会发送或删除任何邮件。",
+      "unverified": "Google 会提示尚未验证 Budget。要继续，请点按“高级”，再点按继续的链接。",
+      "capReached": "Gmail 名额已满：Google 只允许未验证的应用连接 100 人。请改用 Outlook 或账单。",
+      "emailUnreachable": "暂时无法连接邮箱。之后可以在首页连接。",
+      "statement": "导入银行账单",
+      "statementBody": "从银行网站导出的 CSV 文件。",
+      "bank": "关联你的银行",
+      "bankBody": "新的扣款会自动同步。",
+      "connected": "已连接",
+      "imported": "已导入",
+      "linked": "已关联",
+      "waiting": "请在浏览器中完成 %{provider} 的登录。",
+      "reading": "%{provider} 已连接，邮件正在后台读取。",
+      "skip": "暂时跳过",
+      "errors": {
+        "denied": "未获得访问授权，因此没有连接任何内容。",
+        "notConfigured": "暂时无法连接这个邮箱。",
+        "capReached": "Gmail 名额已满。请改用 Outlook 或账单。",
+        "locked": "已有一个登录窗口打开。请先完成或关闭它。",
+        "offline": "无法连接服务器。请检查网络后重试。",
+        "failed": "连接失败，请重试。"
+      }
+    },
+    "detect": {
+      "title": "正在查找订阅",
+      "readingStart": "正在读取收件箱…",
+      "reading": {
+        "one": "正在读取收件箱：已读 %{count} 封邮件",
+        "other": "正在读取收件箱：已读 %{count} 封邮件"
+      },
+      "checking": "正在检查你的扣款和收据…",
+      "showNow": "查看目前找到的内容",
+      "hint": "一年的邮件可能需要几分钟。之后找到的内容会显示在“订阅”中。"
+    },
+    "payoff": {
+      "found": {
+        "one": "我们找到了 %{count} 项订阅，每月 %{total}",
+        "other": "我们找到了 %{count} 项订阅，每月 %{total}"
+      },
+      "foundNoTotal": {
+        "one": "我们找到了 %{count} 项订阅",
+        "other": "我们找到了 %{count} 项订阅"
+      },
+      "notInTotal": {
+        "one": "其中 %{count} 项以其他货币计费，未计入该总额。",
+        "other": "其中 %{count} 项以其他货币计费，未计入该总额。"
+      },
+      "more": {
+        "one": "另有 %{count} 项",
+        "other": "另有 %{count} 项"
+      },
+      "perWeek": "每周 %{amount}",
+      "perTwoWeeks": "每两周 %{amount}",
+      "perMonth": "每月 %{amount}",
+      "perQuarter": "每季度 %{amount}",
+      "perHalfYear": "每半年 %{amount}",
+      "perYear": "每年 %{amount}",
+      "amountOnly": "%{amount}",
+      "trialThen": "免费试用，之后 %{amount}",
+      "noneTitle": "暂未找到",
+      "noneStillReading": "收件箱仍在读取中。找到的内容会显示在“订阅”中。",
+      "noneWatching": "你的收件箱已连接。你使用应用时，Budget 会持续查找新的账单邮件，找到的内容会显示在“订阅”中。",
+      "noneConnectEmail": "扣款重复出现后，订阅就会显示。连接邮箱还能在扣费前发现续订和免费试用。",
+      "noneNothing": "连接邮箱或导入银行账单，Budget 就会找出你的订阅和免费试用。首页会保留尚未完成的设置清单。",
+      "remindAsk": "要在每次扣款前、以及免费试用转为付费前提醒你吗？",
+      "remindOn": "每次扣款前、以及免费试用转为付费前，你都会收到提醒。",
+      "remindOff": "Budget 的通知已关闭，提醒无法送达。你可以在手机的设置中开启。",
+      "remindButton": "提醒我",
+      "notNow": "以后再说",
+      "done": "前往首页",
+      "failed": "保存失败，请重试。"
+    },
+    "checklist": {
+      "title": "完成设置",
+      "progress": "已完成 %{done}/%{total}",
+      "hide": "隐藏",
+      "email": "连接你的邮箱",
+      "emailBody": "从收据中发现续订和免费试用",
+      "statement": "导入银行账单",
+      "statementBody": "从扣款中找出订阅",
+      "bank": "关联你的银行",
+      "bankBody": "新的扣款会自动同步",
+      "goal": "设定储蓄目标",
+      "goalBody": "每月打算存下多少",
+      "done": "已完成"
+    },
+    "settings": {
+      "section": "货币、收入和目标",
+      "currency": "货币",
+      "currencyBody": "%{code} · %{symbol}。更改不会换算任何金额。",
+      "income": "月收入",
+      "goal": "储蓄目标",
+      "notSet": "未设置",
+      "perMonth": "每月 %{amount}"
+    },
+    "currencyScreen": {
+      "title": "货币",
+      "note": "应用中的金额都以这种货币显示，你的 Cash 账户也使用它。不会进行任何换算：已记录的金额数字保持不变。"
+    },
+    "goal": {
+      "title": "储蓄目标",
+      "hint": "你每月打算存下多少。设置月收入后，首页会在你达成进度时告诉你。",
+      "label": "每月",
+      "save": "保存目标",
+      "remove": "删除目标",
+      "invalid": "请输入金额，例如 250。",
+      "failed": "保存失败，请重试。"
+    },
+    "incomeEditor": {
+      "title": "月收入",
+      "hint": "每月税后收入。顾问会用它估算你能存下多少，首页会结合你的储蓄目标使用它。",
+      "label": "每月",
+      "save": "保存收入",
+      "remove": "清除收入",
+      "invalid": "请输入金额，例如 2500。",
+      "failed": "保存失败，请重试。"
+    },
+    "join": {
+      "link": "有邀请码？加入公司",
+      "button": "加入公司",
+      "create": "创建企业",
+      "title": "加入公司",
+      "hint": "输入公司所有者或管理者分享给你的 6 位邀请码。你将以员工身份加入。",
+      "label": "邀请码",
+      "submit": "加入",
+      "joining": "正在加入…",
+      "errors": {
+        "empty": "请输入邀请码。",
+        "format": "邀请码由 6 位字母和数字组成，例如 4F2A9C。",
+        "wrongCode": "没有公司使用这个邀请码。请向发送者核对。",
+        "rateLimited": "尝试次数过多。请等待 15 分钟后再试。",
+        "alreadyMember": "你已经是这家公司的成员。",
+        "offline": "无法连接服务器。请检查网络后重试。",
+        "other": "操作失败，请重试。"
+      }
+    }
+  },
+  "ar": {
+    "stepCounter": "الخطوة %{step} من %{total}",
+    "accountType": {
+      "intro": "مرحبًا بك في Budget"
+    },
+    "currency": {
+      "title": "ما العملة التي تستخدمها؟",
+      "hint": "تُعرض المبالغ في التطبيق بهذه العملة، ويستخدمها حساب Cash الخاص بك. يمكنك تغييرها لاحقًا من الإعدادات.",
+      "suggested": "مقترحة حسب منطقة هاتفك",
+      "change": "تغيير",
+      "search": "ابحث عن عملة",
+      "popular": "الأكثر استخدامًا",
+      "all": "كل العملات",
+      "noMatch": "لا توجد عملة مطابقة",
+      "failed": "لم يُحفظ ذلك. حاول مرة أخرى."
+    },
+    "income": {
+      "title": "كم يصلك كل شهر؟",
+      "hint": "اختياري. يستخدمه المستشار لحساب ما يمكنك ادخاره، ويمكنه تحديد أول ميزانية شهرية لك.",
+      "label": "الدخل الشهري الصافي",
+      "invalid": "أدخل مبلغًا، مثل 2500.",
+      "budgetTitle": "أول ميزانية شهرية لك",
+      "budgetHint": "تعرض الشاشة الرئيسية إنفاقك مقارنةً بها. يمكنك تغييرها في أي وقت من الإعدادات.",
+      "share": "%{amount} شهريًا · %{percent}% من دخلك",
+      "noBudget": "بلا ميزانية الآن",
+      "noBudgetBody": "يمكنك تحديدها من الإعدادات متى شئت.",
+      "skip": "تخطٍّ"
+    },
+    "connect": {
+      "title": "اربط بياناتك",
+      "hint": "يجد Budget اشتراكاتك وفتراتك التجريبية المجانية فيما تربطه هنا. كل خيار اختياري.",
+      "later": "ما تتخطاه ينتظرك في الشاشة الرئيسية حتى تُعدّه أو تُخفيه.",
+      "gmail": "Gmail",
+      "outlook": "Outlook",
+      "emailBody": "يبحث فقط عن الإيصالات ورسائل التجديد والفترات التجريبية، ولا يحتفظ إلا بما تقوله عن الدفعة. لا يرسل ولا يحذف أي شيء.",
+      "unverified": "ستقول Google إنها لم تتحقق من Budget بعد. للمتابعة، اضغط «خيارات متقدمة» ثم رابط المتابعة.",
+      "capReached": "Gmail ممتلئ حاليًا: تسمح Google لتطبيق لم تتحقق منه بربط 100 شخص فقط. استخدم Outlook أو كشف حساب.",
+      "emailUnreachable": "لا يمكن ربط البريد الآن. يمكنك ربطه لاحقًا من الشاشة الرئيسية.",
+      "statement": "استورد كشف حساب بنكي",
+      "statementBody": "ملف CSV من موقع بنكك.",
+      "bank": "اربط بنكك",
+      "bankBody": "تصل الدفعات الجديدة تلقائيًا.",
+      "connected": "مربوط",
+      "imported": "مستورد",
+      "linked": "مربوط",
+      "waiting": "أكمل تسجيل الدخول إلى %{provider} في المتصفح.",
+      "reading": "تم ربط %{provider}. تُقرأ رسائله في الخلفية.",
+      "skip": "تخطٍّ الآن",
+      "errors": {
+        "denied": "لم يُسمح بالوصول، فلم يُربط أي شيء.",
+        "notConfigured": "لا يمكن ربط هذا البريد الآن.",
+        "capReached": "Gmail ممتلئ حاليًا. استخدم Outlook أو كشف حساب.",
+        "locked": "نافذة تسجيل دخول مفتوحة بالفعل. أكملها أو أغلقها أولًا.",
+        "offline": "تعذّر الوصول إلى الخادم. تحقّق من اتصالك وحاول مرة أخرى.",
+        "failed": "لم يتم الربط. حاول مرة أخرى."
+      }
+    },
+    "detect": {
+      "title": "نبحث عن الاشتراكات",
+      "readingStart": "نقرأ بريدك الوارد…",
+      "reading": {
+        "zero": "نقرأ بريدك الوارد…",
+        "one": "نقرأ بريدك الوارد: رسالة واحدة حتى الآن",
+        "two": "نقرأ بريدك الوارد: رسالتان حتى الآن",
+        "few": "نقرأ بريدك الوارد: %{count} رسائل حتى الآن",
+        "many": "نقرأ بريدك الوارد: %{count} رسالة حتى الآن",
+        "other": "نقرأ بريدك الوارد: %{count} رسالة حتى الآن"
+      },
+      "checking": "نتحقق من دفعاتك وإيصالاتك…",
+      "showNow": "اعرض ما وُجد حتى الآن",
+      "hint": "قد تستغرق قراءة بريد سنة كاملة بضع دقائق. ما يُعثر عليه لاحقًا يظهر في الاشتراكات."
+    },
+    "payoff": {
+      "found": {
+        "zero": "لم نجد أي اشتراك",
+        "one": "وجدنا اشتراكًا واحدًا، %{total} شهريًا",
+        "two": "وجدنا اشتراكين، %{total} شهريًا",
+        "few": "وجدنا %{count} اشتراكات، %{total} شهريًا",
+        "many": "وجدنا %{count} اشتراكًا، %{total} شهريًا",
+        "other": "وجدنا %{count} اشتراك، %{total} شهريًا"
+      },
+      "foundNoTotal": {
+        "zero": "لم نجد أي اشتراك",
+        "one": "وجدنا اشتراكًا واحدًا",
+        "two": "وجدنا اشتراكين",
+        "few": "وجدنا %{count} اشتراكات",
+        "many": "وجدنا %{count} اشتراكًا",
+        "other": "وجدنا %{count} اشتراك"
+      },
+      "notInTotal": {
+        "zero": "كلها محسوبة في هذا المجموع.",
+        "one": "أحدها يُدفع بعملة أخرى، فلم يُحتسب في هذا المجموع.",
+        "two": "اثنان منها يُدفعان بعملة أخرى، فلم يُحتسبا في هذا المجموع.",
+        "few": "%{count} منها تُدفع بعملات أخرى، فلم تُحتسب في هذا المجموع.",
+        "many": "%{count} منها تُدفع بعملات أخرى، فلم تُحتسب في هذا المجموع.",
+        "other": "%{count} منها تُدفع بعملات أخرى، فلم تُحتسب في هذا المجموع."
+      },
+      "more": {
+        "zero": "",
+        "one": "وواحد آخر",
+        "two": "واثنان آخران",
+        "few": "و%{count} أخرى",
+        "many": "و%{count} أخرى",
+        "other": "و%{count} أخرى"
+      },
+      "perWeek": "%{amount} أسبوعيًا",
+      "perTwoWeeks": "%{amount} كل أسبوعين",
+      "perMonth": "%{amount} شهريًا",
+      "perQuarter": "%{amount} كل ثلاثة أشهر",
+      "perHalfYear": "%{amount} كل ستة أشهر",
+      "perYear": "%{amount} سنويًا",
+      "amountOnly": "%{amount}",
+      "trialThen": "فترة تجريبية مجانية، ثم %{amount}",
+      "noneTitle": "لم نجد شيئًا بعد",
+      "noneStillReading": "ما زلنا نقرأ بريدك الوارد. ما يُعثر عليه يظهر في الاشتراكات.",
+      "noneWatching": "بريدك الوارد مربوط. يواصل Budget البحث فيه عن رسائل فواتير جديدة أثناء استخدامك التطبيق، وما يجده يظهر في الاشتراكات.",
+      "noneConnectEmail": "يظهر الاشتراك بمجرد تكرار الدفعة. ربط بريدك يكشف أيضًا التجديدات والفترات التجريبية قبل الدفع.",
+      "noneNothing": "اربط بريدك أو استورد كشف حساب بنكي، وسيجد Budget اشتراكاتك وفتراتك التجريبية. تحتفظ الشاشة الرئيسية بقائمة ما تبقى لإعداده.",
+      "remindAsk": "هل تريد تذكيرًا قبل كل دفعة، وقبل أن تتحول فترة تجريبية مجانية إلى مدفوعة؟",
+      "remindOn": "ستصلك تذكيرات قبل كل دفعة، وقبل أن تتحول فترة تجريبية مجانية إلى مدفوعة.",
+      "remindOff": "الإشعارات متوقفة لـ Budget، فلا يمكن أن تصلك التذكيرات. يمكنك تشغيلها من إعدادات هاتفك.",
+      "remindButton": "ذكّرني",
+      "notNow": "ليس الآن",
+      "done": "إلى الشاشة الرئيسية",
+      "failed": "لم يُحفظ ذلك. حاول مرة أخرى."
+    },
+    "checklist": {
+      "title": "أكمل الإعداد",
+      "progress": "اكتمل %{done} من %{total}",
+      "hide": "إخفاء",
+      "email": "اربط بريدك",
+      "emailBody": "يكشف التجديدات والفترات التجريبية من الإيصالات",
+      "statement": "استورد كشف حساب بنكي",
+      "statementBody": "يجد الاشتراكات في دفعاتك",
+      "bank": "اربط بنكك",
+      "bankBody": "تصل الدفعات الجديدة تلقائيًا",
+      "goal": "حدّد هدف ادخار",
+      "goalBody": "كم تضع جانبًا كل شهر",
+      "done": "تم"
+    },
+    "settings": {
+      "section": "العملة والدخل والهدف",
+      "currency": "العملة",
+      "currencyBody": "%{code} · %{symbol}. تغييرها لا يحوّل أي مبلغ.",
+      "income": "الدخل الشهري",
+      "goal": "هدف الادخار",
+      "notSet": "غير محدد",
+      "perMonth": "%{amount} شهريًا"
+    },
+    "currencyScreen": {
+      "title": "العملة",
+      "note": "تُعرض المبالغ في التطبيق بهذه العملة، ويستخدمها حساب Cash الخاص بك. لا يُحوَّل أي شيء: ما سجّلته يحتفظ برقمه."
+    },
+    "goal": {
+      "title": "هدف الادخار",
+      "hint": "كم تريد أن تضع جانبًا كل شهر. بعد تحديد دخلك الشهري، تخبرك الشاشة الرئيسية حين تكون على المسار الصحيح.",
+      "label": "كل شهر",
+      "save": "احفظ الهدف",
+      "remove": "احذف الهدف",
+      "invalid": "أدخل مبلغًا، مثل 250.",
+      "failed": "لم يُحفظ ذلك. حاول مرة أخرى."
+    },
+    "incomeEditor": {
+      "title": "الدخل الشهري",
+      "hint": "ما يصلك كل شهر بعد الضريبة. يستخدمه المستشار لحساب ما يمكنك ادخاره، وتستخدمه الشاشة الرئيسية مع هدف ادخارك.",
+      "label": "كل شهر",
+      "save": "احفظ الدخل",
+      "remove": "امسح الدخل",
+      "invalid": "أدخل مبلغًا، مثل 2500.",
+      "failed": "لم يُحفظ ذلك. حاول مرة أخرى."
+    },
+    "join": {
+      "link": "لديك رمز دعوة؟ انضم إلى شركة",
+      "button": "انضم إلى شركة",
+      "create": "أنشئ نشاطًا تجاريًا",
+      "title": "الانضمام إلى شركة",
+      "hint": "أدخل رمز الدعوة المكوّن من 6 خانات الذي شاركه معك مالك الشركة أو أحد المديرين. ستنضم بصفة موظف.",
+      "label": "رمز الدعوة",
+      "submit": "انضم",
+      "joining": "جارٍ الانضمام…",
+      "errors": {
+        "empty": "أدخل رمز الدعوة.",
+        "format": "رمز الدعوة 6 أحرف وأرقام، مثل 4F2A9C.",
+        "wrongCode": "لا توجد شركة بهذا الرمز. تحقّق منه مع من أرسله.",
+        "rateLimited": "محاولات كثيرة جدًا. انتظر 15 دقيقة ثم حاول مرة أخرى.",
+        "alreadyMember": "أنت عضو في هذه الشركة بالفعل.",
+        "offline": "تعذّر الوصول إلى الخادم. تحقّق من اتصالك وحاول مرة أخرى.",
+        "other": "لم ينجح ذلك. حاول مرة أخرى."
+      }
+    }
+  }
 }
