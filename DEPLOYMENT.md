@@ -192,5 +192,6 @@ The phone keeps its own SQLite database, one file per signed-in user, and syncs 
 
 - Railway logs: `console.error`/`console.warn` still emit in production
   (`[mail]`, `[email:*]`, `[plaid:*]` prefixes are searchable).
-- Watch OpenAI usage dashboard the first weeks; caps are 200 AI calls/user/day and
-  60 inbound email parses/user/day.
+- Watch OpenAI usage dashboard the first weeks; caps are 200 advisor AI calls/user/day,
+  40 email AI extractions/user/day (only for billing emails the rules cannot read, and only
+  when OPENAI_API_KEY is set) and 500 forwarded messages per address per day.

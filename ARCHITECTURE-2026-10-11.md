@@ -344,7 +344,7 @@ plus this month's spending by category; `PUT` `:96` sets it (owner or manager).
 | POST | `/plaid/transactions/sync` | Pull new bank transactions into the server's ledger | `:200` |
 | DELETE | `/plaid/items/:id` | Unlink a bank | `:220` |
 
-**`/api/v1/email`** (`backend/src/routes/email.ts`)
+**`/api/v1/email`** (`backend/src/routes/email.ts`) — _superseded in Phase 6 (13 October 2026): the table below is the 11 October state. Today's routes are `/connections`, `/connect/:provider`, `/oauth/:provider/callback`, `/sync`, `/connections/:id/sync`, `DELETE /connections/:id`, `/findings`, `/inbox-address` and `/inbound`; the Gmail and inbox routes listed below are gone._
 
 | | Path | Does | Line |
 |---|---|---|---|

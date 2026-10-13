@@ -1,6 +1,6 @@
 # Launch checklist — the steps only you can do
 
-_12 October 2026. Everything the code needs is done or in flight; what is left needs your accounts, your money or your phone. Do the sections in order: later ones depend on earlier ones. Tell me when you finish a step marked **→ tell me**, and I'll take the next part._
+_12 October 2026, §13 added 13 October 2026. Everything the code needs is done or in flight; what is left needs your accounts, your money or your phone. Do the sections in order: later ones depend on earlier ones. Tell me when you finish a step marked **→ tell me**, and I'll take the next part._
 
 Identifiers you'll need throughout: bundle ID / package **`com.realbudget.app`**, Expo project **`@symow/budget`**, Railway project **budget**, service **Budget**, production URL `https://budget-production-5a9d.up.railway.app`.
 
@@ -31,7 +31,7 @@ Production has run on Postgres since 11 October and has been healthy; the old vo
 Today the Budget service has only `BACKEND_URL`, `BETTER_AUTH_SECRET`, `DATABASE_URL` and `NODE_ENV`.
 
 1. Railway → **Budget → Variables → New Variable**, add:
-   - `OPENAI_API_KEY` — a real key from platform.openai.com. Without it the advisor, receipt scan, email detection and PDF import answer 503.
+   - `OPENAI_API_KEY` — a real key from platform.openai.com. Without it the advisor, receipt scan and PDF import answer 503. Email detection works without it (rules first); with it, AI also reads the billing emails the rules can't (at most 40 a user a day).
    - `TOKEN_ENCRYPTION_KEY` — generate with `openssl rand -base64 48`. Back it up in your password manager; it cannot be rotated later without re-encrypting bank tokens.
    - `RESEND_API_KEY` and `EMAIL_FROM` — after section 6.
    - `REVENUECAT_WEBHOOK_SECRET` (16+ characters, any random string) and `REVENUECAT_API_KEY` (RevenueCat secret API key) — during section 10.
@@ -150,3 +150,45 @@ Statement import is the main path; bank sync is a per-country extra and degrades
 
 1. dashboard.plaid.com → **Production access**: company details and the security questionnaire. It takes days to weeks; apply now, launch without it.
 2. When approved, set `PLAID_CLIENT_ID`, `PLAID_SECRET`, `PLAID_ENV=production` on Railway.
+
+## 13. Switch on automatic detection: each source, its keys (free tiers)
+
+Each source is off until its keys exist, and the app says so instead of failing. Do them in any order. Generate `TOKEN_ENCRYPTION_KEY` once (`openssl rand -base64 48`), keep it in your password manager, and use the same value everywhere: it encrypts Plaid, Gmail and Outlook tokens, and changing it later means everyone reconnects.
+
+### 13a. Bank linking on Plaid's free sandbox → tell me
+1. dashboard.plaid.com → sign up (free) → **Developers → Keys**: copy the **client_id** and the **Sandbox** secret.
+2. In `backend/.env` (local only for now):
+   `PLAID_CLIENT_ID=…`, `PLAID_SECRET=…` (the sandbox secret), `PLAID_ENV=sandbox`,
+   `PLAID_COUNTRY_CODES=US,CA,GB,AT,BE,DK,EE,FI,FR,DE,IE,IT,LV,LT,NL,NO,PL,PT,ES,SE`,
+   `TOKEN_ENCRYPTION_KEY=…`, and `DEV_PRO_OVERRIDE=true` (development only: everyone counts as Pro so bank linking opens without a purchase; ignored in production).
+3. In `mobile/.env`: `EXPO_PUBLIC_DEV_PRO=true` (ignored in release builds).
+4. **→ tell me**: I run the whole sandbox flow on the simulator (link with Plaid's test login `user_good` / `pass_good`, accounts appear, transactions sync, detection runs, disconnect with keep and with delete).
+5. Production later is §12. Each region (US/Canada, UK, EU) must also be enabled for your Plaid account.
+
+### 13b. Gmail inbox reading (free, unverified, at most 100 users)
+1. console.cloud.google.com → create a project ("Real Budget").
+2. **APIs & Services → Library** → enable the **Gmail API**.
+3. **Google Auth Platform → Branding**: app name "Real Budget", your support email, your developer email.
+4. **Audience**: user type **External**, then **Publish app** so the status is **In production**. Do not leave it in **Testing**: there Google expires every connection after 7 days and only hand-listed test users can connect.
+5. **Data Access → Add or remove scopes**: add `https://www.googleapis.com/auth/gmail.readonly` and nothing else.
+6. **Clients → Create client → Web application**. Authorized redirect URIs:
+   `https://budget-production-5a9d.up.railway.app/api/v1/email/oauth/gmail/callback` and, for testing, `http://localhost:3000/api/v1/email/oauth/gmail/callback`.
+   If Google refuses the railway.app address, put the backend on your own domain first (Railway → Budget → Settings → Custom domain, e.g. `api.yourdomain`), set `BACKEND_URL` to it, and register that callback instead. You will need that domain for verification anyway.
+7. Railway → Budget → Variables: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GMAIL_USER_CAP=90` (headroom under Google's 100: your own test accounts count there and not in ours), `TOKEN_ENCRYPTION_KEY`.
+8. What users see: Google's "Google hasn't verified this app" screen. The app explains it before opening Google's page (Advanced → Go to Real Budget). Past the cap, the app points people to forwarding.
+9. Later, with budget: `docs/verification/` (Google verification, the CASA assessment, the demo video). When Google approves, set `GOOGLE_OAUTH_VERIFIED=true`; nothing else changes.
+
+### 13c. Outlook inbox reading (free, no cap)
+1. entra.microsoft.com → sign in with a **work or school** account. A free Azure account gives you a tenant; Microsoft no longer lets a personal Microsoft account own app registrations.
+2. **App registrations → New registration**: name "Real Budget"; supported account types **Personal Microsoft accounts only**; redirect URI, platform **Web**: `https://budget-production-5a9d.up.railway.app/api/v1/email/oauth/outlook/callback`. Add `http://localhost:3000/api/v1/email/oauth/outlook/callback` under **Authentication** for testing.
+3. **API permissions → Add → Microsoft Graph → Delegated**: `Mail.Read`, `offline_access`, `openid`, `email`. No admin consent is needed.
+4. **Certificates & secrets → New client secret**: copy the **Value** at once. It expires (at most 24 months); put the date in your calendar.
+5. Railway: `MICROSOFT_CLIENT_ID` (the Application (client) ID), `MICROSOFT_CLIENT_SECRET` (the secret's value). `MICROSOFT_TENANT` stays `consumers`.
+6. Users see "unverified" on Microsoft's prompt until publisher verification (`docs/verification/microsoft-publisher-verification.md`, needs a registered business); personal accounts can still consent.
+
+### 13d. Forwarding, the backup for iCloud, Yahoo, GMX (free)
+Needs your domain on Cloudflare (§4). Follow `backend/docs/inbound-email-setup.md` step by step: a shared secret, `INBOUND_EMAIL_DOMAIN` and `INBOUND_EMAIL_SECRET` on Railway, Email Routing, the worker with its `PARKED` KV namespace (so mail waits instead of bouncing while the backend sleeps), and the end-to-end check.
+
+### 13e. Keeping email current while the app is closed (optional, costs money)
+The Budget service sleeps when idle (Railway **App Sleeping**). Mail is still synced every time someone opens the app, and reminders already scheduled on the phone fire regardless. To also sync inboxes in the background, turn App Sleeping off in Railway → Budget → Settings (the service then bills for the hours it runs).
+
