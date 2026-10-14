@@ -107,6 +107,11 @@ const envSchema = z.object({
   GOOGLE_CLIENT_SECRET: z.string().optional(),
   GOOGLE_OAUTH_VERIFIED: z.enum(["true", "false"]).optional().default("false"),
   GMAIL_USER_CAP: z.string().regex(/^[1-9]\d*$/, "GMAIL_USER_CAP must be a positive whole number").optional().default("100"),
+  // Google Search Console's HTML-tag verification for the website (routes/site.ts):
+  // the content value of the <meta name="google-site-verification"> tag it shows.
+  // Public by design, since it goes into the home page. Not validated here: a bad
+  // value is ignored with a warning (site/pages.ts) rather than stopping the API.
+  GOOGLE_SITE_VERIFICATION: z.string().optional(),
   // Microsoft Graph, Mail.Read for personal Outlook.com accounts. "consumers"
   // admits personal accounts only; "common" also admits work and school ones.
   MICROSOFT_CLIENT_ID: z.string().optional(),

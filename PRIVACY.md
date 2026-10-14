@@ -1,13 +1,13 @@
 # Latchet — Privacy Policy
 
-_Last updated: October 12, 2026_
+_Last updated: October 14, 2026_
 
 Latchet ("the app", "we") helps you track spending, detect subscriptions,
 and manage business expenses. This policy explains what data we handle and how.
 
-This document is the source for the published policy: the hosted page is
-generated from it automatically whenever it changes on `main`, so the hosted
-page and the repository can never disagree.
+The page you are reading on Latchet's website is generated from the same
+copy of this policy that is kept with the app's code, so the two cannot
+disagree.
 
 ## Data we collect and why
 
@@ -251,6 +251,13 @@ not affected when the email details expire or when you disconnect the inbox.
   "One record we keep after you leave" — and cannot restore it.
   If a provider is unreachable at that moment we still delete your account, and
   the app tells you which connections to revoke yourself.
+
+## This website
+
+Latchet's website (its home page, this policy and the terms of service) sets
+no cookies, runs no scripts or analytics, and loads nothing from other sites.
+Like the app's own traffic, requests to it pass through our hosting provider,
+Railway.
 
 ## Contact
 

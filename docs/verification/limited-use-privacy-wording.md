@@ -184,7 +184,7 @@ mail exactly as described above."
 
 | Text | Where | Owner |
 |---|---|---|
-| Limited Use statement (§1) | `PRIVACY.md` and the homepage | `PRIVACY.md`: done. Homepage: when it is built. |
+| Limited Use statement (§1) | `PRIVACY.md` and the homepage | done in both (the homepage is `backend/src/site/pages.ts`) |
 | Policy paragraph (§2) | `PRIVACY.md`, "Reading your inbox" | done |
 | Homepage block (§3) | homepage | `homepage-content.md` |
 | In-app consent (§4) | Connect screens in the app | `emailConnect.json` fragment, all four languages |

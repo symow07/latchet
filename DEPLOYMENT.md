@@ -117,8 +117,8 @@ SELECT COUNT(*) AS plaid FROM "PlaidItem";
 - **Plaid production access** — dashboard application (company info, security
   questionnaire). Until approved, keep `PLAID_ENV=sandbox`.
 - **App Store privacy** — declare data collection (financial data, email
-  content, contact info) in App Store Connect; host `PRIVACY.md` at a public
-  URL and link it. Build & submit with EAS: `eas build --platform ios` then
+  content, contact info) in App Store Connect; link the privacy policy the
+  backend serves at `/privacy` (LAUNCH-CHECKLIST §7). Build & submit with EAS: `eas build --platform ios` then
   `eas submit` (see `EJECT.md` for the standalone build setup).
 
 - **Pro store products** (not done yet; the app needs no product ids). Pro is the

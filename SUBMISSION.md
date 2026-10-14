@@ -90,8 +90,9 @@ notification delivery, the share sheet under a real App Group, and voice
 recording.
 
 ### 6. Privacy policy hosting + support email · 30 min
-GitHub Pages cannot publish from a private repo on the free plan. Cheapest path: a separate public
-repo with the one file. Then set the real support address — Apple verifies that it resolves.
+Hosting is done: the backend serves the policy at https://latchet-production.up.railway.app/privacy
+(and the terms at `/terms`), rendered from `PRIVACY.md` (LAUNCH-CHECKLIST §7). Still to do: set the
+real support address — Apple verifies that it resolves.
 
 ### 7. ☑ App icon and splash — done
 `mobile/assets/` holds `icon.png` (1024², RGB, no alpha), `adaptive-icon.png`, `splash-icon.png`

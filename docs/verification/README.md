@@ -53,9 +53,12 @@ Google's Limited Use statement. It is the policy the consent screen links to.
 Google (the long one):
 
 1. **Buy the domain and publish the homepage and privacy policy on it.**
-   LAUNCH-CHECKLIST §4 (domain) and §7 (privacy policy hosting). The homepage
-   copy is in `homepage-content.md`. A `github.io` address will not pass:
-   Google wants the homepage on a domain you own and have verified.
+   LAUNCH-CHECKLIST §4 (domain) and §7 (privacy policy hosting). The backend
+   already serves the homepage, policy and terms (`backend/src/site/`), so a
+   custom domain on the Latchet service publishes them there. The Railway
+   address (`latchet-production.up.railway.app`) is fine for publishing
+   unverified, but will not pass verification, just as a `github.io` one would
+   not: Google wants the homepage on a domain you own and have verified.
 2. **Move the OAuth callback onto that domain**, for example
    `https://api.latchet.app` as a Railway custom domain on the Latchet <!-- TODO(domain) -->
    service. Set `BACKEND_URL` to it, and register

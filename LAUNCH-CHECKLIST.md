@@ -80,16 +80,21 @@ Apple and Google both check that the support address works, and the privacy poli
 5. Railway → Latchet → Variables: `RESEND_API_KEY` = that key, `EMAIL_FROM` = `Latchet <no-reply@latchet.app>`. <!-- TODO(domain) -->
 6. Check: in the app, sign-in → **Forgot password?** with your own account; the email should arrive within a minute and its link should open the app. Then Settings → **Send link** for verification.
 
-## 7. Host the privacy policy (20 min)
+## 7. Host the privacy policy (done; 5 min more once the domain exists)
 
-The listing needs a public URL, and App Review compares it with what the app does. The repo already has `.github/workflows/publish-privacy.yml`, which builds a page from `PRIVACY.md`, but this repo is private and GitHub Pages won't publish from a private repo on the free plan. Pick one:
+The backend serves the website: a home page, the privacy policy (rendered from `PRIVACY.md`) and the terms of service (from `TERMS.md`). Today they are at:
 
-1. **Easiest — a small public repo:**
-   1. Create a public GitHub repo, e.g. `symow07/latchet-site`.
-   2. Ask me to set it up: I'll copy the generated page there and keep it in sync from this repo's workflow.
-   3. Repo → **Settings → Pages** → deploy from the `main` branch; add the custom domain `latchet.app` (or `www.`), tick **Enforce HTTPS**, and add the DNS records GitHub shows. <!-- TODO(domain) -->
-2. **Or — serve it from the backend:** say so and I'll add a `/privacy` page to the API, served at the Railway URL or a custom domain on the Latchet service (Railway → Latchet → Settings → Networking → Custom Domain).
-3. Check: open `https://latchet.app/privacy` (or the URL you chose) on your phone. Use that URL in sections 9 and 10. <!-- TODO(domain) -->
+- https://latchet-production.up.railway.app/
+- https://latchet-production.up.railway.app/privacy
+- https://latchet-production.up.railway.app/terms
+
+Use the privacy URL in sections 9 and 10. After editing `PRIVACY.md` or `TERMS.md`, run `bun scripts/build-site.ts` in `backend/` and commit the result; a backend test fails until you do.
+
+Once the domain exists (§4):
+
+1. Railway → Latchet → Settings → Networking → **Custom Domain** → `latchet.app`, and add the DNS record Railway shows. The same three pages are then at `https://latchet.app/`, `/privacy` and `/terms`, with nothing else to deploy. <!-- TODO(domain) -->
+2. Change the URLs in App Store Connect, Play Console and Google's Branding page (§13b) to the new ones. Keep the Railway address working: installed apps still call it.
+3. Check: open `https://latchet.app/privacy` on your phone. <!-- TODO(domain) -->
 
 ## 8. First device build and a walk-through on your iPhone (30–60 min) → tell me
 
@@ -169,12 +174,17 @@ Each source is off until its keys exist, and the app says so instead of failing.
 ### 13b. Gmail inbox reading (free, unverified, at most 100 users)
 1. console.cloud.google.com → create a project ("Latchet").
 2. **APIs & Services → Library** → enable the **Gmail API**.
-3. **Google Auth Platform → Branding**: app name "Latchet", your support email, your developer email.
+3. **Google Auth Platform → Branding**: app name "Latchet", your support email, your developer email, and under **App domain** and **Authorized domains** exactly:
+   - Application home page: `https://latchet-production.up.railway.app/`
+   - Application privacy policy link: `https://latchet-production.up.railway.app/privacy`
+   - Application terms of service link: `https://latchet-production.up.railway.app/terms`
+   - Authorized domain: `latchet-production.up.railway.app` (the whole host: `up.railway.app` is on the Public Suffix List, so Google treats each Railway host as its own top private domain; `railway.app` or `up.railway.app` would not cover it). It also covers the redirect URI in step 6.
+   This is enough to publish unverified. Google's verification (later, `docs/verification/`) wants these pages on a domain you own: after §7's custom domain, swap all four values to `latchet.app`. <!-- TODO(domain) -->
 4. **Audience**: user type **External**, then **Publish app** so the status is **In production**. Do not leave it in **Testing**: there Google expires every connection after 7 days and only hand-listed test users can connect.
 5. **Data Access → Add or remove scopes**: add `https://www.googleapis.com/auth/gmail.readonly` and nothing else.
 6. **Clients → Create client → Web application**. Authorized redirect URIs:
    `https://latchet-production.up.railway.app/api/v1/email/oauth/gmail/callback` and, for testing, `http://localhost:3000/api/v1/email/oauth/gmail/callback`.
-   If Google refuses the railway.app address, put the backend on your own domain first (Railway → Latchet → Settings → Custom domain, e.g. `api.yourdomain`), set `BACKEND_URL` to it, and register that callback instead. You will need that domain for verification anyway.
+   If Google refuses the up.railway.app address, put the backend on your own domain first (Railway → Latchet → Settings → Custom domain, e.g. `api.yourdomain`), set `BACKEND_URL` to it, and register that callback instead. You will need that domain for verification anyway.
 7. Railway → Latchet → Variables: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GMAIL_USER_CAP=90` (headroom under Google's 100: your own test accounts count there and not in ours), `TOKEN_ENCRYPTION_KEY`.
 8. What users see: Google's "Google hasn't verified this app" screen. The app explains it before opening Google's page (Advanced → Go to Latchet). Past the cap, the app points people to forwarding.
 9. Later, with budget: `docs/verification/` (Google verification, the CASA assessment, the demo video). When Google approves, set `GOOGLE_OAUTH_VERIFIED=true`; nothing else changes.

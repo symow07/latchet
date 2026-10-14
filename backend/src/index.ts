@@ -32,6 +32,7 @@ import { ratesRouter } from "./routes/rates";
 import { meRouter } from "./routes/me";
 import { revenueCatRouter } from "./routes/revenuecat";
 import { emailRouter, isPublicEmailPath } from "./routes/email";
+import { createSiteRouter, isPublicSitePath } from "./routes/site";
 import { syncRouter } from "./routes/sync";
 import { installErrorHandlers } from "./lib/http-errors";
 import { prisma } from "./prisma";
@@ -104,9 +105,14 @@ installErrorHandlers(app, { isProduction: env.NODE_ENV === "production" });
 // the 5s timeout budget that should be available to auth.handler.
 // Skipped too for the email OAuth callback and the inbound-mail webhook, which
 // never act on a session: the callback's user is named by its OAuth state, the
-// webhook is the mail worker's (routes/email.ts).
+// webhook is the mail worker's (routes/email.ts). And for the public website,
+// which is the same for everyone (routes/site.ts).
 app.use("*", async (c, next) => {
-  if (c.req.path.startsWith("/api/auth/") || isPublicEmailPath(c.req.path)) {
+  if (
+    c.req.path.startsWith("/api/auth/") ||
+    isPublicEmailPath(c.req.path) ||
+    isPublicSitePath(c.req.path)
+  ) {
     c.set("user", null);
     c.set("session", null);
     return next();
@@ -191,6 +197,10 @@ app.get("/health", async (c) => {
     return c.json({ status: "error", error: "database unreachable" }, 503);
   }
 });
+
+// The public website: home, privacy policy, terms of service. Their URLs are on
+// Google's OAuth Branding page and in the store listings (routes/site.ts).
+app.route("/", createSiteRouter({ siteVerification: env.GOOGLE_SITE_VERIFICATION }));
 
 // Diagnostic routes — never mounted in production (they expose internals from
 // the signup-hang investigation). Set DEBUG_ROUTES=true to re-enable temporarily.

@@ -2,6 +2,13 @@
 
 The copy for the public homepage at, for example, `https://latchet.app`. <!-- TODO(domain) -->
 
+**Built.** The backend serves this page (`backend/src/site/pages.ts`), today at
+https://latchet-production.up.railway.app/ with the policy at `/privacy` and the
+terms at `/terms`. That is enough to publish the Gmail connection unverified.
+For verification it must be on your own domain: give the Latchet service a
+custom domain (LAUNCH-CHECKLIST §7) and the same pages move with it. Change
+the copy here and in `pages.ts` together.
+
 Google's reviewers open this page. Their requirements
 ([Verification requirements](https://support.google.com/cloud/answer/13464321);
 [OAuth 2.0 policy compliance](https://developers.google.com/identity/protocols/oauth2/production-readiness/policy-compliance)):
