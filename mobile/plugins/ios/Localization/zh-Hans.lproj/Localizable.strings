@@ -1,12 +1,12 @@
-/* Everything a LocalizedStringResource in BudgetAppIntents.swift resolves:
+/* Everything a LocalizedStringResource in LatchetAppIntents.swift resolves:
    intent titles, descriptions, parameter names, spoken prompts and replies.
 
    zh-Hans */
 
 "Log an expense" = "记录一笔支出";
 "Log income" = "记录一笔收入";
-"Record something you spent. It appears in Budget next time you open it." = "记录一笔支出。下次打开 Budget 时就会看到。";
-"Record money you received. It appears in Budget next time you open it." = "记录一笔收入。下次打开 Budget 时就会看到。";
+"Record something you spent. It appears in Latchet next time you open it." = "记录一笔支出。下次打开 Latchet 时就会看到。";
+"Record money you received. It appears in Latchet next time you open it." = "记录一笔收入。下次打开 Latchet 时就会看到。";
 "Amount" = "金额";
 "What for" = "用途";
 "What from" = "来源";
@@ -14,4 +14,4 @@
 "What was it for?" = "这笔钱花在什么上？";
 "How much did you receive?" = "你收到了多少钱？";
 "What was it from?" = "这笔钱来自哪里？";
-"Got it. It'll be waiting in Budget." = "已记录，下次打开 Budget 就能看到。";
+"Got it. It'll be waiting in Latchet." = "已记录，下次打开 Latchet 就能看到。";

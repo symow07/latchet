@@ -2,7 +2,7 @@
   "en": {
     "stepCounter": "Step %{step} of %{total}",
     "accountType": {
-      "intro": "Welcome to Budget"
+      "intro": "Welcome to Latchet"
     },
     "currency": {
       "title": "Which currency do you use?",
@@ -29,12 +29,12 @@
     },
     "connect": {
       "title": "Connect your data",
-      "hint": "Budget finds your subscriptions and free trials in what you connect here. Each one is optional.",
+      "hint": "Latchet finds your subscriptions and free trials in what you connect here. Each one is optional.",
       "later": "Anything you skip waits on your Home screen until you set it up or hide it.",
       "gmail": "Gmail",
       "outlook": "Outlook",
       "emailBody": "Looks only for receipts, renewals and trial emails, and keeps just what they say about a charge. Never sends or deletes anything.",
-      "unverified": "Google will say it hasn't verified Budget yet. To go on, tap Advanced, then the link to continue.",
+      "unverified": "Google will say it hasn't verified Latchet yet. To go on, tap Advanced, then the link to continue.",
       "capReached": "Gmail is full for now: Google lets an app it hasn't verified connect 100 people. Use Outlook or a statement instead.",
       "emailUnreachable": "Email can't be connected right now. You can connect it later from Home.",
       "statement": "Import a bank statement",
@@ -94,12 +94,12 @@
       "trialThen": "Free trial, then %{amount}",
       "noneTitle": "Nothing found yet",
       "noneStillReading": "Your inbox is still being read. Anything found shows up in Subscriptions.",
-      "noneWatching": "Your inbox is connected. Budget keeps checking it for new billing emails while you use the app, and anything it finds shows up in Subscriptions.",
+      "noneWatching": "Your inbox is connected. Latchet keeps checking it for new billing emails while you use the app, and anything it finds shows up in Subscriptions.",
       "noneConnectEmail": "Subscriptions appear once a charge repeats. Connecting your email also catches renewals and free trials before they charge.",
-      "noneNothing": "Connect your email or import a bank statement, and Budget will find your subscriptions and free trials. Your Home screen keeps a list of what's left to set up.",
+      "noneNothing": "Connect your email or import a bank statement, and Latchet will find your subscriptions and free trials. Your Home screen keeps a list of what's left to set up.",
       "remindAsk": "Want a reminder before each charge, and before a free trial turns paid?",
       "remindOn": "You'll get a reminder before each charge, and before a free trial turns paid.",
-      "remindOff": "Notifications are off for Budget, so reminders can't reach you. You can turn them on in your phone's Settings.",
+      "remindOff": "Notifications are off for Latchet, so reminders can't reach you. You can turn them on in your phone's Settings.",
       "remindButton": "Remind me",
       "notNow": "Not now",
       "done": "Go to Home",
@@ -173,7 +173,7 @@
   "fr": {
     "stepCounter": "Étape %{step} sur %{total}",
     "accountType": {
-      "intro": "Bienvenue dans Budget"
+      "intro": "Bienvenue dans Latchet"
     },
     "currency": {
       "title": "Quelle devise utilisez-vous ?",
@@ -200,12 +200,12 @@
     },
     "connect": {
       "title": "Connectez vos données",
-      "hint": "Budget trouve vos abonnements et essais gratuits dans ce que vous connectez ici. Tout est facultatif.",
+      "hint": "Latchet trouve vos abonnements et essais gratuits dans ce que vous connectez ici. Tout est facultatif.",
       "later": "Ce que vous passez vous attend sur l'accueil, jusqu'à ce que vous le configuriez ou le masquiez.",
       "gmail": "Gmail",
       "outlook": "Outlook",
       "emailBody": "Ne cherche que les reçus, renouvellements et fins d'essai, et ne garde que ce qu'ils disent d'un paiement. N'envoie et ne supprime rien.",
-      "unverified": "Google indiquera ne pas avoir encore validé Budget. Pour continuer, touchez Paramètres avancés, puis le lien pour continuer.",
+      "unverified": "Google indiquera ne pas avoir encore validé Latchet. Pour continuer, touchez Paramètres avancés, puis le lien pour continuer.",
       "capReached": "Gmail est complet pour l'instant : Google limite à 100 personnes une app non validée. Utilisez Outlook ou un relevé.",
       "emailUnreachable": "Impossible de connecter un e-mail pour l'instant. Vous pourrez le faire plus tard depuis l'accueil.",
       "statement": "Importer un relevé bancaire",
@@ -265,12 +265,12 @@
       "trialThen": "Essai gratuit, puis %{amount}",
       "noneTitle": "Rien trouvé pour l'instant",
       "noneStillReading": "Votre boîte est encore en cours de lecture. Ce qui sera trouvé apparaîtra dans Abonnements.",
-      "noneWatching": "Votre boîte est connectée. Budget continue d'y chercher les e-mails de facturation pendant que vous utilisez l'app, et ce qu'il trouve apparaît dans Abonnements.",
+      "noneWatching": "Votre boîte est connectée. Latchet continue d'y chercher les e-mails de facturation pendant que vous utilisez l'app, et ce qu'il trouve apparaît dans Abonnements.",
       "noneConnectEmail": "Un abonnement apparaît dès qu'un paiement se répète. Connecter votre e-mail repère aussi renouvellements et essais avant le paiement.",
-      "noneNothing": "Connectez votre e-mail ou importez un relevé, et Budget trouvera vos abonnements et essais gratuits. L'accueil garde la liste de ce qui reste.",
+      "noneNothing": "Connectez votre e-mail ou importez un relevé, et Latchet trouvera vos abonnements et essais gratuits. L'accueil garde la liste de ce qui reste.",
       "remindAsk": "Un rappel avant chaque paiement, et avant qu'un essai gratuit devienne payant ?",
       "remindOn": "Vous recevrez un rappel avant chaque paiement, et avant qu'un essai gratuit devienne payant.",
-      "remindOff": "Les notifications de Budget sont désactivées : les rappels ne peuvent pas vous parvenir. Activez-les dans les Réglages du téléphone.",
+      "remindOff": "Les notifications de Latchet sont désactivées : les rappels ne peuvent pas vous parvenir. Activez-les dans les Réglages du téléphone.",
       "remindButton": "Me le rappeler",
       "notNow": "Pas maintenant",
       "done": "Aller à l'accueil",
@@ -344,7 +344,7 @@
   "zh": {
     "stepCounter": "第 %{step} 步，共 %{total} 步",
     "accountType": {
-      "intro": "欢迎使用 Budget"
+      "intro": "欢迎使用 Latchet"
     },
     "currency": {
       "title": "你使用哪种货币？",
@@ -371,12 +371,12 @@
     },
     "connect": {
       "title": "连接你的数据",
-      "hint": "Budget 会在你连接的数据中找出订阅和免费试用。每一项都是可选的。",
+      "hint": "Latchet 会在你连接的数据中找出订阅和免费试用。每一项都是可选的。",
       "later": "跳过的项目会留在首页，直到你完成设置或将其隐藏。",
       "gmail": "Gmail",
       "outlook": "Outlook",
       "emailBody": "只查找收据、续订和试用邮件，并只保留其中与扣费相关的信息。不会发送或删除任何邮件。",
-      "unverified": "Google 会提示尚未验证 Budget。要继续，请点按“高级”，再点按继续的链接。",
+      "unverified": "Google 会提示尚未验证 Latchet。要继续，请点按“高级”，再点按继续的链接。",
       "capReached": "Gmail 名额已满：Google 只允许未验证的应用连接 100 人。请改用 Outlook 或账单。",
       "emailUnreachable": "暂时无法连接邮箱。之后可以在首页连接。",
       "statement": "导入银行账单",
@@ -436,12 +436,12 @@
       "trialThen": "免费试用，之后 %{amount}",
       "noneTitle": "暂未找到",
       "noneStillReading": "收件箱仍在读取中。找到的内容会显示在“订阅”中。",
-      "noneWatching": "你的收件箱已连接。你使用应用时，Budget 会持续查找新的账单邮件，找到的内容会显示在“订阅”中。",
+      "noneWatching": "你的收件箱已连接。你使用应用时，Latchet 会持续查找新的账单邮件，找到的内容会显示在“订阅”中。",
       "noneConnectEmail": "扣款重复出现后，订阅就会显示。连接邮箱还能在扣费前发现续订和免费试用。",
-      "noneNothing": "连接邮箱或导入银行账单，Budget 就会找出你的订阅和免费试用。首页会保留尚未完成的设置清单。",
+      "noneNothing": "连接邮箱或导入银行账单，Latchet 就会找出你的订阅和免费试用。首页会保留尚未完成的设置清单。",
       "remindAsk": "要在每次扣款前、以及免费试用转为付费前提醒你吗？",
       "remindOn": "每次扣款前、以及免费试用转为付费前，你都会收到提醒。",
-      "remindOff": "Budget 的通知已关闭，提醒无法送达。你可以在手机的设置中开启。",
+      "remindOff": "Latchet 的通知已关闭，提醒无法送达。你可以在手机的设置中开启。",
       "remindButton": "提醒我",
       "notNow": "以后再说",
       "done": "前往首页",
@@ -515,7 +515,7 @@
   "ar": {
     "stepCounter": "الخطوة %{step} من %{total}",
     "accountType": {
-      "intro": "مرحبًا بك في Budget"
+      "intro": "مرحبًا بك في Latchet"
     },
     "currency": {
       "title": "ما العملة التي تستخدمها؟",
@@ -542,12 +542,12 @@
     },
     "connect": {
       "title": "اربط بياناتك",
-      "hint": "يجد Budget اشتراكاتك وفتراتك التجريبية المجانية فيما تربطه هنا. كل خيار اختياري.",
+      "hint": "يجد Latchet اشتراكاتك وفتراتك التجريبية المجانية فيما تربطه هنا. كل خيار اختياري.",
       "later": "ما تتخطاه ينتظرك في الشاشة الرئيسية حتى تُعدّه أو تُخفيه.",
       "gmail": "Gmail",
       "outlook": "Outlook",
       "emailBody": "يبحث فقط عن الإيصالات ورسائل التجديد والفترات التجريبية، ولا يحتفظ إلا بما تقوله عن الدفعة. لا يرسل ولا يحذف أي شيء.",
-      "unverified": "ستقول Google إنها لم تتحقق من Budget بعد. للمتابعة، اضغط «خيارات متقدمة» ثم رابط المتابعة.",
+      "unverified": "ستقول Google إنها لم تتحقق من Latchet بعد. للمتابعة، اضغط «خيارات متقدمة» ثم رابط المتابعة.",
       "capReached": "Gmail ممتلئ حاليًا: تسمح Google لتطبيق لم تتحقق منه بربط 100 شخص فقط. استخدم Outlook أو كشف حساب.",
       "emailUnreachable": "لا يمكن ربط البريد الآن. يمكنك ربطه لاحقًا من الشاشة الرئيسية.",
       "statement": "استورد كشف حساب بنكي",
@@ -627,12 +627,12 @@
       "trialThen": "فترة تجريبية مجانية، ثم %{amount}",
       "noneTitle": "لم نجد شيئًا بعد",
       "noneStillReading": "ما زلنا نقرأ بريدك الوارد. ما يُعثر عليه يظهر في الاشتراكات.",
-      "noneWatching": "بريدك الوارد مربوط. يواصل Budget البحث فيه عن رسائل فواتير جديدة أثناء استخدامك التطبيق، وما يجده يظهر في الاشتراكات.",
+      "noneWatching": "بريدك الوارد مربوط. يواصل Latchet البحث فيه عن رسائل فواتير جديدة أثناء استخدامك التطبيق، وما يجده يظهر في الاشتراكات.",
       "noneConnectEmail": "يظهر الاشتراك بمجرد تكرار الدفعة. ربط بريدك يكشف أيضًا التجديدات والفترات التجريبية قبل الدفع.",
-      "noneNothing": "اربط بريدك أو استورد كشف حساب بنكي، وسيجد Budget اشتراكاتك وفتراتك التجريبية. تحتفظ الشاشة الرئيسية بقائمة ما تبقى لإعداده.",
+      "noneNothing": "اربط بريدك أو استورد كشف حساب بنكي، وسيجد Latchet اشتراكاتك وفتراتك التجريبية. تحتفظ الشاشة الرئيسية بقائمة ما تبقى لإعداده.",
       "remindAsk": "هل تريد تذكيرًا قبل كل دفعة، وقبل أن تتحول فترة تجريبية مجانية إلى مدفوعة؟",
       "remindOn": "ستصلك تذكيرات قبل كل دفعة، وقبل أن تتحول فترة تجريبية مجانية إلى مدفوعة.",
-      "remindOff": "الإشعارات متوقفة لـ Budget، فلا يمكن أن تصلك التذكيرات. يمكنك تشغيلها من إعدادات هاتفك.",
+      "remindOff": "الإشعارات متوقفة لـ Latchet، فلا يمكن أن تصلك التذكيرات. يمكنك تشغيلها من إعدادات هاتفك.",
       "remindButton": "ذكّرني",
       "notNow": "ليس الآن",
       "done": "إلى الشاشة الرئيسية",

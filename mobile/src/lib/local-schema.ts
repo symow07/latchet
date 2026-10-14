@@ -6,9 +6,10 @@
  * is harmless), and the tests run it against an in-memory SQLite. It imports
  * nothing, on purpose: it has to load under `bun test`.
  *
- * Versions. The old shared `real_budget.db` grew its schema through v2-v6
- * ALTERs; per-user files started over at version 1. A file records each
- * version it was created at or brought to as a `migrations` row (schema_v1,
+ * Versions. The old shared database file (LEGACY_SHARED_DATABASE in
+ * storage-migration.ts) grew its schema through v2-v6 ALTERs; per-user
+ * files started over at version 1. A file records each version it was
+ * created at or brought to as a `migrations` row (schema_v1,
  * schema_v2, …). LOCAL_SCHEMA_SQL is always the complete schema of the
  * current version, so a new file is created at it directly; a file made by an
  * earlier build is brought up to it by upgradeLocalSchema, step by step

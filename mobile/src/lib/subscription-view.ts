@@ -4,7 +4,7 @@
  * The list (subscriptions.tsx) leads with what makes the feature worth having:
  * the alerts (charged after you cancelled, a price that went up), the charges
  * coming in the next 30 days with their dates, then what is running, the
- * free trials with the days they have left, what Budget is not sure about
+ * free trials with the days they have left, what Latchet is not sure about
  * ("To review"), and at the end, folded away, what has ended or was
  * cancelled. A subscription the user said is not one (dismissed) is never
  * listed again.

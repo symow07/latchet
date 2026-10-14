@@ -1,7 +1,7 @@
 /**
  * Transactions captured while the app was not running.
  *
- * A Siri shortcut — "add twenty for coffee to Budget" — has to record
+ * A Siri shortcut — "add twenty for coffee to Latchet" — has to record
  * something without launching the app, and it cannot reach expo-sqlite: the
  * intent runs in its own process, and the database lives in the app's
  * container. So the intent appends to a small queue in a shared App Group

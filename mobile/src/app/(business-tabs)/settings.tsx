@@ -99,7 +99,7 @@ export default function BusinessSettingsScreen() {
   /**
    * Support mail, pre-filled with what makes a report actionable.
    *
-   * TODO(owner): support@realbudget.app does not exist yet — the domain is
+   * TODO(domain): support@latchet.app does not exist yet — the domain is
    * unbought. Replace it before shipping, or this silently goes nowhere.
    */
   const contactSupport = async () => {
@@ -110,7 +110,8 @@ export default function BusinessSettingsScreen() {
       account: 'business',
       business: business?.name ?? '—',
     });
-    const url = `mailto:support@realbudget.app?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    // TODO(domain): placeholder until latchet.app is bought
+    const url = `mailto:support@latchet.app?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     if (await Linking.canOpenURL(url)) await Linking.openURL(url);
     else Alert.alert(t('bizSettings.noMailTitle'), t('bizSettings.noMailBody'));
   };

@@ -3,11 +3,11 @@
  * out away from React.
  *
  * Gmail and Outlook are the main path: a button each, one honest line each on
- * what Budget reads and what it keeps, and every connection's state — reading
+ * what Latchet reads and what it keeps, and every connection's state — reading
  * its first year (with how many emails it has checked), up to date, needing
  * to be reconnected, or failing. A provider this server cannot connect is
  * shown as unavailable rather than offered. While Google has not verified
- * Budget, connecting Gmail is preceded by a word on the warning Google will
+ * Latchet, connecting Gmail is preceded by a word on the warning Google will
  * show; when Gmail's unverified cap is reached, the screen says so and points
  * to forwarding, which is the backup for every other provider (iCloud, Yahoo,
  * GMX…): the private address, its state, Gmail's confirmation code when one

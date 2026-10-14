@@ -12,6 +12,7 @@ import {
 } from './user-db';
 import { defaultAccountId, EPOCH_ISO } from './local-schema';
 import { setStorageUser, storageUser, userKeyFor } from './storage-keys';
+import { LEGACY_SHARED_DATABASE, ONBOARDING_KEY_MOVE } from './storage-migration';
 
 /**
  * The session lifecycle: whose database is open, and what an explicit
@@ -32,7 +33,7 @@ const steps: string[] = [];
 
 function freshDisk(): void {
   mem = createMemorySqlite();
-  registry = createUserDatabaseRegistry(mem.driver, { legacyFileNames: ['real_budget.db'] });
+  registry = createUserDatabaseRegistry(mem.driver, { legacyFileNames: [LEGACY_SHARED_DATABASE] });
 }
 freshDisk();
 
@@ -108,16 +109,16 @@ async function rowCount(handle: MemorySqliteHandle, table: string): Promise<numb
 
 describe('database file names', () => {
   test('a plain id names its own file', () => {
-    expect(userDatabaseFileName('Ab3_x-9')).toBe('budget_Ab3_x-9.db');
+    expect(userDatabaseFileName('Ab3_x-9')).toBe('latchet_Ab3_x-9.db');
     const longest = 'a'.repeat(64);
-    expect(userDatabaseFileName(longest)).toBe(`budget_${longest}.db`);
+    expect(userDatabaseFileName(longest)).toBe(`latchet_${longest}.db`);
   });
 
   test('an unsafe id is hashed, never used as a path', () => {
     for (const id of ['../../evil', 'a/b', 'a.b', '', 'a'.repeat(65), 'ünïcödé', 'with space', 'x\u0000y']) {
       const name = userDatabaseFileName(id);
-      expect(name).toMatch(/^budget_u[0-9a-f]{8}\.db$/);
-      expect(name).toBe(`budget_u${fnv1a32Hex(id)}.db`);
+      expect(name).toMatch(/^latchet_u[0-9a-f]{8}\.db$/);
+      expect(name).toBe(`latchet_u${fnv1a32Hex(id)}.db`);
     }
     // Deterministic, and distinct ids land in distinct files.
     expect(userDatabaseFileName('a/b')).toBe(userDatabaseFileName('a/b'));
@@ -146,7 +147,7 @@ describe('activation', () => {
   test('activating opens that user’s own file, seeded with epoch defaults', async () => {
     await session.activateUser('alice');
     expect(registry.activeUserId()).toBe('alice');
-    expect(mem.openFiles()).toEqual(['budget_alice.db']);
+    expect(mem.openFiles()).toEqual(['latchet_alice.db']);
     expect(storageUser()).toBe('alice');
 
     const db = await registry.get();
@@ -164,8 +165,8 @@ describe('activation', () => {
   test('activating the same user again is idempotent, even concurrently', async () => {
     await Promise.all([session.activateUser('alice'), session.activateUser('alice')]);
     await session.activateUser('alice');
-    expect(mem.log.filter((l) => l === 'open budget_alice.db')).toHaveLength(1);
-    expect(mem.openFiles()).toEqual(['budget_alice.db']);
+    expect(mem.log.filter((l) => l === 'open latchet_alice.db')).toHaveLength(1);
+    expect(mem.openFiles()).toEqual(['latchet_alice.db']);
   });
 
   test('switching users closes the first file before opening the second, and keeps both apart', async () => {
@@ -175,8 +176,8 @@ describe('activation', () => {
 
     await session.activateUser('bob');
     expect(registry.activeUserId()).toBe('bob');
-    expect(mem.openFiles()).toEqual(['budget_bob.db']);
-    expect(mem.log.indexOf('close budget_alice.db')).toBeLessThan(mem.log.indexOf('open budget_bob.db'));
+    expect(mem.openFiles()).toEqual(['latchet_bob.db']);
+    expect(mem.log.indexOf('close latchet_alice.db')).toBeLessThan(mem.log.indexOf('open latchet_bob.db'));
     expect(storageUser()).toBe('bob');
 
     // Bob sees none of Alice's rows, and Alice's old handle refuses to write.
@@ -207,7 +208,7 @@ describe('activation', () => {
     expect(mem.openFiles()).toEqual([]);
     await expect(registry.get()).rejects.toBeInstanceOf(NoActiveUserDatabaseError);
     // The file stays: nothing unsynced is lost when a session merely expires.
-    expect(mem.files.has('budget_alice.db')).toBe(true);
+    expect(mem.files.has('latchet_alice.db')).toBe(true);
   });
 
   test('a sign-out during a slow activation leaves nothing open behind it', async () => {
@@ -222,15 +223,15 @@ describe('activation', () => {
     expect(storageUser()).toBeNull();
   });
 
-  test('the legacy shared real_budget.db is deleted on the first activation only', async () => {
+  test('the legacy shared database file is deleted on the first activation only', async () => {
     const { Database } = await import('bun:sqlite');
-    mem.files.set('real_budget.db', new Database(':memory:'));
+    mem.files.set(LEGACY_SHARED_DATABASE, new Database(':memory:'));
     await session.activateUser('alice');
-    expect(mem.files.has('real_budget.db')).toBe(false);
+    expect(mem.files.has(LEGACY_SHARED_DATABASE)).toBe(false);
 
-    mem.files.set('real_budget.db', new Database(':memory:'));
+    mem.files.set(LEGACY_SHARED_DATABASE, new Database(':memory:'));
     await session.activateUser('bob');
-    expect(mem.files.has('real_budget.db')).toBe(true);
+    expect(mem.files.has(LEGACY_SHARED_DATABASE)).toBe(true);
   });
 
   test('defaults are seeded when the file is created, never again', async () => {
@@ -269,6 +270,52 @@ describe('activation', () => {
     expect(store.has('@account_type_olduser')).toBe(false);
     expect(store.get('@biometric_lock')).toBe('true');
     expect(store.get(userKeyFor('alice', 'linked_banks'))).toBe('[]');
+  });
+
+  test('storage migration: activation moves the onboarding records to their new key before userKey() points at the user', async () => {
+    const { from, to } = ONBOARDING_KEY_MOVE;
+    store.set(`${from}::alice`, '{"completed":true}');
+    store.set(`${from}::bob`, '{"completed":false}');
+    store.set(`${from}::carol`, '{"completed":false}');
+    store.set(userKeyFor('carol', to), '{"completed":true}');
+    const listedAs: (string | null)[] = [];
+    const getAllKeys = memoryStorage.getAllKeys;
+    memoryStorage.getAllKeys = async () => {
+      listedAs.push(storageUser());
+      return getAllKeys();
+    };
+    try {
+      const fresh = (await import('./user-session.ts?renamed-keys' as string)) as typeof session;
+      await fresh.activateUser('alice');
+    } finally {
+      memoryStorage.getAllKeys = getAllKeys;
+    }
+    // The first listing is the move, made while userKey() pointed at nobody.
+    expect(listedAs[0]).toBeNull();
+    expect(storageUser()).toBe('alice');
+    expect(store.get(userKeyFor('alice', to))).toBe('{"completed":true}');
+    expect(store.get(userKeyFor('bob', to))).toBe('{"completed":false}');
+    // A record already under the new key is the newer one.
+    expect(store.get(userKeyFor('carol', to))).toBe('{"completed":true}');
+    expect([...store.keys()].filter((k) => k.startsWith(from))).toEqual([]);
+  });
+
+  test('storage migration: a key move that fails does not stop the activation, and the next activation finishes it', async () => {
+    const { from, to } = ONBOARDING_KEY_MOVE;
+    store.set(`${from}::alice`, '{"completed":true}');
+    const getAllKeys = memoryStorage.getAllKeys;
+    memoryStorage.getAllKeys = async () => {
+      memoryStorage.getAllKeys = getAllKeys;
+      throw new Error('storage unavailable');
+    };
+    const fresh = (await import('./user-session.ts?renamed-keys-retry' as string)) as typeof session;
+    await fresh.activateUser('alice');
+    expect(registry.activeUserId()).toBe('alice');
+    expect(store.get(`${from}::alice`)).toBe('{"completed":true}');
+
+    await fresh.activateUser('bob');
+    expect(store.get(userKeyFor('alice', to))).toBe('{"completed":true}');
+    expect(store.has(`${from}::alice`)).toBe(false);
   });
 });
 
@@ -316,7 +363,7 @@ describe('signOutAndClear', () => {
       clearQueryCache: () => {
         steps.push('clearQueryCache');
         seenAtCacheClear.push({
-          file: mem.files.has('budget_alice.db'),
+          file: mem.files.has('latchet_alice.db'),
           keys: [...store.keys()].filter((k) => k.endsWith('::alice')).length,
         });
       },
@@ -348,7 +395,7 @@ describe('signOutAndClear', () => {
     expect(outcome).toEqual({ status: 'kept', pending: { unsynced: 3, flushFailed: false } });
     expect(confirmations).toEqual([{ unsynced: 3, flushFailed: false }]);
     expect(steps).toEqual(['flush']);
-    expect(mem.files.has('budget_alice.db')).toBe(true);
+    expect(mem.files.has('latchet_alice.db')).toBe(true);
     expect(registry.activeUserId()).toBe('alice');
     expect(store.has(userKeyFor('alice', '@account_type'))).toBe(true);
     expect(storageUser()).toBe('alice');
@@ -372,7 +419,7 @@ describe('signOutAndClear', () => {
     expect(confirmations).toEqual([{ unsynced: 0, flushFailed: true }]);
     expect(outcome.status).toBe('signed-out');
     expect(steps).toEqual(['flush', 'signOut', 'deleteUserDatabase', 'removeUserKeys', 'clearQueryCache', 'resetAccountType']);
-    expect(mem.files.has('budget_alice.db')).toBe(false);
+    expect(mem.files.has('latchet_alice.db')).toBe(false);
   });
 
   test('a server sign-out that fails offline still clears the phone', async () => {
@@ -388,7 +435,7 @@ describe('signOutAndClear', () => {
 
     expect(outcome.status).toBe('signed-out');
     if (outcome.status === 'signed-out') expect(outcome.errors).toHaveLength(1);
-    expect(mem.files.has('budget_alice.db')).toBe(false);
+    expect(mem.files.has('latchet_alice.db')).toBe(false);
     expect(store.has(userKeyFor('alice', 'linked_banks'))).toBe(false);
   });
 

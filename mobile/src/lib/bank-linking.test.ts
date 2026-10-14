@@ -27,7 +27,7 @@ const fr = { bankLink: bankLinkStrings.fr };
 
 afterEach(() => setLocale('en'));
 
-const RETURN = 'realbudget://bank/linked';
+const RETURN = 'latchet://bank/linked';
 const noSleep = async () => {};
 
 /** A scripted server and browser; every effect recorded. */

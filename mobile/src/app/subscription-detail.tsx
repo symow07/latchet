@@ -58,7 +58,7 @@ import { t } from '@/lib/i18n/core';
  * be undone on the spot.
  *
  * Below: a charge after cancelling, the price history, the facts (cadence,
- * trial end, next and last charge, who bills it, where Budget found it), the
+ * trial end, next and last charge, who bills it, where Latchet found it), the
  * guided cancellation and every charge behind it. The guide (cancel-directory)
  * sends the user to the right place — the App Store, Google Play, PayPal, the
  * service's own page — and never promises to cancel for them; once they have

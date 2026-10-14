@@ -28,12 +28,34 @@ import {
   userKey,
   userKeyFor,
 } from './storage-keys';
+import { migrateAsyncStorageKeys } from './storage-migration';
 
 export { DEVICE_STORAGE_KEYS, USER_STORAGE_KEYS, userKey, userKeyFor };
 
 async function storage() {
   const mod = await import('@react-native-async-storage/async-storage');
   return mod.default;
+}
+
+let renamedKeysMoved = false;
+
+/**
+ * Move the keys an install from before the rename holds under their old
+ * names (storage-migration.ts). Until one run has moved everything, every
+ * activation tries again; a failure is logged and the activation goes on.
+ */
+async function moveRenamedKeysOnce(): Promise<void> {
+  if (renamedKeysMoved) return;
+  try {
+    const AsyncStorage = await storage();
+    const { failed } = await migrateAsyncStorageKeys(AsyncStorage, {
+      warn: (message, error) => console.warn(`[user-session] ${message}`, error ?? ''),
+      info: (message) => console.log(`[user-session] ${message}`),
+    });
+    renamedKeysMoved = failed === 0;
+  } catch (e) {
+    console.warn('[user-session] moving renamed keys failed', e);
+  }
 }
 
 let legacyKeysCleaned = false;
@@ -77,6 +99,9 @@ export async function activateUser(userId: string): Promise<void> {
   // in this window must not resolve to the user who is leaving.
   if (storageUser() !== userId) setStorageUser(null);
   await openUserDatabase(userId);
+  // Before userKey() points at this user: the onboarding record is read as
+  // soon as the activation resolves, and must be found under its new name.
+  await moveRenamedKeysOnce();
   // A later activation (or a sign-out) may have overtaken this one while the
   // file was opening; only the user whose database is actually active wins.
   if (activeUserId() === userId) setStorageUser(userId);

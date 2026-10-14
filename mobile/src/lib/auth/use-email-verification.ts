@@ -14,7 +14,7 @@ import { useResendCooldown } from './use-resend-cooldown';
  * sign-up, and this is where someone who missed it gets another.
  *
  * Verifying happens outside the app — the link opens in a browser and the
- * server redirects to realbudget://verify-email — so the state is re-read
+ * server redirects to latchet://verify-email — so the state is re-read
  * from the server whenever the screen using this comes back into focus while
  * the address is still unverified. Quietly: a failed read changes nothing.
  */

@@ -10,6 +10,7 @@ import {
   SYNC_ENTITIES,
   upgradeLocalSchema,
 } from './local-schema';
+import { LEGACY_SHARED_DATABASE } from './storage-migration';
 import { createSqliteSyncStore } from './sync/sqlite-store';
 import { writeDetectedSubscription } from './sync/subscription-rows';
 import type { LocalEmailFinding, SqlDb } from './db';
@@ -31,7 +32,7 @@ mock.module('expo-sqlite', () => mem.expoSqlite);
 
 const { Database } = await import('bun:sqlite');
 // The legacy shared file, as a phone upgraded from the previous version has it.
-mem.files.set('real_budget.db', new Database(':memory:'));
+mem.files.set(LEGACY_SHARED_DATABASE, new Database(':memory:'));
 
 const db = (await import('./db.ts?isolated' as string)) as typeof import('./db');
 
@@ -79,8 +80,8 @@ const expense = (over: Partial<Parameters<typeof db.addTransaction>[0]> = {}) =>
 
 describe('per-user files', () => {
   test('the legacy shared file is gone, and each user has their own', async () => {
-    expect(mem.files.has('real_budget.db')).toBe(false);
-    expect(mem.files.has(`budget_${userId}.db`)).toBe(true);
+    expect(mem.files.has(LEGACY_SHARED_DATABASE)).toBe(false);
+    expect(mem.files.has(`latchet_${userId}.db`)).toBe(true);
     expect(db.activeUserId()).toBe(userId);
   });
 
@@ -100,7 +101,7 @@ describe('per-user files', () => {
     await expect(db.getTransactions()).rejects.toThrow(/nobody is signed in/);
     await expect(db.addTransaction(expense())).rejects.toThrow(/nobody is signed in/);
     await db.deleteUserDatabase(userId);
-    expect(mem.files.has(`budget_${userId}.db`)).toBe(false);
+    expect(mem.files.has(`latchet_${userId}.db`)).toBe(false);
     // Deleting a file that is not there is not an error.
     await db.deleteUserDatabase(userId);
   });
@@ -607,7 +608,7 @@ describe('local schema version 2', () => {
 
   test('a file the Phase 5 build made is brought to version 2 as it opens: columns, decisions, the cache, one full pull, no second seed', async () => {
     const owner = `${userId}_v1`;
-    mem.files.set(`budget_${owner}.db`, await phase5File(owner));
+    mem.files.set(`latchet_${owner}.db`, await phase5File(owner));
     await db.openUserDatabase(owner);
     const file = await db.getDatabase();
 
@@ -659,7 +660,7 @@ describe('local schema version 2', () => {
     const owner = `${userId}_half`;
     const half = await phase5File(owner);
     half.exec(`DELETE FROM migrations; DELETE FROM local_meta; DELETE FROM subscriptions; DELETE FROM sync_meta`);
-    mem.files.set(`budget_${owner}.db`, half);
+    mem.files.set(`latchet_${owner}.db`, half);
     await db.openUserDatabase(owner);
     expect((await (await db.getDatabase()).getAllAsync<{ key: string }>(`SELECT key FROM migrations`)).map((m) => m.key)).toEqual([
       'schema_v2',

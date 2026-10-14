@@ -412,7 +412,7 @@ export function buildAIPrompt(
   systemOnly = false
 ): string {
   if (!analysis || !settings) {
-    const intro = `You are a friendly AI financial advisor built into a personal budgeting app called "Budget". The user has not added any transactions yet, so you don't have spending data to analyze. Be helpful, friendly, and encourage them to start tracking their expenses to get personalized advice.
+    const intro = `You are a friendly AI financial advisor built into a personal budgeting app called "Latchet". The user has not added any transactions yet, so you don't have spending data to analyze. Be helpful, friendly, and encourage them to start tracking their expenses to get personalized advice.
 
 ${localeInstruction(locale, [])}`;
     if (systemOnly) return intro;
@@ -439,7 +439,7 @@ Respond as the AI financial advisor:`;
   const savingsGoal = Number(settings.savingsGoal) || 0;
   const hourlyValue = Number(settings.hourlyValue) || 0;
 
-  const systemContext = `You are a friendly and knowledgeable AI financial advisor built into a personal budgeting app called "Budget". You help users understand and improve their spending habits.
+  const systemContext = `You are a friendly and knowledgeable AI financial advisor built into a personal budgeting app called "Latchet". You help users understand and improve their spending habits.
 
 USER'S FINANCIAL PROFILE:
 - Monthly Budget: ${currencySymbol}${monthlyBudget.toFixed(2)}

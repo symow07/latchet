@@ -17,10 +17,10 @@ import { useInvalidateSession } from '@/lib/auth/use-session';
 import { t } from '@/lib/i18n/core';
 
 const SECURE_STORE_PROBE_KEYS = [
-  'realbudget.session_token',
-  'realbudget.cookie',
-  'realbudget_session_token',
-  'realbudget_cookie',
+  'latchet.session_token',
+  'latchet.cookie',
+  'latchet_session_token',
+  'latchet_cookie',
 ];
 
 async function probeSecureStore(label: string) {

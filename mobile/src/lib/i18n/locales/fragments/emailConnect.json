@@ -1,7 +1,7 @@
 {
   "en": {
     "title": "Email receipts",
-    "intro": "Budget finds subscriptions and free trials in your billing emails, and warns you before the next charge.",
+    "intro": "Latchet finds subscriptions and free trials in your billing emails, and warns you before the next charge.",
     "provider": {
       "gmail": "Gmail",
       "outlook": "Outlook",
@@ -15,23 +15,23 @@
     "connectAnother": "Connect another %{provider} account",
     "noProviders": "Connecting Gmail or Outlook isn't available yet. Forward your receipts instead.",
     "reads": {
-      "title": "What Budget reads",
+      "title": "What Latchet reads",
       "reads": "Only billing emails: receipts, renewals, free trials, price changes and cancellations.",
       "keeps": "It keeps what they say — who, how much, when — never the emails themselves.",
       "readOnly": "Read-only: it can't send, delete or change anything in your inbox."
     },
     "unverified": {
       "title": "Google will show a warning first",
-      "body": "Google hasn't finished reviewing Budget yet, so before its sign-in page it shows a screen saying it hasn't verified this app.",
+      "body": "Google hasn't finished reviewing Latchet yet, so before its sign-in page it shows a screen saying it hasn't verified this app.",
       "step1": "Tap the “Advanced” link.",
       "step2": "Tap the “Go to … (unsafe)” link to continue.",
-      "step3": "Allow Budget to read your email. It's read-only.",
+      "step3": "Allow Latchet to read your email. It's read-only.",
       "continue": "Continue to Google",
       "notNow": "Not now"
     },
     "cap": {
       "title": "Gmail connections are full for now",
-      "body": "Until Google finishes reviewing Budget, only a limited number of people can connect Gmail. Forward your receipts instead: it works with Gmail too."
+      "body": "Until Google finishes reviewing Latchet, only a limited number of people can connect Gmail. Forward your receipts instead: it works with Gmail too."
     },
     "state": {
       "backfilling": "Reading your last year of email…",
@@ -39,9 +39,9 @@
       "upToDate": "Up to date · checked %{when}",
       "upToDateNoTime": "Up to date",
       "waiting": "Waiting for the first check",
-      "retrying": "The last check didn't finish. Budget will try again.",
+      "retrying": "The last check didn't finish. Latchet will try again.",
       "needsReauth": "Access was removed or has expired. Reconnect to keep finding subscriptions.",
-      "noMailbox": "This account has no mailbox Budget can read.",
+      "noMailbox": "This account has no mailbox Latchet can read.",
       "error": "Something went wrong reading this inbox. Reconnect to try again."
     },
     "scanned": {
@@ -89,20 +89,20 @@
     "disconnect": {
       "action": "Disconnect",
       "title": "Disconnect %{address}?",
-      "body": "Budget stops reading this inbox and deletes what it found there. Subscriptions already in your list stay.",
-      "outlookManual": "Microsoft doesn't let apps remove their own access to personal accounts: after disconnecting, you remove Budget on Microsoft's page.",
+      "body": "Latchet stops reading this inbox and deletes what it found there. Subscriptions already in your list stay.",
+      "outlookManual": "Microsoft doesn't let apps remove their own access to personal accounts: after disconnecting, you remove Latchet on Microsoft's page.",
       "confirm": "Disconnect",
       "keep": "Keep it connected",
       "failed": "Couldn't disconnect. Try again.",
-      "revoked": "Disconnected. Budget's access is removed.",
+      "revoked": "Disconnected. Latchet's access is removed.",
       "manualTitle": "One more step",
-      "manualBody": "Budget no longer reads this inbox. To remove its access completely, remove Budget on %{provider}'s page.",
+      "manualBody": "Latchet no longer reads this inbox. To remove its access completely, remove Latchet on %{provider}'s page.",
       "openManual": "Open %{provider}'s page",
       "done": "Done"
     },
     "forwarding": {
       "title": "Other email: forward your receipts",
-      "body": "For iCloud, Yahoo, GMX or any other email, forward billing emails to your private Budget address.",
+      "body": "For iCloud, Yahoo, GMX or any other email, forward billing emails to your private Latchet address.",
       "unavailable": "Forwarding isn't available yet.",
       "address": "Your private address",
       "copy": "Copy address",
@@ -110,7 +110,7 @@
       "receiving": "Receiving",
       "waiting": "Waiting for the first email",
       "code": "Gmail's confirmation code",
-      "codeBody": "Gmail asks for this code when you add your Budget address for forwarding.",
+      "codeBody": "Gmail asks for this code when you add your Latchet address for forwarding.",
       "which": "Your email",
       "loadFailed": "Couldn't get your address. Pull down to try again.",
       "providers": {
@@ -123,32 +123,32 @@
       "steps": {
         "icloud": {
           "s1": "On icloud.com, open Mail, then Settings › Rules.",
-          "s2": "Add a rule: if the subject contains “receipt”, forward it to your Budget address.",
+          "s2": "Add a rule: if the subject contains “receipt”, forward it to your Latchet address.",
           "s3": "Add the same rule for “invoice”, “renewal” and “subscription”."
         },
         "yahoo": {
           "s1": "Yahoo forwards automatically only on paid plans: open each billing email and tap Forward.",
-          "s2": "Send it to your Budget address. Budget reads what arrives there."
+          "s2": "Send it to your Latchet address. Latchet reads what arrives there."
         },
         "gmx": {
           "s1": "In GMX on the web, open Settings › Filter rules, and create a rule.",
-          "s2": "If the subject contains “invoice”, “receipt” or “Rechnung”, forward it to your Budget address.",
+          "s2": "If the subject contains “invoice”, “receipt” or “Rechnung”, forward it to your Latchet address.",
           "s3": "If your plan can't forward, forward each billing email yourself."
         },
         "gmail": {
           "s1": "In Gmail on the web: Settings › See all settings › Forwarding and POP/IMAP › Add a forwarding address.",
-          "s2": "Paste your Budget address. Gmail sends a code: it appears on this screen. Type it into Gmail.",
-          "s3": "Create a filter for receipt OR invoice OR renewal OR subscription, and choose “Forward it to” your Budget address."
+          "s2": "Paste your Latchet address. Gmail sends a code: it appears on this screen. Type it into Gmail.",
+          "s3": "Create a filter for receipt OR invoice OR renewal OR subscription, and choose “Forward it to” your Latchet address."
         },
         "other": {
-          "s1": "Most email apps have rules or filters that can forward a message: forward billing emails to your Budget address.",
-          "s2": "No rules? Forward each receipt yourself. Budget reads what arrives there."
+          "s1": "Most email apps have rules or filters that can forward a message: forward billing emails to your Latchet address.",
+          "s2": "No rules? Forward each receipt yourself. Latchet reads what arrives there."
         }
       }
     },
     "findings": {
       "title": "Recently found",
-      "empty": "Nothing found yet. Billing emails show up here as Budget reads them.",
+      "empty": "Nothing found yet. Billing emails show up here as Latchet reads them.",
       "unknown": "Unknown sender"
     },
     "kind": {
@@ -168,7 +168,7 @@
       },
       "failed": "Couldn't check right now. Try again in a minute."
     },
-    "loadFailed": "Couldn't reach Budget. Pull down to try again.",
+    "loadFailed": "Couldn't reach Latchet. Pull down to try again.",
     "card": {
       "title": "Find subscriptions in your email",
       "connect": "Connect Gmail or Outlook, or forward your receipts",
@@ -188,7 +188,7 @@
   },
   "fr": {
     "title": "Reçus par e-mail",
-    "intro": "Budget trouve les abonnements et les essais gratuits dans vos e-mails de facturation, et vous prévient avant le prochain prélèvement.",
+    "intro": "Latchet trouve les abonnements et les essais gratuits dans vos e-mails de facturation, et vous prévient avant le prochain prélèvement.",
     "provider": {
       "gmail": "Gmail",
       "outlook": "Outlook",
@@ -202,23 +202,23 @@
     "connectAnother": "Connecter un autre compte %{provider}",
     "noProviders": "La connexion de Gmail ou Outlook n'est pas encore disponible. Transférez plutôt vos reçus.",
     "reads": {
-      "title": "Ce que Budget lit",
+      "title": "Ce que Latchet lit",
       "reads": "Uniquement les e-mails de facturation : reçus, renouvellements, essais gratuits, hausses de prix et résiliations.",
       "keeps": "Il garde ce qu'ils disent — qui, combien, quand — jamais les e-mails eux-mêmes.",
       "readOnly": "Lecture seule : il ne peut rien envoyer, supprimer ni modifier dans votre boîte."
     },
     "unverified": {
       "title": "Google affichera d'abord un avertissement",
-      "body": "Google n'a pas fini d'examiner Budget : avant sa page de connexion, il affiche un écran indiquant qu'il n'a pas validé cette application.",
+      "body": "Google n'a pas fini d'examiner Latchet : avant sa page de connexion, il affiche un écran indiquant qu'il n'a pas validé cette application.",
       "step1": "Touchez « Paramètres avancés ».",
       "step2": "Touchez le lien « Accéder à … (non sécurisé) » pour continuer.",
-      "step3": "Autorisez Budget à lire vos e-mails. C'est en lecture seule.",
+      "step3": "Autorisez Latchet à lire vos e-mails. C'est en lecture seule.",
       "continue": "Continuer vers Google",
       "notNow": "Plus tard"
     },
     "cap": {
       "title": "Les connexions Gmail sont complètes pour l'instant",
-      "body": "Tant que Google n'a pas fini d'examiner Budget, peu de personnes peuvent connecter Gmail. Transférez plutôt vos reçus : cela marche aussi avec Gmail."
+      "body": "Tant que Google n'a pas fini d'examiner Latchet, peu de personnes peuvent connecter Gmail. Transférez plutôt vos reçus : cela marche aussi avec Gmail."
     },
     "state": {
       "backfilling": "Lecture de votre dernière année d'e-mails…",
@@ -226,9 +226,9 @@
       "upToDate": "À jour · vérifié %{when}",
       "upToDateNoTime": "À jour",
       "waiting": "En attente de la première vérification",
-      "retrying": "La dernière vérification n'a pas abouti. Budget réessaiera.",
+      "retrying": "La dernière vérification n'a pas abouti. Latchet réessaiera.",
       "needsReauth": "L'accès a été retiré ou a expiré. Reconnectez pour continuer à trouver vos abonnements.",
-      "noMailbox": "Ce compte n'a pas de boîte que Budget peut lire.",
+      "noMailbox": "Ce compte n'a pas de boîte que Latchet peut lire.",
       "error": "Un problème est survenu en lisant cette boîte. Reconnectez pour réessayer."
     },
     "scanned": {
@@ -276,20 +276,20 @@
     "disconnect": {
       "action": "Déconnecter",
       "title": "Déconnecter %{address} ?",
-      "body": "Budget cesse de lire cette boîte et supprime ce qu'il y a trouvé. Les abonnements déjà dans votre liste restent.",
-      "outlookManual": "Microsoft ne permet pas aux applications de retirer leur propre accès aux comptes personnels : après la déconnexion, retirez Budget sur la page de Microsoft.",
+      "body": "Latchet cesse de lire cette boîte et supprime ce qu'il y a trouvé. Les abonnements déjà dans votre liste restent.",
+      "outlookManual": "Microsoft ne permet pas aux applications de retirer leur propre accès aux comptes personnels : après la déconnexion, retirez Latchet sur la page de Microsoft.",
       "confirm": "Déconnecter",
       "keep": "Rester connecté",
       "failed": "Impossible de déconnecter. Réessayez.",
-      "revoked": "Déconnecté. L'accès de Budget est retiré.",
+      "revoked": "Déconnecté. L'accès de Latchet est retiré.",
       "manualTitle": "Encore une étape",
-      "manualBody": "Budget ne lit plus cette boîte. Pour retirer complètement son accès, retirez Budget sur la page de %{provider}.",
+      "manualBody": "Latchet ne lit plus cette boîte. Pour retirer complètement son accès, retirez Latchet sur la page de %{provider}.",
       "openManual": "Ouvrir la page de %{provider}",
       "done": "Terminé"
     },
     "forwarding": {
       "title": "Autres e-mails : transférez vos reçus",
-      "body": "Pour iCloud, Yahoo, GMX ou toute autre messagerie, transférez vos e-mails de facturation à votre adresse Budget privée.",
+      "body": "Pour iCloud, Yahoo, GMX ou toute autre messagerie, transférez vos e-mails de facturation à votre adresse Latchet privée.",
       "unavailable": "Le transfert n'est pas encore disponible.",
       "address": "Votre adresse privée",
       "copy": "Copier l'adresse",
@@ -297,7 +297,7 @@
       "receiving": "Reçoit",
       "waiting": "En attente du premier e-mail",
       "code": "Code de confirmation Gmail",
-      "codeBody": "Gmail demande ce code quand vous ajoutez votre adresse Budget pour le transfert.",
+      "codeBody": "Gmail demande ce code quand vous ajoutez votre adresse Latchet pour le transfert.",
       "which": "Votre messagerie",
       "loadFailed": "Impossible d'obtenir votre adresse. Tirez vers le bas pour réessayer.",
       "providers": {
@@ -310,26 +310,26 @@
       "steps": {
         "icloud": {
           "s1": "Sur icloud.com, ouvrez Mail, puis Réglages › Règles.",
-          "s2": "Ajoutez une règle : si l'objet contient « reçu », transférez à votre adresse Budget.",
+          "s2": "Ajoutez une règle : si l'objet contient « reçu », transférez à votre adresse Latchet.",
           "s3": "Ajoutez la même règle pour « facture », « renouvellement » et « abonnement »."
         },
         "yahoo": {
           "s1": "Yahoo ne transfère automatiquement qu'avec une offre payante : ouvrez chaque e-mail de facturation et touchez Transférer.",
-          "s2": "Envoyez-le à votre adresse Budget. Budget lit ce qui y arrive."
+          "s2": "Envoyez-le à votre adresse Latchet. Latchet lit ce qui y arrive."
         },
         "gmx": {
           "s1": "Dans GMX sur le web, ouvrez Paramètres › Règles de filtrage, et créez une règle.",
-          "s2": "Si l'objet contient « facture », « reçu » ou « Rechnung », transférez à votre adresse Budget.",
+          "s2": "Si l'objet contient « facture », « reçu » ou « Rechnung », transférez à votre adresse Latchet.",
           "s3": "Si votre offre ne permet pas le transfert, transférez vous-même chaque e-mail de facturation."
         },
         "gmail": {
           "s1": "Dans Gmail sur le web : Paramètres › Voir tous les paramètres › Transfert et POP/IMAP › Ajouter une adresse de transfert.",
-          "s2": "Collez votre adresse Budget. Gmail envoie un code : il s'affiche sur cet écran. Saisissez-le dans Gmail.",
-          "s3": "Créez un filtre pour reçu OR facture OR renouvellement OR abonnement, et choisissez « Transférer à » votre adresse Budget."
+          "s2": "Collez votre adresse Latchet. Gmail envoie un code : il s'affiche sur cet écran. Saisissez-le dans Gmail.",
+          "s3": "Créez un filtre pour reçu OR facture OR renouvellement OR abonnement, et choisissez « Transférer à » votre adresse Latchet."
         },
         "other": {
-          "s1": "La plupart des messageries ont des règles ou filtres qui transfèrent un message : transférez les e-mails de facturation à votre adresse Budget.",
-          "s2": "Pas de règles ? Transférez vous-même chaque reçu. Budget lit ce qui y arrive."
+          "s1": "La plupart des messageries ont des règles ou filtres qui transfèrent un message : transférez les e-mails de facturation à votre adresse Latchet.",
+          "s2": "Pas de règles ? Transférez vous-même chaque reçu. Latchet lit ce qui y arrive."
         }
       }
     },
@@ -355,7 +355,7 @@
       },
       "failed": "Impossible de vérifier maintenant. Réessayez dans une minute."
     },
-    "loadFailed": "Impossible de joindre Budget. Tirez vers le bas pour réessayer.",
+    "loadFailed": "Impossible de joindre Latchet. Tirez vers le bas pour réessayer.",
     "card": {
       "title": "Trouver vos abonnements dans vos e-mails",
       "connect": "Connectez Gmail ou Outlook, ou transférez vos reçus",
@@ -375,7 +375,7 @@
   },
   "zh": {
     "title": "邮件收据",
-    "intro": "Budget 会从你的账单邮件中找出订阅和免费试用，并在下次扣款前提醒你。",
+    "intro": "Latchet 会从你的账单邮件中找出订阅和免费试用，并在下次扣款前提醒你。",
     "provider": {
       "gmail": "Gmail",
       "outlook": "Outlook",
@@ -389,23 +389,23 @@
     "connectAnother": "连接另一个 %{provider} 账户",
     "noProviders": "暂时无法连接 Gmail 或 Outlook。请改为转发你的收据。",
     "reads": {
-      "title": "Budget 读取什么",
+      "title": "Latchet 读取什么",
       "reads": "只读取账单邮件：收据、续费、免费试用、涨价和取消通知。",
       "keeps": "只保留邮件中的信息——商家、金额、日期——从不保存邮件本身。",
       "readOnly": "只读权限：无法发送、删除或更改你邮箱中的任何内容。"
     },
     "unverified": {
       "title": "Google 会先显示一条警告",
-      "body": "Google 尚未完成对 Budget 的审核，因此在登录页面之前会显示“Google 尚未验证此应用”。",
+      "body": "Google 尚未完成对 Latchet 的审核，因此在登录页面之前会显示“Google 尚未验证此应用”。",
       "step1": "轻点“高级”。",
       "step2": "轻点“转至 …（不安全）”链接继续。",
-      "step3": "允许 Budget 读取你的邮件。仅为只读权限。",
+      "step3": "允许 Latchet 读取你的邮件。仅为只读权限。",
       "continue": "继续前往 Google",
       "notNow": "以后再说"
     },
     "cap": {
       "title": "Gmail 连接名额暂时已满",
-      "body": "在 Google 完成对 Budget 的审核之前，只有有限的人数可以连接 Gmail。请改为转发你的收据：Gmail 同样适用。"
+      "body": "在 Google 完成对 Latchet 的审核之前，只有有限的人数可以连接 Gmail。请改为转发你的收据：Gmail 同样适用。"
     },
     "state": {
       "backfilling": "正在读取你过去一年的邮件…",
@@ -413,9 +413,9 @@
       "upToDate": "已是最新 · %{when}检查",
       "upToDateNoTime": "已是最新",
       "waiting": "等待首次检查",
-      "retrying": "上次检查未完成，Budget 会再次尝试。",
+      "retrying": "上次检查未完成，Latchet 会再次尝试。",
       "needsReauth": "访问权限已被移除或已过期。请重新连接以继续查找订阅。",
-      "noMailbox": "此账户没有 Budget 可以读取的邮箱。",
+      "noMailbox": "此账户没有 Latchet 可以读取的邮箱。",
       "error": "读取此邮箱时出错。请重新连接后再试。"
     },
     "scanned": {
@@ -463,20 +463,20 @@
     "disconnect": {
       "action": "断开连接",
       "title": "断开 %{address}？",
-      "body": "Budget 将停止读取此邮箱，并删除在其中找到的内容。列表中已有的订阅会保留。",
-      "outlookManual": "Microsoft 不允许应用自行移除对个人账户的访问权限：断开后，请在 Microsoft 的页面上移除 Budget。",
+      "body": "Latchet 将停止读取此邮箱，并删除在其中找到的内容。列表中已有的订阅会保留。",
+      "outlookManual": "Microsoft 不允许应用自行移除对个人账户的访问权限：断开后，请在 Microsoft 的页面上移除 Latchet。",
       "confirm": "断开连接",
       "keep": "保持连接",
       "failed": "无法断开连接，请重试。",
-      "revoked": "已断开。Budget 的访问权限已移除。",
+      "revoked": "已断开。Latchet 的访问权限已移除。",
       "manualTitle": "还有一步",
-      "manualBody": "Budget 不再读取此邮箱。要彻底移除其访问权限，请在 %{provider} 的页面上移除 Budget。",
+      "manualBody": "Latchet 不再读取此邮箱。要彻底移除其访问权限，请在 %{provider} 的页面上移除 Latchet。",
       "openManual": "打开 %{provider} 的页面",
       "done": "完成"
     },
     "forwarding": {
       "title": "其他邮箱：转发你的收据",
-      "body": "iCloud、Yahoo、GMX 或其他任何邮箱，都可以把账单邮件转发到你的 Budget 专属地址。",
+      "body": "iCloud、Yahoo、GMX 或其他任何邮箱，都可以把账单邮件转发到你的 Latchet 专属地址。",
       "unavailable": "转发功能暂不可用。",
       "address": "你的专属地址",
       "copy": "复制地址",
@@ -484,7 +484,7 @@
       "receiving": "正在接收",
       "waiting": "等待第一封邮件",
       "code": "Gmail 确认码",
-      "codeBody": "在 Gmail 中添加 Budget 地址作为转发地址时，需要输入此确认码。",
+      "codeBody": "在 Gmail 中添加 Latchet 地址作为转发地址时，需要输入此确认码。",
       "which": "你的邮箱",
       "loadFailed": "无法获取你的地址。下拉重试。",
       "providers": {
@@ -497,32 +497,32 @@
       "steps": {
         "icloud": {
           "s1": "在 icloud.com 上打开“邮件”，然后进入 设置 › 规则。",
-          "s2": "添加规则：如果主题包含“receipt”或“收据”，则转发到你的 Budget 地址。",
+          "s2": "添加规则：如果主题包含“receipt”或“收据”，则转发到你的 Latchet 地址。",
           "s3": "为“invoice”“renewal”“subscription”（或“发票”“续费”“订阅”）添加同样的规则。"
         },
         "yahoo": {
           "s1": "Yahoo 只有付费套餐才能自动转发：请打开每封账单邮件并轻点“转发”。",
-          "s2": "发送到你的 Budget 地址。Budget 会读取收到的邮件。"
+          "s2": "发送到你的 Latchet 地址。Latchet 会读取收到的邮件。"
         },
         "gmx": {
           "s1": "在网页版 GMX 中打开 设置 › 过滤规则，然后新建规则。",
-          "s2": "如果主题包含“invoice”“receipt”或“Rechnung”，则转发到你的 Budget 地址。",
+          "s2": "如果主题包含“invoice”“receipt”或“Rechnung”，则转发到你的 Latchet 地址。",
           "s3": "如果你的套餐不支持转发，请手动转发每封账单邮件。"
         },
         "gmail": {
           "s1": "在网页版 Gmail 中：设置 › 查看所有设置 › 转发和 POP/IMAP › 添加转发地址。",
-          "s2": "粘贴你的 Budget 地址。Gmail 会发送一个确认码，它会显示在此页面上，把它输入 Gmail。",
-          "s3": "为 receipt OR invoice OR renewal OR subscription 创建过滤器，并选择“转发到”你的 Budget 地址。"
+          "s2": "粘贴你的 Latchet 地址。Gmail 会发送一个确认码，它会显示在此页面上，把它输入 Gmail。",
+          "s3": "为 receipt OR invoice OR renewal OR subscription 创建过滤器，并选择“转发到”你的 Latchet 地址。"
         },
         "other": {
-          "s1": "大多数邮箱都有可以转发邮件的规则或过滤器：把账单邮件转发到你的 Budget 地址。",
-          "s2": "没有规则？那就手动转发每封收据。Budget 会读取收到的邮件。"
+          "s1": "大多数邮箱都有可以转发邮件的规则或过滤器：把账单邮件转发到你的 Latchet 地址。",
+          "s2": "没有规则？那就手动转发每封收据。Latchet 会读取收到的邮件。"
         }
       }
     },
     "findings": {
       "title": "最近找到",
-      "empty": "还没有找到。Budget 读取到账单邮件后会显示在这里。",
+      "empty": "还没有找到。Latchet 读取到账单邮件后会显示在这里。",
       "unknown": "未知发件人"
     },
     "kind": {
@@ -542,7 +542,7 @@
       },
       "failed": "现在无法检查。请一分钟后重试。"
     },
-    "loadFailed": "无法连接 Budget。下拉重试。",
+    "loadFailed": "无法连接 Latchet。下拉重试。",
     "card": {
       "title": "在邮件中查找订阅",
       "connect": "连接 Gmail 或 Outlook，或转发你的收据",
@@ -562,7 +562,7 @@
   },
   "ar": {
     "title": "إيصالات البريد",
-    "intro": "يجد Budget الاشتراكات والتجارب المجانية في رسائل الفواتير، وينبّهك قبل الاقتطاع القادم.",
+    "intro": "يجد Latchet الاشتراكات والتجارب المجانية في رسائل الفواتير، وينبّهك قبل الاقتطاع القادم.",
     "provider": {
       "gmail": "Gmail",
       "outlook": "Outlook",
@@ -576,23 +576,23 @@
     "connectAnother": "اربط حساب %{provider} آخر",
     "noProviders": "ربط Gmail أو Outlook غير متاح بعد. أعد توجيه إيصالاتك بدلًا من ذلك.",
     "reads": {
-      "title": "ما يقرؤه Budget",
+      "title": "ما يقرؤه Latchet",
       "reads": "رسائل الفواتير فقط: الإيصالات والتجديدات والتجارب المجانية وتغييرات الأسعار والإلغاءات.",
       "keeps": "يحتفظ بما تقوله — من، وكم، ومتى — ولا يحتفظ بالرسائل نفسها أبدًا.",
       "readOnly": "قراءة فقط: لا يستطيع إرسال أي شيء أو حذفه أو تغييره في بريدك."
     },
     "unverified": {
       "title": "سيعرض Google تحذيرًا أولًا",
-      "body": "لم يُنهِ Google مراجعة Budget بعد، لذا يعرض قبل صفحة تسجيل الدخول شاشة تقول إنه لم يتحقق من هذا التطبيق.",
+      "body": "لم يُنهِ Google مراجعة Latchet بعد، لذا يعرض قبل صفحة تسجيل الدخول شاشة تقول إنه لم يتحقق من هذا التطبيق.",
       "step1": "اضغط «إعدادات متقدمة».",
       "step2": "اضغط رابط «الانتقال إلى … (غير آمن)» للمتابعة.",
-      "step3": "اسمح لـ Budget بقراءة بريدك. الإذن للقراءة فقط.",
+      "step3": "اسمح لـ Latchet بقراءة بريدك. الإذن للقراءة فقط.",
       "continue": "المتابعة إلى Google",
       "notNow": "ليس الآن"
     },
     "cap": {
       "title": "اكتملت اتصالات Gmail حاليًا",
-      "body": "إلى أن يُنهي Google مراجعة Budget، لا يستطيع ربط Gmail إلا عدد محدود من الأشخاص. أعد توجيه إيصالاتك بدلًا من ذلك: الطريقة تعمل مع Gmail أيضًا."
+      "body": "إلى أن يُنهي Google مراجعة Latchet، لا يستطيع ربط Gmail إلا عدد محدود من الأشخاص. أعد توجيه إيصالاتك بدلًا من ذلك: الطريقة تعمل مع Gmail أيضًا."
     },
     "state": {
       "backfilling": "جارٍ قراءة بريد السنة الماضية…",
@@ -600,9 +600,9 @@
       "upToDate": "محدَّث · آخر تحقق %{when}",
       "upToDateNoTime": "محدَّث",
       "waiting": "في انتظار أول تحقق",
-      "retrying": "لم يكتمل آخر تحقق. سيحاول Budget مجددًا.",
+      "retrying": "لم يكتمل آخر تحقق. سيحاول Latchet مجددًا.",
       "needsReauth": "أُزيل الإذن أو انتهت صلاحيته. أعد الربط لمواصلة العثور على الاشتراكات.",
-      "noMailbox": "لا يحتوي هذا الحساب على صندوق بريد يستطيع Budget قراءته.",
+      "noMailbox": "لا يحتوي هذا الحساب على صندوق بريد يستطيع Latchet قراءته.",
       "error": "حدث خطأ أثناء قراءة هذا البريد. أعد الربط للمحاولة مجددًا."
     },
     "scanned": {
@@ -668,20 +668,20 @@
     "disconnect": {
       "action": "فصل",
       "title": "فصل %{address}؟",
-      "body": "يتوقف Budget عن قراءة هذا البريد ويحذف ما وجده فيه. تبقى الاشتراكات الموجودة في قائمتك.",
-      "outlookManual": "لا تسمح Microsoft للتطبيقات بإزالة وصولها بنفسها إلى الحسابات الشخصية: بعد الفصل، أزل Budget من صفحة Microsoft.",
+      "body": "يتوقف Latchet عن قراءة هذا البريد ويحذف ما وجده فيه. تبقى الاشتراكات الموجودة في قائمتك.",
+      "outlookManual": "لا تسمح Microsoft للتطبيقات بإزالة وصولها بنفسها إلى الحسابات الشخصية: بعد الفصل، أزل Latchet من صفحة Microsoft.",
       "confirm": "فصل",
       "keep": "إبقاء الربط",
       "failed": "تعذّر الفصل. حاول مرة أخرى.",
-      "revoked": "تم الفصل. أُزيل وصول Budget.",
+      "revoked": "تم الفصل. أُزيل وصول Latchet.",
       "manualTitle": "خطوة أخيرة",
-      "manualBody": "لم يعد Budget يقرأ هذا البريد. لإزالة وصوله نهائيًا، أزل Budget من صفحة %{provider}.",
+      "manualBody": "لم يعد Latchet يقرأ هذا البريد. لإزالة وصوله نهائيًا، أزل Latchet من صفحة %{provider}.",
       "openManual": "افتح صفحة %{provider}",
       "done": "تم"
     },
     "forwarding": {
       "title": "بريد آخر: أعد توجيه إيصالاتك",
-      "body": "مع iCloud أو Yahoo أو GMX أو أي بريد آخر، أعد توجيه رسائل الفواتير إلى عنوان Budget الخاص بك.",
+      "body": "مع iCloud أو Yahoo أو GMX أو أي بريد آخر، أعد توجيه رسائل الفواتير إلى عنوان Latchet الخاص بك.",
       "unavailable": "إعادة التوجيه غير متاحة بعد.",
       "address": "عنوانك الخاص",
       "copy": "نسخ العنوان",
@@ -689,7 +689,7 @@
       "receiving": "يستقبل",
       "waiting": "في انتظار أول رسالة",
       "code": "رمز تأكيد Gmail",
-      "codeBody": "يطلب Gmail هذا الرمز عند إضافة عنوان Budget لإعادة التوجيه.",
+      "codeBody": "يطلب Gmail هذا الرمز عند إضافة عنوان Latchet لإعادة التوجيه.",
       "which": "بريدك",
       "loadFailed": "تعذّر الحصول على عنوانك. اسحب للأسفل للمحاولة مجددًا.",
       "providers": {
@@ -702,32 +702,32 @@
       "steps": {
         "icloud": {
           "s1": "على icloud.com افتح البريد، ثم الإعدادات › القواعد.",
-          "s2": "أضف قاعدة: إذا احتوى الموضوع على «receipt» أو «إيصال»، فأعد توجيهه إلى عنوان Budget.",
+          "s2": "أضف قاعدة: إذا احتوى الموضوع على «receipt» أو «إيصال»، فأعد توجيهه إلى عنوان Latchet.",
           "s3": "أضف القاعدة نفسها لـ «invoice» و«renewal» و«subscription» (أو «فاتورة» و«تجديد» و«اشتراك»)."
         },
         "yahoo": {
           "s1": "لا يعيد Yahoo التوجيه تلقائيًا إلا في الخطط المدفوعة: افتح كل رسالة فاتورة واضغط «إعادة توجيه».",
-          "s2": "أرسلها إلى عنوان Budget. يقرأ Budget ما يصل إليه."
+          "s2": "أرسلها إلى عنوان Latchet. يقرأ Latchet ما يصل إليه."
         },
         "gmx": {
           "s1": "في GMX على الويب، افتح الإعدادات › قواعد التصفية، وأنشئ قاعدة.",
-          "s2": "إذا احتوى الموضوع على «invoice» أو «receipt» أو «Rechnung»، فأعد توجيهه إلى عنوان Budget.",
+          "s2": "إذا احتوى الموضوع على «invoice» أو «receipt» أو «Rechnung»، فأعد توجيهه إلى عنوان Latchet.",
           "s3": "إذا كانت خطتك لا تسمح بإعادة التوجيه، فأعد توجيه كل رسالة فاتورة بنفسك."
         },
         "gmail": {
           "s1": "في Gmail على الويب: الإعدادات › عرض كل الإعدادات › إعادة التوجيه وPOP/IMAP › إضافة عنوان لإعادة التوجيه.",
-          "s2": "الصق عنوان Budget. سيرسل Gmail رمزًا يظهر في هذه الشاشة: أدخله في Gmail.",
-          "s3": "أنشئ عامل تصفية لـ receipt OR invoice OR renewal OR subscription، واختر «إعادة توجيهه إلى» عنوان Budget."
+          "s2": "الصق عنوان Latchet. سيرسل Gmail رمزًا يظهر في هذه الشاشة: أدخله في Gmail.",
+          "s3": "أنشئ عامل تصفية لـ receipt OR invoice OR renewal OR subscription، واختر «إعادة توجيهه إلى» عنوان Latchet."
         },
         "other": {
-          "s1": "لدى معظم تطبيقات البريد قواعد أو عوامل تصفية تعيد توجيه الرسائل: أعد توجيه رسائل الفواتير إلى عنوان Budget.",
-          "s2": "لا توجد قواعد؟ أعد توجيه كل إيصال بنفسك. يقرأ Budget ما يصل إليه."
+          "s1": "لدى معظم تطبيقات البريد قواعد أو عوامل تصفية تعيد توجيه الرسائل: أعد توجيه رسائل الفواتير إلى عنوان Latchet.",
+          "s2": "لا توجد قواعد؟ أعد توجيه كل إيصال بنفسك. يقرأ Latchet ما يصل إليه."
         }
       }
     },
     "findings": {
       "title": "وُجد مؤخرًا",
-      "empty": "لم يُعثر على شيء بعد. تظهر رسائل الفواتير هنا كلما قرأها Budget.",
+      "empty": "لم يُعثر على شيء بعد. تظهر رسائل الفواتير هنا كلما قرأها Latchet.",
       "unknown": "مرسل غير معروف"
     },
     "kind": {
@@ -750,7 +750,7 @@
       },
       "failed": "تعذّر التحقق الآن. حاول بعد دقيقة."
     },
-    "loadFailed": "تعذّر الوصول إلى Budget. اسحب للأسفل للمحاولة مجددًا.",
+    "loadFailed": "تعذّر الوصول إلى Latchet. اسحب للأسفل للمحاولة مجددًا.",
     "card": {
       "title": "اعثر على الاشتراكات في بريدك",
       "connect": "اربط Gmail أو Outlook، أو أعد توجيه إيصالاتك",

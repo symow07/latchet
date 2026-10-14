@@ -17,14 +17,14 @@ import { authErrorMessage } from '@/lib/auth/auth-errors';
 import { useInvalidateSession } from '@/lib/auth/use-session';
 import { t } from '@/lib/i18n/core';
 
-// Probe the SecureStore keys expoClient may write under storagePrefix "realbudget".
+// Probe the SecureStore keys expoClient may write under storagePrefix "latchet".
 // Both delimiters are checked because the prefix-key separator has varied across
 // versions of @better-auth/expo.
 const SECURE_STORE_PROBE_KEYS = [
-  'realbudget.session_token',
-  'realbudget.cookie',
-  'realbudget_session_token',
-  'realbudget_cookie',
+  'latchet.session_token',
+  'latchet.cookie',
+  'latchet_session_token',
+  'latchet_cookie',
 ];
 
 /**

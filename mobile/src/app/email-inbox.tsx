@@ -57,13 +57,13 @@ import {
 import { t } from '@/lib/i18n/core';
 
 /**
- * Email receipts: where Budget reads billing email from.
+ * Email receipts: where Latchet reads billing email from.
  *
  * Connecting Gmail or Outlook is the main path — a button each, one honest
- * line each on what Budget reads and keeps — and every connection says where
+ * line each on what Latchet reads and keeps — and every connection says where
  * it stands: reading its first year (with how many emails it has checked),
  * up to date, needing to be reconnected, or failing; each can be
- * disconnected, behind a confirmation. While Google has not verified Budget,
+ * disconnected, behind a confirmation. While Google has not verified Latchet,
  * connecting Gmail first explains the warning Google will show; when Gmail's
  * cap is reached the screen says so and points to forwarding. A provider the
  * server cannot connect is not offered.
@@ -572,7 +572,7 @@ export default function EmailInboxScreen() {
         </View>
       </ScrollView>
 
-      {/* Before Google's page, while Google has not verified Budget. */}
+      {/* Before Google's page, while Google has not verified Latchet. */}
       <Sheet pal={C} visible={explainGmail} onClose={() => setExplainGmail(false)} title={t('emailConnect.unverified.title')}>
         <View style={{ paddingHorizontal: S.card, paddingBottom: 8 }}>
           <Type role="body" color={C.inkDim}>

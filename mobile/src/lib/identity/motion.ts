@@ -1,5 +1,5 @@
 /**
- * The Budget identity — motion spec.
+ * The Latchet identity — motion spec.
  *
  * Fast, soft, eased, purposeful. Every duration is under 300 ms, every curve
  * arrives without overshoot, and nothing springs. Motion here has four jobs and

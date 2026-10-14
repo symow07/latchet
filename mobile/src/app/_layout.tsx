@@ -256,7 +256,7 @@ function LockScreen({ onUnlock }: { onUnlock: () => void }) {
           <Lock size={26} color={C.ink} strokeWidth={S.stroke} />
         </IconTile>
         <Type role="headline" color={C.ink} style={{ marginBottom: 6 }}>
-          Budget
+          Latchet
         </Type>
         <Type role="body" color={C.inkDim} style={{ textAlign: 'center' }}>
           {t('startup.authenticate')}

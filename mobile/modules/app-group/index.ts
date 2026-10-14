@@ -9,7 +9,7 @@ import { requireOptionalNativeModule } from 'expo';
 import { Platform } from 'react-native';
 
 /** Must match the entitlement in plugins/withShareExtension.js. */
-export const APP_GROUP = 'group.com.realbudget.app';
+export const APP_GROUP = 'group.com.latchet.app';
 
 interface AppGroupNativeModule {
   containerPath(identifier: string): string | null;

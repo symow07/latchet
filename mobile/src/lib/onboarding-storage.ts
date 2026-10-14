@@ -13,7 +13,7 @@
 import { resumeProgress, SOURCE_IDS, type OnboardingAnswers, type OnboardingProgress, type SourceId } from './onboarding-flow';
 import { userKey } from './storage-keys';
 
-const ONBOARDING_KEY = '@real_budget_onboarding';
+const ONBOARDING_KEY = '@latchet_onboarding';
 /** subscription-detection.ts's record of statement imports (time spans only). */
 const IMPORT_BATCHES_KEY = 'imported_batches_v1';
 

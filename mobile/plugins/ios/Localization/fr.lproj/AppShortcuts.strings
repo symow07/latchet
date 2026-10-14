@@ -1,5 +1,5 @@
 /* The phrases Siri listens for.
-   Keys are the English phrases exactly as written in BudgetAppIntents.swift.
+   Keys are the English phrases exactly as written in LatchetAppIntents.swift.
    Every phrase must contain ${applicationName} — the system rejects one
    without it, in every language.
 

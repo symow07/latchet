@@ -24,6 +24,10 @@ import {
  * Nothing here talks to Google, Microsoft or the network.
  */
 
+/** The private forwarding address the stand-in server hands out. */
+// TODO(domain): placeholder until latchet.app is bought
+const FORWARDING_ADDRESS = 'u-7f3a@in.latchet.app';
+
 /** What api/api.ts throws for a response that is not ok. */
 const apiError = (status: number, body: unknown) =>
   Object.assign(new Error(`HTTP ${status}`), { name: 'ApiError', status, body });
@@ -97,8 +101,8 @@ function setup(over: Partial<World> = {}) {
       conn?.provider === 'outlook'
         ? { ok: true, revoked: false, manualRevokeUrl: 'https://account.live.com/consent/Manage' }
         : { ok: true, revoked: true },
-    inbox: { address: 'u-7f3a@in.realbudget.app', verified: true, confirmationCode: null },
-    browser: { type: 'success', url: 'realbudget://email/connected?provider=gmail&result=success' },
+    inbox: { address: FORWARDING_ADDRESS, verified: true, confirmationCode: null },
+    browser: { type: 'success', url: 'latchet://email/connected?provider=gmail&result=success' },
     onPoll: () => {},
     ...over,
   };
@@ -149,7 +153,7 @@ function setup(over: Partial<World> = {}) {
       world.findings = world.findings.filter((f) => f.connectionId !== id);
       return world.deleteBody(gone) as T;
     },
-    createReturnUrl: async () => 'realbudget://email/connected',
+    createReturnUrl: async () => 'latchet://email/connected',
     openAuthSession: async (url, returnUrl) => {
       world.calls.push(`BROWSER ${url} -> ${returnUrl}`);
       if (world.browser instanceof Error) throw world.browser;
@@ -209,28 +213,28 @@ function setup(over: Partial<World> = {}) {
 
 describe('email client', () => {
   test('the browser session’s outcome: success, cancel, denied, error, and a session already open', async () => {
-    expect(readEmailBrowserResult({ type: 'success', url: 'realbudget://email/connected?provider=gmail&result=success' })).toEqual({ result: 'success' });
+    expect(readEmailBrowserResult({ type: 'success', url: 'latchet://email/connected?provider=gmail&result=success' })).toEqual({ result: 'success' });
     expect(readEmailBrowserResult({ type: 'cancel' })).toEqual({ result: 'cancel' });
     expect(readEmailBrowserResult({ type: 'dismiss' })).toEqual({ result: 'cancel' });
-    expect(readEmailBrowserResult({ type: 'success', url: 'realbudget://email/connected?provider=outlook&result=denied' })).toEqual({ result: 'denied' });
+    expect(readEmailBrowserResult({ type: 'success', url: 'latchet://email/connected?provider=outlook&result=denied' })).toEqual({ result: 'denied' });
     expect(
-      readEmailBrowserResult({ type: 'success', url: 'realbudget://email/connected?provider=gmail&result=error&reason=scope_missing#_' }),
+      readEmailBrowserResult({ type: 'success', url: 'latchet://email/connected?provider=gmail&result=error&reason=scope_missing#_' }),
     ).toEqual({ result: 'error', reason: 'scope_missing' });
-    expect(readEmailBrowserResult({ type: 'success', url: 'realbudget://email/connected' })).toEqual({ result: 'error', reason: 'no_result' });
+    expect(readEmailBrowserResult({ type: 'success', url: 'latchet://email/connected' })).toEqual({ result: 'error', reason: 'no_result' });
     expect(readEmailBrowserResult({ type: 'locked' })).toEqual({ result: 'error', reason: 'locked' });
     expect(readEmailBrowserResult(null)).toEqual({ result: 'error', reason: 'browser' });
 
     // Through connect: the browser opens on the server's URL and returns to the app's link.
     for (const [browser, expected] of [
       [{ type: 'cancel' }, { result: 'cancel' }],
-      [{ type: 'success', url: 'realbudget://email/connected?provider=gmail&result=denied' }, { result: 'denied' }],
-      [{ type: 'success', url: 'realbudget://email/connected?provider=gmail&result=error&reason=state_expired' }, { result: 'error', reason: 'state_expired' }],
+      [{ type: 'success', url: 'latchet://email/connected?provider=gmail&result=denied' }, { result: 'denied' }],
+      [{ type: 'success', url: 'latchet://email/connected?provider=gmail&result=error&reason=state_expired' }, { result: 'error', reason: 'state_expired' }],
       [new Error('ASWebAuthenticationSession failed'), { result: 'error', reason: 'browser' }],
     ] as const) {
       const t = setup({ browser: browser as BrowserResult | Error });
       expect(await t.client.connectEmailProvider('gmail')).toEqual(expected);
-      expect(t.world.calls).toContain('POST /connect/gmail {"returnUrl":"realbudget://email/connected"}');
-      expect(t.world.calls).toContain('BROWSER https://accounts.example.test/o/oauth2/auth?state=abc -> realbudget://email/connected');
+      expect(t.world.calls).toContain('POST /connect/gmail {"returnUrl":"latchet://email/connected"}');
+      expect(t.world.calls).toContain('BROWSER https://accounts.example.test/o/oauth2/auth?state=abc -> latchet://email/connected');
       // Nothing pulled, nothing detected, for a connection that did not happen.
       expect(t.world.calls.some((c) => c.startsWith('GET /findings'))).toBe(false);
       expect(t.detections()).toEqual([]);
@@ -438,18 +442,18 @@ describe('email client', () => {
   test('the forwarding address carries Gmail’s confirmation code once it has come, and nothing else', async () => {
     const t = setup();
     expect(await t.client.getForwardingAddress()).toEqual({
-      address: 'u-7f3a@in.realbudget.app',
+      address: FORWARDING_ADDRESS,
       verified: true,
       confirmationCode: null,
     });
-    t.world.inbox = { address: 'u-7f3a@in.realbudget.app', verified: false, confirmationCode: '583920174' };
+    t.world.inbox = { address: FORWARDING_ADDRESS, verified: false, confirmationCode: '583920174' };
     expect(await t.client.getForwardingAddress()).toEqual({
-      address: 'u-7f3a@in.realbudget.app',
+      address: FORWARDING_ADDRESS,
       verified: false,
       confirmationCode: '583920174',
     });
     // An older server sends no code at all.
-    t.world.inbox = { address: 'u-7f3a@in.realbudget.app' };
+    t.world.inbox = { address: FORWARDING_ADDRESS };
     expect((await t.client.getForwardingAddress()).confirmationCode).toBeNull();
 
     expect(confirmationCodeOf(' 583920174 ')).toBe('583920174');

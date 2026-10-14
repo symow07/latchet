@@ -512,7 +512,7 @@ async function appReturnUrl(): Promise<string> {
     const Linking = await import('expo-linking');
     return Linking.createURL('bank/linked');
   } catch {
-    return 'realbudget://bank/linked';
+    return 'latchet://bank/linked';
   }
 }
 

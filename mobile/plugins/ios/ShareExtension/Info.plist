@@ -5,7 +5,7 @@
   <key>CFBundleDevelopmentRegion</key>
   <string>$(DEVELOPMENT_LANGUAGE)</string>
   <key>CFBundleDisplayName</key>
-  <string>Budget</string>
+  <string>Latchet</string>
   <key>CFBundleExecutable</key>
   <string>$(EXECUTABLE_NAME)</string>
   <key>CFBundleIdentifier</key>
@@ -30,7 +30,7 @@
     <dict>
       <!-- Images and text only. A receipt photo, a screenshot of a payment
            confirmation, or the words of one. Files and other types would show
-           Budget in share sheets it has nothing useful to do with.
+           Latchet in share sheets it has nothing useful to do with.
 
            One image, not several: a shared photo goes to the receipt reader,
            which is a single-receipt review flow. Accepting four would mean

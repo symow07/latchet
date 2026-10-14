@@ -1,5 +1,5 @@
 /**
- * Things shared into Budget from other apps.
+ * Things shared into Latchet from other apps.
  *
  * The share extension captures and queues; it does not interpret. Working out
  * that "your payment of $45.20" is an expense is done here, by the parser the

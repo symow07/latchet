@@ -6,7 +6,7 @@ import { t } from '@/lib/i18n/core';
 import type { ConnectModel, ConnectOption, ConnectOptionId } from '@/lib/onboarding-flow';
 
 /**
- * Onboarding's "Connect your data": one row per place Budget can find
+ * Onboarding's "Connect your data": one row per place Latchet can find
  * subscriptions in, as lib/onboarding-flow.ts connectModel offers them —
  * Gmail and Outlook only where the server has them, a statement import, and a
  * bank link only where Plaid serves the region (with the Pro mark for a free

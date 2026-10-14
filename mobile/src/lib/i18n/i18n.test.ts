@@ -273,7 +273,7 @@ const ALLOWED = new Set([
   // Badge keys: stored by name and translated for display (badge-meta.ts).
   ...BADGE_KEYS,
   // Brand and format literals that are the same in every language.
-  'Budget', 'Alipay 支付宝', 'WeChat Pay 微信', 'YYYY-MM-DD', 'ABC123',
+  'Latchet', 'Alipay 支付宝', 'WeChat Pay 微信', 'YYYY-MM-DD', 'ABC123',
 ]);
 
 /**

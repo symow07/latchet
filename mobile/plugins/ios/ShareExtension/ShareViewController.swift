@@ -1,7 +1,7 @@
 //
 //  ShareViewController.swift
 //
-//  "Share → Budget" from anywhere: a receipt photo, a screenshot of a payment
+//  "Share → Latchet" from anywhere: a receipt photo, a screenshot of a payment
 //  confirmation, or the text of one.
 //
 //  Copied into the Xcode project by plugins/withShareExtension.js. ios/ is
@@ -22,7 +22,7 @@ import Social
 import UniformTypeIdentifiers
 
 /// Must match APP_GROUP in modules/app-group/index.ts and the entitlements.
-private let appGroupIdentifier = "group.com.realbudget.app"
+private let appGroupIdentifier = "group.com.latchet.app"
 
 private let queueFileName = "pending-shares.ndjson"
 private let mediaDirectoryName = "shared-media"

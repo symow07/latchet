@@ -30,7 +30,7 @@ type Stage = 'form' | 'invalid' | 'done';
  * Where the emailed reset link lands.
  *
  * The link goes to the backend, which checks the token and redirects here as
- * realbudget://reset-password?token=…, or ?error=INVALID_TOKEN once it has
+ * latchet://reset-password?token=…, or ?error=INVALID_TOKEN once it has
  * expired or been used. The new password is posted with that token; the server
  * ends every session of the account with it.
  *

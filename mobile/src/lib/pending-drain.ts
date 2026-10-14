@@ -6,7 +6,7 @@
  * part that needs the filesystem, AsyncStorage and the database — kept
  * separate for the same reason voice-api.ts is separate from voice-capture.ts.
  *
- * The queue is written by plugins/ios/BudgetAppIntents.swift, running in a
+ * The queue is written by plugins/ios/LatchetAppIntents.swift, running in a
  * background launch of this app where React Native is not up. It lands in the
  * app's own Documents directory — the same container expo-file-system reads,
  * which is why no App Group is involved.

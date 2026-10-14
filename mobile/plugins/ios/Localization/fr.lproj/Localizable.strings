@@ -1,12 +1,12 @@
-/* Everything a LocalizedStringResource in BudgetAppIntents.swift resolves:
+/* Everything a LocalizedStringResource in LatchetAppIntents.swift resolves:
    intent titles, descriptions, parameter names, spoken prompts and replies.
 
    fr */
 
 "Log an expense" = "Enregistrer une dépense";
 "Log income" = "Enregistrer un revenu";
-"Record something you spent. It appears in Budget next time you open it." = "Notez une dépense. Elle apparaîtra dans Budget à votre prochaine ouverture.";
-"Record money you received. It appears in Budget next time you open it." = "Notez un revenu. Il apparaîtra dans Budget à votre prochaine ouverture.";
+"Record something you spent. It appears in Latchet next time you open it." = "Notez une dépense. Elle apparaîtra dans Latchet à votre prochaine ouverture.";
+"Record money you received. It appears in Latchet next time you open it." = "Notez un revenu. Il apparaîtra dans Latchet à votre prochaine ouverture.";
 "Amount" = "Montant";
 "What for" = "Motif";
 "What from" = "Provenance";
@@ -14,4 +14,4 @@
 "What was it for?" = "C'était pour quoi ?";
 "How much did you receive?" = "Combien avez-vous reçu ?";
 "What was it from?" = "Cela venait d'où ?";
-"Got it. It'll be waiting in Budget." = "C'est noté. Vous le retrouverez dans Budget.";
+"Got it. It'll be waiting in Latchet." = "C'est noté. Vous le retrouverez dans Latchet.";

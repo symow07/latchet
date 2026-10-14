@@ -36,6 +36,12 @@ import { billPaidChange } from './offline/bills';
 import { parseBreakdown, serializeBreakdown, type Breakdown } from './offline/breakdown';
 import type { LocalSyncState, RecurringFrequency } from './offline/recurring';
 import {
+  LEGACY_SHARED_DATABASE,
+  createDatabaseFileMigration,
+  databaseFileUri,
+  type DatabaseFiles,
+} from './storage-migration';
+import {
   insertOccurrenceRow,
   isSubscriptionDecision,
   moveOccurrenceRows,
@@ -66,14 +72,50 @@ export interface SqlDb {
   execAsync(source: string): Promise<void>;
 }
 
-/** The shared file every user used to read and write. Test data; deleted, not migrated. */
-const LEGACY_SHARED_DATABASE = 'real_budget.db';
+/**
+ * expo-sqlite's database directory, through expo-file-system. Imported when
+ * first needed, the way AsyncStorage is elsewhere, so the tests (which stand
+ * in for expo-sqlite and have no directory) never load it.
+ */
+function databaseFiles(directory: string): DatabaseFiles {
+  return {
+    exists: async (fileName) => {
+      const FileSystem = await import('expo-file-system');
+      return (await FileSystem.getInfoAsync(databaseFileUri(directory, fileName))).exists;
+    },
+    move: async (from, to) => {
+      const FileSystem = await import('expo-file-system');
+      await FileSystem.moveAsync({ from: databaseFileUri(directory, from), to: databaseFileUri(directory, to) });
+    },
+  };
+}
+
+let moveEarlierFile: ReturnType<typeof createDatabaseFileMigration> | null = null;
+
+/**
+ * Move this user's file from the name an earlier build gave it, before
+ * anything opens it (storage-migration.ts). A failure fails the open: opening
+ * now would create an empty file in front of the user's data, and the next
+ * activation finishes the move instead.
+ */
+async function moveEarlierDatabaseFile(fileName: string): Promise<void> {
+  const directory: unknown = SQLite.defaultDatabaseDirectory;
+  // No directory on the web, nor in the tests' stand-in: no file to move.
+  if (typeof directory !== 'string' || !directory) return;
+  moveEarlierFile ??= createDatabaseFileMigration(databaseFiles(directory), {
+    warn: (message, error) => console.warn(`[db] ${message}`, error ?? ''),
+    info: (message) => console.log(`[db] ${message}`),
+  });
+  await moveEarlierFile(fileName);
+}
 
 const expoDriver: UserDatabaseDriver<SQLite.SQLiteDatabase> = {
-  // A file an earlier build made is brought to the current schema version
-  // here, before user-db.ts's initializer runs the schema on it and decides
-  // whether it is new (local-schema.ts upgradeLocalSchema says why).
+  // A file an earlier build made is moved to its current name, then brought
+  // to the current schema version here, before user-db.ts's initializer runs
+  // the schema on it and decides whether it is new (local-schema.ts
+  // upgradeLocalSchema says why).
   open: async (fileName) => {
+    await moveEarlierDatabaseFile(fileName);
     const db = await SQLite.openDatabaseAsync(fileName);
     try {
       await upgradeLocalSchema(db, new Date().toISOString());

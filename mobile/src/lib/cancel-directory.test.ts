@@ -142,7 +142,7 @@ describe('cancel guide', () => {
   });
 
   test('never a promise of one-tap cancelling: every guide says the user does it, and every button opens a page', () => {
-    const forbidden = /one[- ]tap|instantly|automatically cancel|we('ll| will) cancel|budget (will|can|cancels) cancel/i;
+    const forbidden = /one[- ]tap|instantly|automatically cancel|we('ll| will) cancel|latchet (will|can|cancels) cancel/i;
     const platforms: CancelPlatform[] = ['ios', 'android', 'web'];
     const vias = [null, 'apple', 'google_play', 'paypal'] as const;
     let checked = 0;
@@ -155,7 +155,7 @@ describe('cancel guide', () => {
             // Every key resolves: no "[missing … translation]", no raw key.
             expect(w).not.toMatch(/missing|subsUi\./);
           }
-          // The intro says Budget cannot cancel it.
+          // The intro says Latchet cannot cancel it.
           expect(g.intro).toMatch(/can't cancel/);
           // Every button opens something; none of them is itself "Cancel".
           for (const l of [g.link, ...g.more]) if (l) expect(l.label).toMatch(/^(Open|Search) /);

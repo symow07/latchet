@@ -8,7 +8,7 @@
  * lib/identity/demo.ts, so it can be judged signed out on a fresh simulator.
  * Nothing here reads the database.
  *
- * Open it with: realbudget://identity-preview
+ * Open it with: latchet://identity-preview
  * Tap the balance to replay the entrance, the count-ups and the check.
  */
 import { useState } from 'react';

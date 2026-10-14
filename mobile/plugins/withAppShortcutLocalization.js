@@ -7,7 +7,7 @@ const path = require("path");
  *
  * Siri does not translate anything at runtime. Phrases are matched from the
  * strings compiled into the app binary's App Intents metadata, so a French
- * user saying "Ajouter une dépense dans Budget" only works if that phrase was
+ * user saying "Ajouter une dépense dans Latchet" only works if that phrase was
  * built in. The app itself is translated in JavaScript; this is the half of the
  * app that JavaScript cannot reach.
  *
@@ -71,7 +71,7 @@ module.exports = function withAppShortcutLocalization(config) {
         //
         // The path is prefixed with the group name because this group carries a
         // name but no path of its own, so "<group>" resolves to ios/ and every
-        // sibling spells out "Budget/..." for itself.
+        // sibling spells out "Latchet/..." for itself.
         const fileRef = project.generateUuid();
         objects.PBXFileReference[fileRef] = {
           isa: "PBXFileReference",
@@ -115,7 +115,7 @@ module.exports = function withAppShortcutLocalization(config) {
       projectName: groupName,
     });
     // Resolved through the target's own configuration list rather than matched
-    // on PRODUCT_NAME — the app target's is the literal "Budget", which is a
+    // on PRODUCT_NAME — the app target's is the literal "Latchet", which is a
     // detail of the Expo template and not something to depend on.
     const listId = appTarget.target.buildConfigurationList;
     for (const configuration of IOSConfig.XcodeUtils.getBuildConfigurationsForListId(

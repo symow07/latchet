@@ -59,7 +59,7 @@ function fakeSentry(existingClient = false) {
 test('crash scrubbing: an error message loses the email and the amounts in it', () => {
   const event = errorEvent(
     'Payment from simo.oumaali@icloud.com of $1,234.56 failed; refund 12,50 € and 40 MAD; amount: 1500',
-    { message: 'Contact ana+budget@example.co.uk about 99.99' },
+    { message: 'Contact ana+latchet@example.co.uk about 99.99' },
   );
   const out = scrubEvent(event);
   const text = sent(out);
@@ -88,7 +88,7 @@ test('crash scrubbing: a fetch breadcrumb keeps method, path and status — no b
     timestamp: 1,
     data: {
       method: 'post',
-      url: 'https://budget-production.up.railway.app/api/transactions?search=coffee&email=simo%40icloud.com#top',
+      url: 'https://latchet-production.up.railway.app/api/transactions?search=coffee&email=simo%40icloud.com#top',
       status_code: 201,
       request_body: '{"note":"Lunch with Ana","amount":12.5}',
       response_body: '{"balance":2400}',
@@ -102,7 +102,7 @@ test('crash scrubbing: a fetch breadcrumb keeps method, path and status — no b
     category: 'fetch',
     level: 'info',
     timestamp: 1,
-    data: { method: 'POST', url: 'https://budget-production.up.railway.app/api/transactions', status_code: 201 },
+    data: { method: 'POST', url: 'https://latchet-production.up.railway.app/api/transactions', status_code: 201 },
   });
 
   // sentry-cocoa's own request breadcrumbs reach JS events merged in; they go the same way.
@@ -114,7 +114,7 @@ test('crash scrubbing: a fetch breadcrumb keeps method, path and status — no b
 test('crash scrubbing: auth headers, cookies and request bodies never leave the phone', () => {
   const event = errorEvent('Request failed: Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.payload.sig', {
     request: {
-      url: 'https://budget-production.up.railway.app/api/me?token=abc123',
+      url: 'https://latchet-production.up.railway.app/api/me?token=abc123',
       method: 'GET',
       headers: { Authorization: 'Bearer eyJhbGciOiJIUzI1NiJ9.payload.sig', Cookie: 'better-auth.session_token=s3cret' },
       cookies: { 'better-auth.session_token': 's3cret' },
@@ -134,7 +134,7 @@ test('crash scrubbing: auth headers, cookies and request bodies never leave the 
   for (const secret of ['eyJhbGciOiJIUzI1NiJ9', 's3cret', 'abc123', 'hunter22', 'simo@icloud.com', 'dXNlcjpwYXNz', "Simo's iPhone"]) {
     expect(text).not.toContain(secret);
   }
-  expect(out.request).toEqual({ url: 'https://budget-production.up.railway.app/api/me', method: 'GET' });
+  expect(out.request).toEqual({ url: 'https://latchet-production.up.railway.app/api/me', method: 'GET' });
   expect(out.contexts?.response).toBeUndefined();
   // The device's facts stay readable: the model and the OS version are not amounts.
   expect(out.contexts?.device).toEqual({ model: 'iPhone14,10', family: 'iOS' });

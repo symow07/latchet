@@ -1,7 +1,7 @@
 /**
  * Guided cancellation (C19): where a subscription is cancelled, and how.
  *
- * Budget cannot cancel anything itself, and never says it can. What it can do
+ * Latchet cannot cancel anything itself, and never says it can. What it can do
  * is send the user to the exact place where cancelling happens, with short
  * steps in their language, and then ask them to confirm they did it.
  *
@@ -61,7 +61,7 @@ export type CancelAction =
   | 'turnOffRenew'
   | 'closeAccount';
 
-/** One service Budget knows how to send the user to. */
+/** One service Latchet knows how to send the user to. */
 export interface CancelService {
   /** The canonical merchant key (merchantKey), or for a tool the alias table lacks, its natural key. */
   key: string;
@@ -317,7 +317,7 @@ export interface CancelLink {
 export interface CancelGuide {
   kind: CancelGuideKind;
   title: string;
-  /** Says plainly that the user cancels it themselves; Budget only shows the way. */
+  /** Says plainly that the user cancels it themselves; Latchet only shows the way. */
   intro: string;
   steps: string[];
   /** The page to open first, or null when the steps happen in an app or by contacting them. */
@@ -424,7 +424,7 @@ function paypalGuide(name: string, generic: boolean, service: CancelService | nu
 /**
  * How to cancel one subscription. Who bills it decides where (the App Store,
  * Google Play, PayPal); otherwise the service's own page, the contract guide,
- * or the generic one. Never a promise that Budget cancels it.
+ * or the generic one. Never a promise that Latchet cancels it.
  */
 export function cancelGuide(input: CancelGuideInput): CancelGuide {
   const key = (input.merchantKey ?? '').trim();
@@ -525,7 +525,7 @@ export const CANCEL_DIRECTORY: CancelDirectoryEntry[] = CANCEL_SERVICES.map(entr
 
 const ENTRY_BY_KEY = new Map(CANCEL_DIRECTORY.map((e) => [e.key, e]));
 
-/** The directory entry for a merchant (its key, a raw name or an older normalised one), if Budget knows it. */
+/** The directory entry for a merchant (its key, a raw name or an older normalised one), if Latchet knows it. */
 export function findCancelEntry(normalizedMerchant: string): CancelDirectoryEntry | null {
   const s = cancelServiceFor(normalizedMerchant);
   return s ? (ENTRY_BY_KEY.get(s.key) ?? null) : null;

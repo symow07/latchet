@@ -1,4 +1,4 @@
-# Real Budget - Personal Finance Tracker
+# Latchet - Personal Finance Tracker
 
 A beautiful, offline-first personal finance tracker built with React Native, Expo, and SQLite. Track spending, set budgets, and build financial discipline through addictive gamification mechanics.
 

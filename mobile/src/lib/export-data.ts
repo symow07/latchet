@@ -43,7 +43,7 @@ export async function exportTransactionsCSV(): Promise<number> {
   const txs = await getTransactions();
   const csv = buildTransactionsCSV(txs);
   const stamp = new Date().toISOString().slice(0, 10);
-  await shareFile(csv, `real-budget-${stamp}.csv`, 'text/csv', 'Export transactions (CSV)');
+  await shareFile(csv, `latchet-${stamp}.csv`, 'text/csv', 'Export transactions (CSV)');
   return txs.length;
 }
 
@@ -52,6 +52,6 @@ export async function exportTransactionsJSON(): Promise<number> {
   const txs = await getTransactions();
   const json = buildTransactionsJSON(txs);
   const stamp = new Date().toISOString().slice(0, 10);
-  await shareFile(json, `real-budget-backup-${stamp}.json`, 'application/json', 'Backup transactions (JSON)');
+  await shareFile(json, `latchet-backup-${stamp}.json`, 'application/json', 'Backup transactions (JSON)');
   return txs.length;
 }

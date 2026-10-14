@@ -23,6 +23,10 @@ afterEach(() => setLocale('en'));
 
 const NOW = Date.parse('2026-10-13T12:00:00.000Z');
 
+/** The private forwarding address the server hands out. */
+// TODO(domain): placeholder until latchet.app is bought
+const FORWARDING_ADDRESS = 'u_ab12@in.latchet.app';
+
 const conn = (over: Partial<EmailConnectionDTO> & Pick<EmailConnectionDTO, 'id'>): EmailConnectionDTO => ({
   provider: 'gmail',
   address: 'sam@example.com',
@@ -150,17 +154,17 @@ describe('email screen', () => {
   });
 
   test('forwarding is the backup: the private address, its state, Gmail’s code until it works, and steps for every provider', () => {
-    const list = dto({ connections: [conn({ id: 'f', provider: 'forwarding', address: 'u_ab12@in.realbudget.app', forwardingVerified: false })] });
-    const waiting = forwardingView(list, { address: 'u_ab12@in.realbudget.app', verified: false, confirmationCode: '583920174' });
+    const list = dto({ connections: [conn({ id: 'f', provider: 'forwarding', address: FORWARDING_ADDRESS, forwardingVerified: false })] });
+    const waiting = forwardingView(list, { address: FORWARDING_ADDRESS, verified: false, confirmationCode: '583920174' });
     expect(waiting).toEqual({
       available: true,
-      address: 'u_ab12@in.realbudget.app',
+      address: FORWARDING_ADDRESS,
       verified: false,
       stateText: t('emailConnect.forwarding.waiting'),
       code: '583920174',
     });
     // Mail arrives: receiving, and the code has done its job.
-    expect(forwardingView(list, { address: 'u_ab12@in.realbudget.app', verified: true, confirmationCode: '583920174' })).toMatchObject({
+    expect(forwardingView(list, { address: FORWARDING_ADDRESS, verified: true, confirmationCode: '583920174' })).toMatchObject({
       verified: true,
       code: null,
       stateText: t('emailConnect.forwarding.receiving'),

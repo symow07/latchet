@@ -2,16 +2,23 @@ import { createAuthClient } from "better-auth/react";
 import { expoClient } from "@better-auth/expo/client";
 import * as SecureStore from "expo-secure-store";
 import { getLocale } from "../i18n/core";
+import { migrateSecureStoreKeys } from "../storage-migration";
+
+// Before the client exists: it reads its cookie and cached session
+// synchronously from SecureStore, under keys named after storagePrefix
+// below, and an install from before the rename holds them under the old
+// prefix. Moving them first keeps that user signed in. Never throws.
+migrateSecureStoreKeys(SecureStore);
 
 /**
  * Where the server sends someone back into the app from an emailed link. The
  * expo client rewrites only relative callbacks, and Better Auth would read a
  * relative one as a path on the backend, so both are absolute deep links into
  * the public landings (src/app/reset-password.tsx, verify-email.tsx). The
- * backend trusts the scheme (trustedOrigins realbudget://*\/*).
+ * backend trusts the scheme (trustedOrigins latchet://*\/*).
  */
-export const RESET_PASSWORD_REDIRECT = "realbudget://reset-password";
-export const VERIFY_EMAIL_CALLBACK = "realbudget://verify-email";
+export const RESET_PASSWORD_REDIRECT = "latchet://reset-password";
+export const VERIFY_EMAIL_CALLBACK = "latchet://verify-email";
 
 export const authClient = createAuthClient({
   baseURL: process.env.EXPO_PUBLIC_BACKEND_URL! as string,
@@ -36,8 +43,9 @@ export const authClient = createAuthClient({
   },
   plugins: [
     expoClient({
-      scheme: "realbudget",
-      storagePrefix: "realbudget",
+      scheme: "latchet",
+      // storage-migration.ts moves the keys from the old prefix (above).
+      storagePrefix: "latchet",
       storage: SecureStore,
     }),
   ],

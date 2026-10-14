@@ -57,10 +57,14 @@ export const DEVICE_STORAGE_KEYS = [
  *                            dates, no amounts or names): never the same twice.
  *   email_sync_state_v1      the email findings cursor (the server's time),
  *                            the connection ids it covers and the last sync.
+ *   @latchet_onboarding      onboarding's record (onboarding-storage.ts). An
+ *                            install from before the rename holds it under its
+ *                            old name until storage-migration.ts moves it,
+ *                            when a user is activated.
  */
 export const USER_STORAGE_KEYS = [
   '@account_type',
-  '@real_budget_onboarding',
+  '@latchet_onboarding',
   '@import_profiles_v1',
   'linked_banks',
   'linked_accounts',

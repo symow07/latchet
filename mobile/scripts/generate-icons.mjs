@@ -181,7 +181,7 @@ for (const [prefix, set] of Object.entries(byPrefix)) {
   // Iconify rejects the default Node user agent with a 403, and the failure is
   // silent from here — the body parses as JSON with no `icons` key, so without
   // this header the generator fails much later with an unrelated-looking error.
-  const res = await fetch(url, { headers: { 'User-Agent': 'budget-icon-generator' } });
+  const res = await fetch(url, { headers: { 'User-Agent': 'latchet-icon-generator' } });
   if (!res.ok) throw new Error(`${prefix}: HTTP ${res.status} from Iconify`);
   const json = await res.json();
   // An icon may come back as an alias pointing at another icon's body.

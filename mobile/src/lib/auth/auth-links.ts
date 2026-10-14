@@ -3,8 +3,8 @@
  * small rules the forgot/reset screens share.
  *
  * The links in the emails point at the backend, which checks the token and
- * redirects to realbudget://reset-password?token=… (or ?error=INVALID_TOKEN)
- * and realbudget://verify-email (or ?error=TOKEN_EXPIRED, INVALID_TOKEN, …).
+ * redirects to latchet://reset-password?token=… (or ?error=INVALID_TOKEN)
+ * and latchet://verify-email (or ?error=TOKEN_EXPIRED, INVALID_TOKEN, …).
  * expo-router hands the query to the screen as params, which may arrive as
  * an array when a key repeats.
  *

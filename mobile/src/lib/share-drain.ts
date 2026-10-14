@@ -1,5 +1,5 @@
 /**
- * Draining what was shared into Budget from other apps.
+ * Draining what was shared into Latchet from other apps.
  *
  * The decision logic lives in pending-share.ts and is tested without a device;
  * this is the part that needs the App Group, the filesystem and the database.

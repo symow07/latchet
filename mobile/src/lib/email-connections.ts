@@ -68,7 +68,7 @@ export interface EmailConnectionsDTO {
 /**
  * How a disconnect left the provider's grant. Google's is revoked through its
  * API; Microsoft has no such call for personal accounts, so the server names
- * the page where the user removes Budget's access themselves.
+ * the page where the user removes Latchet's access themselves.
  */
 export interface DisconnectResult {
   revoked: boolean;
@@ -159,7 +159,7 @@ export interface EmailClientDeps {
   get<T>(path: string): Promise<T>;
   post<T>(path: string, body: unknown): Promise<T>;
   del<T>(path: string): Promise<T>;
-  /** The link the provider's sign-in returns to: realbudget://email/connected. */
+  /** The link the provider's sign-in returns to: latchet://email/connected. */
   createReturnUrl(): Promise<string>;
   openAuthSession(url: string, returnUrl: string): Promise<BrowserResult>;
   readState(): Promise<EmailSyncState>;
@@ -668,7 +668,7 @@ export const getEmailConnections = (): Promise<EmailConnectionsDTO> => app.getEm
 
 /**
  * Connect Gmail or Outlook: the provider's sign-in in the system browser,
- * back on realbudget://email/connected; on success, the first year's
+ * back on latchet://email/connected; on success, the first year's
  * backfill (progress through `onProgress`), the findings, and detection.
  */
 export const connectEmailProvider = (provider: ConnectableProvider, options?: ConnectOptions): Promise<ConnectResult> =>

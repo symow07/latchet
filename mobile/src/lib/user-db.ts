@@ -61,9 +61,12 @@ export function fnv1a32Hex(input: string): string {
  * Better Auth's ids are plain alphanumerics and are used as they are. Anything
  * else — a slash, a dot, an empty string, something too long — is hashed, so
  * no id can name a path outside the SQLite directory or another file in it.
+ *
+ * A file an earlier build named differently is moved to this name before it
+ * is opened (storage-migration.ts, called from db.ts).
  */
 export function userDatabaseFileName(userId: string): string {
-  return SAFE_USER_ID.test(userId) ? `budget_${userId}.db` : `budget_u${fnv1a32Hex(userId)}.db`;
+  return SAFE_USER_ID.test(userId) ? `latchet_${userId}.db` : `latchet_u${fnv1a32Hex(userId)}.db`;
 }
 
 /**

@@ -1,5 +1,5 @@
 /**
- * The Budget identity — design tokens.
+ * The Latchet identity — design tokens.
  *
  * One identity for both profiles: a calm off-white ground, deep espresso as the
  * signature, silver (a warm, neutral platinum) as the accent, near-black ink

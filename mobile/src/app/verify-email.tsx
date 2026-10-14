@@ -13,7 +13,7 @@ import { t } from '@/lib/i18n/core';
  * Where the emailed verification link lands.
  *
  * The link goes to the backend, which marks the address verified and
- * redirects here as realbudget://verify-email — or with ?error=TOKEN_EXPIRED
+ * redirects here as latchet://verify-email — or with ?error=TOKEN_EXPIRED
  * (after 24 hours) or another code when the link is no good. Verification is
  * offered, not required, so nothing here blocks anyone: it says what happened
  * and leads on.

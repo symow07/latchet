@@ -1,22 +1,22 @@
 {
   "expo": {
-    "name": "Budget",
-    "slug": "budget",
-    "scheme": "realbudget",
+    "name": "Latchet",
+    "slug": "latchet",
+    "scheme": "latchet",
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": false,
     "ios": {
-      "bundleIdentifier": "com.realbudget.app",
+      "bundleIdentifier": "com.latchet.app",
       "supportsTablet": true,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "NSMicrophoneUsageDescription": "Budget uses the microphone so you can speak your spending instead of typing it. Recordings are transcribed and then deleted, never stored."
+        "NSMicrophoneUsageDescription": "Latchet uses the microphone so you can speak your spending instead of typing it. Recordings are transcribed and then deleted, never stored."
       }
     },
     "android": {
-      "package": "com.realbudget.app",
+      "package": "com.latchet.app",
       "edgeToEdgeEnabled": true,
       "permissions": [
         "android.permission.CAMERA",
@@ -46,26 +46,26 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Allow Budget to use the camera to scan receipts."
+          "cameraPermission": "Allow Latchet to use the camera to scan receipts."
         }
       ],
       [
         "expo-image-picker",
         {
-          "photosPermission": "Allow Budget to access your photos to attach receipts to expenses."
+          "photosPermission": "Allow Latchet to access your photos to attach receipts to expenses."
         }
       ],
       [
         "expo-local-authentication",
         {
-          "faceIDPermission": "Allow Budget to use Face ID to unlock the app."
+          "faceIDPermission": "Allow Latchet to use Face ID to unlock the app."
         }
       ],
       [
         "expo-media-library",
         {
-          "photosPermission": "Allow Budget to access your photos.",
-          "savePhotosPermission": "Allow Budget to save receipts to your photos."
+          "photosPermission": "Allow Latchet to access your photos.",
+          "savePhotosPermission": "Allow Latchet to save receipts to your photos."
         }
       ],
       "./plugins/withFmtConstevalFix",
@@ -94,7 +94,7 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "97dd0e8e-7c1e-4253-818c-703d222403b8"
+        "projectId": "0abaa473-bff7-4413-a390-178e7fbbe298"
       }
     },
     "owner": "symow",

@@ -39,7 +39,7 @@ import { t } from '@/lib/i18n/core';
  * cancelled, a price that went up — old → new), the monthly cost on the
  * anchor (one figure per currency; euros are never added to dollars), the
  * charges coming in the next 30 days with their dates, then what is running,
- * the free trials and the days they have left, what Budget is unsure of ("To
+ * the free trials and the days they have left, what Latchet is unsure of ("To
  * review"), and folded away at the end what has ended or been cancelled.
  * Everything is worked out in lib/subscription-view; this file only lays it
  * out.
