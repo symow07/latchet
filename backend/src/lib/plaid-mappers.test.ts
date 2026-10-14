@@ -2,6 +2,7 @@ import { describe, test, expect } from "bun:test";
 import {
   categoryForTransaction,
   mapAccountType,
+  movementOf,
   mapCategory,
   mapPersonalFinanceCategory,
 } from "./plaid-mappers";
@@ -13,6 +14,19 @@ test("mapAccountType maps Plaid types to app vocabulary", () => {
   expect(mapAccountType("depository", "checking")).toBe("checking");
   expect(mapAccountType("depository", "money market")).toBe("other");
   expect(mapAccountType()).toBe("other");
+  expect(mapAccountType("loan", "student")).toBe("loan");
+  expect(mapAccountType("loan", "mortgage")).toBe("loan");
+});
+
+test("movement: Plaid's categories for money that only moves, in the app's words", () => {
+  expect(movementOf({ primary: "LOAN_PAYMENTS", detailed: "LOAN_PAYMENTS_CREDIT_CARD_PAYMENT" })).toBe("card_payment");
+  expect(movementOf({ primary: "LOAN_PAYMENTS", detailed: "LOAN_PAYMENTS_MORTGAGE_PAYMENT" })).toBe("loan_payment");
+  expect(movementOf({ primary: "TRANSFER_IN", detailed: "TRANSFER_IN_ACCOUNT_TRANSFER" })).toBe("transfer_in");
+  expect(movementOf({ primary: "INCOME", detailed: "INCOME_SALARY" })).toBe("income");
+  expect(movementOf({ primary: "ENTERTAINMENT", detailed: "ENTERTAINMENT_TV_AND_MOVIES" })).toBeNull();
+  expect(movementOf({ primary: "TRANSFER_OUT", detailed: "TRANSFER_OUT_ACCOUNT_TRANSFER" })).toBeNull();
+  expect(movementOf(null)).toBeNull();
+  expect(movementOf(undefined)).toBeNull();
 });
 
 describe("plaid category", () => {

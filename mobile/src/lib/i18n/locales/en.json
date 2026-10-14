@@ -1151,6 +1151,7 @@
     "savings": "Savings",
     "creditCard": "Credit Card",
     "investment": "Investment",
+    "loan": "Loan",
     "other": "Other"
   },
   "frequency": {

@@ -1,6 +1,6 @@
 import { prisma } from "../prisma";
 import { encryptSecret, decryptSecret } from "./crypto";
-import { getProvider, type BankProvider, type ProviderConnection } from "./bank-providers";
+import { getProvider, type BankProvider, type ProviderConnection, type ProviderTransaction } from "./bank-providers";
 import { ledgerNet, stampTombstones } from "./sync/sql";
 
 /**
@@ -292,12 +292,33 @@ export async function refreshConnectionAccounts(
       },
       update: {
         name: a.name,
+        // The type too: what is a loan decides which rows are booked.
+        type: a.type,
         balance: a.balance,
         currency: a.currency,
         bankAccountId: localId,
       },
     });
   }
+}
+
+/**
+ * Whether a bank row only moves money between the user's own accounts and
+ * debts, so it is neither spending nor income:
+ *   - every row on a loan account: its payments left a checking account
+ *     already, and its interest grows the debt rather than the spending;
+ *   - a credit card payment, on either side;
+ *   - money coming into a credit card as a payment, a transfer or "income".
+ *     A card earns no salary; Plaid's sandbox files the card's payment there.
+ * A refund to a card is none of these and still counts.
+ */
+export function isOwnMoneyMovement(
+  t: Pick<ProviderTransaction, "type" | "movement">,
+  accountType: string | null | undefined
+): boolean {
+  if (accountType === "loan") return true;
+  if (t.movement === "card_payment") return true;
+  return accountType === "credit" && t.type === "Income" && t.movement != null;
 }
 
 /**
@@ -326,15 +347,16 @@ export async function syncConnectionTransactions(
     await refreshConnectionAccounts(item.id, { provider, cipher });
   }
 
-  // Accounts the user has switched off — their transactions are skipped.
-  const disabled = new Set(
-    (
-      await prisma.plaidAccount.findMany({
-        where: { itemId: item.id, isEnabled: false },
-        select: { plaidAccountId: true },
-      })
-    ).map((a) => a.plaidAccountId)
-  );
+  // Accounts the user has switched off — their transactions are skipped —
+  // and each account's type, for what only moves money between accounts.
+  const providerAccounts = await prisma.plaidAccount.findMany({
+    where: { itemId: item.id },
+    select: { plaidAccountId: true, isEnabled: true, type: true },
+  });
+  const disabled = new Set(providerAccounts.filter((a) => !a.isEnabled).map((a) => a.plaidAccountId));
+  const accountTypes = new Map(providerAccounts.map((a) => [a.plaidAccountId, a.type]));
+  // A loan's payments and interest, a card payment: not spending, not income.
+  const movesOwnMoney = (t: ProviderTransaction) => isOwnMoneyMovement(t, accountTypes.get(t.accountExternalId));
 
   // Which local BankAccount each provider account maps to, so synced rows
   // carry an accountId and actually move a balance.
@@ -368,7 +390,7 @@ export async function syncConnectionTransactions(
     pages++;
 
     for (const t of page.added) {
-      if (disabled.has(t.accountExternalId)) continue;
+      if (disabled.has(t.accountExternalId) || movesOwnMoney(t)) continue;
       const id = transactionId(provider.id, t.externalId);
       // createMany + skipDuplicates rather than an upsert with an empty
       // update: a re-delivered row is left alone instead of being rewritten,
@@ -383,8 +405,15 @@ export async function syncConnectionTransactions(
     // Pending charges post at a different amount, get recategorised, or shift
     // date. Ignoring these leaves the local copy frozen at the pending values
     // and the balance permanently wrong.
+    // A modification can also show a row to be a transfer after all: it goes,
+    // as a removed row does.
+    const dropped: string[] = [];
     for (const t of page.modified) {
       if (disabled.has(t.accountExternalId)) continue;
+      if (movesOwnMoney(t)) {
+        dropped.push(t.externalId);
+        continue;
+      }
       // updateMany: a modification for a row we never stored (or that the
       // user deleted) changes nothing and is not an error.
       await prisma.transaction.updateMany({
@@ -395,7 +424,7 @@ export async function syncConnectionTransactions(
 
     // Cancelled or reversed charges. Leaving them behind means the balance
     // never recovers from a charge that never happened.
-    const removedIds = page.removedExternalIds.map((id) => transactionId(provider.id, id));
+    const removedIds = [...page.removedExternalIds, ...dropped].map((id) => transactionId(provider.id, id));
     if (removedIds.length > 0) {
       await prisma.$transaction(async (tx) => {
         await tx.transaction.deleteMany({
@@ -457,6 +486,9 @@ export interface RemovedConnection {
  *   !keepData they are deleted, and the triggers' tombstones (stamped with
  *             the server's time) make every phone drop them on its next pull.
  */
+/** How long deleting a connection's accounts and history may take, in one transaction. */
+export const REMOVE_CONNECTION_TIMEOUT_MS = 60_000;
+
 export async function removeConnection(
   itemRowId: string,
   options: BankSyncOptions & { keepData?: boolean } = {}
@@ -516,6 +548,6 @@ export async function removeConnection(
       return { accounts: accountIds.length, transactions: deleted.length };
     },
     // Every deleted transaction runs the balance and tombstone triggers.
-    { timeout: 60_000 }
+    { timeout: REMOVE_CONNECTION_TIMEOUT_MS }
   );
 }

@@ -262,7 +262,7 @@ async function recomputeBalances(db: SqlDb, accountIds: (string | null | undefin
 export interface Account {
   id: string;
   name: string;
-  type: 'cash' | 'checking' | 'savings' | 'credit' | 'investment' | 'other';
+  type: 'cash' | 'checking' | 'savings' | 'credit' | 'investment' | 'loan' | 'other';
   /** Derived: openingBalance + net of all transactions on this account. */
   balance: number;
   /** The account's balance before any recorded transaction. */

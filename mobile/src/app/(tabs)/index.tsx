@@ -42,6 +42,7 @@ import {
 } from '@/components/kit';
 import { t, getDateFnsLocale } from '@/lib/i18n/core';
 import { ELEVATION } from '@/lib/identity/tokens';
+import { accountTypeLabel, signedAccountBalance } from '@/lib/tx-display';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 /**
@@ -181,14 +182,10 @@ export default function HomeScreen() {
     ...accounts.map((a) => ({
       key: a.id,
       label: a.name,
-      // A credit account's balance is what you owe, so it reads as negative
+      // A card's or a loan's balance is what you owe, so it reads as negative
       // against the others rather than adding to them.
-      amount: a.type === 'credit' ? -a.balance : a.balance,
-      // The stored type is `credit`; the string is keyed `creditCard`. Every
-      // other type keys straight through.
-      caption: a.type === 'credit'
-        ? t('accountTypes.creditCard')
-        : t(`accountTypes.${a.type}`),
+      amount: signedAccountBalance(a),
+      caption: accountTypeLabel(a.type),
     })),
   ];
 

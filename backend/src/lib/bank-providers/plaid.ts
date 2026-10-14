@@ -1,6 +1,6 @@
 import { env } from "../../env";
 import { fetchWithTimeout, type TimeoutInit } from "../fetch-timeout";
-import { categoryForTransaction, mapAccountType } from "../plaid-mappers";
+import { categoryForTransaction, mapAccountType, movementOf } from "../plaid-mappers";
 import { verifyPlaidWebhook, type PlaidJwk } from "../plaid-webhook";
 import { countryCodesForLink, linkLanguage, parseEnabledCountries } from "../plaid-countries";
 import {
@@ -116,6 +116,7 @@ export function toProviderTransaction(t: any): ProviderTransaction {
     note: t.merchant_name ?? t.name ?? "",
     dateISO: t.date,
     currency: t.iso_currency_code ?? "USD",
+    movement: movementOf(t.personal_finance_category),
   };
 }
 

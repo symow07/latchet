@@ -1151,6 +1151,7 @@
     "savings": "储蓄账户",
     "creditCard": "信用卡",
     "investment": "投资",
+    "loan": "贷款",
     "other": "其他"
   },
   "frequency": {

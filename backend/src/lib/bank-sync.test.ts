@@ -1,8 +1,8 @@
 import { afterAll, describe, expect, test } from "bun:test";
 import { prisma } from "../prisma";
 import {
-  bankAccountId, ConnectionOwnedElsewhereError, mirrorBankAccount, persistConnection, removeConnection,
-  syncConnectionTransactions, transactionId,
+  bankAccountId, ConnectionOwnedElsewhereError, isOwnMoneyMovement, mirrorBankAccount, persistConnection,
+  refreshConnectionAccounts, removeConnection, syncConnectionTransactions, transactionId,
 } from "./bank-sync";
 import type { BankProvider, ProviderAccount, ProviderTransaction, TransactionPage } from "./bank-providers";
 
@@ -197,6 +197,67 @@ describe("bank sync and the derived balance", () => {
     s.bank.pages = [s.page({ added: [s.tx("t1", 5, "Expense", "chk"), s.tx("t2", 5, "Expense", "sav")] })];
     expect(await syncConnectionTransactions(item.id, s.provider)).toBe(1);
     expect((await s.localAccount("sav")).balance).toBeCloseTo(900, 9);
+  });
+
+  test("a loan's payments and interest, and a card payment on either side, are booked as neither spending nor income", async () => {
+    const s = await setup("ownmoney");
+    s.bank.accounts = [
+      s.account("chk", 1000),
+      { ...s.account("card", 300), name: "Credit card", type: "credit" },
+      { ...s.account("loan", 25000), name: "Student loan", type: "loan" },
+    ];
+    const moving = (t: ProviderTransaction, movement: ProviderTransaction["movement"]): ProviderTransaction => ({ ...t, movement });
+    s.bank.pages = [
+      s.page({
+        added: [
+          moving(s.tx("netflix", 15.49, "Expense", "chk"), null),
+          moving(s.tx("paycard", 300, "Expense", "chk"), "card_payment"),
+          moving(s.tx("lunch", 12, "Expense", "card"), null),
+          // Plaid's sandbox files the card's own payment under income.
+          moving(s.tx("thanks", 300, "Income", "card"), "income"),
+          moving(s.tx("refund", 20, "Income", "card"), null),
+          moving(s.tx("loanpay", 540, "Income", "loan"), "loan_payment"),
+          moving(s.tx("interest", 32, "Expense", "loan"), null),
+        ],
+      }),
+    ];
+    const item = await s.link();
+
+    const booked = await prisma.transaction.findMany({ where: { userId: s.userId }, orderBy: { id: "asc" } });
+    expect(booked.map((t) => t.id)).toEqual(["lunch", "netflix", "refund"].map((e) => transactionId(s.provider.id, e)).sort());
+    // The loan is mirrored as a loan, at what is owed on it.
+    const loan = await s.localAccount("loan");
+    expect(loan.type).toBe("loan");
+    expect(loan.balance).toBeCloseTo(25000, 9);
+
+    // An account the provider re-types on a later pull (linked before loans were
+    // told apart) takes the new type, so its rows stop being booked too.
+    await prisma.plaidAccount.update({ where: { plaidAccountId: s.ext("loan") }, data: { type: "other" } });
+    await refreshConnectionAccounts(item.id, { provider: s.provider });
+    expect((await prisma.plaidAccount.findUniqueOrThrow({ where: { plaidAccountId: s.ext("loan") } })).type).toBe("loan");
+
+    // A later modification that shows a booked row to be a card payment takes it away.
+    s.bank.pages = [s.page({ modified: [moving(s.tx("netflix", 15.49, "Expense", "chk"), "card_payment")] })];
+    await syncConnectionTransactions(item.id, s.provider);
+    expect(await prisma.transaction.findUnique({ where: { id: transactionId(s.provider.id, "netflix") } })).toBeNull();
+    expect((await s.localAccount("chk")).balance).toBeCloseTo(1000, 9);
+  });
+
+  test("own money movement: a loan's rows and card payments are neither spending nor income", () => {
+    const row = (type: "Expense" | "Income", movement: ProviderTransaction["movement"] = null) => ({ type, movement });
+    expect(isOwnMoneyMovement(row("Income", "loan_payment"), "loan")).toBe(true);
+    expect(isOwnMoneyMovement(row("Expense"), "loan")).toBe(true);
+    expect(isOwnMoneyMovement(row("Expense", "card_payment"), "checking")).toBe(true);
+    expect(isOwnMoneyMovement(row("Income", "card_payment"), "credit")).toBe(true);
+    expect(isOwnMoneyMovement(row("Income", "transfer_in"), "credit")).toBe(true);
+    expect(isOwnMoneyMovement(row("Income", "income"), "credit")).toBe(true);
+    // Real spending and income stay: a refund to a card, salary into checking,
+    // a student loan paid from checking (the loan side is what is skipped).
+    expect(isOwnMoneyMovement(row("Expense"), "credit")).toBe(false);
+    expect(isOwnMoneyMovement(row("Income"), "credit")).toBe(false);
+    expect(isOwnMoneyMovement(row("Income", "income"), "checking")).toBe(false);
+    expect(isOwnMoneyMovement(row("Expense", "loan_payment"), "checking")).toBe(false);
+    expect(isOwnMoneyMovement(row("Expense"), undefined)).toBe(false);
   });
 
   test("an account id held by another user is never mirrored into", async () => {

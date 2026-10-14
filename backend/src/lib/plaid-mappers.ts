@@ -12,10 +12,27 @@
 /** Map a Plaid account type/subtype to the app's account-type vocabulary. */
 export function mapAccountType(type?: string, subtype?: string): string {
   if (type === "credit") return "credit";
+  if (type === "loan") return "loan";
   if (type === "investment") return "investment";
   if (subtype === "savings") return "savings";
   if (subtype === "checking") return "checking";
   return "other";
+}
+
+/**
+ * What a Plaid transaction is when it moves money rather than spends or earns
+ * it, read from its personal_finance_category: a credit card payment, another
+ * loan payment, a transfer in, or income. Null for spending and anything else.
+ */
+export function movementOf(
+  pfc: { primary?: string | null; detailed?: string | null } | null | undefined
+): "card_payment" | "loan_payment" | "transfer_in" | "income" | null {
+  if (!pfc) return null;
+  if (pfc.detailed === "LOAN_PAYMENTS_CREDIT_CARD_PAYMENT") return "card_payment";
+  if (pfc.primary === "LOAN_PAYMENTS") return "loan_payment";
+  if (pfc.primary === "TRANSFER_IN") return "transfer_in";
+  if (pfc.primary === "INCOME") return "income";
+  return null;
 }
 
 /**

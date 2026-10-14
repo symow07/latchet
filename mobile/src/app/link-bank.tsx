@@ -35,7 +35,7 @@ import {
   type LinkedBank,
 } from '@/lib/bank-linking';
 import { formatCurrencyAmount } from '@/lib/currencies';
-import { accountTypeLabel } from '@/lib/tx-display';
+import { accountTypeLabel, signedAccountBalance } from '@/lib/tx-display';
 import { useEntitlement } from '@/lib/useEntitlement';
 import { isUpgradeRequired } from '@/lib/entitlementApi';
 import { R, S, useC, type Palette } from '@/lib/design';
@@ -600,7 +600,8 @@ export default function LinkBankScreen() {
                     // The account's own currency, not the app's: a linked USD
                     // account does not become euros because the app is set to
                     // euros. It used to print a literal `$`.
-                    amount={account.balance}
+                    // What a card or loan owes reads as owed, as everywhere else.
+                    amount={signedAccountBalance(account)}
                     format={(n) => formatCurrencyAmount(n, account.currency)}
                     trailing={
                       <PressableScale

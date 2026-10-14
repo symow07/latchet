@@ -15,7 +15,7 @@ import {
   type Account,
 } from '@/lib/db';
 import { formatCurrencyAmount } from '@/lib/currencies';
-import { accountTypeLabel } from '@/lib/tx-display';
+import { accountTypeLabel, isDebtAccount, signedAccountBalance } from '@/lib/tx-display';
 import { categoryMarkIndex } from '@/lib/category-meta';
 import { R, S, useC } from '@/lib/design';
 import { P_DARK, P_LIGHT } from '@/lib/palettes';
@@ -154,12 +154,9 @@ export default function AccountsScreen() {
   const currencyCode = settings?.currency || 'USD';
   const money = (n: number) => formatCurrencyAmount(n, currencyCode);
 
-  // A credit account's balance is what you owe, so it subtracts from the
+  // A card's or a loan's balance is what you owe, so it subtracts from the
   // total rather than adding to it.
-  const total = accounts.reduce(
-    (sum, a) => sum + (a.type === 'credit' ? -a.balance : a.balance),
-    0
-  );
+  const total = accounts.reduce((sum, a) => sum + signedAccountBalance(a), 0);
 
   const closeSheet = () => {
     setSheetOpen(false);
@@ -339,11 +336,11 @@ export default function AccountsScreen() {
                         </Type>
                       </View>
                       <Amount
-                        value={account.type === 'credit' ? -account.balance : account.balance}
+                        value={signedAccountBalance(account)}
                         format={money}
                         size={17}
                         weight="semibold"
-                        color={account.type === 'credit' ? C.negative : C.ink}
+                        color={isDebtAccount(account.type) ? C.negative : C.ink}
                       />
                     </Touchable>
                   </View>
@@ -426,7 +423,7 @@ export default function AccountsScreen() {
 
           <Field
             pal={C}
-            label={type === 'credit' ? t('accounts.balanceOwed') : t('accounts.balanceCurrent')}
+            label={isDebtAccount(type) ? t('accounts.balanceOwed') : t('accounts.balanceCurrent')}
             value={balance}
             onChangeText={setBalance}
             placeholder="0"

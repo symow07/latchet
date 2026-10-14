@@ -38,7 +38,7 @@ export interface ProviderAccount {
   externalId: string;
   name: string;
   mask?: string;
-  /** cash|checking|savings|credit|investment|other */
+  /** cash|checking|savings|credit|investment|loan|other */
   type: string;
   balance: number;
   currency: string;
@@ -56,7 +56,15 @@ export interface ProviderTransaction {
   /** YYYY-MM-DD. */
   dateISO: string;
   currency: string;
+  /**
+   * What the provider says the row is when it only moves money rather than
+   * spends or earns it, in the app's words: paying a credit card, paying a
+   * loan, money transferred in, or income. Null or absent for anything else.
+   */
+  movement?: TransactionMovement | null;
 }
+
+export type TransactionMovement = "card_payment" | "loan_payment" | "transfer_in" | "income";
 
 /**
  * One page of incremental changes.

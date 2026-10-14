@@ -42,6 +42,7 @@ export const accountType = z.enum([
   "savings",
   "credit",
   "investment",
+  "loan",
   "other",
 ]);
 

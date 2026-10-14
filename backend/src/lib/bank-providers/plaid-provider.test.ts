@@ -50,11 +50,31 @@ test("a transaction carries no Plaid-shaped fields across the boundary", () => {
     "currency",
     "dateISO",
     "externalId",
+    "movement",
     "note",
     "type",
   ]);
   expect(t.category).toBe("Food");
   expect(t.currency).toBe("EUR");
+});
+
+test("a card payment is marked as money that only moves, in the app's words", () => {
+  const pay = toProviderTransaction({
+    transaction_id: "tx3",
+    account_id: "acc1",
+    amount: 300,
+    date: "2026-08-18",
+    personal_finance_category: { primary: "LOAN_PAYMENTS", detailed: "LOAN_PAYMENTS_CREDIT_CARD_PAYMENT" },
+  });
+  expect(pay.movement).toBe("card_payment");
+  const coffee = toProviderTransaction({
+    transaction_id: "tx4",
+    account_id: "acc1",
+    amount: 4,
+    date: "2026-08-18",
+    personal_finance_category: { primary: "FOOD_AND_DRINK", detailed: "FOOD_AND_DRINK_COFFEE" },
+  });
+  expect(coffee.movement).toBeNull();
 });
 
 test("a missing currency falls back to USD rather than undefined", () => {
