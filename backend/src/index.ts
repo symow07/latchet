@@ -258,7 +258,18 @@ if (import.meta.main) {
 
 const port = Number(process.env.PORT) || 3000;
 
+/**
+ * Seconds a request may go without a byte before Bun closes it. Bun's default
+ * is 10, shorter than this server's own waits: an upstream call is allowed 15
+ * (fetch-timeout.ts), the email AI 20, and deleting a linked bank's history a
+ * 60-second transaction. At 10 the connection dropped while the work went on,
+ * and the app reported a disconnect that had in fact happened as a failure.
+ * Bun's maximum is 255.
+ */
+export const SERVER_IDLE_TIMEOUT_SECONDS = 120;
+
 export default {
   port,
   fetch: app.fetch,
+  idleTimeout: SERVER_IDLE_TIMEOUT_SECONDS,
 };

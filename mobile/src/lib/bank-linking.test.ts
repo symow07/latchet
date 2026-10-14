@@ -3,6 +3,7 @@ import {
   BankLinkError,
   bankLinkAvailability,
   bankLinkErrorMessage,
+  confirmDisconnect,
   connectionHealth,
   exitReasonMessage,
   getConsentInfo,
@@ -15,7 +16,7 @@ import {
   type LinkStage,
 } from './bank-linking';
 import { DEV_PRO_ENTITLEMENT, devProOverrideActive } from './entitlementApi';
-import { apiErrorFrom } from './api/http-errors';
+import { NetworkError, TimeoutError, apiErrorFrom } from './api/http-errors';
 import { setLocale } from './i18n/core';
 import { en as enBase } from './i18n/locales/catalog';
 import bankLinkStrings from './i18n/locales/fragments/bankLink.json';
@@ -179,6 +180,58 @@ describe('bank link result', () => {
     });
     expect(await runBankLink(lagging.deps)).toMatchObject({ kind: 'linked' });
     expect(lagging.log.filter((l) => l.startsWith('complete'))).toHaveLength(2);
+  });
+});
+
+describe('bank disconnect', () => {
+  const world = (removeFails: unknown, listings: (string[] | Error)[]) => {
+    const calls: string[] = [];
+    let i = 0;
+    return {
+      calls,
+      deps: {
+        remove: async () => {
+          calls.push('DELETE');
+          if (removeFails) throw removeFails;
+          return { success: true };
+        },
+        listedIds: async () => {
+          calls.push('LIST');
+          const next = listings[Math.min(i++, listings.length - 1)]!;
+          if (next instanceof Error) throw next;
+          return next;
+        },
+        sleep: async () => {},
+        maxAttempts: 4,
+      },
+    };
+  };
+
+  test('bank disconnect: a reply cut off while the server finished counts as done once the bank is gone', async () => {
+    // Found on the simulator: deleting two years of a sandbox bank outlasted
+    // the request, the app said "Couldn't disconnect", and the server finished.
+    const w = world(new TimeoutError(), [['bank_1'], new NetworkError(new Error('offline')), []]);
+    await confirmDisconnect('bank_1', w.deps);
+    expect(w.calls).toEqual(['DELETE', 'LIST', 'LIST', 'LIST']);
+    // An earlier attempt that did finish: the server finds nothing to remove.
+    const gone = world(apiErrorFrom(404, 'application/json', JSON.stringify({ error: 'Not found' })), [['other_bank']]);
+    await confirmDisconnect('bank_1', gone.deps);
+  });
+
+  test('bank disconnect: a bank still listed after the wait, or a refusal, is a failure with its own reason', async () => {
+    const lost = new NetworkError(new Error('connection lost'));
+    const still = world(lost, [['bank_1']]);
+    await expect(confirmDisconnect('bank_1', still.deps)).rejects.toBe(lost);
+    expect(still.calls.filter((c) => c === 'LIST')).toHaveLength(4);
+    // The bank refused to revoke: nothing was deleted, and the list is not asked.
+    const refused = apiErrorFrom(502, 'application/json', JSON.stringify({ error: 'The bank connection service could not complete the request.' }));
+    const r = world(refused, [[]]);
+    await expect(confirmDisconnect('bank_1', r.deps)).rejects.toBe(refused);
+    expect(r.calls).toEqual(['DELETE']);
+    // A clean answer is the answer.
+    const ok = world(null, [['bank_1']]);
+    await confirmDisconnect('bank_1', ok.deps);
+    expect(ok.calls).toEqual(['DELETE']);
   });
 });
 

@@ -67,7 +67,7 @@ export interface LinkCompletionDTO {
 }
 
 function mapAccountType(t: string): LinkedAccount['type'] {
-  if (t === 'credit' || t === 'investment' || t === 'savings') return t;
+  if (t === 'credit' || t === 'investment' || t === 'savings' || t === 'loan') return t;
   return 'checking';
 }
 
@@ -138,7 +138,7 @@ export interface LinkedAccount {
   id: string;
   bankId: string;
   name: string;
-  type: 'checking' | 'savings' | 'credit' | 'investment';
+  type: 'checking' | 'savings' | 'credit' | 'investment' | 'loan';
   maskedNumber: string; // Last 4 digits only
   balance: number;
   currency: string;
@@ -584,10 +584,53 @@ export async function linkBank(onStage?: BankLinkDeps['onStage']): Promise<BankL
  */
 export type DisconnectMode = 'keep' | 'delete';
 
+export interface DisconnectDeps {
+  /** DELETE the bank on the server. */
+  remove(): Promise<unknown>;
+  /** The ids of the banks the server lists now. */
+  listedIds(): Promise<string[]>;
+  sleep?: (ms: number) => Promise<void>;
+  intervalMs?: number;
+  maxAttempts?: number;
+}
+
+/**
+ * Ask the server to disconnect a bank, and be sure of the answer. A request
+ * that timed out, lost its connection or found nothing to remove (an earlier
+ * attempt that did finish) says nothing about the outcome: revoking at the
+ * bank and deleting two years of history can outlast the phone's wait while
+ * the server still completes it. Then the bank list decides: gone means
+ * done. Anything else — the server's own refusal, or a bank still listed
+ * once the wait is over — rejects with the original reason.
+ */
+export async function confirmDisconnect(bankId: string, d: DisconnectDeps): Promise<void> {
+  try {
+    await d.remove();
+    return;
+  } catch (e) {
+    const kind = toApiFailure(e).kind;
+    if (kind !== 'timeout' && kind !== 'network' && kind !== 'notFound') throw e;
+    const sleep = d.sleep ?? realSleep;
+    const max = Math.max(1, d.maxAttempts ?? 10);
+    for (let attempt = 1; attempt <= max; attempt++) {
+      try {
+        if (!(await d.listedIds()).includes(bankId)) return;
+      } catch {
+        /* the server is still busy, or the phone is offline: ask again */
+      }
+      if (attempt < max) await sleep(d.intervalMs ?? 3_000);
+    }
+    throw e;
+  }
+}
+
 /** Disconnect a bank. Rejects with the server's reason; nothing changes then. */
 export async function disconnectBank(bankId: string, mode: DisconnectMode = 'keep'): Promise<void> {
   const api = await client();
-  await api.delete(`/api/plaid/items/${encodeURIComponent(bankId)}?data=${mode}`);
+  await confirmDisconnect(bankId, {
+    remove: () => api.delete(`/api/plaid/items/${encodeURIComponent(bankId)}?data=${mode}`),
+    listedIds: async () => (await fetchPlaidItems()).map((item) => item.id),
+  });
   await pullSoon().catch(() => {});
   try {
     const AsyncStorage = await storage();
