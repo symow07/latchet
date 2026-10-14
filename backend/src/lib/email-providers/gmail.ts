@@ -36,7 +36,7 @@ export const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 export const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 export const GOOGLE_REVOKE_URL = "https://oauth2.googleapis.com/revoke";
 const GMAIL_API = "https://gmail.googleapis.com/gmail/v1/users/me";
-/** Where a user removes Budget's access to their Google account by hand. */
+/** Where a user removes Latchet's access to their Google account by hand. */
 export const GOOGLE_MANUAL_REVOKE_URL = "https://myaccount.google.com/permissions";
 
 /** Characters of search terms per query. Gmail rejects or truncates long ones. */

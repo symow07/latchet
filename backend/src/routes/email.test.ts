@@ -37,7 +37,7 @@ afterAll(async () => {
 
 type User = { id: string; email: string };
 type TestEnv = { Variables: { user: User | null; session: unknown } };
-const RETURN = "realbudget://email/connected";
+const RETURN = "latchet://email/connected";
 
 function harness(mailboxes: Record<string, FakeMailbox>, over: { config?: Partial<EmailConfig>; noOutlook?: boolean; noGmail?: boolean } = {}) {
   const fake = startFake(mailboxes);
@@ -181,7 +181,7 @@ test("email oauth: an expired state is refused, as is one for another provider",
 test("email oauth: a foreign return URL is refused; Expo's only outside production", async () => {
   const h = harness({});
   const u = await user("od");
-  for (const returnUrl of ["https://evil.example/steal", "javascript:alert(1)", "realbudgetx://x", "//evil.example"]) {
+  for (const returnUrl of ["https://evil.example/steal", "javascript:alert(1)", "latchetx://x", "//evil.example"]) {
     const r = await h.as(u).call("POST", "/connect/gmail", { returnUrl });
     expect(r.status).toBe(400);
     expect(r.json.error).toBe("invalid_return_url");
@@ -491,7 +491,7 @@ test("forwarding: /inbound reads the raw message with the same parser and stores
   const u = await user("fw");
   const addr = await h.as(u).call("GET", "/inbox-address");
   expect(addr.json).toMatchObject({ verified: false, confirmationCode: null });
-  expect(addr.json.address).toMatch(/^u_[0-9a-f]{18}@in\.budget\.test$/);
+  expect(addr.json.address).toMatch(/^u_[0-9a-f]{18}@in\.latchet\.test$/);
 
   const raw = Buffer.from(netflixRenewal("fw1", 1).raw).toString("base64");
   expect(await inbound(h, { to: addr.json.address, raw })).toEqual({ status: 200, json: { received: true }, location: "" });
@@ -513,14 +513,14 @@ test("forwarding: /inbound reads the raw message with the same parser and stores
 test("forwarding: /inbound needs the secret, and answers 404 unknown_recipient for an address that is not ours", async () => {
   const h = harness({});
   const raw = Buffer.from(netflixRenewal("fx1", 1).raw).toString("base64");
-  expect((await inbound(h, { to: "u_abcdef123456@in.budget.test", raw }, "wrong")).status).toBe(401);
-  expect((await h.as(null).call("POST", "/inbound", { to: "u_abcdef123456@in.budget.test", raw })).status).toBe(401);
-  expect(await inbound(h, { to: "u_abcdef123456@in.budget.test", raw })).toMatchObject({ status: 404, json: { error: "unknown_recipient" } });
-  expect(await inbound(h, { to: "postmaster@in.budget.test", raw })).toMatchObject({ status: 404, json: { error: "unknown_recipient" } });
-  expect((await inbound(h, { to: "u_abcdef123456@in.budget.test", raw: "%%%not base64%%%" })).status).toBe(400);
+  expect((await inbound(h, { to: "u_abcdef123456@in.latchet.test", raw }, "wrong")).status).toBe(401);
+  expect((await h.as(null).call("POST", "/inbound", { to: "u_abcdef123456@in.latchet.test", raw })).status).toBe(401);
+  expect(await inbound(h, { to: "u_abcdef123456@in.latchet.test", raw })).toMatchObject({ status: 404, json: { error: "unknown_recipient" } });
+  expect(await inbound(h, { to: "postmaster@in.latchet.test", raw })).toMatchObject({ status: 404, json: { error: "unknown_recipient" } });
+  expect((await inbound(h, { to: "u_abcdef123456@in.latchet.test", raw: "%%%not base64%%%" })).status).toBe(400);
   expect((await inbound(h, { raw })).status).toBe(400);
   const off = harness({}, { config: { inbound: null } });
-  expect((await inbound(off, { to: "u_x@in.budget.test", raw })).status).toBe(503);
+  expect((await inbound(off, { to: "u_x@in.latchet.test", raw })).status).toBe(503);
 });
 
 test("forwarding: Gmail's confirmation code is recognised and shown with the address, not stored as a finding", async () => {

@@ -12,7 +12,7 @@ const ENV_TS = join(import.meta.dir, "env.ts");
 const SECRET = "x".repeat(40);
 
 function loadEnv(vars: Record<string, string>): { code: number; out: string } {
-  const dir = mkdtempSync(join(tmpdir(), "budget-env-"));
+  const dir = mkdtempSync(join(tmpdir(), "latchet-env-"));
   try {
     const r = Bun.spawnSync(
       [process.execPath, "-e", `const m = await import(${JSON.stringify(ENV_TS)}); console.log("URL=" + m.env.DATABASE_URL)`],
@@ -27,7 +27,7 @@ function loadEnv(vars: Record<string, string>): { code: number; out: string } {
 test("outside production, an unset DATABASE_URL means the local developer database", () => {
   const r = loadEnv({});
   expect(r.code).toBe(0);
-  expect(r.out).toContain("URL=postgresql://localhost:5432/budget_dev");
+  expect(r.out).toContain("URL=postgresql://localhost:5432/latchet_dev");
 });
 
 test("production refuses to boot without a DATABASE_URL", () => {

@@ -282,7 +282,7 @@ export function createPlaidProvider(config: PlaidConfig): BankProvider {
         hosted_link_url?: string;
       }>("/link/token/create", {
         user: { client_user_id: params.userId },
-        client_name: "Real Budget",
+        client_name: "Latchet",
         products: ["transactions"],
         transactions: { days_requested: TRANSACTION_DAYS_REQUESTED },
         country_codes: countryCodes,

@@ -28,7 +28,14 @@ import { env } from "../env";
  * v1 payloads keep decrypting forever, so no migration is required to deploy.
  */
 
-/** Domain separation, so this key can never collide with another use of the secret. */
+/**
+ * Domain separation, so this key can never collide with another use of the secret.
+ *
+ * These two labels carry the app's name from before it was renamed Latchet, and
+ * must never change: they are fixed key-derivation constants, part of the key
+ * behind every stored v2 ciphertext (Plaid and inbox tokens). A new label would
+ * derive a different key and leave every existing token undecryptable.
+ */
 const HKDF_INFO = "realbudget/token-encryption/v2";
 const HKDF_SALT = "realbudget/token-encryption/salt/v2";
 

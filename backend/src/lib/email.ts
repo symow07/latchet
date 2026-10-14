@@ -56,7 +56,7 @@ export function isUndeliverableAddress(address: string): boolean {
 }
 
 export async function sendEmail(msg: EmailMessage): Promise<void> {
-  const from = env.EMAIL_FROM ?? "Budget <onboarding@resend.dev>";
+  const from = env.EMAIL_FROM ?? "Latchet <onboarding@resend.dev>";
   let res: Response;
 
   if (isUndeliverableAddress(msg.to)) {

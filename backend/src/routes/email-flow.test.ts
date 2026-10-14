@@ -16,10 +16,10 @@ test("email oauth: the served callback needs no session and goes back to the app
   for (const prefix of ["/api/v1", "/api"]) {
     const res = await app.fetch(new Request(`http://localhost${prefix}/email/oauth/gmail/callback?code=x&state=nope`));
     expect(res.status).toBe(302);
-    expect(res.headers.get("location")).toBe("realbudget://email/connected?provider=gmail&result=error&reason=invalid_state");
+    expect(res.headers.get("location")).toBe("latchet://email/connected?provider=gmail&result=error&reason=invalid_state");
   }
   const odd = await app.fetch(new Request("http://localhost/api/v1/email/oauth/yahoo/callback?state=nope"));
-  expect(odd.headers.get("location")).toBe("realbudget://email/connected?provider=unknown&result=error&reason=invalid_state");
+  expect(odd.headers.get("location")).toBe("latchet://email/connected?provider=unknown&result=error&reason=invalid_state");
 });
 
 test("findings api: a signed-in user gets their mailboxes and findings; an unconfigured server says so", async () => {
@@ -36,7 +36,7 @@ test("findings api: a signed-in user gets their mailboxes and findings; an uncon
   const findings = await request(app, u.session, "GET", "/api/email/findings");
   expect(findings.status).toBe(200);
   expect(findings.json).toMatchObject({ findings: [], more: false });
-  expect(await request(app, u.session, "POST", "/api/v1/email/connect/gmail", { returnUrl: "realbudget://email/connected" })).toMatchObject({
+  expect(await request(app, u.session, "POST", "/api/v1/email/connect/gmail", { returnUrl: "latchet://email/connected" })).toMatchObject({
     status: 503,
     json: { error: "not_configured" },
   });

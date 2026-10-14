@@ -7,8 +7,8 @@
  * (auth-emails.test.ts). auth.ts decides when to send and through what.
  *
  * Both links point at this backend, which checks the token and then redirects
- * to the app's own scheme (realbudget://…), so they only do anything on the
- * phone where Budget is installed. The copy says so: opened on a laptop, the
+ * to the app's own scheme (latchet://…), so they only do anything on the
+ * phone where Latchet is installed. The copy says so: opened on a laptop, the
  * redirect has nowhere to go.
  */
 
@@ -24,8 +24,8 @@ export const RESET_LINK_TTL_SECONDS = 60 * 60;
 export const VERIFY_LINK_TTL_SECONDS = 24 * 60 * 60;
 
 /** Where the server's redirects land in the app (mobile/src/app/reset-password.tsx, verify-email.tsx). */
-export const APP_RESET_PASSWORD_URL = "realbudget://reset-password";
-export const APP_VERIFY_EMAIL_URL = "realbudget://verify-email";
+export const APP_RESET_PASSWORD_URL = "latchet://reset-password";
+export const APP_VERIFY_EMAIL_URL = "latchet://verify-email";
 
 export interface AuthEmail {
   subject: string;
@@ -147,82 +147,82 @@ const COPY: Record<AuthEmailLocale, LocaleCopy> = {
   en: {
     greeting: (name) => `Hi ${name},`,
     greetingAnon: "Hi,",
-    signoff: "— Budget",
+    signoff: "— Latchet",
     reset: {
-      subject: "Reset your Budget password",
+      subject: "Reset your Latchet password",
       intro:
-        "Someone asked to reset the password for the Budget account at this address. If it was you, open this link on the phone where Budget is installed and choose a new password:",
+        "Someone asked to reset the password for the Latchet account at this address. If it was you, open this link on the phone where Latchet is installed and choose a new password:",
       button: "Choose a new password",
-      note: "The link works once and expires in an hour. Using it signs you out of Budget on your other devices.",
+      note: "The link works once and expires in an hour. Using it signs you out of Latchet on your other devices.",
       ignore: "If you didn't ask for this, ignore this email. Your password won't change.",
     },
     verify: {
-      subject: "Confirm your email for Budget",
+      subject: "Confirm your email for Latchet",
       intro:
-        "Confirm that this is your email address by opening this link on the phone where Budget is installed:",
+        "Confirm that this is your email address by opening this link on the phone where Latchet is installed:",
       button: "Confirm email",
       note: "The link expires in 24 hours. You can send a new one from Settings in the app.",
-      ignore: "If you didn't create a Budget account, ignore this email.",
+      ignore: "If you didn't create a Latchet account, ignore this email.",
     },
   },
   fr: {
     greeting: (name) => `Bonjour ${name},`,
     greetingAnon: "Bonjour,",
-    signoff: "— Budget",
+    signoff: "— Latchet",
     reset: {
-      subject: "Réinitialisez votre mot de passe Budget",
+      subject: "Réinitialisez votre mot de passe Latchet",
       intro:
-        "Quelqu'un a demandé à réinitialiser le mot de passe du compte Budget associé à cette adresse. Si c'est vous, ouvrez ce lien sur le téléphone où Budget est installé et choisissez un nouveau mot de passe :",
+        "Quelqu'un a demandé à réinitialiser le mot de passe du compte Latchet associé à cette adresse. Si c'est vous, ouvrez ce lien sur le téléphone où Latchet est installé et choisissez un nouveau mot de passe :",
       button: "Choisir un nouveau mot de passe",
-      note: "Le lien ne fonctionne qu'une fois et expire dans une heure. L'utiliser vous déconnecte de Budget sur vos autres appareils.",
+      note: "Le lien ne fonctionne qu'une fois et expire dans une heure. L'utiliser vous déconnecte de Latchet sur vos autres appareils.",
       ignore: "Si vous n'êtes pas à l'origine de cette demande, ignorez cet e-mail. Votre mot de passe ne changera pas.",
     },
     verify: {
-      subject: "Confirmez votre adresse e-mail pour Budget",
+      subject: "Confirmez votre adresse e-mail pour Latchet",
       intro:
-        "Confirmez qu'il s'agit bien de votre adresse e-mail en ouvrant ce lien sur le téléphone où Budget est installé :",
+        "Confirmez qu'il s'agit bien de votre adresse e-mail en ouvrant ce lien sur le téléphone où Latchet est installé :",
       button: "Confirmer mon adresse",
       note: "Le lien expire dans 24 heures. Vous pouvez en demander un nouveau depuis les Réglages de l'app.",
-      ignore: "Si vous n'avez pas créé de compte Budget, ignorez cet e-mail.",
+      ignore: "Si vous n'avez pas créé de compte Latchet, ignorez cet e-mail.",
     },
   },
   ar: {
     greeting: (name) => `مرحبًا ${name}،`,
     greetingAnon: "مرحبًا،",
-    signoff: "— Budget",
+    signoff: "— Latchet",
     reset: {
-      subject: "إعادة تعيين كلمة مرور Budget",
+      subject: "إعادة تعيين كلمة مرور Latchet",
       intro:
-        "طلب أحدهم إعادة تعيين كلمة المرور لحساب Budget المرتبط بهذا العنوان. إن كنت أنت، فافتح هذا الرابط على الهاتف المثبّت عليه Budget واختر كلمة مرور جديدة:",
+        "طلب أحدهم إعادة تعيين كلمة المرور لحساب Latchet المرتبط بهذا العنوان. إن كنت أنت، فافتح هذا الرابط على الهاتف المثبّت عليه Latchet واختر كلمة مرور جديدة:",
       button: "اختيار كلمة مرور جديدة",
-      note: "يعمل الرابط مرة واحدة وتنتهي صلاحيته بعد ساعة. استخدامه يسجّل خروجك من Budget على أجهزتك الأخرى.",
+      note: "يعمل الرابط مرة واحدة وتنتهي صلاحيته بعد ساعة. استخدامه يسجّل خروجك من Latchet على أجهزتك الأخرى.",
       ignore: "إن لم تطلب ذلك، فتجاهل هذه الرسالة. لن تتغيّر كلمة مرورك.",
     },
     verify: {
-      subject: "أكّد بريدك الإلكتروني في Budget",
-      intro: "أكّد أن هذا عنوان بريدك الإلكتروني بفتح هذا الرابط على الهاتف المثبّت عليه Budget:",
+      subject: "أكّد بريدك الإلكتروني في Latchet",
+      intro: "أكّد أن هذا عنوان بريدك الإلكتروني بفتح هذا الرابط على الهاتف المثبّت عليه Latchet:",
       button: "تأكيد البريد الإلكتروني",
       note: "تنتهي صلاحية الرابط بعد 24 ساعة. يمكنك طلب رابط جديد من الإعدادات في التطبيق.",
-      ignore: "إن لم تنشئ حسابًا في Budget، فتجاهل هذه الرسالة.",
+      ignore: "إن لم تنشئ حسابًا في Latchet، فتجاهل هذه الرسالة.",
     },
   },
   zh: {
     greeting: (name) => `${name}，你好：`,
     greetingAnon: "你好：",
-    signoff: "— Budget",
+    signoff: "— Latchet",
     reset: {
-      subject: "重置你的 Budget 密码",
-      intro: "有人请求重置与此邮箱关联的 Budget 账户密码。如果是你本人，请在安装了 Budget 的手机上打开此链接，设置新密码：",
+      subject: "重置你的 Latchet 密码",
+      intro: "有人请求重置与此邮箱关联的 Latchet 账户密码。如果是你本人，请在安装了 Latchet 的手机上打开此链接，设置新密码：",
       button: "设置新密码",
-      note: "该链接只能使用一次，一小时后失效。使用后，你在其他设备上的 Budget 将退出登录。",
+      note: "该链接只能使用一次，一小时后失效。使用后，你在其他设备上的 Latchet 将退出登录。",
       ignore: "如果不是你本人操作，请忽略此邮件，你的密码不会改变。",
     },
     verify: {
-      subject: "确认你在 Budget 的邮箱",
-      intro: "请在安装了 Budget 的手机上打开此链接，确认这是你的邮箱地址：",
+      subject: "确认你在 Latchet 的邮箱",
+      intro: "请在安装了 Latchet 的手机上打开此链接，确认这是你的邮箱地址：",
       button: "确认邮箱",
       note: "该链接 24 小时后失效。你可以在应用的设置中重新发送。",
-      ignore: "如果你没有创建 Budget 账户，请忽略此邮件。",
+      ignore: "如果你没有创建 Latchet 账户，请忽略此邮件。",
     },
   },
 };

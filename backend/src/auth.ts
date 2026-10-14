@@ -369,7 +369,7 @@ export const auth = betterAuth({
     },
     // POST /request-password-reset { email, redirectTo } mails a link to
     // GET /reset-password/:token, which redirects to the app
-    // (realbudget://reset-password?token=…, or ?error=INVALID_TOKEN); the app
+    // (latchet://reset-password?token=…, or ?error=INVALID_TOKEN); the app
     // then POSTs /reset-password { newPassword, token }. The token is single
     // use. Every session of the account ends with the reset, so whoever held
     // the old password loses access along with it.
@@ -383,11 +383,11 @@ export const auth = betterAuth({
   },
   // Offered, not required: a link at sign-up, and a resend in Settings
   // (POST /send-verification-email). GET /verify-email marks the address
-  // verified and redirects to realbudget://verify-email (or ?error=…).
+  // verified and redirects to latchet://verify-email (or ?error=…).
   //
   // autoSignInAfterVerification stays off. The link is opened in a browser,
   // and with it on, the expo plugin copies the new session's cookie into the
-  // realbudget:// redirect — a session token handed to whichever app claims
+  // latchet:// redirect — a session token handed to whichever app claims
   // the scheme. The app refreshes its own session on the landing instead.
   emailVerification: {
     sendVerificationEmail: authMailer.sendVerificationEmail,
@@ -440,7 +440,7 @@ export const auth = betterAuth({
   // The mobile app's custom scheme + Expo dev + localhost are always trusted.
   // Add production web origins via TRUSTED_ORIGINS (comma-separated).
   trustedOrigins: [
-    "realbudget://*/*",
+    "latchet://*/*",
     "exp://*/*",
     "http://localhost:*",
     "http://127.0.0.1:*",

@@ -126,7 +126,7 @@ test("dev pro override: bank linking is reachable without a purchase in developm
     createPlaidRouter({
       provider: getProvider(),
       isPro: (userId) => userIsPro(userId, { env: { NODE_ENV, DEV_PRO_OVERRIDE: "true" } }),
-      backendUrl: "https://api.budget.test",
+      backendUrl: "https://api.latchet.test",
       production: NODE_ENV === "production",
     });
 

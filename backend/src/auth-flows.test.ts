@@ -101,7 +101,7 @@ describe("the auth mail sender", () => {
       url: "http://localhost:3000/api/auth/reset-password/TOK?callbackURL=exp%3A%2F%2Fattacker.example%3A8081%2F--%2Fsteal",
     });
     await Bun.sleep(10);
-    expect(sent[0]!.text).toContain("/api/auth/reset-password/TOK?callbackURL=realbudget%3A%2F%2Freset-password");
+    expect(sent[0]!.text).toContain("/api/auth/reset-password/TOK?callbackURL=latchet%3A%2F%2Freset-password");
     expect(sent[0]!.text).not.toContain("attacker");
   });
 
@@ -112,8 +112,8 @@ describe("the auth mail sender", () => {
     await mailer.sendResetPassword({ user: RESET, url: "http://localhost:3000/api/auth/reset-password/TOK?callbackURL=" });
     await Bun.sleep(10);
     expect(sent.map((m) => m.to)).toEqual(["sam@e2e.test", "sam@e2e.test"]);
-    expect(sent[0]!.text).toContain("callbackURL=realbudget%3A%2F%2Fverify-email");
-    expect(sent[1]!.text).toContain("/api/auth/reset-password/TOK?callbackURL=realbudget%3A%2F%2Freset-password");
+    expect(sent[0]!.text).toContain("callbackURL=latchet%3A%2F%2Fverify-email");
+    expect(sent[1]!.text).toContain("/api/auth/reset-password/TOK?callbackURL=latchet%3A%2F%2Freset-password");
   });
 
   test("writes in the saved language, else the request's Accept-Language", async () => {
@@ -128,8 +128,8 @@ describe("the auth mail sender", () => {
       new Request("http://x", { headers: { "accept-language": "ar-MA" } })
     );
     await Bun.sleep(10);
-    expect(saved.sent[0]!.subject).toBe("Réinitialisez votre mot de passe Budget");
-    expect(fresh.sent[0]!.subject).toBe("أكّد بريدك الإلكتروني في Budget");
+    expect(saved.sent[0]!.subject).toBe("Réinitialisez votre mot de passe Latchet");
+    expect(fresh.sent[0]!.subject).toBe("أكّد بريدك الإلكتروني في Latchet");
   });
 
   test("past the hourly limit for an account, nothing is sent and the caller cannot tell", async () => {
@@ -226,26 +226,26 @@ describe("password reset and email verification, through the app", () => {
     const u = await signUp("verify");
     const link = await waitForLink(u.email, "/api/auth/verify-email");
     // Sign-up named no callback; the server pointed the link at the app.
-    expect(new URL(link).searchParams.get("callbackURL")).toBe("realbudget://verify-email");
+    expect(new URL(link).searchParams.get("callbackURL")).toBe("latchet://verify-email");
 
     const opened = await call("GET", link);
     expect(opened.status).toBe(302);
-    expect(opened.location).toBe("realbudget://verify-email");
+    expect(opened.location).toBe("latchet://verify-email");
     expect((await prisma.user.findUniqueOrThrow({ where: { id: u.id } })).emailVerified).toBe(true);
 
     // A tampered token lands in the app with the error, not on a server page.
     const bad = await call("GET", link.replace(/token=[^&]+/, "token=not-a-jwt"));
     expect(bad.status).toBe(302);
-    expect(bad.location).toBe("realbudget://verify-email?error=INVALID_TOKEN");
+    expect(bad.location).toBe("latchet://verify-email?error=INVALID_TOKEN");
   });
 
-  test("the app's sign-up names realbudget://verify-email as the callback; it passes the origin check and is kept", async () => {
+  test("the app's sign-up names latchet://verify-email as the callback; it passes the origin check and is kept", async () => {
     // What mobile/src/app/signup.tsx sends (VERIFY_EMAIL_CALLBACK).
-    const u = await signUp("appsignup", { callbackURL: "realbudget://verify-email" });
+    const u = await signUp("appsignup", { callbackURL: "latchet://verify-email" });
     const link = await waitForLink(u.email, "/api/auth/verify-email");
-    expect(new URL(link).searchParams.get("callbackURL")).toBe("realbudget://verify-email");
+    expect(new URL(link).searchParams.get("callbackURL")).toBe("latchet://verify-email");
     const opened = await call("GET", link);
-    expect([opened.status, opened.location]).toEqual([302, "realbudget://verify-email"]);
+    expect([opened.status, opened.location]).toEqual([302, "latchet://verify-email"]);
   });
 
   test("verification is offered, not required: an unverified account signs in, and Settings can resend", async () => {
@@ -254,12 +254,12 @@ describe("password reset and email verification, through the app", () => {
     expect(signIn.status).toBe(200);
 
     const resend = await call("POST", "/api/auth/send-verification-email", {
-      body: { email: u.email, callbackURL: "realbudget://verify-email" },
+      body: { email: u.email, callbackURL: "latchet://verify-email" },
       cookie: u.cookie,
     });
     expect(resend.status).toBe(200);
     const second = await waitForLink(u.email, "/api/auth/verify-email", 2);
-    expect(new URL(second).searchParams.get("callbackURL")).toBe("realbudget://verify-email");
+    expect(new URL(second).searchParams.get("callbackURL")).toBe("latchet://verify-email");
 
     // Signed out, the resend answers the same for an address with no account.
     const ghost = await call("POST", "/api/auth/send-verification-email", { body: { email: `ghost-${RUN}@e2e.test` } });
@@ -272,16 +272,16 @@ describe("password reset and email verification, through the app", () => {
     const before = await call("GET", "/api/v1/me", { cookie: u.cookie });
     expect(before.status).toBe(200);
 
-    const known = await call("POST", "/api/auth/request-password-reset", { body: { email: u.email, redirectTo: "realbudget://reset-password" } });
-    const unknown = await call("POST", "/api/auth/request-password-reset", { body: { email: `nobody-${RUN}@e2e.test`, redirectTo: "realbudget://reset-password" } });
+    const known = await call("POST", "/api/auth/request-password-reset", { body: { email: u.email, redirectTo: "latchet://reset-password" } });
+    const unknown = await call("POST", "/api/auth/request-password-reset", { body: { email: `nobody-${RUN}@e2e.test`, redirectTo: "latchet://reset-password" } });
     expect(known.status).toBe(200);
     expect([unknown.status, unknown.text]).toEqual([known.status, known.text]);
 
     const link = await waitForLink(u.email, "/api/auth/reset-password/");
     const opened = await call("GET", link);
     expect(opened.status).toBe(302);
-    expect(opened.location.startsWith("realbudget://reset-password?token=")).toBe(true);
-    const token = new URL(opened.location.replace("realbudget://", "http://x/")).searchParams.get("token")!;
+    expect(opened.location.startsWith("latchet://reset-password?token=")).toBe(true);
+    const token = new URL(opened.location.replace("latchet://", "http://x/")).searchParams.get("token")!;
 
     // Stored hashed: the token itself is nowhere in the table.
     expect(await prisma.verification.count({ where: { identifier: { contains: token } } })).toBe(0);
@@ -303,7 +303,7 @@ describe("password reset and email verification, through the app", () => {
 
     // The used link now lands in the app with the error the screen explains.
     const spent = await call("GET", link);
-    expect(spent.location).toBe("realbudget://reset-password?error=INVALID_TOKEN");
+    expect(spent.location).toBe("latchet://reset-password?error=INVALID_TOKEN");
   });
 
   test("reset links redirect only to trusted places", async () => {
@@ -319,7 +319,7 @@ describe("password reset and email verification, through the app", () => {
   test("one account gets at most five reset mails an hour, however the requests arrive", async () => {
     const u = await signUp("flood");
     for (let i = 0; i < 7; i++) {
-      const r = await call("POST", "/api/auth/request-password-reset", { body: { email: u.email, redirectTo: "realbudget://reset-password" } });
+      const r = await call("POST", "/api/auth/request-password-reset", { body: { email: u.email, redirectTo: "latchet://reset-password" } });
       expect(r.status).toBe(200);
     }
     await waitForLink(u.email, "/api/auth/reset-password/", 5);

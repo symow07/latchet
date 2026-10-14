@@ -3,10 +3,10 @@ import { isPostgresUrl } from "./lib/database-url";
 
 /**
  * The local developer database, used when DATABASE_URL is unset outside
- * production. Create it once with `createdb budget_dev`, then apply the
- * migrations: `DATABASE_URL=postgresql://$USER@localhost:5432/budget_dev bunx prisma migrate deploy`.
+ * production. Create it once with `createdb latchet_dev`, then apply the
+ * migrations: `DATABASE_URL=postgresql://$USER@localhost:5432/latchet_dev bunx prisma migrate deploy`.
  */
-export const DEV_DATABASE_URL = "postgresql://localhost:5432/budget_dev";
+export const DEV_DATABASE_URL = "postgresql://localhost:5432/latchet_dev";
 
 const envSchema = z.object({
   PORT: z.string().optional().default("3000"),
@@ -35,7 +35,8 @@ const envSchema = z.object({
   // SMTP_SERVICE_URL at your own relay. Sign-in does not depend on either — it is
   // email and password. In dev, with neither set, outgoing mail is logged.
   RESEND_API_KEY: z.string().optional(),
-  EMAIL_FROM: z.string().optional(), // e.g. "Budget <noreply@yourdomain.com>"
+  // TODO(domain): placeholder until latchet.app is bought.
+  EMAIL_FROM: z.string().optional(), // e.g. "Latchet <no-reply@latchet.app>"
   SMTP_SERVICE_URL: z.url("SMTP_SERVICE_URL must be a valid URL").optional(),
   // Comma-separated production origins trusted for auth cookies / CORS.
   TRUSTED_ORIGINS: z.string().optional(),
@@ -86,7 +87,8 @@ const envSchema = z.object({
     .default("https://open.er-api.com/v6/latest/USD"),
   // Forward-to-inbox subscription detection (routes/email.ts inbound webhook).
   // INBOUND_EMAIL_DOMAIN is the domain that receives forwarded mail (e.g.
-  // "in.realbudget.app"); per-user addresses are u_<token>@<domain>.
+  // "in.latchet.app" — TODO(domain): placeholder until latchet.app is bought);
+  // per-user addresses are u_<token>@<domain>.
   // INBOUND_EMAIL_SECRET authenticates the provider's webhook POSTs.
   // Both optional → the forwarding endpoints 503 until configured.
   INBOUND_EMAIL_DOMAIN: z.string().optional(),

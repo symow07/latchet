@@ -9,7 +9,7 @@
 // 200ms inter-request spacing by default to avoid tripping our own per-IP
 // burst limiter while still exercising the auth path under back-to-back load.
 
-const BACKEND = process.env.BACKEND ?? "https://budget-production-5a9d.up.railway.app";
+const BACKEND = process.env.BACKEND ?? "https://latchet-production.up.railway.app";
 const COUNT = Number(process.env.COUNT ?? 10);
 const SPACING_MS = Number(process.env.SPACING_MS ?? 200);
 const PER_REQUEST_TIMEOUT_MS = Number(process.env.PER_REQUEST_TIMEOUT_MS ?? 35_000);

@@ -19,7 +19,7 @@ import type { ProviderName } from "./types";
 
 export const OAUTH_STATE_TTL_MS = 10 * 60_000;
 /** Where the browser goes when the state is unknown, so the app still hears the outcome. */
-export const DEFAULT_RETURN_URL = "realbudget://email/connected";
+export const DEFAULT_RETURN_URL = "latchet://email/connected";
 
 const sha256 = (s: string) => createHash("sha256").update(s).digest("hex");
 const b64url = (b: Buffer) => b.toString("base64url");
@@ -66,7 +66,7 @@ export async function takeConnect(state: string, db?: Db): Promise<PendingConnec
  */
 export function isAllowedReturnUrl(url: string, production: boolean): boolean {
   if (url.length > 500 || /[\s<>"]/.test(url)) return false;
-  if (/^realbudget:\/\//.test(url)) return true;
+  if (/^latchet:\/\//.test(url)) return true;
   return !production && /^exp(?:\+[a-z0-9-]+)?:\/\/\S+$/i.test(url);
 }
 

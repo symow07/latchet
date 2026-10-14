@@ -4,7 +4,7 @@ import { userInfo } from "node:os";
  * Postgres connection URLs.
  *
  * libpq (psql, createdb, pg_dump) fills in a missing user name from PGUSER, or
- * else the operating-system user, so `postgresql://localhost:5432/budget_dev`
+ * else the operating-system user, so `postgresql://localhost:5432/latchet_dev`
  * works at a shell. Prisma does not: it sends an empty user name, which
  * Postgres refuses before authentication even starts ("no PostgreSQL user name
  * specified in startup packet", Prisma error P1010). The local URLs this

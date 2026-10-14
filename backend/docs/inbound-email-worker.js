@@ -1,5 +1,5 @@
 /**
- * Cloudflare Email Worker → Budget's forwarding webhook
+ * Cloudflare Email Worker → Latchet's forwarding webhook
  * (POST /api/v1/email/inbound). Setup: inbound-email-setup.md beside this file.
  *
  * Every message sent to *@<your inbound domain> (Email Routing's catch-all)
@@ -7,7 +7,7 @@
  * base64-encoded, to the backend, which reads it with the same MIME parser as
  * Gmail and Outlook mail. Nothing is decoded here.
  *
- * Never bounce a real user's mail because Budget is down or asleep.
+ * Never bounce a real user's mail because Latchet is down or asleep.
  * Cloudflare documents `setReject` as a permanent SMTP rejection and offers no
  * way to answer "try again later"; an exception escaping this handler is
  * retried by Cloudflare a few times and then also reaches the sender as a
@@ -27,9 +27,11 @@
  * part that is not u_<token>, or one the backend says no user has.
  *
  * Variables (Settings → Variables):
- *   BACKEND_URL       https://your-backend.up.railway.app (no trailing slash)
+ *   BACKEND_URL       https://latchet-production.up.railway.app (no trailing slash)
  *   INBOUND_SECRET    the backend's INBOUND_EMAIL_SECRET (encrypt it)
- *   INBOUND_DOMAIN    optional: your inbound domain; other domains are refused
+ *   INBOUND_DOMAIN    optional: your inbound domain; other domains are refused.
+ *                     TODO(domain): placeholder until latchet.app is bought.
+ *                     Example: in.latchet.app
  *   FALLBACK_FORWARD  optional: a verified destination address for step 3
  *   RETRY_DELAYS_MS   optional: the waits before each attempt, e.g. "0,2000,6000"
  * Bindings:
@@ -71,7 +73,7 @@ export default {
       return;
     }
 
-    // Budget is down, asleep or misconfigured: keep the message, never bounce it.
+    // Latchet is down, asleep or misconfigured: keep the message, never bounce it.
     if (env.PARKED) {
       try {
         await env.PARKED.put(`${PARK_PREFIX}${Date.now()}:${crypto.randomUUID()}`, payload, {
@@ -79,14 +81,14 @@ export default {
         });
         return;
       } catch (e) {
-        console.error("budget-inbound: could not park the message", e && e.name);
+        console.error("latchet-inbound: could not park the message", e && e.name);
       }
     }
     if (env.FALLBACK_FORWARD) {
       await message.forward(env.FALLBACK_FORWARD);
       return;
     }
-    throw new Error("Budget backend unavailable and no PARKED or FALLBACK_FORWARD configured");
+    throw new Error("Latchet backend unavailable and no PARKED or FALLBACK_FORWARD configured");
   },
 
   /** The cron trigger: deliver what was parked during an outage, oldest first. */

@@ -360,7 +360,7 @@ model PlaidAccount {
   updatedAt      DateTime  @updatedAt
 }
 
-// One mailbox Budget reads billing email from, for one user (Phase 6).
+// One mailbox Latchet reads billing email from, for one user (Phase 6).
 //
 // `provider` is forwarding | gmail | outlook. `email` is the account's address,
 // lower-case, for gmail and outlook; for forwarding it is the synthetic
@@ -408,7 +408,7 @@ model EmailConnection {
   @@unique([userId, email])
 }
 
-// That a user once granted Budget access to a mailbox provider, kept for life.
+// That a user once granted Latchet access to a mailbox provider, kept for life.
 //
 // Google caps an unverified app at 100 users over its lifetime, counting every
 // account that ever granted access, so our own counter must count the same

@@ -3,7 +3,7 @@
 Gmail and Outlook mailboxes are read directly over OAuth (`GOOGLE_*`,
 `MICROSOFT_*` in `backend/.env.example`). Everyone else — iCloud, Yahoo, GMX,
 Proton, a work server — can **forward** billing mail to a private address
-Budget gives them, like `u_ab12cd34ef56ab12cd@in.yourdomain.com`. This guide
+Latchet gives them, like `u_ab12cd34ef56ab12cd@in.latchet.app`. This guide
 sets up the receiving side: **Cloudflare Email Routing** (free) receives the
 mail and a small **Email Worker** ([`inbound-email-worker.js`](./inbound-email-worker.js))
 posts each raw message to the backend, which reads it with the same MIME
@@ -15,9 +15,13 @@ Time: about 20 minutes. Cost: nothing on Cloudflare's free plan.
 ## What you need
 
 - A domain whose DNS is on Cloudflare (the free plan is fine). Use a
-  subdomain you do not receive other mail on, e.g. `in.yourdomain.com`:
+  subdomain you do not receive other mail on, e.g. `in.latchet.app`:
   Email Routing takes over its MX records.
 - The backend deployed and reachable over HTTPS (its `BACKEND_URL`).
+
+> **TODO(domain):** `latchet.app` and `in.latchet.app` throughout this guide
+> are placeholders until the domain is bought; substitute the real one
+> wherever they appear.
 
 ## 1. The shared secret
 
@@ -32,7 +36,7 @@ It authenticates the worker to the backend. Keep it for steps 2 and 4.
 On the backend service (Railway → Variables):
 
 ```
-INBOUND_EMAIL_DOMAIN=in.yourdomain.com
+INBOUND_EMAIL_DOMAIN=in.latchet.app
 INBOUND_EMAIL_SECRET=<the secret from step 1>
 ```
 
@@ -42,9 +46,9 @@ without the secret answers 401 instead of 503.
 
 ## 3. Email Routing on the domain
 
-Cloudflare dashboard → your zone (`yourdomain.com`) → **Email → Email Routing**:
+Cloudflare dashboard → your zone (`latchet.app`, TODO(domain)) → **Email → Email Routing**:
 
-1. **Enable Email Routing** for the subdomain `in.yourdomain.com`. Cloudflare
+1. **Enable Email Routing** for the subdomain `in.latchet.app`. Cloudflare
    offers to add its MX and SPF records; accept. Wait until the status reads
    *Routing status: Enabled* (DNS can take a few minutes).
 2. Leave **Routing rules** for now; the catch-all is set in step 5, once the
@@ -52,7 +56,7 @@ Cloudflare dashboard → your zone (`yourdomain.com`) → **Email → Email Rout
 
 ## 4. The worker
 
-**Workers & Pages → Create → Create Worker**, name it `budget-inbound-email`,
+**Workers & Pages → Create → Create Worker**, name it `latchet-inbound-email`,
 deploy the starter, then **Edit code**, replace everything with the contents
 of [`inbound-email-worker.js`](./inbound-email-worker.js) and **Deploy**.
 
@@ -60,9 +64,9 @@ Worker → **Settings → Variables and Secrets**:
 
 | Name | Type | Value |
 |---|---|---|
-| `BACKEND_URL` | Text | `https://<your-backend-host>` (no trailing slash) |
+| `BACKEND_URL` | Text | `https://latchet-production.up.railway.app` (no trailing slash) |
 | `INBOUND_SECRET` | Secret | the secret from step 1 |
-| `INBOUND_DOMAIN` | Text | `in.yourdomain.com` (optional; refuses other domains) |
+| `INBOUND_DOMAIN` | Text | `in.latchet.app` (TODO(domain); optional; refuses other domains) |
 | `FALLBACK_FORWARD` | Text | optional; see "When the backend is down" |
 
 **CPU.** On the free plan a worker gets 10 ms of CPU per message. Encoding an
@@ -72,15 +76,15 @@ Compatibility flags → Add** `nodejs_compat`. A message that still runs out of
 CPU shows as `EXCEEDED_CPU` in the worker's logs.
 
 **Keep mail during an outage (recommended).** Workers & Pages → **KV** →
-**Create namespace** `budget-inbound-parked`. Worker → **Settings → Bindings →
+**Create namespace** `latchet-inbound-parked`. Worker → **Settings → Bindings →
 Add → KV namespace**: variable name `PARKED`, namespace
-`budget-inbound-parked`. Then Worker → **Settings → Triggers → Cron Triggers →
+`latchet-inbound-parked`. Then Worker → **Settings → Triggers → Cron Triggers →
 Add**: `*/10 * * * *` (every ten minutes). Deploy again.
 
 ## 5. Route the domain's mail to the worker
 
 **Email → Email Routing → Routing rules → Catch-all address → Edit**: action
-**Send to a Worker**, destination `budget-inbound-email`. Save and make sure
+**Send to a Worker**, destination `latchet-inbound-email`. Save and make sure
 the catch-all is **enabled**.
 
 ## 6. Check it end to end
@@ -104,7 +108,7 @@ app can show it (kept for 24 hours).
 
 ## When the backend is down: no bounce
 
-A user's real mail must not bounce because Budget is down, deploying or
+A user's real mail must not bounce because Latchet is down, deploying or
 asleep (Railway sleeps idle services). Cloudflare's Email Workers runtime has
 no way to answer the sending server "try again later": `setReject` is a
 permanent rejection, and an exception that escapes the worker is retried by
@@ -124,7 +128,7 @@ failure. So the worker does not rely on either:
 4. With neither, it throws. Cloudflare retries the worker briefly; after that
    the sender sees a failure. Configure `PARKED`.
 
-The worker rejects (`setReject`, a bounce) only mail that is not for a Budget
+The worker rejects (`setReject`, a bounce) only mail that is not for a Latchet
 address: a local part that is not `u_<token>`, a domain other than
 `INBOUND_DOMAIN`, or a token the backend answers 404 `unknown_recipient` for
 (no such user, or the account was deleted).
@@ -138,7 +142,7 @@ are delivered.
 `POST ${BACKEND_URL}/api/v1/email/inbound` (also `/api/email/inbound`)
 
 - Header `X-Inbound-Secret: <INBOUND_EMAIL_SECRET>`.
-- Body `{"to": "u_…@in.yourdomain.com", "raw": "<the whole RFC 822 message, base64>"}`,
+- Body `{"to": "u_…@in.latchet.app", "raw": "<the whole RFC 822 message, base64>"}`,
   at most 36 MB. The worker cuts messages above 8 MB (billing text comes
   before attachments; PDFs are read only up to 2 MB).
 - Answers: `200 {"received": true}` (stored, a duplicate, not a bill, or over

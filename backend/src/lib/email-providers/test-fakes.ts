@@ -348,7 +348,7 @@ export const TEST_CONFIG: EmailConfig = {
   syncIntervalMinutes: 60,
   providerBaseOverride: FAKE_BASE,
   openAiKey: null,
-  inbound: { domain: "in.budget.test", secret: "inbound-secret-for-tests-0123456789" },
+  inbound: { domain: "in.latchet.test", secret: "inbound-secret-for-tests-0123456789" },
 };
 
 /** A user row for a test, with an id under `prefix` so cleanup reaches only it. */

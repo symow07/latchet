@@ -131,7 +131,7 @@ test("malformed bodies parse to null rather than throwing", () => {
 
 // ── Allowances ───────────────────────────────────────────────────────────────
 
-test("free gets a taste, pro gets the real budget", () => {
+test("free gets a taste, pro gets the full budget", () => {
   expect(aiAllowance(false).dailyMax).toBe(FREE_AI_CALLS_PER_DAY);
   expect(aiAllowance(true).dailyMax).toBe(PRO_AI_DAILY_MAX);
 });

@@ -45,7 +45,7 @@ describe("sendEmail to a reserved domain", () => {
   });
 
   test("never reaches a provider, and outside production logs the plain text with its link", async () => {
-    const link = "http://localhost:3000/api/auth/reset-password/TOKEN?callbackURL=realbudget%3A%2F%2Freset-password";
+    const link = "http://localhost:3000/api/auth/reset-password/TOKEN?callbackURL=latchet%3A%2F%2Freset-password";
     await sendEmail({ to: "someone@e2e.test", subject: "Subject line", html: "<p>x</p>", text: `Hello\n\n${link}\n` });
 
     expect(fetchSpy).not.toHaveBeenCalled();

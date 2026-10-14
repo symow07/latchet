@@ -16,7 +16,7 @@ test("extracts token from a bare address", () => {
 });
 
 test("extracts token from a display-name form", () => {
-  expect(parseInboundToken('"Budget Inbox" <u_ff00aa11@in.example.com>')).toBe("ff00aa11");
+  expect(parseInboundToken('"Latchet Inbox" <u_ff00aa11@in.example.com>')).toBe("ff00aa11");
 });
 
 test("lowercases mixed-case tokens (addresses are case-insensitive)", () => {
@@ -138,20 +138,20 @@ function backend(answers: (number | "down" | { status: number; json: unknown })[
   return calls;
 }
 
-const ENV = { BACKEND_URL: "https://budget.example/", INBOUND_SECRET: "s3cret", RETRY_DELAYS_MS: "0,0,0" };
+const ENV = { BACKEND_URL: "https://latchet.example/", INBOUND_SECRET: "s3cret", RETRY_DELAYS_MS: "0,0,0" };
 // A real message with non-ASCII bytes in an 8-bit body: the worker must not touch them.
 const RAW = new Uint8Array(Buffer.concat([
   Buffer.from("From: Netflix <info@account.netflix.com>\r\nSubject: Your receipt\r\nContent-Type: text/plain; charset=ISO-8859-1\r\nContent-Transfer-Encoding: 8bit\r\n\r\nMontant : 13,49 "),
   Buffer.from([0xa4, 0xe9, 0x0d, 0x0a]),
 ]));
-const TO = "u_ab12cd34ef56ab12cd@in.budget.example";
+const TO = "u_ab12cd34ef56ab12cd@in.latchet.example";
 
 test("forwarding: the worker posts the raw message untouched, base64, with the shared secret", async () => {
   const calls = backend([200]);
   const { message, seen } = cfMessage(TO, RAW);
   await worker.email(message, ENV);
   expect(calls.length).toBe(1);
-  expect(calls[0]!.url).toBe("https://budget.example/api/v1/email/inbound");
+  expect(calls[0]!.url).toBe("https://latchet.example/api/v1/email/inbound");
   expect(calls[0]!.headers.get("x-inbound-secret")).toBe("s3cret");
   expect(calls[0]!.body.to).toBe(TO);
   expect(Buffer.from(calls[0]!.body.raw, "base64").equals(Buffer.from(RAW))).toBe(true);
@@ -189,11 +189,11 @@ test("forwarding: during an outage the message is parked, then the cron delivers
 });
 
 test("forwarding: the worker rejects only addresses that are not ours", async () => {
-  // Not a Budget address at all: refused without asking the backend.
+  // Not a Latchet address at all: refused without asking the backend.
   let calls = backend([200]);
-  for (const to of ["postmaster@in.budget.example", "u_@in.budget.example", "u_ab12cd34ef56ab12cd@other.example"]) {
+  for (const to of ["postmaster@in.latchet.example", "u_@in.latchet.example", "u_ab12cd34ef56ab12cd@other.example"]) {
     const { message, seen } = cfMessage(to, RAW);
-    await worker.email(message, { ...ENV, INBOUND_DOMAIN: "in.budget.example" });
+    await worker.email(message, { ...ENV, INBOUND_DOMAIN: "in.latchet.example" });
     expect(seen.rejected).toBe("Address does not exist");
   }
   expect(calls.length).toBe(0);
@@ -219,14 +219,14 @@ test("forwarding: the worker rejects only addresses that are not ours", async ()
 test("forwarding: without a KV namespace the message goes to the fallback mailbox", async () => {
   backend(["down"]);
   const { message, seen } = cfMessage(TO, RAW);
-  await worker.email(message, { ...ENV, FALLBACK_FORWARD: "ops@budget.example" });
-  expect(seen).toEqual({ rejected: null, forwarded: ["ops@budget.example"] });
+  await worker.email(message, { ...ENV, FALLBACK_FORWARD: "ops@latchet.example" });
+  expect(seen).toEqual({ rejected: null, forwarded: ["ops@latchet.example"] });
 });
 
 test("forwarding: with nowhere to keep it, the worker throws rather than reject the mail", async () => {
   backend([500]);
   const { message, seen } = cfMessage(TO, RAW);
-  await expect(worker.email(message, ENV)).rejects.toThrow("Budget backend unavailable");
+  await expect(worker.email(message, ENV)).rejects.toThrow("Latchet backend unavailable");
   expect(seen.rejected).toBeNull();
 });
 

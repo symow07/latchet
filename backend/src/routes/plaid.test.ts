@@ -166,7 +166,7 @@ function setup(over: Partial<PlaidRouteDeps> & { configured?: boolean } = {}) {
   const router = createPlaidRouter({
     provider,
     isPro: async () => true,
-    backendUrl: "https://api.budget.test",
+    backendUrl: "https://api.latchet.test",
     production: true,
     runInBackground: (task) => void background.push(task),
     ...over,
@@ -188,7 +188,7 @@ function setup(over: Partial<PlaidRouteDeps> & { configured?: boolean } = {}) {
 }
 
 const linkTokenBody = (over: Record<string, unknown> = {}) => ({
-  region: "FR", currency: "EUR", language: "fr", returnUrl: "realbudget://bank/linked", ...over,
+  region: "FR", currency: "EUR", language: "fr", returnUrl: "latchet://bank/linked", ...over,
 });
 
 describe("plaid link", () => {
@@ -199,27 +199,27 @@ describe("plaid link", () => {
     expect(res.status).toBe(200);
     const out = (await res.json()) as { linkToken: string; hostedLinkUrl: string; returnUrl: string };
     expect(out.hostedLinkUrl).toStartWith("https://hosted.plaid.test/link/");
-    expect(out.returnUrl).toBe("realbudget://bank/linked");
+    expect(out.returnUrl).toBe("latchet://bank/linked");
 
     const sent = s.plaid.calls.find((c) => c.path === "/link/token/create")!.body;
     expect(sent.country_codes).toEqual(["FR"]);
     expect(sent.language).toBe("fr");
     expect(sent.products).toEqual(["transactions"]);
     expect(sent.user).toEqual({ client_user_id: user });
-    expect(sent.webhook).toBe("https://api.budget.test/api/plaid/webhook");
+    expect(sent.webhook).toBe("https://api.latchet.test/api/plaid/webhook");
     expect(sent.hosted_link.url_lifetime_seconds).toBe(1800);
     const completion = sent.hosted_link.completion_redirect_uri as string;
-    expect(completion).toMatch(/^https:\/\/api\.budget\.test\/api\/plaid\/link\/return\/[A-Za-z0-9_-]{16,64}$/);
+    expect(completion).toMatch(/^https:\/\/api\.latchet\.test\/api\/plaid\/link\/return\/[A-Za-z0-9_-]{16,64}$/);
 
     // The browser following the completion redirect is sent back into the app.
     const back = await s.as(null).request(new URL(completion).pathname.replace(/^\/api\/plaid/, ""));
     expect(back.status).toBe(302);
-    expect(back.headers.get("location")).toBe("realbudget://bank/linked?result=done");
+    expect(back.headers.get("location")).toBe("latchet://bank/linked?result=done");
     await s.settle();
 
     // Without a region, the app's currency decides; the settings' when the
     // phone sends none.
-    await s.post(user, "/link-token", { returnUrl: "realbudget://bank/linked" });
+    await s.post(user, "/link-token", { returnUrl: "latchet://bank/linked" });
     const second = s.plaid.calls.filter((c) => c.path === "/link/token/create")[1]!.body;
     expect(second.country_codes).toEqual(["FR", "DE", "IE", "ES"]);
     expect(second.language).toBe("en");
@@ -368,10 +368,10 @@ describe("plaid link", () => {
   });
 
   test("plaid link: a development server without https sends Plaid straight back to the app", async () => {
-    expect(completionRedirectFor("https://api.budget.test", "S".repeat(32), "realbudget://bank/linked"))
-      .toBe(`https://api.budget.test/api/plaid/link/return/${"S".repeat(32)}`);
-    expect(completionRedirectFor("http://localhost:3000", "S".repeat(32), "realbudget://bank/linked"))
-      .toBe("realbudget://bank/linked");
+    expect(completionRedirectFor("https://api.latchet.test", "S".repeat(32), "latchet://bank/linked"))
+      .toBe(`https://api.latchet.test/api/plaid/link/return/${"S".repeat(32)}`);
+    expect(completionRedirectFor("http://localhost:3000", "S".repeat(32), "latchet://bank/linked"))
+      .toBe("latchet://bank/linked");
 
     const s = setup({ backendUrl: "http://localhost:3000", production: false });
     const user = await makeUser("localdev");
@@ -382,7 +382,7 @@ describe("plaid link", () => {
   });
 
   test("plaid link: only the app's own scheme may be the return address in production", async () => {
-    expect(isAllowedReturnUrl("realbudget://bank/linked", true)).toBe(true);
+    expect(isAllowedReturnUrl("latchet://bank/linked", true)).toBe(true);
     expect(isAllowedReturnUrl("exp://192.168.1.4:8081/--/bank/linked", true)).toBe(false);
     expect(isAllowedReturnUrl("exp://192.168.1.4:8081/--/bank/linked", false)).toBe(true);
     expect(isAllowedReturnUrl("https://evil.example/steal", false)).toBe(false);
@@ -395,7 +395,7 @@ describe("plaid link", () => {
 
     // An unknown state goes back to the app as expired, not to an error page.
     const stale = await s.as(null).request("/link/return/AAAAAAAAAAAAAAAAAAAAAAAA");
-    expect(stale.headers.get("location")).toBe("realbudget://bank/linked?result=expired");
+    expect(stale.headers.get("location")).toBe("latchet://bank/linked?result=expired");
   });
 
   test("plaid link: a Plaid refusal reaches the phone as a code it can explain", async () => {
@@ -410,7 +410,7 @@ describe("plaid link", () => {
             ? new Response(JSON.stringify({ error_type: "INVALID_INPUT", error_code: "INVALID_API_KEYS", error_message: "invalid client_id or secret provided", display_message: null }), { status: 400 })
             : original(url, init as never),
       }),
-      isPro: async () => true, backendUrl: "https://api.budget.test", production: true,
+      isPro: async () => true, backendUrl: "https://api.latchet.test", production: true,
     });
     const app = new Hono<SessionVars>();
     app.use("*", async (c, next) => { c.set("user", { id: user, email: "x" }); await next(); });

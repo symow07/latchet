@@ -22,7 +22,7 @@ process.env.REVENUECAT_WEBHOOK_SECRET ??= "test-revenuecat-webhook-secret-value"
 process.env.OPENAI_API_KEY ??= "test-openai-key";
 
 /**
- * The suite's own Postgres database: TEST_DATABASE_URL, or budget_test on the
+ * The suite's own Postgres database: TEST_DATABASE_URL, or latchet_test on the
  * local server. Never DATABASE_URL — bun auto-loads .env, so deferring to it
  * would run the suite against the developer's own database, free to mutate
  * (and, on a schema change, to drop) real local data.
@@ -36,7 +36,7 @@ process.env.OPENAI_API_KEY ??= "test-openai-key";
  * needs a clean slate deletes or truncates the rows it uses; most scope their
  * fixtures by an id prefix so cleanup cannot reach anyone else's.
  */
-const DEFAULT_TEST_DATABASE_URL = "postgresql://localhost:5432/budget_test";
+const DEFAULT_TEST_DATABASE_URL = "postgresql://localhost:5432/latchet_test";
 
 const backendDir = join(import.meta.dir, "..");
 const migrationsDir = join(backendDir, "prisma", "migrations");
@@ -129,7 +129,7 @@ async function isUpToDate(admin: SQL): Promise<boolean> {
   // Two suites starting at once must not both rebuild, one dropping the
   // database under the other. Advisory locks are per database, and every run
   // takes this one through the same maintenance database.
-  const lockKey = `budget:test-setup:${testDb}`;
+  const lockKey = `latchet:test-setup:${testDb}`;
   await admin`SELECT pg_advisory_lock(hashtext(${lockKey}))`;
   try {
     const recorded = existsSync(stampPath) ? await Bun.file(stampPath).text() : "";

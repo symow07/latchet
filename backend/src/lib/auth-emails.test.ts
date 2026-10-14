@@ -13,8 +13,8 @@ import {
 // Links as Better Auth builds them: the reset one with a path token and the
 // verification one with a JWT and an "&" between its parameters, which is the
 // character that has to be escaped inside an href.
-const RESET_URL = "https://api.example.com/api/auth/reset-password/AbC123xyz?callbackURL=realbudget%3A%2F%2Freset-password";
-const VERIFY_URL = "https://api.example.com/api/auth/verify-email?token=eyJhbGciOiJIUzI1NiJ9.eyJlbWFpbCI6ImFAYi5jIn0.sig&callbackURL=realbudget%3A%2F%2Fverify-email";
+const RESET_URL = "https://api.example.com/api/auth/reset-password/AbC123xyz?callbackURL=latchet%3A%2F%2Freset-password";
+const VERIFY_URL = "https://api.example.com/api/auth/verify-email?token=eyJhbGciOiJIUzI1NiJ9.eyJlbWFpbCI6ImFAYi5jIn0.sig&callbackURL=latchet%3A%2F%2Fverify-email";
 
 const lines = (s: string) => s.split("\n");
 
@@ -23,7 +23,7 @@ describe("auth emails", () => {
     const mail = passwordResetEmail({ name: "Sam", url: RESET_URL, locale: "en" });
     expect(lines(mail.text)).toContain(RESET_URL);
     expect(mail.html).toContain(`href="${escapeHtml(RESET_URL)}"`);
-    expect(mail.subject).toBe("Reset your Budget password");
+    expect(mail.subject).toBe("Reset your Latchet password");
     // Says what the link does to the other sessions, and that ignoring it is safe.
     expect(mail.text).toContain("signs you out");
     expect(mail.text).toContain("ignore this email");
@@ -35,7 +35,7 @@ describe("auth emails", () => {
     expect(mail.html).toContain(`href="${VERIFY_URL.replace("&", "&amp;")}"`);
     // Every & in the HTML starts an entity: no raw one survives.
     expect(mail.html).not.toMatch(/&(?!amp;|lt;|gt;|quot;|#39;)/);
-    expect(mail.subject).toBe("Confirm your email for Budget");
+    expect(mail.subject).toBe("Confirm your email for Latchet");
   });
 
   test("the user's name is HTML-escaped, and cannot add lines to the plain text", () => {
@@ -58,19 +58,19 @@ describe("auth emails", () => {
 
   test("each saved language writes the whole email in that language", () => {
     const fr = passwordResetEmail({ name: "Léa", url: RESET_URL, locale: "fr" });
-    expect(fr.subject).toBe("Réinitialisez votre mot de passe Budget");
+    expect(fr.subject).toBe("Réinitialisez votre mot de passe Latchet");
     expect(fr.text.startsWith("Bonjour Léa,")).toBe(true);
     expect(fr.html).toContain('lang="fr" dir="ltr"');
 
     const ar = verificationEmail({ name: "سارة", url: VERIFY_URL, locale: "ar" });
-    expect(ar.subject).toBe("أكّد بريدك الإلكتروني في Budget");
+    expect(ar.subject).toBe("أكّد بريدك الإلكتروني في Latchet");
     expect(ar.text.startsWith("مرحبًا سارة،")).toBe(true);
     // Right to left, on the document and on the card.
     expect(ar.html).toContain('lang="ar" dir="rtl"');
     expect(ar.html).toContain('<div dir="rtl"');
 
     const zh = passwordResetEmail({ name: "小明", url: RESET_URL, locale: "zh" });
-    expect(zh.subject).toBe("重置你的 Budget 密码");
+    expect(zh.subject).toBe("重置你的 Latchet 密码");
     expect(zh.text.startsWith("小明，你好：")).toBe(true);
     expect(zh.html).toContain('lang="zh" dir="ltr"');
 
@@ -99,13 +99,13 @@ describe("auth emails", () => {
     // Sign-up without a callbackURL: Better Auth writes "/".
     const fromSignUp = withAppCallback("https://api.example.com/api/auth/verify-email?token=a.b.c&callbackURL=%2F", APP_VERIFY_EMAIL_URL);
     const v = new URL(fromSignUp);
-    expect(v.searchParams.get("callbackURL")).toBe("realbudget://verify-email");
+    expect(v.searchParams.get("callbackURL")).toBe("latchet://verify-email");
     expect(v.searchParams.get("token")).toBe("a.b.c");
 
     // A reset request without redirectTo: an empty callbackURL.
     const fromReset = withAppCallback("https://api.example.com/api/auth/reset-password/TOK?callbackURL=", APP_RESET_PASSWORD_URL);
     expect(new URL(fromReset).pathname).toBe("/api/auth/reset-password/TOK");
-    expect(new URL(fromReset).searchParams.get("callbackURL")).toBe("realbudget://reset-password");
+    expect(new URL(fromReset).searchParams.get("callbackURL")).toBe("latchet://reset-password");
 
     // A verification callback the client named is kept.
     const named = "https://api.example.com/api/auth/verify-email?token=t&callbackURL=exp%3A%2F%2F192.168.1.5%3A8081%2F--%2Fverify-email";
@@ -118,7 +118,7 @@ describe("auth emails", () => {
     // trusted-but-foreign redirect; the owner's email must not honour it.
     const hostile = "https://api.example.com/api/auth/reset-password/TOK?callbackURL=exp%3A%2F%2Fattacker.example%3A8081%2F--%2Fsteal";
     const pinned = new URL(pinAppCallback(hostile, APP_RESET_PASSWORD_URL));
-    expect(pinned.searchParams.get("callbackURL")).toBe("realbudget://reset-password");
+    expect(pinned.searchParams.get("callbackURL")).toBe("latchet://reset-password");
     expect(pinned.pathname).toBe("/api/auth/reset-password/TOK");
     expect(pinAppCallback("not a url", APP_RESET_PASSWORD_URL)).toBe("not a url");
   });

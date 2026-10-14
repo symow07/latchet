@@ -71,7 +71,7 @@ export const LINK_SESSION_TTL_MS = 6 * 60 * 60 * 1000;
 export const EXCHANGE_CLAIM_TTL_MS = 3 * 60 * 1000;
 
 /** Where the app is sent back to when it did not say. */
-export const DEFAULT_RETURN_URL = "realbudget://bank/linked";
+export const DEFAULT_RETURN_URL = "latchet://bank/linked";
 
 interface LinkSessionRecord {
   userId: string;
@@ -117,7 +117,7 @@ export async function consumeLinkSession(linkToken: string, db?: Db): Promise<st
  * scheme in production; Expo Go's and the dev client's too elsewhere.
  */
 export function isAllowedReturnUrl(url: string, production: boolean): boolean {
-  if (/^realbudget:\/\/[^\s]*$/.test(url)) return true;
+  if (/^latchet:\/\/[^\s]*$/.test(url)) return true;
   return !production && /^exp(\+[a-z0-9-]+)?:\/\/[^\s]+$/i.test(url);
 }
 
