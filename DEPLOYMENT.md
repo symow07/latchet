@@ -6,7 +6,7 @@ require accounts/credentials only the owner can provide.
 ## 1. Database: self-hosted Postgres on Railway (critical) 🔑
 
 The backend's database is **Postgres** (Prisma, `backend/prisma/schema.prisma`). It runs as its
-own service in the Railway **budget** project: the official Postgres 18 image
+own service in the Railway **latchet** project: the official Postgres 18 image
 (`ghcr.io/railwayapp-templates/postgres-ssl:18`) with its own `postgres-volume`, in the same region
 as the backend. It is not a hosted database product; the data lives on that volume.
 
@@ -24,20 +24,20 @@ as the backend. It is not a hosted database product; the data lives on that volu
 Postgres 16+ (Homebrew `postgresql@18` is what this repo was built against):
 
 ```sh
-createdb budget_dev
-cd backend && DATABASE_URL=postgresql://$USER@localhost:5432/budget_dev bunx prisma migrate deploy
-DATABASE_URL=postgresql://$USER@localhost:5432/budget_dev bun run dev
+createdb latchet_dev
+cd backend && DATABASE_URL=postgresql://$USER@localhost:5432/latchet_dev bunx prisma migrate deploy
+DATABASE_URL=postgresql://$USER@localhost:5432/latchet_dev bun run dev
 ```
 
 The URL must name the user: Prisma, unlike `psql`, sends an empty user name otherwise.
-`bun test` never touches that database: the suite uses `budget_test` (or
+`bun test` never touches that database: the suite uses `latchet_test` (or
 `TEST_DATABASE_URL`, whose name must contain "test"), creating and migrating it as needed.
 
 ### Cutover (done 11 October 2026)
 
 Production moved from the SQLite build to Postgres on 11 October 2026:
 
-1. The Budget service's `DATABASE_URL` was set to the reference `${{Postgres.DATABASE_URL}}`
+1. The Latchet service's `DATABASE_URL` was set to the reference `${{Postgres.DATABASE_URL}}`
    (the Postgres service's private-network URL) **without redeploying**, so the running SQLite
    build never restarted against it.
 2. `main` was pushed (`29c488c`). Deployment `c23defec` ran `prisma migrate deploy`, which applied
@@ -48,10 +48,11 @@ Production moved from the SQLite build to Postgres on 11 October 2026:
 4. The production SQLite data was test data and was **not migrated**: every account signs up
    again.
 
-Still to do, when nothing needs the old build: detach and delete the Budget service's
-`budget-data` volume (the old SQLite file and receipt folder). Until then a rollback can use it.
+Still to do, when nothing needs the old build: detach and delete the volume mounted at
+`/data` on the Latchet service (the old SQLite file and receipt folder). Until then a rollback
+can use it.
 
-**Rollback:** in Railway, roll the Budget service back to deployment `dce10784` (commit
+**Rollback:** in Railway, roll the Latchet service back to deployment `dce10784` (commit
 `25432f6`, the last SQLite build). A Railway rollback restores that deployment's image *and* its
 variables, so `DATABASE_URL` returns to the old `file:` value with it. Then stop `main` from
 redeploying Postgres code (revert or disconnect) before the next push.
@@ -67,7 +68,7 @@ redeploying Postgres code (revert or disconnect) before the next push.
 | `NODE_ENV=production` | ✅ | Disables `/api/debug` routes and verbose PII logging. |
 | `OPENAI_API_KEY` | For AI features | Advisor chat, receipt OCR, email parsing (503 without it). |
 | `INBOUND_EMAIL_DOMAIN` / `INBOUND_EMAIL_SECRET` | For email feature | See `backend/docs/inbound-email-setup.md`. |
-| `RESEND_API_KEY` (or `SMTP_SERVICE_URL`) | For password reset and email verification | Without one, production cannot send the reset or verification email: the request still answers normally (no account enumeration) and sign-up still works, but no mail goes out. `EMAIL_FROM` sets the sender (default `Budget <onboarding@resend.dev>`, which only delivers to your own Resend address until you verify a domain). |
+| `RESEND_API_KEY` (or `SMTP_SERVICE_URL`) | For password reset and email verification | Without one, production cannot send the reset or verification email: the request still answers normally (no account enumeration) and sign-up still works, but no mail goes out. `EMAIL_FROM` sets the sender (default `Latchet <onboarding@resend.dev>`, which only delivers to your own Resend address until you verify a domain). |
 | `REVENUECAT_WEBHOOK_SECRET` / `REVENUECAT_API_KEY` | For Pro | The webhook's Authorization value (16+ chars) and the secret API key the entitlement refresh uses. See §3 "Pro store products". |
 | `PLAID_CLIENT_ID` / `PLAID_SECRET` / `PLAID_ENV` | For bank linking | `PLAID_ENV=production` requires Plaid production approval (apply early — takes days/weeks). Sandbox works immediately. |
 | `DEBUG_ROUTES` / `DEBUG_LOGS` | Leave unset | Emergency-only overrides to re-enable diagnostics in production. |
@@ -124,7 +125,7 @@ SELECT COUNT(*) AS plaid FROM "PlaidItem";
   RevenueCat entitlement **`pro`**: the server reads it (`backend/src/lib/entitlement.ts`)
   and the paywall shows the dashboard's **current offering**
   (`RevenueCatUI.presentPaywall`). To sell it:
-  1. App Store Connect → the app (`com.realbudget.app`) → Subscriptions: create a
+  1. App Store Connect → the app (`com.latchet.app`) → Subscriptions: create a
      subscription group and the products (e.g. monthly and yearly), with prices and
      review screenshots. Play Console → Monetize → Subscriptions: the same, if Android ships.
   2. RevenueCat → Products: import those products (and add **Test Store** products, so
@@ -135,11 +136,11 @@ SELECT COUNT(*) AS plaid FROM "PlaidItem";
      and attach a paywall to it.
   5. RevenueCat → Integrations → Webhooks: `<BACKEND_URL>/api/v1/revenuecat/webhook`,
      Authorization header = `REVENUECAT_WEBHOOK_SECRET`; set `REVENUECAT_API_KEY` (secret
-     key) on the Budget service too.
+     key) on the Latchet service too.
   6. Check: Settings → Upgrade to Pro shows the paywall with prices; a sandbox purchase
      makes bank sync and the advisor available.
 - **Production mail** — set `RESEND_API_KEY` (and a verified `EMAIL_FROM` domain) on the
-  Budget service, then use "Forgot password?" on a real account and the verification
+  Latchet service, then use "Forgot password?" on a real account and the verification
   resend in Settings to confirm both emails arrive.
 
 ## 4. More than one instance

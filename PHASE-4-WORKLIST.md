@@ -6,7 +6,7 @@ _Written 11 October 2026, before Phase 3 began, so nothing found along the way g
 
 - [x] **Password reset, end to end, front and back.** Done in `72135fe`: "Forgot password?" on sign-in, an emailed link that opens the app's reset screen, single-use tokens, every session revoked on reset; the request never reveals whether an account exists. Checked on the simulator against the local backend.
 - [x] **Make email verification reachable.** Done in `72135fe`: a link on sign-up, Verified / Not verified with a resend in both Settings screens, and a landing screen for the link. Offered, not required to sign in.
-- [ ] HANDOFF (you): **Production mail.** Reset and verification work in production, but no mail goes out until `RESEND_API_KEY` (and a verified `EMAIL_FROM` domain) is set on the Railway Budget service. DEPLOYMENT.md §2–§3.
+- [ ] HANDOFF (you): **Production mail.** Reset and verification work in production, but no mail goes out until `RESEND_API_KEY` (and a verified `EMAIL_FROM` domain) is set on the Railway Latchet service. DEPLOYMENT.md §2–§3.
 - [x] **Restore bank linking's entry point.** Done in `419b6f1`: Settings → Accounts and the Accounts screen open `/link-bank`, with a Pro badge for free users.
 - [ ] HANDOFF (you): **Create the Pro store products.** They live in App Store Connect / Play Console and RevenueCat, which only you can reach. The app needs no product ids: attach the products to the entitlement `pro`, put them in an offering marked Current with a paywall, add Test Store products for development, and point the webhook at the backend. Step by step in DEPLOYMENT.md §3.
 - [x] **Fix the three dark-mode bugs on business screens** (translucent white on the dark cards). Done in Phase 2, Step 2b (`de128ae`).

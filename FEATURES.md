@@ -1,4 +1,4 @@
-# Budget — Two New Features (pre-launch)
+# Latchet — Two New Features (pre-launch)
 
 _Decisions: both ship before launch · advisor includes health data with guardrails · sharing is
 adults-only in v1._

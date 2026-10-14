@@ -1,4 +1,4 @@
-# Real Budget — Personal Finance, Reimagined
+# Latchet — Personal Finance, Reimagined
 
 > A local-first personal finance tracker built with React Native & Expo, backed by a
 > Bun + Hono API. Your ledger lives on your device and works offline; an account keeps
@@ -12,7 +12,7 @@
 
 ---
 
-## What is Real Budget?
+## What is Latchet?
 
 A full personal-finance system: multi-account tracking, gamified discipline mechanics,
 subscription detection, statement import, an AI advisor, and a complete business mode —
@@ -120,8 +120,8 @@ keys, and the third-party integrations.
 ## Getting started
 
 ```bash
-git clone https://github.com/symow07/budget
-cd budget
+git clone https://github.com/symow07/latchet
+cd latchet
 ```
 
 **Backend**
@@ -130,13 +130,13 @@ cd budget
 cd backend
 bun install
 cp .env.example .env     # then fill in the required values below
-createdb budget_dev      # Postgres 16+ running locally
-DATABASE_URL=postgresql://$USER@localhost:5432/budget_dev bunx prisma migrate deploy
+createdb latchet_dev     # Postgres 16+ running locally
+DATABASE_URL=postgresql://$USER@localhost:5432/latchet_dev bunx prisma migrate deploy
 bun run dev
 ```
 
 Required: `BETTER_AUTH_SECRET` (32+ chars) and `DATABASE_URL`, a Postgres URL that names the
-user (`postgresql://<user>@localhost:5432/budget_dev`). Tests use their own `budget_test`
+user (`postgresql://<user>@localhost:5432/latchet_dev`). Tests use their own `latchet_test`
 database and never touch it. Strongly recommended:
 `TOKEN_ENCRYPTION_KEY` (32+ chars) — it decouples token encryption from the auth secret so
 the latter can be rotated. Sign-in is email and password and sends no mail. Outgoing email
@@ -161,7 +161,7 @@ Point `EXPO_PUBLIC_BACKEND_URL` at your backend.
 ```bash
 # backend
 bun run typecheck     # tsc --noEmit (strict)
-bun test              # runs against the local budget_test Postgres database
+bun test              # runs against the local latchet_test Postgres database
 
 # mobile
 bun run typecheck

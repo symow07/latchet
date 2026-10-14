@@ -1,4 +1,4 @@
-# Real Budget → v1 — Revised Plan
+# Latchet → v1 — Revised Plan
 
 _18 August 2026 · companion to `AUDIT.md` · reflects your four scope decisions_
 

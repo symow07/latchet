@@ -1,6 +1,6 @@
 # Demo video script
 
-Google's reviewers watch this video to see that Real Budget asks for
+Google's reviewers watch this video to see that Latchet asks for
 `gmail.readonly`, shows the user an honest consent screen, uses the data only for
 the feature it describes, and lets the user disconnect. A video that misses one
 requirement is the most common cause of a slow review.
@@ -23,12 +23,12 @@ and [Demo video](https://support.google.com/cloud/answer/13804565), checked on
 | Narration (voice or captions) is recommended | all |
 | Uploaded to YouTube as unlisted; link pasted into the submission | upload |
 
-Budget has one OAuth client. If you ever add a second client ID for Gmail, the
+Latchet has one OAuth client. If you ever add a second client ID for Gmail, the
 video must show data access through each one.
 
 ## Why there are two recordings of the consent screen
 
-Real Budget is a mobile app. It opens Google's sign-in in the system's
+Latchet is a mobile app. It opens Google's sign-in in the system's
 authentication sheet, which shows only the host name, `accounts.google.com`, and
 hides the address bar, so the client ID cannot be seen there. Shot 2 therefore
 opens the **same authorization request** in a desktop browser, where the address
@@ -47,7 +47,7 @@ this in the narration, so the reviewer knows why.
       service), a free-trial-ending notice, a price-increase notice and an
       annual renewal. Forward real ones from your own mail, or send them from
       another account.
-- [ ] **A demo Real Budget account**, signed in, with the subscriptions list
+- [ ] **A demo Latchet account**, signed in, with the subscriptions list
       empty, so detection is visible.
 - [ ] **English everywhere**: the phone or simulator, the Google account
       language, and the consent screen's language selector.
@@ -60,9 +60,9 @@ this in the narration, so the reviewer knows why.
       https://accounts.google.com/o/oauth2/v2/auth?client_id=<GOOGLE_CLIENT_ID>&redirect_uri=<URL-encoded BACKEND_URL>%2Fapi%2Fv1%2Femail%2Foauth%2Fgmail%2Fcallback&response_type=code&scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fgmail.readonly&access_type=offline&prompt=consent
       ```
 
-      For example, with `BACKEND_URL=https://api.realbudget.app` the
+      For example, with `BACKEND_URL=https://api.latchet.app` the <!-- TODO(domain) -->
       `redirect_uri` value is
-      `https%3A%2F%2Fapi.realbudget.app%2Fapi%2Fv1%2Femail%2Foauth%2Fgmail%2Fcallback`.
+      `https%3A%2F%2Fapi.latchet.app%2Fapi%2Fv1%2Femail%2Foauth%2Fgmail%2Fcallback`. <!-- TODO(domain) -->
       It must be exactly the redirect URI registered on the client, or Google
       shows an error instead of the consent screen. This URL carries no `state`
       that the server issued, so **do not grant** in this window, because the
@@ -75,18 +75,18 @@ this in the narration, so the reviewer knows why.
 
 ### Shot 0: title card (0:00–0:10)
 
-On screen: "Real Budget: Gmail API verification demo. Scope:
+On screen: "Latchet: Gmail API verification demo. Scope:
 gmail.readonly. OAuth client ID: `<client ID>`."
 
 ### Shot 1: the app and its homepage (0:10–0:40)
 
-Desktop browser. Open `https://realbudget.app`. Scroll through "What Real Budget
+Desktop browser. Open `https://latchet.app`. Scroll through "What Latchet <!-- TODO(domain) -->
 does" and "How inbox reading works". Click **Privacy policy**. Scroll to
 "Reading your inbox" and stop on the Limited Use statement.
 
-> **Narration:** "Real Budget is a personal-finance app. Its subscription
+> **Narration:** "Latchet is a personal-finance app. Its subscription
 > tracker finds recurring charges and free trials people forget, and reminds
-> them before the next charge. Users can connect Gmail so Real Budget can find
+> them before the next charge. Users can connect Gmail so Latchet can find
 > subscription receipts. Our privacy policy, linked from the homepage and from
 > the consent screen, explains what we read and keep, and states that our use of
 > Google user data follows the Google API Services User Data Policy, including
@@ -108,7 +108,7 @@ does" and "How inbox reading works". Click **Privacy policy**. Scroll to
    language selector set to **English**.
 6. Close the window **without granting**.
 
-> **Narration:** "This is our OAuth client ID in the Cloud console. Real Budget
+> **Narration:** "This is our OAuth client ID in the Cloud console. Latchet
 > is a mobile app whose sign-in sheet hides the address bar, so here is the
 > identical authorization request in a desktop browser. The address bar shows
 > the same client ID. The app requests one scope, gmail.readonly, read-only
@@ -117,7 +117,7 @@ does" and "How inbox reading works". Click **Privacy policy**. Scroll to
 
 ### Shot 3: the in-app disclosure (1:40–2:05)
 
-iOS Simulator. Real Budget, signed in to the demo account. Open the email
+iOS Simulator. Latchet, signed in to the demo account. Open the email
 screen and show the **Connect Gmail** disclosure (the text in
 `limited-use-privacy-wording.md` §4). Hold long enough to read it. Tap
 **Continue to Google**.
@@ -152,7 +152,7 @@ screen**, show the app name and the `gmail.readonly` line again, then tap
 6. Optional: trigger or show a scheduled reminder notification ("Keep it, or
    did you forget?") and tap it to open the subscription.
 
-> **Narration:** "This is everything Real Budget does with Gmail data. From
+> **Narration:** "This is everything Latchet does with Gmail data. From
 > each billing email our server extracts only the merchant, amount, currency,
 > billing cycle and dates. It never stores the message, its attachments or any
 > email address. The app turns these into the subscription list, the trial and
@@ -164,25 +164,25 @@ screen**, show the app name and the `gmail.readonly` line again, then tap
 1. In the app, open the Gmail connection and tap **Disconnect**. Confirm. The
    connection and its findings disappear.
 2. Desktop browser: `https://myaccount.google.com/permissions`, signed in as the
-   demo account. Show that Real Budget is **no longer listed** among the apps
+   demo account. Show that Latchet is **no longer listed** among the apps
    with access. If it still appears, wait a moment and refresh: Google says a
    revocation "might take some time" to take full effect
    ([Token revocation](https://developers.google.com/identity/protocols/oauth2/web-server)).
 
 > **Narration:** "Users can disconnect at any time. Disconnecting revokes Real
-> Budget's token with Google, which you can see here in the Google account's
+> Latchet's token with Google, which you can see here in the Google account's
 > third-party access list, and deletes everything we extracted from that inbox.
-> Deleting a Real Budget account revokes every connection the same way."
+> Deleting a Latchet account revokes every connection the same way."
 
 ### Shot 7: end card (4:45–4:55)
 
-"Real Budget · realbudget.app · privacy policy: realbudget.app/privacy · support:
-support@realbudget.app"
+"Latchet · latchet.app · privacy policy: latchet.app/privacy · support:
+support@latchet.app" <!-- TODO(domain) -->
 
 ## Upload
 
 - YouTube Studio → Upload → visibility **Unlisted**.
-- Title: "Real Budget: Gmail API OAuth verification demo (gmail.readonly)".
+- Title: "Latchet: Gmail API OAuth verification demo (gmail.readonly)".
 - Add captions from the narration above (or upload them as an `.srt`).
 - Open the link in a private window to check that it plays when signed out.
 - Paste the link into the Verification Center submission.
@@ -207,7 +207,7 @@ the consent prompt before and after verification. Ninety seconds is enough:
    Accept.
 4. The scan runs. Show the detected subscriptions.
 5. **Disconnect** in the app. Then open `https://account.live.com/consent/Manage`
-   and remove Real Budget there too. Microsoft offers apps no way to withdraw
+   and remove Latchet there too. Microsoft offers apps no way to withdraw
    their own access to a personal account, so this page is where the user
    removes it at Microsoft's end. Disconnecting in the app already deleted
-   Budget's tokens.
+   Latchet's tokens.

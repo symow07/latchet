@@ -1,4 +1,4 @@
-# Budget — Claude Design brief
+# Latchet — Claude Design brief
 
 This started as a prompt for Claude Design against three references — the Milo
 onboarding/assistant/spend set and the Evoo report + Wise-connect pair. It is now
@@ -16,7 +16,7 @@ it lost.
 
 ## 0. What you're designing
 
-**Budget** is a cross-platform personal + business finance app (React Native /
+**Latchet** is a cross-platform personal + business finance app (React Native /
 Expo, iOS first, worldwide audience). It tracks spending, detects subscriptions
 from statement imports and forwarded billing emails, scans receipts, and runs an
 AI advisor. It has **two profiles behind one account**:

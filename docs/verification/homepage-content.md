@@ -1,6 +1,6 @@
 # Homepage content
 
-The copy for the public homepage at, for example, `https://realbudget.app`.
+The copy for the public homepage at, for example, `https://latchet.app`. <!-- TODO(domain) -->
 
 Google's reviewers open this page. Their requirements
 ([Verification requirements](https://support.google.com/cloud/answer/13464321);
@@ -24,24 +24,24 @@ with `PRIVACY.md`. If the app changes what it reads or keeps, change both.
 
 ## Page title
 
-Real Budget: find the subscriptions you forgot
+Latchet: find the subscriptions you forgot
 
 ## Hero
 
 **Every subscription and free trial, caught before it charges you.**
 
-Real Budget tracks your spending and budgets, and finds the recurring charges
+Latchet tracks your spending and budgets, and finds the recurring charges
 you forgot about: in your bank feed, in the statements you import, and in your
 email receipts. It reminds you before the next charge, so you can keep it or
 cancel it in time.
 
 [Download on the App Store] [Get it on Google Play]
 
-## What Real Budget does
+## What Latchet does
 
 - **Budgets and spending.** Add expenses in seconds, set monthly budgets, and
   see where your money goes, in your own currency.
-- **Subscriptions it finds for you.** Real Budget spots recurring charges from
+- **Subscriptions it finds for you.** Latchet spots recurring charges from
   your bank, your imported statements and your billing email, and merges them,
   so Netflix appears once even if it shows up in all three.
 - **Reminders before you pay.** A heads-up before each renewal and before a free
@@ -59,13 +59,13 @@ not use email at all.
 
 - **Gmail and Outlook.** You sign in with Google or Microsoft and grant
   read-only access: Google's `gmail.readonly` permission or Microsoft's
-  `Mail.Read` permission. Real Budget can never send, delete, move or change
+  `Mail.Read` permission. Latchet can never send, delete, move or change
   your email.
-- **Only billing email.** On the first connection, Real Budget looks for
+- **Only billing email.** On the first connection, Latchet looks for
   receipts, invoices, renewal and trial notices, price changes and
   cancellations from the past 12 months. After that, it checks new mail only.
   Other mail is not opened or kept.
-- **Only a few facts are kept.** From each billing email Real Budget keeps the
+- **Only a few facts are kept.** From each billing email Latchet keeps the
   merchant, the sender's website (such as `netflix.com`), the amount, the
   currency, the billing cycle and the dates. Never the message itself, its
   attachments, or the email addresses in it.
@@ -75,12 +75,12 @@ not use email at all.
   it.
 - **Never sold, never used for ads.** Your email data is not sold, not used for
   advertising, not used to judge your credit, and not used to train AI. Nobody
-  at Real Budget reads it.
+  at Latchet reads it.
 - **Other providers.** For iCloud, Yahoo, GMX and others, forward billing
-  emails to your private Real Budget address. They are read and kept the same
+  emails to your private Latchet address. They are read and kept the same
   way.
 
-Real Budget's use and transfer to any other app of information received from
+Latchet's use and transfer to any other app of information received from
 Google APIs will adhere to the
 [Google API Services User Data Policy](https://developers.google.com/terms/api-services-user-data-policy),
 including the
@@ -88,16 +88,16 @@ including the
 
 ## Disconnect and delete, any time
 
-- **Disconnect an inbox** in the app. Real Budget stops reading it at once and
+- **Disconnect an inbox** in the app. Latchet stops reading it at once and
   deletes everything it found there. For Gmail, it also withdraws its access
   with Google. Microsoft gives apps no way to withdraw
-  their own access to a personal Outlook account, so Real Budget deletes its
+  their own access to a personal Outlook account, so Latchet deletes its
   keys to your mailbox. You can also remove the app yourself:
   - Google: [myaccount.google.com/permissions](https://myaccount.google.com/permissions)
   - Microsoft: [account.live.com/consent/Manage](https://account.live.com/consent/Manage)
 - **Disconnect a bank** in the app. Plaid's access is withdrawn and the
   connection is deleted.
-- **Delete your account** in the app: Settings → Delete Account. Real Budget
+- **Delete your account** in the app: Settings → Delete Account. Latchet
   withdraws every inbox and bank connection first (for Outlook, by deleting its
   keys, as above), then deletes your account and everything in it, immediately
   and permanently.
@@ -111,13 +111,13 @@ including the
 
 ## Privacy policy
 
-Read the full [privacy policy]([PRIVACY POLICY URL, e.g. https://realbudget.app/privacy]).
-It lists exactly what Real Budget collects, why, who processes it and for how
+Read the full [privacy policy]([PRIVACY POLICY URL, e.g. https://latchet.app/privacy]). <!-- TODO(domain) -->
+It lists exactly what Latchet collects, why, who processes it and for how
 long.
 
 ## Contact
 
-Questions or problems: [SUPPORT EMAIL, e.g. support@realbudget.app]
+Questions or problems: [SUPPORT EMAIL, e.g. support@latchet.app] <!-- TODO(domain) -->
 
 ## Footer
 

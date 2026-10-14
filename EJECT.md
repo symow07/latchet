@@ -10,7 +10,7 @@ yourself.
 
 | Was (Vibecode) | Now |
 |---|---|
-| App named **"vibecode"** (`app.json`) | **"Budget"**, slug `budget`, scheme `realbudget://`, bundle ID `com.realbudget.app` |
+| App named **"vibecode"** (`app.json`) | **"Latchet"**, slug `latchet`, scheme `latchet://`, bundle ID `com.latchet.app` |
 | `@vibecodeapp/sdk/metro` bundler wrapper | Standard Expo Metro + `react-native-svg-transformer` (`metro.config.js`) |
 | `@vibecodeapp/proxy` (backend fetch proxy) | Direct calls to OpenAI/Plaid/etc. with **your own** API keys |
 | `smtp.vibecodeapp.com` OTP sender | `lib/email.ts` → **Resend**, or your own webhook, or dev-console fallback. The OTP flow itself has since been removed. |
@@ -82,12 +82,12 @@ npx expo start --dev-client
 eas build --profile production --platform ios     # or android
 eas submit --profile production --platform ios
 ```
-`com.realbudget.app` is your permanent bundle identifier — register it in Apple
+`com.latchet.app` is your permanent bundle identifier — register it in Apple
 Developer / Google Play Console (and in RevenueCat if you use purchases; add your
 `EXPO_PUBLIC_REVENUECAT_*` keys to the `env` blocks in `eas.json`).
 
 ## Note on the custom scheme
-`realbudget://` is the deep-link scheme (used by the auth session and the
+`latchet://` is the deep-link scheme (used by the auth session and the
 Plaid bank-link return URL). It's set consistently in `app.json`,
 `src/lib/auth/auth-client.ts`, and the backend `trustedOrigins`. If you change
 it, change it in all three.

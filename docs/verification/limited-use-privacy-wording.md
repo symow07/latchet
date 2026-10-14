@@ -44,8 +44,8 @@ the [Google Workspace API user data and developer policy](https://developers.goo
 - These rules cover raw data and anything derived from it, aggregated or
   anonymised.
 
-Budget is a finance app, so the creditworthiness and lending prohibition is
-worth stating outright, even though Budget does neither.
+Latchet is a finance app, so the creditworthiness and lending prohibition is
+worth stating outright, even though Latchet does neither.
 
 ## 1. The Limited Use statement
 
@@ -55,7 +55,7 @@ homepage. It is the example in Google's
 from "use" to "use and transfer to any other app" so that it also covers the
 OpenAI fallback:
 
-> Real Budget's use and transfer to any other app of information received from
+> Latchet's use and transfer to any other app of information received from
 > Google APIs will adhere to the
 > [Google API Services User Data Policy](https://developers.google.com/terms/api-services-user-data-policy),
 > including the
@@ -64,12 +64,12 @@ OpenAI fallback:
 Markdown, ready to paste:
 
 ```markdown
-Real Budget's use and transfer to any other app of information received from
+Latchet's use and transfer to any other app of information received from
 Google APIs will adhere to the [Google API Services User Data Policy](https://developers.google.com/terms/api-services-user-data-policy),
 including the [Limited Use requirements](https://developers.google.com/terms/api-services-user-data-policy#additional_requirements_for_specific_api_scopes).
 ```
 
-If the app is renamed, change "Real Budget" here, in `PRIVACY.md` and on the
+If the app is renamed, change "Latchet" here, in `PRIVACY.md` and on the
 homepage at the same time.
 
 ## 2. The privacy-policy paragraph (Gmail and Outlook)
@@ -103,7 +103,7 @@ If you edit one, edit the other.
 >
 > **What we never do.** We never sell this data, never use it for advertising,
 > never use it to decide creditworthiness or lending, and never use it to train
-> AI models. No person at Real Budget reads it, unless you ask us to look at a
+> AI models. No person at Latchet reads it, unless you ask us to look at a
 > specific email, or the law or the security of the service requires it. It is
 > transferred only to provide this feature (to OpenAI, as above, and to our hosting provider), or
 > where the law requires it.
@@ -112,11 +112,11 @@ If you edit one, edit the other.
 > deletes everything we extracted from it. Deleting your account does the same
 > for every connection.
 >
-> Real Budget's use and transfer to any other app of information received from
+> Latchet's use and transfer to any other app of information received from
 > Google APIs will adhere to the Google API Services User Data Policy, including
 > the Limited Use requirements.
 
-Microsoft has no Limited Use policy, but Budget makes Outlook users the same
+Microsoft has no Limited Use policy, but Latchet makes Outlook users the same
 promises. One rule keeps the code honest: data from any inbox is handled the
 same way.
 
@@ -125,13 +125,13 @@ same way.
 For the "How inbox reading works" block on the homepage
 (`homepage-content.md` uses it):
 
-> Real Budget reads only billing email, keeps only the merchant, amount,
+> Latchet reads only billing email, keeps only the merchant, amount,
 > currency, billing cycle and dates it finds, and never keeps the message
 > itself. It can never send, delete or change your email. Your data is never
 > sold, never used for ads, never used to judge your credit, and never used to
 > train AI.
 >
-> Real Budget's use and transfer to any other app of information received from
+> Latchet's use and transfer to any other app of information received from
 > Google APIs will adhere to the [Google API Services User Data Policy](https://developers.google.com/terms/api-services-user-data-policy),
 > including the [Limited Use requirements](https://developers.google.com/terms/api-services-user-data-policy#additional_requirements_for_specific_api_scopes).
 
@@ -150,7 +150,7 @@ the meaning, not word for word.
 
 **Body:**
 
-> Real Budget will look for billing email (receipts, renewals, trial and price
+> Latchet will look for billing email (receipts, renewals, trial and price
 > notices) from the past year, then new ones as they arrive.
 >
 > - **Read-only.** It can never send, delete or change your email.
@@ -171,13 +171,13 @@ the meaning, not word for word.
 **While Google has not verified the app** (`GOOGLE_OAUTH_VERIFIED=false`), add
 one line before the button:
 
-> Google will warn that it hasn't verified Real Budget yet. That review is in
-> progress. If you continue, Real Budget reads your mail exactly as described
+> Google will warn that it hasn't verified Latchet yet. That review is in
+> progress. If you continue, Latchet reads your mail exactly as described
 > above, and you can disconnect at any time.
 
 Only write "in progress" while a verification request has actually been
-submitted. Until then, use: "Google will warn that it hasn't verified Real
-Budget. Verification is a paid review we haven't done yet; the app reads your
+submitted. Until then, use: "Google will warn that it hasn't verified
+Latchet. Verification is a paid review we haven't done yet; the app reads your
 mail exactly as described above."
 
 ## 5. Where each piece goes

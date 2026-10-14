@@ -1,4 +1,4 @@
-# Real Budget — Execution Roadmap
+# Latchet — Execution Roadmap
 
 > **Status, 27 August 2026 (later).** Two pre-launch features were added after
 > this roadmap closed — household sharing and a personalised advisor. Both are
@@ -15,7 +15,7 @@
 > work: rotate the Railway token, enable the App Group on the App ID, buy the
 > domain, rename the production database off `dev.db` (see Task 29 — it needs
 > the variable and the file moved together), and the rest of SUBMISSION.md.
-> `support@realbudget.app` is referenced in the app and does not exist yet.
+> `support@latchet.app` is referenced in the app and does not exist yet. <!-- TODO(domain) -->
 >
 > Phase 7 remains a list of deliberate deferrals, not oversights. Two entries on
 > it turned out to be defects rather than improvements — biometrics never
@@ -24,11 +24,12 @@
 > criterion (benchmark before and after) that cannot be met without an API key
 > and a corpus.
 >
-> One thing left unresolved rather than silently decided: Task 20 chose
-> "Budget" as the app name, and `app.json` says so, but `README.md` still
-> leads with "Real Budget" — which also matches the bundle id and the domain.
-> Both readings are defensible, so it is marked done on the code rollout and
-> the store listing name is tracked in SUBMISSION.md item 9.
+> One thing left unresolved rather than silently decided: after Task 20,
+> `app.json` and `README.md` led with two different forms of the app name (the
+> README's matched the bundle id and the domain). Both readings were
+> defensible, so it is marked done on the code rollout and the store listing
+> name is tracked in SUBMISSION.md item 9. (Since settled: the app is Latchet
+> everywhere.)
 
 > **For the agent working this file.** This is a self-contained work order. You do not need
 > prior context. Every task states the file, the defect, the fix, and how to verify it.
@@ -47,7 +48,7 @@
 | Path | Stack | Notes |
 |---|---|---|
 | `backend/` | Bun + Hono + Prisma 5 + SQLite, Better Auth | Deployed on Railway, builds `main` |
-| `mobile/` | Expo 53, RN 0.79.6, expo-router, NativeWind, TanStack Query, expo-sqlite | EAS, bundle `com.realbudget.app` |
+| `mobile/` | Expo 53, RN 0.79.6, expo-router, NativeWind, TanStack Query, expo-sqlite | EAS, bundle `com.latchet.app` |
 
 **Architecture in one line:** the mobile app is local-first (its own SQLite in `mobile/src/lib/db.ts`,
 all analytics computed on-device); the backend owns auth, the three secret API keys (OpenAI, Plaid,
@@ -107,7 +108,7 @@ git push origin main
 ```
 
 **Verify:** `git log origin/main --oneline -1` shows `6f0260e` or a merge commit above it. Railway
-redeploys green. `curl https://budget-production-5a9d.up.railway.app/health` → `{"status":"ok"}`.
+redeploys green. `curl https://latchet-production.up.railway.app/health` → `{"status":"ok"}`.
 
 ---
 
@@ -394,7 +395,7 @@ And `backend/src/routes/ai.ts:84` — `image: z.string().min(1)` with **no max**
   healthcheck fails when the DB volume is unreachable.
 - **`routes/email.ts:201, :123`** — open redirect: `returnUrl` comes off the query string and is
   used in `c.redirect(\`${returnUrl}?status=success&email=<email>\`)` with no allowlist, leaking the
-  user's email to any host. Allowlist the `realbudget://` scheme (and the new scheme after rename).
+  user's email to any host. Allowlist the `latchet://` scheme.
 - **`env.ts:8`** — `BETTER_AUTH_SECRET` has no minimum length, yet `lib/crypto.ts:10` derives the
   AES-256-GCM key protecting every Plaid access token and Gmail refresh token from it. Require ≥32 chars.
 - **`routes/email.ts:136`** — replace `!==` on the inbound webhook secret with `crypto.timingSafeEqual`.
@@ -452,7 +453,7 @@ migration. Post-launch it becomes a re-encryption job across live user data.
 3. `encryptSecret` always writes v2 when the key is configured; `decryptSecret` dispatches on the
    prefix. Callers in `plaid.ts` and `email.ts` need no changes.
 4. Prefer HKDF over bare SHA-256 for the derivation, with a fixed `info` string
-   (e.g. `"realbudget/token-encryption/v2"`) for domain separation.
+   (e.g. `"<app>/token-encryption/v2"`) for domain separation.
 5. Document both variables in `DEPLOYMENT.md`, and state plainly which one is safe to rotate
    (`BETTER_AUTH_SECRET`, once decoupled — costs only a forced re-login) and which is not
    (`TOKEN_ENCRYPTION_KEY` — requires re-encryption).
@@ -549,8 +550,8 @@ implementations. Fix these bugs from the primary detector while consolidating:
 
 ### ☑ Task 20 — Name and identity rollout
 
-Naming is inconsistent today: `app.json` says `"Budget"`, README says "Real Budget", bundle is
-`com.realbudget.app`. Once the name is chosen, update in lockstep — `app.json` (`name`, `slug`,
+Naming is inconsistent today: `app.json`, the README and the bundle id each use a different
+form of the name. Once the name is chosen, update in lockstep — `app.json` (`name`, `slug`,
 `scheme`, `ios.bundleIdentifier`, `android.package`), `mobile/src/lib/auth/auth-client.ts:10`
 (`scheme`, `storagePrefix`), `backend/src/auth.ts:274` (`trustedOrigins`),
 `backend/src/routes/plaid.ts:114` (`client_name`), `emailSubscriptionApi.ts:47`
@@ -694,7 +695,7 @@ seeds demo data (`seedDemoData()` is dead code; migration `v2_clear_seed` exists
 Both technical bullets verified read-only against the live project on 27 August 2026
 (`railway volume list`, `railway variables`, `railway status --json`):
 
-- ☑ **The volume is attached.** `budget-data` → `/data` on the `Budget` service, status Ready,
+- ☑ **The volume is attached.** Mounted at `/data` on the `Latchet` service, status Ready,
   52 MB of 500 MB used. `DATABASE_URL` points inside it and `RAILWAY_VOLUME_MOUNT_PATH` is
   `/data`, so a deploy does not erase user data.
 - ☑ **Exactly one instance.** `numReplicas: 1`, in one region (`us-east4-eqdc4a`) — no
@@ -759,7 +760,7 @@ transaction in without opening a form.
   `voice-capture.ts` holds the decision logic and is tested without a microphone.
 - ☑ **Merchant memory.** What the user filed this merchant under last time beats any keyword table.
   `merchant-memory.ts`, shared by the CSV importer and both capture paths via `categorise.ts`.
-- ☑ **Siri App Intents.** "Log an expense in Budget" — `plugins/ios/BudgetAppIntents.swift`,
+- ☑ **Siri App Intents.** "Log an expense in Latchet" — `plugins/ios/LatchetAppIntents.swift`,
   injected by `plugins/withAppIntents.js`. Declared in the **main app target**, not an extension:
   an extension would need an App Group to share a file with the app, and an App Group needs the
   capability provisioned against the App ID. Staying in the app target costs no provisioning at all.
@@ -775,7 +776,7 @@ transaction in without opening a form.
   logging in was not something to do on the user's behalf. The JS either side of that boundary is
   tested; the boundary itself needs one run on a signed-in device.
 
-- ☑ **Share-sheet capture.** "Share → Budget" from any app: a receipt photo, a screenshot of a
+- ☑ **Share-sheet capture.** "Share → Latchet" from any app: a receipt photo, a screenshot of a
   payment confirmation, or the text of one. A native `SLComposeServiceViewController` in its own
   target (`plugins/ios/ShareExtension/`), created on every prebuild by `plugins/withShareExtension.js`.
 
@@ -785,21 +786,21 @@ transaction in without opening a form.
   `quick-add.ts` when the app next opens; a shared image goes to the receipt reader, because reading
   a receipt needs the vision model and a review and must not be written blind.
 
-  **Needs one thing from the account owner:** enable the **App Group `group.com.realbudget.app`**
-  on the App ID `com.realbudget.app` in the Apple Developer portal, then let EAS re-sync
+  **Needs one thing from the account owner:** enable the **App Group `group.com.latchet.app`**
+  on the App ID `com.latchet.app` in the Apple Developer portal, then let EAS re-sync
   credentials. Unlike the Siri intents, this cannot be avoided — a share extension runs in its own
   container, and the App Group is the only ground it and the app both stand on. Without it
   `appGroupPath()` returns null and the app behaves as though nothing was ever shared.
 
   Verified end to end on the simulator, where App Groups need no provisioning: the queue was
   consumed, shared text became a 45.20 expense categorised Food from the word "Starbucks", text with
-  no amount was dropped, a file name of `../../Documents/SQLite/real_budget.db` was rejected, the
-  image was moved out of the shared container into the app's own storage, and the app opened the
-  receipt reader on it. The reader's own AI call returned 503 — the backend was unreachable from an
+  no amount was dropped, a file name aimed at the app's own database (`../../Documents/SQLite/….db`)
+  was rejected, the image was moved out of the shared container into the app's own storage, and the
+  app opened the receipt reader on it. The reader's own AI call returned 503 — the backend was unreachable from an
   unauthenticated simulator — and the screen showed the error and fell back rather than hanging.
 
 - ☑ **Localised Siri phrases.** Siri translates nothing at runtime — phrases are matched from the
-  strings compiled into the app binary, so "Ajouter une dépense dans Budget" only works if it was
+  strings compiled into the app binary, so "Ajouter une dépense dans Latchet" only works if it was
   built in. `plugins/ios/Localization/{en,fr,zh-Hans}.lproj/` holds two tables:
   `AppShortcuts.strings` for the spoken phrases and Shortcuts titles, `Localizable.strings` for
   everything a `LocalizedStringResource` resolves — intent titles, descriptions, parameter names,
@@ -886,7 +887,7 @@ transaction in without opening a form.
   name, an out-of-range month rejected with 400, and a joined non-owner getting 404 with the owner's
   record untouched. The migration was applied to a scratch database from empty first.
 
-  **Owner action:** `support@realbudget.app` in `(business-tabs)/settings.tsx` does not exist —
+  **Owner action:** `support@latchet.app` in `(business-tabs)/settings.tsx` does not exist — <!-- TODO(domain) -->
   the domain is unbought. Replace it before shipping or the mail draft goes nowhere.
 
 - ☑ **The business feature had never been authenticated.** Verifying the profile save turned up the

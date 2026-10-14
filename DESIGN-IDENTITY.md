@@ -1,4 +1,4 @@
-# Budget — design identity
+# Latchet — design identity
 
 _Phase 2a, 11 October 2026; revised twice the same day after review: depth, silver presence, money colours and quick actions; then a warm platinum silver, no stacked cards, and a richer dark espresso. Step 2b, the same day, applied it to every screen, personal and business. Tokens: `mobile/src/lib/identity/tokens.ts`. Motion: `mobile/src/lib/identity/motion.ts`. The palette screens read: `mobile/src/lib/palettes.ts`. Components: `mobile/src/components/kit.tsx`. Glyphs: `mobile/scripts/generate-icons.mjs`. Sample: `mobile/src/app/identity-preview.tsx`. The rules below are enforced by `identity.test.ts`, `palettes.test.ts` and `icon-paths.test.ts`._
 
@@ -189,7 +189,7 @@ Supporting motion: a progress line fills in 280 (`inOut`), and crossfades and ch
 
 ## The sample screen
 
-`realbudget://identity-preview` in a development build. It shows the personal Home with its real content, in its real order, against synthetic data:
+`latchet://identity-preview` in a development build. It shows the personal Home with its real content, in its real order, against synthetic data:
 - the greeting and the advisor;
 - the balance as the anchor, with this month's budget folded into it: a metallic silver progress line, the silver "Remaining" figure and the budget;
 - two quick actions, **Scan receipt** and **Subscriptions**: the shortcuts the tab bar does not already give (Add, Insights and Budgets each had a tab or a one-tap path);

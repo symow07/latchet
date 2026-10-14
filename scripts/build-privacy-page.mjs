@@ -19,8 +19,8 @@ const page = `<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Real Budget — Privacy Policy</title>
-<meta name="description" content="How Real Budget handles your data.">
+<title>Latchet — Privacy Policy</title>
+<meta name="description" content="How Latchet handles your data.">
 <style>
   :root { color-scheme: light dark; --fg:#1a1a1a; --bg:#fff; --muted:#666; --line:#e5e5e5; --accent:#7c3aed; }
   @media (prefers-color-scheme: dark) {
@@ -52,7 +52,7 @@ const page = `<!doctype html>
 ${body}
 </main>
 <footer>
-  Source: <a href="https://github.com/symow07/budget/blob/main/PRIVACY.md">PRIVACY.md</a> —
+  Source: <a href="https://github.com/symow07/latchet/blob/main/PRIVACY.md">PRIVACY.md</a> —
   this page is generated from it on every change.
 </footer>
 <script>

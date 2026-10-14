@@ -1,4 +1,4 @@
-# Real Budget — Project Audit & Completion Plan
+# Latchet — Project Audit & Completion Plan
 
 _18 August 2026 · branch `feature/complete-core-features` @ `6f0260e`_
 
@@ -19,8 +19,8 @@ A two-part monorepo, formerly built on the Vibecode platform, since fully ejecte
 | `backend/` | Bun + Hono + Prisma 5 + SQLite, Better Auth (email+password & email OTP) | 4,934 |
 | `mobile/` | Expo 53 / RN 0.79.6, expo-router, NativeWind, TanStack Query, expo-sqlite | 20,681 |
 
-Deployed: backend on Railway (`budget-production-5a9d.up.railway.app`), mobile via EAS
-(`com.realbudget.app`, Expo project `97dd0e8e…`, owner `symow`). Remote: `symow07/Budget` (private).
+Deployed: backend on Railway (`latchet-production.up.railway.app`), mobile via EAS
+(`com.latchet.app`, Expo project `97dd0e8e…`, owner `symow`). Remote: `symow07/latchet` (private).
 
 ### The architecture in one paragraph
 
@@ -420,7 +420,7 @@ process with no implemented endpoint (see §6).
 
 | Item | State |
 |---|---|
-| Bundle ID `com.realbudget.app`, EAS project linked, 3 build profiles | ✅ |
+| Bundle ID `com.latchet.app`, EAS project linked, 3 build profiles | ✅ |
 | iOS permission strings (camera, photos, Face ID, media library) via config plugins | ✅ |
 | `ITSAppUsesNonExemptEncryption: false` | ✅ |
 | **App icon & splash screen** | 🔴 **No `assets/` directory exists anywhere in the repo; `app.json` declares no `icon` or `splash`.** You would ship the Expo placeholder. Hard blocker. |

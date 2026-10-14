@@ -1,4 +1,4 @@
-# Budget — Submission Checklist
+# Latchet — Submission Checklist
 
 > **Superseded on 12 October 2026 by [`LAUNCH-CHECKLIST.md`](LAUNCH-CHECKLIST.md)**, which has every remaining owner step with numbered instructions. This file is kept for its history (the 27 August build notes in §5).
 
@@ -23,7 +23,7 @@ is email and password and sends no mail, and the OTP flow was removed on 11 Octo
 It has been used across several sessions and is sitting in transcripts. Independent of everything
 else, so do it first and stop thinking about it.
 
-### 2. Buy `realbudget.app` · 10 min
+### 2. Buy `latchet.app` · 10 min <!-- TODO(domain) -->
 Matches the bundle ID you already own. **One purchase unblocks three separate blockers** — the
 Resend sending domain, the support email, and privacy-policy hosting. Nothing else on this list
 moves until this does.
@@ -42,7 +42,7 @@ at 600k is sane on Railway's CPU, and turn the flag straight back off (it also p
 in your logs).
 
 ### 4. Verify the Resend domain · 20 min + DNS propagation
-Add the DNS records, set `EMAIL_FROM` to something at `realbudget.app`. Until this is done,
+Add the DNS records, set `EMAIL_FROM` to something at `latchet.app`. Until this is done, <!-- TODO(domain) -->
 `onboarding@resend.dev` only delivers to your own verified address — fine for testing, useless for
 users.
 
@@ -73,7 +73,7 @@ path:
 
 - **BUILD SUCCEEDED**, 4,112 compile steps, no errors.
 - `main.jsbundle` produced at 11.7 MB — the production bundle builds.
-- `BudgetShareExtension.appex` embedded in `PlugIns/`.
+- `LatchetShareExtension.appex` embedded in `PlugIns/`.
 - App icons present (`Assets.car`, `AppIcon60x60@2x.png`).
 - Installed and launched: the session persisted, SecureStore worked, and both
   new features (household sharing, advisor profile) render correctly from the
@@ -104,8 +104,7 @@ entitlement named `pro`. Sandbox testers on both platforms. Then re-verify: a fr
 AI cap at 5/day and gets 402, a forged Pro client still gets 402.
 
 ### 9. App Store Connect metadata
-Listing name needs a qualifier — store names are unique and BUDGET is an Avis Budget Group brand.
-"Budget: Spending Tracker" or similar. Screenshots at every required size. Privacy declarations
+Listing name **Latchet**. Screenshots at every required size. Privacy declarations
 matching `PRIVACY.md` — financial data, contact info, email content.
 
 ---

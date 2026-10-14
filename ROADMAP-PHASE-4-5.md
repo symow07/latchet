@@ -1,13 +1,11 @@
-# Budget — Phase 4 & 5 Work Order (Tasks 21–24)
+# Latchet — Phase 4 & 5 Work Order (Tasks 21–24)
 
 > Expands Tasks 21–24 of `ROADMAP.md` with the detail needed to execute them.
 > Same rules as before: work in order, tick boxes, commit per task, run
 > `bun run typecheck` in **both** halves before every commit.
 
-**Naming is settled:** the app stays **Budget**. `app.json` and the bundle ID
-`com.realbudget.app` are already correct — **do not rename anything.** The App Store *listing*
-name will need a qualifier at submission (store names must be unique, and BUDGET is an Avis
-Budget Group brand), but that is a metadata field, not a code change.
+**Naming is settled:** the app is **Latchet**. `app.json` and the bundle ID
+`com.latchet.app` are already correct — **do not rename anything.**
 
 ---
 
@@ -160,7 +158,7 @@ config with light and dark variants. Then App Store screenshots at every require
 2. **`RESEND_API_KEY`** — production sign-in is impossible without it.
 3. **`OPENAI_API_KEY`** — without it the entire Pro tier returns 503, including everything Task 22
    is built to sell.
-4. **A domain** (`realbudget.app` matches the existing bundle ID) — unblocks the Resend sending
+4. **A domain** (`latchet.app` matches the existing bundle ID) — unblocks the Resend sending <!-- TODO(domain) -->
    domain, the support email, and privacy-policy hosting in one purchase.
 5. **Privacy hosting** — GitHub Pages cannot publish from a private repo on the free plan. A
    separate public repo is the free option.

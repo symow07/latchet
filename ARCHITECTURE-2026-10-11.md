@@ -1,4 +1,4 @@
-# Budget — Technical Map
+# Latchet — Technical Map
 
 _11 October 2026 · read from code and config only — none of the project's other documents were
 used as a source. Every claim cites `file:line`, relative to the repo root. Nothing was changed
@@ -56,7 +56,7 @@ per-user separation**: the local database is shared, and signing out does not cl
 |---|---|---|
 | Mobile app | TypeScript (TSX) | `mobile/package.json:172` — `typescript ~5.8.3` |
 | Backend | TypeScript | `backend/package.json:18` — `typescript 5.8.3` |
-| iOS extensions | Swift | `mobile/plugins/ios/BudgetAppIntents.swift`, `mobile/plugins/ios/ShareExtension/` |
+| iOS extensions | Swift | `mobile/plugins/ios/LatchetAppIntents.swift`, `mobile/plugins/ios/ShareExtension/` |
 | Schema | Prisma SDL | `backend/prisma/schema.prisma` |
 | Local DB | SQL (SQLite dialect), inline | `mobile/src/lib/db.ts:48-156` |
 
@@ -126,7 +126,7 @@ is declared but the app validates nothing with it — validation happens only on
  │                                                                                │
  │   Screens (expo-router)          On-device data                               │
  │   ─────────────────────          ──────────────                               │
- │   Personal tabs     ──reads──▶   SQLite  real_budget.db  (8 tables)            │
+ │   Personal tabs     ──reads──▶   SQLite  one shared file  (8 tables)           │
  │   Business tabs                  AsyncStorage  (prefs, caches)                 │
  │   Settings, etc.                 SecureStore   (session cookie)                │
  │        │                         Files         (receipts, share-sheet inbox)   │
@@ -388,7 +388,7 @@ production unless `DEBUG_ROUTES=true` (`backend/src/index.ts:191`).
 
 ### 3.2 On the phone: a second, separate SQLite database
 
-- `expo-sqlite`, one file `real_budget.db` (`mobile/src/lib/db.ts:4,46`).
+- `expo-sqlite`, one database file for every account (`mobile/src/lib/db.ts:4,46`).
 - 8 tables (§4.3). Schema created in code, with hand-written migrations tracked in a
   `migrations` table (`mobile/src/lib/db.ts:204`).
 - **No user column.** Whoever is signed in sees what is in the file.
@@ -397,12 +397,12 @@ production unless `DEBUG_ROUTES=true` (`backend/src/index.ts:191`).
 
 | Store | Holds | Evidence |
 |---|---|---|
-| **SecureStore** | The Better Auth session cookie, prefix `realbudget` — the only thing kept here | `mobile/src/lib/auth/auth-client.ts:25-29` |
+| **SecureStore** | The Better Auth session cookie, prefix `latchet` — the only thing kept here | `mobile/src/lib/auth/auth-client.ts:25-29` |
 | **AsyncStorage** | `@biometric_lock` — lock on/off | `mobile/src/app/(tabs)/settings.tsx:95` |
 | | `@account_type_<userId>` — personal or business | `mobile/src/lib/account-type-store.ts:6` |
 | | `theme.preference` | `mobile/src/lib/theme-store.ts:24` |
 | | `@locale_chosen_v1` | `mobile/src/lib/i18n/bootstrap.ts:16` |
-| | `@real_budget_onboarding` | `mobile/src/lib/onboarding-storage.ts:5` |
+| | `@latchet_onboarding` | `mobile/src/lib/onboarding-storage.ts:5` |
 | | `@exchange_rates_v1` — rates cache | `mobile/src/lib/rates.ts:15` |
 | | `@import_profiles_v1` — remembered CSV column mappings | `mobile/src/lib/import-profiles.ts:19` |
 | | `linked_banks`, `linked_accounts` | `mobile/src/lib/bank-linking.ts:121-122` |
@@ -621,7 +621,7 @@ Three of them, kept separately:
   doesn't share cookies by itself (`api.ts:57-59`).
 - **On the server:** the `bearer()` plugin is enabled too (`backend/src/auth.ts:348`), though the
   app uses the cookie.
-- **Trusted origins:** `realbudget://*/*`, `exp://*/*`, localhost and `TRUSTED_ORIGINS`
+- **Trusted origins:** `latchet://*/*`, `exp://*/*`, localhost and `TRUSTED_ORIGINS`
   (`backend/src/auth.ts:336-345`).
 
 ### 5.3 Where user data lives

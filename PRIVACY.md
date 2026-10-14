@@ -1,8 +1,8 @@
-# Real Budget — Privacy Policy
+# Latchet — Privacy Policy
 
 _Last updated: October 12, 2026_
 
-Real Budget ("the app", "we") helps you track spending, detect subscriptions,
+Latchet ("the app", "we") helps you track spending, detect subscriptions,
 and manage business expenses. This policy explains what data we handle and how.
 
 This document is the source for the published policy: the hosted page is
@@ -17,7 +17,7 @@ page and the repository can never disagree.
 | Transactions & budgets | You, or your linked bank | The app's core budgeting features |
 | Accounts, settings, custom categories, tracked subscriptions | You | Synced with your account so a reinstall or a second phone restores them. Each account's copy on a phone is a separate database, removed from the phone when you sign out. |
 | Bank account data | Plaid (only if you link a bank) | Automatic transaction sync. We never see or store your bank credentials; Plaid provides read-only access tokens, which we store encrypted (AES-256-GCM). |
-| Details from billing emails | Your Gmail or Outlook inbox, only if you connect it; or emails you forward to your private Real Budget address | Detecting subscriptions, free trials and price changes. **We keep only the details we extract — merchant, the sender's domain (e.g. `netflix.com`), amount, currency, billing cycle, dates, and what kind of email it was. Never the email body, its attachments, the subject line as written, or any email address in it.** See "Reading your inbox" below. Deleted after 90 days, or straight away when you disconnect the inbox. |
+| Details from billing emails | Your Gmail or Outlook inbox, only if you connect it; or emails you forward to your private Latchet address | Detecting subscriptions, free trials and price changes. **We keep only the details we extract — merchant, the sender's domain (e.g. `netflix.com`), amount, currency, billing cycle, dates, and what kind of email it was. Never the email body, its attachments, the subject line as written, or any email address in it.** See "Reading your inbox" below. Deleted after 90 days, or straight away when you disconnect the inbox. |
 | Inbox connection | You, when you connect Gmail or Outlook | The address of the inbox you connected, the access token Google or Microsoft issues to us, stored encrypted (AES-256-GCM), and the sync status we show you (when it last synced, how many emails were checked and found, a short error code if something failed). Lets our server check for new billing email. Removed when you disconnect. |
 | Business data (expenses, team, payroll) | You and your team | Business mode features |
 | Household sharing | You, and the people who join your household | Combined household budgeting. **Each member chooses individually how much they reveal — totals only, totals and categories, or full transactions. Nobody, including the household's owner, can raise another member's setting.** Leaving a household revokes access immediately. |
@@ -26,7 +26,7 @@ page and the repository can never disagree.
 
 ## Reading your inbox
 
-Connecting your email is optional. Real Budget also finds subscriptions in your
+Connecting your email is optional. Latchet also finds subscriptions in your
 bank feed and in the statements you import.
 
 ### What you can connect
@@ -38,10 +38,10 @@ bank feed and in the statements you import.
   `openid` and `email`, which tell us only which address you connected so we
   can show it to you.
 - **Forwarding**, for any other provider (iCloud, Yahoo, GMX and others): you
-  create a filter that forwards billing emails to your private Real Budget
+  create a filter that forwards billing emails to your private Latchet
   address, and we only ever see what you forward.
 
-**None of these lets Real Budget send, delete, move, label or change your
+**None of these lets Latchet send, delete, move, label or change your
 email.**
 
 ### What we read
@@ -102,18 +102,18 @@ days to monitor abuse.
 
 You can disconnect an inbox in the app at any time. When you do:
 
-- **Gmail:** we revoke Real Budget's access with Google, so our token stops
+- **Gmail:** we revoke Latchet's access with Google, so our token stops
   working.
 - **Outlook:** we delete our tokens. Microsoft gives apps no way to withdraw
   their own access to a personal Microsoft account, so once our tokens are gone
-  we simply hold nothing that can reach your mailbox. You can also remove Real
-  Budget from your Microsoft account at
+  we simply hold nothing that can reach your mailbox. You can also remove
+  Latchet from your Microsoft account at
   [account.live.com/consent/Manage](https://account.live.com/consent/Manage).
 - **Both:** we delete the connection, and every detail we extracted from that
   inbox, from our server.
 
 Subscriptions already in your list stay there until you remove them. You can
-also remove Real Budget's access from your Google account at any time at
+also remove Latchet's access from your Google account at any time at
 [myaccount.google.com/permissions](https://myaccount.google.com/permissions);
 the app then shows the connection as needing to be reconnected.
 
@@ -123,7 +123,7 @@ deletes everything, as described under "Your controls".
 
 ### One record we keep after you leave
 
-Until Google has verified Real Budget, Google lets it serve at most 100 Gmail
+Until Google has verified Latchet, Google lets it serve at most 100 Gmail
 users over its whole lifetime, counting people who have since left. So
 that we respect the same limit, we keep a record that an account once connected
 Gmail or Outlook, and when. It holds a one-way hash of your account's random ID
@@ -132,7 +132,7 @@ it back to you.
 
 ### Google's Limited Use requirements
 
-Real Budget's use and transfer to any other app of information received from
+Latchet's use and transfer to any other app of information received from
 Google APIs will adhere to the
 [Google API Services User Data Policy](https://developers.google.com/terms/api-services-user-data-policy),
 including the
@@ -144,7 +144,7 @@ In practice, for email from Gmail and Outlook alike:
   to remind you about them;
 - it is never sold, never used for advertising, never used to decide
   creditworthiness or lending, and never used to train AI models;
-- no person at Real Budget reads it, unless you ask us to look at a specific
+- no person at Latchet reads it, unless you ask us to look at a specific
   email, or the law or the security of the service requires it;
 - it is transferred only to provide this feature — to OpenAI as described
   above, and to our hosting provider — or where the law requires it.
@@ -184,7 +184,7 @@ or clinical advice. It uses this information to explain costs.
 - We do not read your email inbox unless **you connect it**, and then only
   billing email, as described above. We can never send, delete or change your
   email. Without a connection, only emails **you choose to forward** to your
-  private Real Budget address are processed.
+  private Latchet address are processed.
 - We do not store raw email content, sender addresses, subject lines, bank
   credentials, or card numbers.
 - We do not use anything from your email for advertising, to judge your
@@ -254,11 +254,11 @@ not affected when the email details expire or when you disconnect the inbox.
 
 ## Contact
 
-Questions: support@realbudget.app
+Questions: support@latchet.app
 
-<!-- TODO(task-20): the address above is a placeholder tied to the app-name
-     decision (Cowry / Mizan / Kesh). It MUST be a working inbox before App
-     Store submission — Apple checks that the privacy policy contact resolves. -->
+<!-- TODO(domain): the address above is a placeholder until latchet.app is
+     bought. It MUST be a working inbox before App Store submission — Apple
+     checks that the privacy policy contact resolves. -->
 
 You do not need to contact us to delete your account — Settings → Delete Account
 does it in full.

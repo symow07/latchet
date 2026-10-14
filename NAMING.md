@@ -1,4 +1,4 @@
-# Real Budget — Name Screening
+# Latchet — Name Screening
 
 _19 August 2026 · four rounds, twelve names screened against App Store/Play Finance-category
 collisions, fintech company collisions, `.com`/`.app` availability, trademark exposure, and
@@ -65,11 +65,11 @@ parked — budget for acquisition or ship on `fenn.app`.
 
 ### The alternative, which is not a lesser choice
 
-The bundle ID `com.realbudget.app` is already registered, permanent, and **invisible to users**.
+The bundle ID `com.latchet.app` is **invisible to users**.
 App Store *display* names can be changed in any later version submission. So:
 
-> Buy `realbudget.app` today → unblocks the Resend sending domain, the support email, and the
-> privacy-policy URL immediately. Ship v1 as **Real Budget**. Rename the listing later if Fenn
+> Buy `latchet.app` today → unblocks the Resend sending domain, the support email, and the <!-- TODO(domain) -->
+> privacy-policy URL immediately. Ship v1 as **Latchet**. Rename the listing later if Fenn
 > still appeals once the app is live.
 
 Nothing except the icon genuinely requires a brand decision before submission. Four rounds of

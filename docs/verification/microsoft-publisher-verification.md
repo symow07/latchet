@@ -1,6 +1,6 @@
 # Microsoft publisher verification (Outlook)
 
-Real Budget reads Outlook.com, Hotmail and Live mail through Microsoft Graph with
+Latchet reads Outlook.com, Hotmail and Live mail through Microsoft Graph with
 the delegated `Mail.Read` permission. Publisher verification replaces the word
 "Unverified" on Microsoft's consent prompt with your organisation's name and a
 blue verified badge. It is free, and it is not a security assessment: there is
@@ -10,7 +10,7 @@ Checked against Microsoft Learn on **12 October 2026**.
 
 ## Do you need it?
 
-**Not for personal accounts, which is what Budget admits today.** With
+**Not for personal accounts, which is what Latchet admits today.** With
 `MICROSOFT_TENANT=consumers` (the default), only personal Microsoft accounts can
 connect. Delegated `Mail.Read` needs no admin consent and "is available for
 consent in personal Microsoft accounts"
@@ -42,7 +42,7 @@ license is required"
 The real cost is the prerequisites: a registered business and a domain with
 email.
 
-## What Budget uses at Microsoft
+## What Latchet uses at Microsoft
 
 **The app registration** (Microsoft Entra admin center → Entra ID → App
 registrations):
@@ -50,7 +50,7 @@ registrations):
 | Setting | Value |
 |---|---|
 | Supported account types | **Personal Microsoft accounts only**, matching `MICROSOFT_TENANT=consumers`. Choose "Accounts in any organizational directory and personal Microsoft accounts" only together with `MICROSOFT_TENANT=common`. |
-| Platform and redirect URI | **Web**, `${BACKEND_URL}/api/v1/email/oauth/outlook/callback`, HTTPS. Move it to your own domain (for example `https://api.realbudget.app/...`) when the Google work moves `BACKEND_URL`. |
+| Platform and redirect URI | **Web**, `${BACKEND_URL}/api/v1/email/oauth/outlook/callback`, HTTPS. Move it to your own domain (for example `https://api.latchet.app/...`) when the Google work moves `BACKEND_URL`. <!-- TODO(domain) --> |
 | API permissions | Microsoft Graph, **Delegated**: `Mail.Read` (Microsoft's text: "Read user mail"; admin consent: No) and `offline_access` ("Maintain access to data you have given it access to"; admin consent: No). `offline_access` provides the refresh token that lets the server check new mail while the user is away. The code also requests `openid` and `email` (sign-in scopes, no admin consent) so the ID token names the connected address; nothing else (`OUTLOOK_SCOPES` in `backend/src/lib/email-providers/outlook.ts`). If that list changes, change this row and `PRIVACY.md`. |
 | Client secret | Certificates & secrets → New client secret. The lifetime is at most 24 months, and Microsoft recommends less than 12. The value "is never displayed again" after you leave the page ([Add and manage app credentials](https://learn.microsoft.com/en-us/entra/identity-platform/how-to-add-credentials)). |
 
@@ -60,15 +60,15 @@ registrations):
 |---|---|
 | `MICROSOFT_CLIENT_ID` | App registration → Overview → **Application (client) ID** |
 | `MICROSOFT_CLIENT_SECRET` | The client secret's **Value**, not its Secret ID |
-| `MICROSOFT_TENANT` | `consumers` (default: personal accounts only), or `common` (personal plus work and school). A specific tenant ID would restrict sign-in to one organisation, which is wrong for Budget. |
+| `MICROSOFT_TENANT` | `consumers` (default: personal accounts only), or `common` (personal plus work and school). A specific tenant ID would restrict sign-in to one organisation, which is wrong for Latchet. |
 
-**Publisher verification changes none of these.** Budget has no
+**Publisher verification changes none of these.** Latchet has no
 "Microsoft verified" switch, and needs none.
 
 Microsoft says client secrets "should not be used in production" and recommends
 certificates
 ([Add and manage app credentials](https://learn.microsoft.com/en-us/entra/identity-platform/how-to-add-credentials)).
-Budget's code uses a client secret today. Switching to a certificate is a code
+Latchet's code uses a client secret today. Switching to a certificate is a code
 change, not part of verification. Until then, rotate the secret before it
 expires: add a new secret, set `MICROSOFT_CLIENT_SECRET` on Railway, redeploy,
 then delete the old secret. Put the expiry date in the calendar a month early.
@@ -114,7 +114,7 @@ only when all of them pass. "In most cases" it takes three to five business days
 **What this means for a solo developer.** You need a legally registered
 business (in many countries a registered sole proprietorship counts; check
 yours), a domain registered to it, and a mailbox on that domain, for example
-`support@realbudget.app`. Microsoft publishes no route for an unregistered
+`support@latchet.app`. Microsoft publishes no route for an unregistered <!-- TODO(domain) -->
 individual. If you have no registered business, skip publisher verification:
 personal Outlook users can still connect.
 
@@ -143,13 +143,13 @@ will verify, register correctly before many people connect.
 1. Sign in to the [Microsoft Entra admin center](https://entra.microsoft.com).
    A free Azure account comes with a tenant.
 2. Add your domain: Entra ID → Domain names → Add custom domain →
-   `realbudget.app`. Add the TXT record it shows at your DNS host and verify
+   `latchet.app`. Add the TXT record it shows at your DNS host and verify <!-- TODO(domain) -->
    ([Add a custom domain](https://learn.microsoft.com/en-us/entra/fundamentals/add-custom-domain)).
-3. Create a member user on that domain, for example `admin@realbudget.app`.
+3. Create a member user on that domain, for example `admin@latchet.app`. <!-- TODO(domain) -->
    Give it Application Administrator (or Global Administrator) and require MFA
    for it.
 4. If step 0 says so, register the app again while signed in as that user,
-   with the settings in "What Budget uses at Microsoft" above.
+   with the settings in "What Latchet uses at Microsoft" above.
 
 ### 2. Join and verify in Partner Center
 
@@ -170,13 +170,13 @@ will verify, register correctly before many people connect.
 
 ### 3. Set the publisher domain
 
-App registrations → Real Budget → **Branding & properties** → **Publisher
-domain** → **Select a verified domain** → `realbudget.app`
+App registrations → Latchet → **Branding & properties** → **Publisher
+domain** → **Select a verified domain** → `latchet.app` <!-- TODO(domain) -->
 ([Configure an app's publisher domain](https://learn.microsoft.com/en-us/entra/identity-platform/howto-configure-publisher-domain)).
 
 If the domain is not in the tenant, choose **Verify a new domain** instead and
 host this file at
-`https://realbudget.app/.well-known/microsoft-identity-association.json`, served
+`https://latchet.app/.well-known/microsoft-identity-association.json`, served <!-- TODO(domain) -->
 as `application/json`:
 
 ```json
@@ -194,7 +194,7 @@ You can remove the file after the domain is verified.
 From [Mark an app as publisher verified](https://learn.microsoft.com/en-us/entra/identity-platform/mark-app-as-publisher-verified):
 
 1. Sign in with MFA as the user from step 1.
-2. App registrations → Real Budget → **Branding & properties**.
+2. App registrations → Latchet → **Branding & properties**.
 3. **Add Partner ID to verify publisher** → enter the Partner One ID →
    **Verify and save**.
 4. Wait a few minutes. On success the blue verified badge appears next to the
@@ -203,7 +203,7 @@ From [Mark an app as publisher verified](https://learn.microsoft.com/en-us/entra
 ### 5. Check
 
 Connect Outlook in the app with a personal account that has never connected, or
-first remove Real Budget at
+first remove Latchet at
 [account.live.com/consent/Manage](https://account.live.com/consent/Manage). The
 consent prompt should show the publisher's name with the blue badge. Microsoft
 mentions `prompt=consent` to force the prompt for an account that already
@@ -242,8 +242,8 @@ From [Troubleshoot publisher verification](https://learn.microsoft.com/en-us/ent
   `revokeSignInSessions`, lists personal Microsoft accounts as "Not supported"
   ([user: revokeSignInSessions](https://learn.microsoft.com/en-us/graph/api/user-revokesigninsessions)).
   An app cannot withdraw its own access to a personal account. On disconnect
-  and on account deletion, Budget deletes its tokens, so it can no longer reach
-  the mailbox. The user removes Real Budget from their Microsoft account at
+  and on account deletion, Latchet deletes its tokens, so it can no longer reach
+  the mailbox. The user removes Latchet from their Microsoft account at
   [account.live.com/consent/Manage](https://account.live.com/consent/Manage), or
   at [myapps.microsoft.com](https://myapps.microsoft.com) for a work account.
   `PRIVACY.md` and `homepage-content.md` say exactly this.

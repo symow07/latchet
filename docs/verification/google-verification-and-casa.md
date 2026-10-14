@@ -1,6 +1,6 @@
 # Google OAuth verification and the CASA security assessment
 
-This is the checklist for taking Real Budget's Gmail connection from Google's
+This is the checklist for taking Latchet's Gmail connection from Google's
 unverified mode to verified. Do it when there is budget for the security
 assessment (section 8) or when the 100-user cap gets close (section 2).
 
@@ -10,7 +10,7 @@ page over this document, and update this document.
 
 Contents:
 
-1. [Where Budget stands today](#1-where-budget-stands-today)
+1. [Where Latchet stands today](#1-where-latchet-stands-today)
 2. [Keeping the 100-user cap safe meanwhile](#2-keeping-the-100-user-cap-safe-meanwhile)
 3. [Prerequisites](#3-prerequisites)
 4. [The console fields](#4-the-console-fields)
@@ -23,9 +23,9 @@ Contents:
 
 ---
 
-## 1. Where Budget stands today
+## 1. Where Latchet stands today
 
-**The scope.** Budget asks for one Google scope:
+**The scope.** Latchet asks for one Google scope:
 `https://www.googleapis.com/auth/gmail.readonly`. Google classifies it as
 **restricted**, the most protected class
 ([Gmail API scopes](https://developers.google.com/workspace/gmail/api/auth/scopes)).
@@ -36,19 +36,19 @@ qualifies for an exception such as personal use or staying in Testing
 **The two publishing statuses**
 ([Manage App Audience](https://support.google.com/cloud/answer/15549945)):
 
-| | Testing | In production, unverified (Budget today) |
+| | Testing | In production, unverified (Latchet today) |
 |---|---|---|
 | Who can connect | Only the test users you list by hand, up to 100 | Anyone with a Google account, up to the cap below |
 | Warning | Yes | Yes: Google's "unverified app" screen appears before the consent screen ([Unverified apps](https://support.google.com/cloud/answer/7454865)) |
 | Refresh tokens | **Expire after 7 days** when the app requests sensitive or restricted scopes ([OAuth 2.0 overview, refresh token expiration](https://developers.google.com/identity/protocols/oauth2#expiration)) | Do not expire on a timer; they stop working if the user revokes access, if they go unused for six months, or if the user changes their Google password, because the token carries Gmail scopes (same page) |
 | User cap | The 100 listed test users | **100 new users in total, for the lifetime of the project; Google says it "cannot be reset or changed"** ([Manage App Audience](https://support.google.com/cloud/answer/15549945)) |
 
-Budget runs **In production, unverified**. Testing would break every Gmail
-connection each week, because Budget reads mail in the background with a
+Latchet runs **In production, unverified**. Testing would break every Gmail
+connection each week, because Latchet reads mail in the background with a
 refresh token.
 
 **What turns verification on in the app:** `GOOGLE_OAUTH_VERIFIED` in
-`backend/src/env.ts`. While it is `false` (the default), Budget enforces its own
+`backend/src/env.ts`. While it is `false` (the default), Latchet enforces its own
 cap (`GMAIL_USER_CAP`, default `100`) and the app explains Google's warning.
 Set it to `true` only after Google approves (section 9).
 
@@ -57,7 +57,7 @@ Set it to `true` only after Google approves (section 9).
 Google counts **Google accounts** that pass the unverified screen: "100 new
 users in total, after the app presents the unverified app screen"
 ([Unverified apps](https://support.google.com/cloud/answer/7454865)). The count
-never resets. Budget counts **Budget users**: the first successful Gmail grant
+never resets. Latchet counts **Latchet users**: the first successful Gmail grant
 for a user writes one `EmailOAuthGrant` row (provider `gmail`, a SHA-256 of the
 user ID). The row survives account deletion, as Google's count does. Once the
 count reaches `GMAIL_USER_CAP`, `GET /api/v1/email/connections` reports
@@ -66,11 +66,11 @@ count reaches `GMAIL_USER_CAP`, `GET /api/v1/email/connections` reports
 
 The two counts can disagree, and only one direction is dangerous:
 
-| Situation | Google's count | Budget's count | Risk |
+| Situation | Google's count | Latchet's count | Risk |
 |---|---|---|---|
-| One Budget user connects two Gmail addresses | +2 | +1 | **Budget under-counts** |
-| You test with your own Google accounts on the production client | +1 each | +1 per Budget test user | **Budget may under-count** |
-| A user deletes their Budget account, signs up again, reconnects the same Gmail | +0 | +1 | Budget over-counts (safe) |
+| One Latchet user connects two Gmail addresses | +2 | +1 | **Latchet under-counts** |
+| You test with your own Google accounts on the production client | +1 each | +1 per Latchet test user | **Latchet may under-count** |
+| A user deletes their Latchet account, signs up again, reconnects the same Gmail | +0 | +1 | Latchet over-counts (safe) |
 | A user disconnects and reconnects | +0 | +0 | none |
 
 Google does not say whether someone who sees the unverified screen and then
@@ -78,7 +78,7 @@ cancels counts. Assume they might.
 
 What to do:
 
-- **Leave headroom.** Set `GMAIL_USER_CAP=90` in Railway → Budget → Variables.
+- **Leave headroom.** Set `GMAIL_USER_CAP=90` in Railway → Latchet → Variables.
   That keeps about ten Google slots for multi-inbox users and your own tests.
   Lower it further if you test a lot on the production client.
 - **Never develop against the production OAuth client.** Google's own advice is
@@ -99,7 +99,7 @@ What to do:
 Do these before opening the Verification Center. Each one is a common reason for
 rejection.
 
-- [ ] **Your own domain**, for example `realbudget.app` (LAUNCH-CHECKLIST §4).
+- [ ] **Your own domain**, for example `latchet.app` (LAUNCH-CHECKLIST §4). <!-- TODO(domain) -->
   Do not use shared provider domains you don't own, such as `github.io` or
   `up.railway.app`
   ([OAuth 2.0 policy compliance](https://developers.google.com/identity/protocols/oauth2/production-readiness/policy-compliance)).
@@ -112,16 +112,16 @@ rejection.
   ([Verification requirements](https://support.google.com/cloud/answer/13464321)).
   It must say how the app "accesses, uses, stores, and/or shares Google user
   data", and must carry the Limited Use statement. `PRIVACY.md` already does
-  both. Publish it at, for example, `https://realbudget.app/privacy`
+  both. Publish it at, for example, `https://latchet.app/privacy` <!-- TODO(domain) -->
   (LAUNCH-CHECKLIST §7).
 - [ ] **The OAuth callback on your domain.** Google verifies every domain tied
   to the project: homepage, privacy policy, terms, **redirect URIs** and
   JavaScript origins
   ([OAuth 2.0 policy compliance](https://developers.google.com/identity/protocols/oauth2/production-readiness/policy-compliance)).
-  Give the Budget service a custom domain in Railway (Settings → Networking →
-  Custom Domain), for example `api.realbudget.app`. Then set `BACKEND_URL` to
-  `https://api.realbudget.app` and register
-  `https://api.realbudget.app/api/v1/email/oauth/gmail/callback` on the OAuth
+  Give the Latchet service a custom domain in Railway (Settings → Networking →
+  Custom Domain), for example `api.latchet.app`. Then set `BACKEND_URL` to <!-- TODO(domain) -->
+  `https://api.latchet.app` and register <!-- TODO(domain) -->
+  `https://api.latchet.app/api/v1/email/oauth/gmail/callback` on the OAuth <!-- TODO(domain) -->
   client. Remove the `up.railway.app` redirect URI from the OAuth client once
   the new one works, but keep the `up.railway.app` domain itself serving: app
   builds already installed call it, and bank links made earlier have their Plaid
@@ -133,7 +133,7 @@ rejection.
   host, and click Verify. DNS can take "up to two or three days". **Keep the
   record**: removing it can lose the verification
   ([Verify your site ownership](https://support.google.com/webmasters/answer/9008080)).
-- [ ] **A support email that works**, for example `support@realbudget.app`
+- [ ] **A support email that works**, for example `support@latchet.app` <!-- TODO(domain) -->
   (LAUNCH-CHECKLIST §5). Users see it on the consent screen.
 - [ ] **Developer contact emails that you read.** Google sends every request
   and deadline to the project's Owners and Editors and warns that ignoring them
@@ -143,15 +143,14 @@ rejection.
   cannot be missed
   ([Restricted scope verification](https://developers.google.com/identity/protocols/oauth2/production-readiness/restricted-scope-verification)).
 - [ ] **One app name everywhere**: consent screen, homepage, store listings and
-  the demo video. The name is still undecided (see the TODO in `PRIVACY.md`).
-  Settle it before submitting, because changing the product name after
-  verification can trigger re-verification
+  the demo video all say Latchet. Keep it that way, because changing the product
+  name after verification can trigger re-verification
   ([Unverified apps](https://support.google.com/cloud/answer/7454865)).
 - [ ] **A production-only OAuth client.** Production clients must not include
   test redirect URIs or origins that only you can reach
   ([OAuth 2.0 policy compliance](https://developers.google.com/identity/protocols/oauth2/production-readiness/policy-compliance)).
   Remove `localhost` and Expo URIs from the production client.
-- [ ] **Budget's own house in order** for CASA (section 8): `TOKEN_ENCRYPTION_KEY`
+- [ ] **Latchet's own house in order** for CASA (section 8): `TOKEN_ENCRYPTION_KEY`
   set explicitly in production, not derived from `BETTER_AUTH_SECRET`.
 
 ## 4. The console fields
@@ -164,13 +163,13 @@ Data Access, Clients and the Verification Center
 
 | Field | Value |
 |---|---|
-| App name | The final app name, for example `Real Budget` |
-| User support email | `support@realbudget.app` |
+| App name | `Latchet` |
+| User support email | `support@latchet.app` <!-- TODO(domain) --> |
 | App logo | Optional: the app icon, square, 120×120 px recommended, at most 1 MB, JPG, PNG or BMP. Google shows the logo (and the name) only once the brand is verified. |
-| Application home page | `https://realbudget.app` |
-| Application privacy policy link | `https://realbudget.app/privacy` (the same page the homepage links to) |
+| Application home page | `https://latchet.app` <!-- TODO(domain) --> |
+| Application privacy policy link | `https://latchet.app/privacy` (the same page the homepage links to) <!-- TODO(domain) --> |
 | Application terms of service link | Optional; leave empty unless you publish terms |
-| Authorized domains | `realbudget.app` (it covers `api.realbudget.app`) |
+| Authorized domains | `latchet.app` (it covers `api.latchet.app`) <!-- TODO(domain) --> |
 | Developer contact information | Two addresses you read |
 
 **Audience:** User type **External**. Publishing status **In production**.
@@ -188,11 +187,11 @@ secret are `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` on Railway.
 to pick an application type. If none fits, leave it empty and "the Google API's
 verification team will then determine the application type"
 ([Restricted scope verification](https://developers.google.com/identity/protocols/oauth2/production-readiness/restricted-scope-verification)).
-Budget matches the Gmail use case Google permits as "applications that use
+Latchet matches the Gmail use case Google permits as "applications that use
 information from emails to provide reporting or monitoring services for the
 benefit of users", the same family as flight and package tracking
 ([Google Workspace API user data and developer policy](https://developers.google.com/workspace/workspace-api-user-data-developer-policy)).
-Budget is not an email client, a backup tool or a one-time export. The policy
+Latchet is not an email client, a backup tool or a one-time export. The policy
 names the last one as **not** permitted.
 
 ## 5. Scope justification for gmail.readonly
@@ -203,7 +202,7 @@ would not work"
 Paste the text below into the Data Access justification field. Edit it if the
 code has changed.
 
-> **What the feature does.** Real Budget is a personal-finance app. Its
+> **What the feature does.** Latchet is a personal-finance app. Its
 > subscription tracker finds the recurring charges and free trials a user has
 > forgotten and warns them before the next charge. When the user connects
 > Gmail, our server searches the user's mailbox for billing email from the past
@@ -224,11 +223,11 @@ code has changed.
 >   one. That is more access, not less.
 > - The `gmail.addons.current.message.*` scopes work only while a Google
 >   Workspace add-on is running inside Gmail, on the message the user has open.
->   Budget is a mobile app that has to notice a renewal or trial-ending notice
+>   Latchet is a mobile app that has to notice a renewal or trial-ending notice
 >   in the background, before the charge, without the user opening that email.
 > - Apart from these and `gmail.labels` (label names only), there is no
 >   narrower way to read mail. We never request `gmail.modify`,
->   `gmail.compose`, `gmail.send` or full `mail.google.com` access. Budget never
+>   `gmail.compose`, `gmail.send` or full `mail.google.com` access. Latchet never
 >   sends, deletes, labels or changes any email.
 >
 > **How we limit what we touch.** The search query is restricted to billing
@@ -239,7 +238,7 @@ code has changed.
 > dates and kind of email), never the body, attachments, the subject line as
 > written, or any email address apart from the connected account's own. OAuth
 > tokens are encrypted at rest with AES-256-GCM. Disconnecting revokes the
-> token with Google and deletes every finding. Deleting the Real Budget
+> token with Google and deletes every finding. Deleting the Latchet
 > account does the same.
 >
 > **Limited Use.** Data is used only for this user-facing feature. It is never
@@ -310,7 +309,7 @@ guaranteed"
 |---|---|
 | Brand verification | 2–3 business days |
 | Sensitive scope verification | about 10 business days |
-| **Restricted scope verification** (Budget) | **about 6 weeks**, mostly the security assessment. The restricted-scope page says "several weeks" and the unverified-apps page warns it can take "several months". |
+| **Restricted scope verification** (Latchet) | **about 6 weeks**, mostly the security assessment. The restricted-scope page says "several weeks" and the unverified-apps page warns it can take "several months". |
 
 Brand verification results must be published within 7 days of approval, or you
 start again
@@ -318,10 +317,10 @@ start again
 
 ## 8. CASA, the security assessment
 
-**Why Budget needs it.** "If you store or transmit restricted scope data on
+**Why Latchet needs it.** "If you store or transmit restricted scope data on
 servers, then you need to complete a security assessment"
 ([Restricted scope verification](https://developers.google.com/identity/protocols/oauth2/production-readiness/restricted-scope-verification)).
-Budget's server fetches and parses mail (PLAN Decision 2), so there is no
+Latchet's server fetches and parses mail (PLAN Decision 2), so there is no
 exemption. Only an app that reads Gmail entirely on the phone could avoid it.
 
 **What it is.** The Cloud Application Security Assessment (CASA) of the App
@@ -434,7 +433,7 @@ Fix what they ask and reply in the same thread.
 
 **After approval:**
 
-1. Railway → Budget → Variables: `GOOGLE_OAUTH_VERIFIED=true`. Redeploy.
+1. Railway → Latchet → Variables: `GOOGLE_OAUTH_VERIFIED=true`. Redeploy.
 2. Check: in the app, connect a Google account that has never connected
    before. There should be no unverified warning in Google's screens or in the
    app.
