@@ -8,6 +8,7 @@ import {
   ActivityIndicator, Alert } from 'react-native';
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { VoiceReviewSheet } from '@/components/VoiceReviewSheet';
 import {
   requestMicrophone, extractFromRecording, discardRecording, SPEECH_RECORDING,
@@ -25,7 +26,7 @@ import {
   sendAdvisorMessage,
   type SpendingAnalysis,
 } from '@/lib/ai-analysis';
-import { F, R, S, useC } from '@/lib/design';
+import { BAR, F, R, S, useC } from '@/lib/design';
 import { Card, Chip, CircleAction, Screen, Type, mirror } from '@/components/kit';
 import { useEntitlement } from '@/lib/useEntitlement';
 import { isUpgradeRequired } from '@/lib/entitlementApi';
@@ -56,6 +57,7 @@ export default function AdvisorTab() {
   const C = useC();
   const { handleUpgradeRequired } = useEntitlement();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const scrollViewRef = useRef<ScrollView>(null);
   const [inputText, setInputText] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
@@ -325,7 +327,10 @@ export default function AdvisorTab() {
         </Type>
 
         {/* ── Input ── */}
-        <View style={{ paddingHorizontal: S.screen, paddingTop: 12, paddingBottom: 28 }}>
+        {/* The floating tab bar sits over the bottom of this screen, so the
+            input row clears it by hand, as the business advisor's does. With a
+            fixed 28 the field, the mic and send were under the bar. */}
+        <View style={{ paddingHorizontal: S.screen, paddingTop: 12, paddingBottom: BAR.clearance(insets.bottom) }}>
           {recording || extracting ? (
             <Type role="meta" color={recording ? C.negative : C.inkDim} style={{ marginBottom: 8 }}>
               {recording ? t('voice.listening') : t('voice.thinking')}
@@ -364,7 +369,7 @@ export default function AdvisorTab() {
                 onPressOut={endVoice}
                 disabled={extracting || sendMessageMutation.isPending}
                 accessibilityRole="button"
-                accessibilityLabel={t('voice.listening')}
+                accessibilityLabel={recording ? t('voice.listening') : t('voice.tapToSpeak')}
                 style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}
               >
                 {extracting

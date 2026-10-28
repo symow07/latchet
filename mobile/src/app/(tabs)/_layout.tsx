@@ -80,7 +80,8 @@ export default function TabLayout() {
       {/* Ask keeps its route — §8 still lists it as a core screen (#16) — but
           it stays off the bar. Home reaches it from the insight card, which is
           where a question about your money actually occurs to you. */}
-      <Tabs.Screen name="advisor" options={{ href: null }} />
+      {/* No native header: the screen draws its own back button and title. */}
+      <Tabs.Screen name="advisor" options={{ href: null, headerShown: false }} />
     </Tabs>
   );
 }
