@@ -291,21 +291,36 @@ export function CountUp({
   const animatedProps = useAnimatedProps(() => {
     return { text: formatWithParts(value * progress.value, parts) } as never;
   });
+  const figureStyle = [
+    textStyle(role),
+    { color, padding: 0, fontSize: spec.size * scale, lineHeight: spec.line * scale },
+    style,
+  ];
 
+  // Sized by an invisible copy of the final figure. On the New Architecture
+  // Reanimated writes `text` straight to the native view without a new layout,
+  // so the field kept the width of the count's first frame ("0") and the final
+  // figure was cut to "…" (the balance read "CN¥1,062…").
   return (
-    <AnimatedTextInput
-      key={`${value}:${replay}`}
-      editable={false}
-      pointerEvents="none"
-      maxFontSizeMultiplier={MAX_FONT_SCALE}
-      value={format(value)}
-      animatedProps={animatedProps}
-      style={[
-        textStyle(role),
-        { color, padding: 0, fontSize: spec.size * scale, lineHeight: spec.line * scale },
-        style,
-      ]}
-    />
+    <View>
+      <Text
+        style={[figureStyle, { opacity: 0 }]}
+        maxFontSizeMultiplier={MAX_FONT_SCALE}
+        accessible={false}
+        importantForAccessibility="no-hide-descendants"
+      >
+        {format(value)}
+      </Text>
+      <AnimatedTextInput
+        key={`${value}:${replay}`}
+        editable={false}
+        pointerEvents="none"
+        maxFontSizeMultiplier={MAX_FONT_SCALE}
+        value={format(value)}
+        animatedProps={animatedProps}
+        style={[figureStyle, StyleSheet.absoluteFill]}
+      />
+    </View>
   );
 }
 

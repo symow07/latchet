@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Pressable, TextInput, type PressableProps, type StyleProp, type TextStyle, type ViewStyle } from 'react-native';
+import { Pressable, StyleSheet, Text, TextInput, View, type PressableProps, type StyleProp, type TextStyle, type ViewStyle } from 'react-native';
 import Animated, {
   useSharedValue, useAnimatedStyle, useAnimatedProps, withTiming,
   withSequence, Easing, useDerivedValue, cancelAnimation,
@@ -83,41 +83,53 @@ export function CountUp({
   const animatedProps = useAnimatedProps(() => {
     return { text: formatWithParts(value * progress.value, parts) } as never;
   });
+  const textStyle = [{ ...F[weight], fontSize: size, color, padding: 0, letterSpacing: 0.1 }, style];
 
+  // Sized by an invisible copy of the final figure. On the New Architecture
+  // Reanimated writes `text` straight to the native view without a new layout,
+  // so the field kept the width of the count's first frame ("0") and the final
+  // figure was cut to "…" (the health score showed "•••").
   return (
-    <AnimatedTextInput
-      editable={false}
-      pointerEvents="none"
-      /**
-       * `key` and `value` — both deliberate, and both about the failure mode.
-       *
-       * Writing `text` through `animatedProps` is the standard way to move a
-       * number without re-rendering, but it is a native-side write that this
-       * component cannot verify landed. It did not land here: the shared value
-       * animated correctly (the ring on the same screen proves it) while the
-       * label stayed on whatever it was first given. With `defaultValue={0}`
-       * that meant a permanent, confident zero next to a grade of B.
-       *
-       * So the declared text is now the *answer*, not the starting point. If
-       * the animated write works, it takes over from frame one and counts up
-       * to the same figure. If it does not, the reader gets the right number
-       * instead of a wrong one — which is the only acceptable way round for a
-       * decoration to fail.
-       *
-       * `key` remounts the input when the value changes, because a TextInput
-       * ignores a changed `value` once the native side has been written to by
-       * animatedProps.
-       */
-      key={String(value)}
-      value={format(value)}
-      animatedProps={animatedProps}
-      style={[
-        { ...F[weight], fontSize: size, color, padding: 0, letterSpacing: 0.1 },
-        style,
-      ]}
-    />
+    <View>
+      <Text style={[textStyle, styles.sizer]} accessible={false} importantForAccessibility="no-hide-descendants">
+        {format(value)}
+      </Text>
+      <AnimatedTextInput
+        editable={false}
+        pointerEvents="none"
+        /**
+         * `key` and `value` — both deliberate, and both about the failure mode.
+         *
+         * Writing `text` through `animatedProps` is the standard way to move a
+         * number without re-rendering, but it is a native-side write that this
+         * component cannot verify landed. It did not land here: the shared value
+         * animated correctly (the ring on the same screen proves it) while the
+         * label stayed on whatever it was first given. With `defaultValue={0}`
+         * that meant a permanent, confident zero next to a grade of B.
+         *
+         * So the declared text is now the *answer*, not the starting point. If
+         * the animated write works, it takes over from frame one and counts up
+         * to the same figure. If it does not, the reader gets the right number
+         * instead of a wrong one — which is the only acceptable way round for a
+         * decoration to fail.
+         *
+         * `key` remounts the input when the value changes, because a TextInput
+         * ignores a changed `value` once the native side has been written to by
+         * animatedProps.
+         */
+        key={String(value)}
+        value={format(value)}
+        animatedProps={animatedProps}
+        style={[textStyle, StyleSheet.absoluteFill]}
+      />
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  // Takes the final figure's size and is never seen or read out.
+  sizer: { opacity: 0 },
+});
 
 /**
  * Press feedback.
