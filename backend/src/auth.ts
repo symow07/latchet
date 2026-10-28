@@ -129,6 +129,30 @@ export const generalAuthRateLimiter = createRateLimiter({
   lockoutThreshold: 20,
 });
 
+/**
+ * Reading the session (GET /api/auth/get-session) is what the app does on every
+ * launch and every return to the foreground. Counted with the rest of
+ * /api/auth/* it shared 30 requests per address per 15 minutes, so a phone
+ * opened often, or many phones behind one carrier or office address, ran out:
+ * the refused read looked like "signed out" to the app, and past the lockout
+ * threshold sign-in itself was locked for 15 minutes. Session reads get their
+ * own, wide window. A read changes nothing, and returns nothing without a
+ * valid session cookie.
+ */
+export const sessionRateLimiter = createRateLimiter({
+  scope: "session",
+  ipMax: 600,
+  ipWindowMs: 15 * 60 * 1000,
+  identifierMax: 600,
+  identifierWindowMs: 15 * 60 * 1000,
+  lockoutThreshold: 6000,
+});
+
+/** A session read, which sessionRateLimiter counts instead of the general limit. */
+export function isSessionRead(method: string, path: string): boolean {
+  return method === "GET" && /^\/api\/auth\/get-session\/?$/.test(path);
+}
+
 // Sign-up is the expensive one: each attempt creates an account and runs a
 // 600,000-iteration password hash, and sends a verification mail through
 // Resend — on our bill and our domain's reputation. Two windows, applied
