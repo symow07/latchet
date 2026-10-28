@@ -48,3 +48,8 @@ expo.log
 .nm_trash_*/
 build.log
 false
+
+# Maestro end-to-end runs: screenshots, Maestro output and per-simulator state
+/e2e/screenshots/
+/e2e/output/
+/e2e/.state/

@@ -1,0 +1,20 @@
+# Swiping a row reveals Delete (Gesture Handler). Nothing is deleted.
+appId: com.latchet.app
+name: Swipe to reveal Delete
+---
+- runFlow: common/home.yaml
+- tapOn: "Activity"
+- swipe:
+    from: "E2E ${E2E_RUN}"
+    direction: LEFT
+    duration: 600
+- waitForAnimationToEnd
+- assertVisible:
+    text: "Delete"
+    index: 1
+- takeScreenshot: 04a-swipe-delete
+- swipe:
+    from: "E2E ${E2E_RUN}"
+    direction: RIGHT
+    duration: 600
+- waitForAnimationToEnd

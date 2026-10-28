@@ -1,0 +1,25 @@
+# Voice capture on the advisor: hold to speak, release, and the app answers
+# with what it heard or says it could not read it. The simulator records the
+# Mac's microphone, so the words are not under test, only the recording path.
+appId: com.latchet.app
+name: Voice capture
+---
+- runFlow: common/home.yaml
+- tapOn: "Home"
+- tapOn:
+    text: "Ask a question"
+    index: 0
+- extendedWaitUntil:
+    visible: "Hold to speak"
+    timeout: 15000
+- takeScreenshot: 09a-advisor
+- longPressOn: "Hold to speak"
+- extendedWaitUntil:
+    visible: "What I heard|Could not read that recording\\.|No transactions in that|Microphone access is needed to record\\."
+    timeout: 60000
+- takeScreenshot: 09b-voice-result
+- runFlow:
+    when:
+      visible: "OK"
+    commands:
+      - tapOn: "OK"

@@ -1,0 +1,47 @@
+# Every tab, and the screens one tap away that the upgrade touches (animated
+# health ring, subscriptions, the email screen).
+appId: com.latchet.app
+name: Tabs and main screens
+---
+- runFlow: common/home.yaml
+- tapOn: "Activity"
+- assertVisible: "History"
+- takeScreenshot: 02a-activity
+- tapOn: "Add"
+- assertVisible: "How much\\?"
+- takeScreenshot: 02b-add
+- tapOn: "Insights"
+- assertVisible: "Insights"
+- takeScreenshot: 02c-insights
+- tapOn: "Health score"
+- extendedWaitUntil:
+    visible: "Financial Health"
+    timeout: 10000
+- waitForAnimationToEnd
+- takeScreenshot: 02d-health-score
+- tapOn:
+    point: 11%,10%
+- tapOn: "Settings"
+- assertVisible: "Settings"
+- takeScreenshot: 02e-settings
+- scrollUntilVisible:
+    element: "Biometric Lock"
+    direction: DOWN
+    centerElement: true
+- takeScreenshot: 02f-settings-lower
+- tapOn: "Home"
+- assertVisible: "Scan Receipt"
+- takeScreenshot: 02g-home
+- tapOn: "Subscriptions"
+- waitForAnimationToEnd
+- takeScreenshot: 02h-subscriptions
+- openLink: "latchet://email-inbox"
+- extendedWaitUntil:
+    visible: "Email receipts"
+    timeout: 10000
+- takeScreenshot: 02i-email
+- tapOn:
+    point: 11%,10%
+- tapOn:
+    point: 11%,10%
+    optional: true

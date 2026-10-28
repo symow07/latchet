@@ -1,0 +1,29 @@
+# Settings › Export Data › CSV opens the share sheet with the file.
+appId: com.latchet.app
+name: Export
+---
+- runFlow: common/home.yaml
+- tapOn: "Settings"
+- scrollUntilVisible:
+    element: "Export Data"
+    direction: DOWN
+    centerElement: true
+- tapOn:
+    text: "Export Data"
+    retryTapIfNoChange: true
+- extendedWaitUntil:
+    visible: "CSV \\(re-importable\\)"
+    timeout: 5000
+- takeScreenshot: 07a-export-format
+- tapOn: "CSV \\(re-importable\\)"
+- extendedWaitUntil:
+    visible: "Save to Files"
+    timeout: 10000
+- assertVisible: "latchet-\\d{4}-\\d{2}-\\d{2}"
+- takeScreenshot: 07b-export-share-sheet
+- swipe:
+    start: 50%,62%
+    end: 50%,99%
+    duration: 400
+- waitForAnimationToEnd
+- assertNotVisible: "Save to Files"

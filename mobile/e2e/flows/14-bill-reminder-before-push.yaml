@@ -1,0 +1,18 @@
+# The bill reminder screen, then the app goes to the background so the
+# runner's simulated push (simctl push) shows as a banner.
+appId: com.latchet.app
+name: Bill reminder (before push)
+---
+- runFlow: common/home.yaml
+- tapOn: "Settings"
+- scrollUntilVisible:
+    element: "Bill Reminders"
+    direction: DOWN
+    centerElement: true
+- tapOn: "Bill Reminders"
+- waitForAnimationToEnd
+- takeScreenshot: 14a-bill-reminders
+- tapOn:
+    point: 11%,10%
+- tapOn: "Home"
+- pressKey: Home

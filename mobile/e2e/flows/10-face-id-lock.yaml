@@ -1,0 +1,26 @@
+# Turns the biometric lock on, restarts the app, and stops at the lock screen.
+# The runner then sends a matching face (simulator biometrics), and
+# 11-face-id-unlock checks the app opens.
+appId: com.latchet.app
+name: Face ID lock
+---
+- runFlow: common/home.yaml
+- tapOn: "Settings"
+- scrollUntilVisible:
+    element: "Biometric Lock"
+    direction: DOWN
+    centerElement: true
+- tapOn:
+    text: "Biometric Lock"
+    index: 1
+- assertVisible:
+    text: "1"
+    below: "Show Time Cost"
+- takeScreenshot: 10a-biometric-on
+- stopApp
+- launchApp:
+    stopApp: true
+- extendedWaitUntil:
+    visible: "Authenticate to continue"
+    timeout: 15000
+- takeScreenshot: 10b-locked

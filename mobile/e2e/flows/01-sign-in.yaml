@@ -1,0 +1,20 @@
+# A fresh install signs in to the E2E account (local backend) and reaches Home.
+appId: com.latchet.app
+name: Sign in
+---
+- launchApp:
+    clearState: true
+    clearKeychain: true
+    permissions:
+      all: allow
+- extendedWaitUntil:
+    visible: "Welcome back"
+    timeout: 30000
+- takeScreenshot: 01a-sign-in
+- runFlow: common/sign-in.yaml
+- runFlow: common/first-run.yaml
+- extendedWaitUntil:
+    visible: "Scan Receipt"
+    timeout: 20000
+- assertVisible: "Home"
+- takeScreenshot: 01g-home

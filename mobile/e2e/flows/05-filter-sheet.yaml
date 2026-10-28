@@ -1,0 +1,17 @@
+# The date filter sheet opens, and closes by dragging it down.
+appId: com.latchet.app
+name: Filter sheet
+---
+- runFlow: common/home.yaml
+- tapOn: "Activity"
+- tapOn: "\\d+ \\w+ – \\d+ \\w+"
+- extendedWaitUntil:
+    visible: "From"
+    timeout: 5000
+- takeScreenshot: 05a-filter-sheet
+- swipe:
+    start: 50%,70%
+    end: 50%,98%
+    duration: 500
+- waitForAnimationToEnd
+- assertNotVisible: "From"

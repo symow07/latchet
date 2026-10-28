@@ -1,0 +1,18 @@
+# Signs the E2E test account in from the sign-in screen, and clears the
+# system prompts that can follow. The account lives on the local backend only.
+appId: com.latchet.app
+---
+- extendedWaitUntil:
+    visible: "Sign in"
+    timeout: 20000
+- tapOn: "you@example.com"
+- inputText: ${E2E_EMAIL}
+- tapOn: "Your password"
+- inputText: ${E2E_PASSWORD}
+# Return submits the form (hideKeyboard cannot dismiss this app's keyboard).
+- pressKey: Enter
+- runFlow:
+    when:
+      visible: "Save Password?"
+    commands:
+      - tapOn: "Not Now"

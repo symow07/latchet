@@ -1,0 +1,91 @@
+# End-to-end tests (Maestro, iOS simulator)
+
+The app as a user drives it, on the iOS simulator, against the **local backend**,
+with a dedicated test account. Run after every SDK upgrade step, before
+reporting, and before any release build.
+
+```bash
+e2e/run.sh step2          # every flow; screenshots in e2e/screenshots/step2/
+e2e/run.sh step2 06 07    # one or two flows (01, the sign-in, always runs first)
+```
+
+The run prints one line per flow and exits non-zero if any failed. Every
+screen the flows visit is saved, in order, in `e2e/screenshots/<label>/`;
+a failed flow adds `FAILED-<flow>.png`, the screen at the moment it failed.
+Maestro's own logs are in `e2e/output/<label>/`. Both folders are gitignored.
+
+## What it needs
+
+- **Maestro**: `brew install mobile-dev-inc/tap/maestro`.
+- **The local backend** on http://localhost:3000 (`cd backend && bun run dev`,
+  database `latchet_dev`). Never production.
+- **A booted simulator.** The runner uses the first booted one, or the UDID in
+  `E2E_DEVICE`. Developed on "iPhone 17 Pro", iOS 26.5.
+- **The app under test**, a Release build that talks to the local backend.
+  The runner installs it from `ios/build/Build/Products/Release-iphonesimulator/Latchet.app`
+  (or `E2E_APP`):
+
+  ```bash
+  LANG=en_US.UTF-8 EXPO_PUBLIC_BACKEND_URL=http://localhost:3000 xcodebuild -workspace ios/Latchet.xcworkspace -scheme Latchet -configuration Release -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -derivedDataPath ios/build build
+  ```
+
+  Release, not a development build: no dev menu, no LogBox, no Metro, so the
+  flows see what a user sees.
+- **The E2E account**, an `"e2e"` entry (`email`, `password`) in
+  `.claude/test-accounts.local.json`, which is gitignored. It must be an
+  `@example.test` address created on the local backend
+  (`POST /api/auth/sign-up/email`). The runner refuses any other address.
+  Never a real account, and the flows never connect Gmail: each connection uses
+  up one of Google's 100 places for the unverified app.
+
+## The flows
+
+| Flow | Checks |
+|---|---|
+| 01 sign-in | A fresh install signs in; the account-type picker and onboarding, if shown |
+| 02 tabs | Every tab, the animated health ring, Subscriptions, Email receipts |
+| 03 add-expense | Keypad, note, "Log it!", the expense in Activity |
+| 04 history-swipe | Swiping a row reveals Delete (nothing is deleted) |
+| 05 filter-sheet | The date filter sheet opens and drags closed |
+| 06 csv-import | Files › On My iPhone › a bank CSV, preview, import; detection finds the monthly charge and asks for notifications |
+| 07 export | Export Data › CSV opens the share sheet with the file |
+| 08 receipt-scan | The photo picker opens; a receipt goes through the reader |
+| 09 voice | Hold to speak on the advisor; the app answers either way |
+| 10, 11 face-id | The biometric lock locks a cold start; a matching face opens it |
+| 12, 13 share | Photos › Share › Latchet shows the extension; Latchet opens the shared receipt |
+| 14, 15 bill-reminder | A bill reminder push arrives and is shown |
+| 16 sign-out-in | Log out, and sign back in |
+
+Between flows the runner does what a flow cannot: it stages the receipt photo
+and the CSV, enrols Face ID and sends the matching face, sends the push, and
+stands in for the share extension's Post (below).
+
+## What it cannot automate, and what covers it instead
+
+- **Selecting a photo in the system photo picker, and tapping Post in the share
+  extension.** Both run in another process, and Maestro's taps do not reach
+  them. Flow 08 opens and cancels the picker, then hands the receipt in the
+  way the share extension does. Flow 12 stops at the extension's sheet. The
+  runner then writes the same App Group entry Post writes
+  (`ShareViewController.swift`), and flow 13 checks that Latchet picks it up.
+- **Opening the app by tapping a notification.** SpringBoard ignores synthesized
+  taps on notifications. Flow 15 checks the notification is delivered and
+  shown. Where a tap leads is unit-tested in `src/lib/notification-route.test.ts`.
+- **What the receipt reader and voice capture extract.** Both call OpenAI from
+  the backend: with no valid `OPENAI_API_KEY` in `backend/.env`, the flows see
+  the app's error and still pass, because the app handled it. The simulator
+  records the Mac's microphone, so voice capture's words are never under test.
+- **The camera.** The simulator has none.
+
+## Fixtures
+
+- `fixtures/receipt.jpg` carries a fixed capture date, 3 February 2001, so Photos
+  labels it "Photo, February 03, 2001" and flow 12 can find it.
+- `fixtures/statement.csv` is a template. The runner fills in a monthly charge
+  named after the run ("E2E STREAM <run>", the last four months), so every run
+  imports something new, and detection finds a new subscription and asks for
+  notification permission, as it does for a real user. A fresh install has no
+  permission, and flow 15 needs it. The other rows are fixed, so a rerun also
+  shows the import skipping duplicates.
+- `fixtures/bill-reminder.apns` is the push, in the shape expo-notifications
+  reads (the payload under `body`).

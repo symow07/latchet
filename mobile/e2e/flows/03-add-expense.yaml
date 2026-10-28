@@ -1,0 +1,38 @@
+# The keypad, a note and "Log it!": the expense reaches Activity.
+appId: com.latchet.app
+name: Add an expense
+---
+- runFlow: common/home.yaml
+- tapOn: "Add"
+- repeat:
+    times: 8
+    commands:
+      - tapOn: "Delete"
+- tapOn: "4"
+- tapOn: "2"
+- tapOn: "\\."
+- tapOn: "1"
+- tapOn: "7"
+- assertVisible: "42"
+- assertVisible: "\\.17"
+- scrollUntilVisible:
+    element: "Log it!"
+    direction: DOWN
+    centerElement: true
+- tapOn: "Note \\(optional\\)"
+- extendedWaitUntil:
+    visible: "e.g. Coffee, Rent, Travel…"
+    timeout: 5000
+- tapOn: "e.g. Coffee, Rent, Travel…"
+- inputText: "E2E ${E2E_RUN}"
+- tapOn: "Done"
+- takeScreenshot: 03a-add-filled
+- tapOn: "Log it!"
+- extendedWaitUntil:
+    visible: "Scan Receipt"
+    timeout: 10000
+- tapOn: "Activity"
+- extendedWaitUntil:
+    visible: "E2E ${E2E_RUN}"
+    timeout: 10000
+- takeScreenshot: 03b-activity-with-expense
