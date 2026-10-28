@@ -245,6 +245,8 @@ describe('connect step', () => {
       'statement',
       'bank',
     ]);
+    expect(connectModel(facts()).outlookOffered).toBe(true);
+    expect(connectModel(facts({ providers: { gmail: { configured: true }, outlook: { configured: false } } })).outlookOffered).toBe(false);
     // The server could not be asked: no inbox rows, and the screen says why.
     const offline = connectModel(facts({ providers: null }));
     expect(offline.options.map((o) => o.id)).toEqual(['statement', 'bank']);
@@ -298,6 +300,8 @@ describe('connect step', () => {
     expect(connectFailure({ result: 'denied' })?.key).toBe('onboardingFlow.connect.errors.denied');
     expect(connectFailure({ result: 'error', reason: 'not_configured' })?.key).toBe('onboardingFlow.connect.errors.notConfigured');
     expect(connectFailure({ result: 'error', reason: 'cap_reached' })?.key).toBe('onboardingFlow.connect.errors.capReached');
+    // Outlook parked: a full Gmail points to a statement, not to Outlook.
+    expect(connectFailure({ result: 'error', reason: 'cap_reached' }, false)?.key).toBe('onboardingFlow.connect.errors.capReachedNoOutlook');
     expect(connectFailure({ result: 'error', reason: 'network' })?.key).toBe('onboardingFlow.connect.errors.offline');
     expect(connectFailure({ result: 'error', reason: 'whatever' })?.key).toBe('onboardingFlow.connect.errors.failed');
   });

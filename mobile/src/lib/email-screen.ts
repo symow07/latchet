@@ -261,16 +261,32 @@ export function disconnectCopy(c: Pick<EmailConnectionDTO, 'provider' | 'address
 
 // ── Forwarding ───────────────────────────────────────────────────────────────
 
-export const FORWARDING_PROVIDERS = ['icloud', 'yahoo', 'gmx', 'gmail', 'other'] as const;
+export const FORWARDING_PROVIDERS = ['icloud', 'outlook', 'yahoo', 'gmx', 'gmail', 'other'] as const;
 export type ForwardingProvider = (typeof FORWARDING_PROVIDERS)[number];
 
 const FORWARDING_STEP_COUNT: Readonly<Record<ForwardingProvider, number>> = {
   icloud: 3,
+  outlook: 3,
   yahoo: 2,
   gmx: 3,
   gmail: 3,
   other: 2,
 };
+
+/**
+ * The providers the forwarding steps offer, in order. Outlook leads while the
+ * server cannot connect it (no Microsoft keys: it is parked), because
+ * forwarding is then how an Outlook user gets in.
+ */
+export function forwardingProviders(dto: EmailConnectionsDTO | null | undefined): ForwardingProvider[] {
+  if (!dto || dto.providers.outlook.configured) return [...FORWARDING_PROVIDERS];
+  return ['outlook', ...FORWARDING_PROVIDERS.filter((p) => p !== 'outlook')];
+}
+
+/** Outlook cannot be connected here but forwarding works: the screen points Outlook users to it. */
+export function outlookViaForwarding(dto: EmailConnectionsDTO | null | undefined): boolean {
+  return !!dto && !dto.providers.outlook.configured && !!dto.providers.forwarding.configured;
+}
 
 export function forwardingProviderName(p: ForwardingProvider): string {
   return t(`emailConnect.forwarding.providers.${p}`);
@@ -349,6 +365,20 @@ export function findingAmount(row: FindingRow): string | null {
 
 // ── The entry card ───────────────────────────────────────────────────────────
 
+/**
+ * What the card invites to while nothing is connected, naming only what this
+ * server offers: a parked Outlook, or forwarding before the domain exists, is
+ * never promised.
+ */
+function connectInvitation(dto: EmailConnectionsDTO | null | undefined): string {
+  if (!dto) return t('emailConnect.card.connectEmail');
+  const names = CONNECTABLE.filter((p) => dto.providers[p].configured).map(providerName);
+  const forwarding = !!dto.providers.forwarding.configured;
+  if (names.length === 0) return t(forwarding ? 'emailConnect.card.forwardOnly' : 'emailConnect.card.unavailable');
+  const providers = names.join(t('emailConnect.card.or'));
+  return t(forwarding ? 'emailConnect.card.connectOrForward' : 'emailConnect.card.connectOnly', { providers });
+}
+
 /** The card on the subscriptions and business tools screens: one line on where email stands. */
 export function scanCardSummary(dto: EmailConnectionsDTO | null | undefined, now: number): { title: string; body: string; attention: boolean } {
   const title = t('emailConnect.card.title');
@@ -358,7 +388,7 @@ export function scanCardSummary(dto: EmailConnectionsDTO | null | undefined, now
     if (forwarding?.forwardingVerified) {
       return { title, body: t('emailConnect.card.forwarding', { count: Math.max(0, forwarding.findingsCount || 0) }), attention: false };
     }
-    return { title, body: t('emailConnect.card.connect'), attention: false };
+    return { title, body: connectInvitation(dto), attention: false };
   }
   const broken = views.find((v) => v.canReconnect);
   if (broken) return { title, body: t('emailConnect.card.attention', { provider: broken.providerName }), attention: true };

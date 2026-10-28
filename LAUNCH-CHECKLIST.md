@@ -189,7 +189,12 @@ Each source is off until its keys exist, and the app says so instead of failing.
 8. What users see: Google's "Google hasn't verified this app" screen. The app explains it before opening Google's page (Advanced → Go to Latchet). Past the cap, the app points people to forwarding.
 9. Later, with budget: `docs/verification/` (Google verification, the CASA assessment, the demo video). When Google approves, set `GOOGLE_OAUTH_VERIFIED=true`; nothing else changes.
 
-### 13c. Outlook inbox reading (free, no cap)
+### 13c. Outlook inbox reading: parked
+**Parked on 28 October 2026.** Railway has no Microsoft keys, so the server reports Outlook as not configured and the app never offers it: no "Connect Outlook" button on the email screen or in onboarding, and no copy that names it. Outlook users are pointed to forwarding (§13d), whose steps list Outlook first; until forwarding is live too, they connect Gmail or import a statement. The Outlook code stays in place and switches back on by itself once the two keys below are set.
+
+Why it is parked: signing in to entra.microsoft.com with a personal Microsoft account failed with **AADSTS16000**. To resume, sign in with a real outlook.com account that has a free Azure tenant, or with a work account in a tenant on your own domain once it is bought (§4), then follow the steps below.
+
+To resume:
 1. entra.microsoft.com → sign in with a **work or school** account. A free Azure account gives you a tenant; Microsoft no longer lets a personal Microsoft account own app registrations.
 2. **App registrations → New registration**: name "Latchet"; supported account types **Personal Microsoft accounts only**; redirect URI, platform **Web**: `https://latchet-production.up.railway.app/api/v1/email/oauth/outlook/callback`. Add `http://localhost:3000/api/v1/email/oauth/outlook/callback` under **Authentication** for testing.
 3. **API permissions → Add → Microsoft Graph → Delegated**: `Mail.Read`, `offline_access`, `openid`, `email`. No admin consent is needed.
@@ -197,7 +202,7 @@ Each source is off until its keys exist, and the app says so instead of failing.
 5. Railway: `MICROSOFT_CLIENT_ID` (the Application (client) ID), `MICROSOFT_CLIENT_SECRET` (the secret's value). `MICROSOFT_TENANT` stays `consumers`.
 6. Users see "unverified" on Microsoft's prompt until publisher verification (`docs/verification/microsoft-publisher-verification.md`, needs a registered business); personal accounts can still consent.
 
-### 13d. Forwarding, the backup for iCloud, Yahoo, GMX (free)
+### 13d. Forwarding, the backup for Outlook, iCloud, Yahoo, GMX (free)
 Needs your domain on Cloudflare (§4). Follow `backend/docs/inbound-email-setup.md` step by step: a shared secret, `INBOUND_EMAIL_DOMAIN` and `INBOUND_EMAIL_SECRET` on Railway, Email Routing, the worker with its `PARKED` KV namespace (so mail waits instead of bouncing while the backend sleeps), and the end-to-end check.
 
 ### 13e. Keeping email current while the app is closed (optional, costs money)

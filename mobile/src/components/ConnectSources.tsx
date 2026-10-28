@@ -35,7 +35,14 @@ export function ConnectSources({
           key={option.id}
           style={i > 0 ? { borderTopWidth: 1, borderTopColor: pal.hairline } : undefined}
         >
-          <SourceRow pal={pal} option={option} busy={busy === option.id} disabled={busy !== null} onPress={() => onConnect(option.id)} />
+          <SourceRow
+            pal={pal}
+            option={option}
+            outlookOffered={model.outlookOffered}
+            busy={busy === option.id}
+            disabled={busy !== null}
+            onPress={() => onConnect(option.id)}
+          />
         </View>
       ))}
     </Card>
@@ -70,12 +77,15 @@ function doneLabel(id: ConnectOptionId): string {
 function SourceRow({
   pal,
   option,
+  outlookOffered,
   busy,
   disabled,
   onPress,
 }: {
   pal: Palette;
   option: ConnectOption;
+  /** Whether a full Gmail can point to Outlook, or only to a statement. */
+  outlookOffered: boolean;
   busy: boolean;
   disabled: boolean;
   onPress: () => void;
@@ -88,7 +98,7 @@ function SourceRow({
   const note = option.done
     ? null
     : option.capReached
-      ? t('onboardingFlow.connect.capReached')
+      ? t(outlookOffered ? 'onboardingFlow.connect.capReached' : 'onboardingFlow.connect.capReachedNoOutlook')
       : option.unverified
         ? t('onboardingFlow.connect.unverified')
         : null;

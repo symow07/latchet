@@ -20,15 +20,16 @@ import {
   type EmailConnectionDTO,
 } from '@/lib/email-connections';
 import {
-  FORWARDING_PROVIDERS,
   accountOwnerName,
   connectOutcome,
   connectionViews,
   disconnectCopy,
   findingRows,
   forwardingProviderName,
+  forwardingProviders,
   forwardingSteps,
   forwardingView,
+  outlookViaForwarding,
   pollInterval,
   progressText,
   providerOptions,
@@ -103,7 +104,8 @@ export default function EmailInboxScreen() {
   const [confirming, setConfirming] = useState<EmailConnectionDTO | null>(null);
   const [manual, setManual] = useState<{ provider: string; url: string } | null>(null);
   const [copied, setCopied] = useState(false);
-  const [forwardFor, setForwardFor] = useState<ForwardingProvider>('icloud');
+  // Null until the user picks one: the first offered, which is Outlook while it is parked.
+  const [pickedForward, setForwardFor] = useState<ForwardingProvider | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
   // A connect outlives nothing: leaving the screen stops waiting for the backfill.
@@ -161,6 +163,8 @@ export default function EmailInboxScreen() {
   const options = providerOptions(dto).filter((o) => o.availability !== 'unavailable');
   const inboxes = connectionViews(dto, now);
   const fwd = forwardingView(dto, forwarding.data);
+  const forwardList = forwardingProviders(dto);
+  const forwardFor = pickedForward ?? forwardList[0]!;
   const rows = findingRows(findings, userCurrency);
   const hasAnything = (dto?.connections ?? []).length > 0;
   // The one espresso button: the first way in, while nothing is connected.
@@ -335,6 +339,13 @@ export default function EmailInboxScreen() {
             </Type>
           ) : null}
 
+          {/* Outlook is parked (no Microsoft keys on the server): forwarding is its way in. */}
+          {outlookViaForwarding(dto) ? (
+            <Type role="meta" color={C.inkDim}>
+              {t('emailConnect.outlookForwarding')}
+            </Type>
+          ) : null}
+
           {options.length > 0 ? (
             <Card pal={C}>
               <Type role="cardTitle" color={C.ink} style={{ marginBottom: 12 }}>
@@ -504,7 +515,7 @@ export default function EmailInboxScreen() {
                   {t('emailConnect.forwarding.which')}
                 </Type>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={{ gap: 8 }}>
-                  {FORWARDING_PROVIDERS.map((p) => (
+                  {forwardList.map((p) => (
                     <FilterChip key={p} pal={C} label={forwardingProviderName(p)} active={forwardFor === p} onPress={() => setForwardFor(p)} />
                   ))}
                 </ScrollView>

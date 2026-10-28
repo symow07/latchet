@@ -324,6 +324,8 @@ export interface ConnectModel {
   offered: SourceId[];
   /** Every source already connected, however it got there. */
   connected: SourceId[];
+  /** Outlook can be connected here: a full Gmail points to it only then (it is parked without Microsoft keys). */
+  outlookOffered: boolean;
 }
 
 export function connectModel(f: ConnectFacts): ConnectModel {
@@ -363,18 +365,19 @@ export function connectModel(f: ConnectFacts): ConnectModel {
     emailUnreachable: f.providers === null,
     offered: uniq(options.map((o) => o.source)),
     connected,
+    outlookOffered: options.some((o) => o.id === 'outlook'),
   };
 }
 
 /** Why an inbox did not connect, as connectEmailProvider reports it, worded. */
-export function connectFailure(result: { result: string; reason?: string }): Msg | null {
+export function connectFailure(result: { result: string; reason?: string }, outlookOffered = true): Msg | null {
   if (result.result === 'success' || result.result === 'cancel') return null;
   if (result.result === 'denied') return msg('onboardingFlow.connect.errors.denied');
   switch (result.reason) {
     case 'not_configured':
       return msg('onboardingFlow.connect.errors.notConfigured');
     case 'cap_reached':
-      return msg('onboardingFlow.connect.errors.capReached');
+      return msg(outlookOffered ? 'onboardingFlow.connect.errors.capReached' : 'onboardingFlow.connect.errors.capReachedNoOutlook');
     case 'locked':
       return msg('onboardingFlow.connect.errors.locked');
     case 'network':

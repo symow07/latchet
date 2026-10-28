@@ -318,7 +318,7 @@ export default function OnboardingScreen() {
     const result = await run;
     release();
     if (!alive.current) return;
-    setConnectError(connectFailure(result));
+    setConnectError(connectFailure(result, model.outlookOffered));
     void qc.invalidateQueries({ queryKey: EMAIL_CONNECTIONS_QUERY_KEY });
   };
 

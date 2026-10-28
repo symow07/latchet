@@ -13,7 +13,8 @@
     },
     "connect": "Connect %{provider}",
     "connectAnother": "Connect another %{provider} account",
-    "noProviders": "Connecting Gmail or Outlook isn't available yet. Forward your receipts instead.",
+    "noProviders": "Connecting an inbox isn't available yet.",
+    "outlookForwarding": "Using Outlook? Forward your billing emails to your Latchet address instead: the steps are below.",
     "reads": {
       "title": "What Latchet reads",
       "reads": "Only billing emails: receipts, renewals, free trials, price changes and cancellations.",
@@ -102,7 +103,7 @@
     },
     "forwarding": {
       "title": "Other email: forward your receipts",
-      "body": "For iCloud, Yahoo, GMX or any other email, forward billing emails to your private Latchet address.",
+      "body": "For Outlook, iCloud, Yahoo, GMX or any other email, forward billing emails to your private Latchet address.",
       "unavailable": "Forwarding isn't available yet.",
       "address": "Your private address",
       "copy": "Copy address",
@@ -115,6 +116,7 @@
       "loadFailed": "Couldn't get your address. Pull down to try again.",
       "providers": {
         "icloud": "iCloud",
+        "outlook": "Outlook",
         "yahoo": "Yahoo",
         "gmx": "GMX",
         "gmail": "Gmail",
@@ -125,6 +127,11 @@
           "s1": "On icloud.com, open Mail, then Settings › Rules.",
           "s2": "Add a rule: if the subject contains “receipt”, forward it to your Latchet address.",
           "s3": "Add the same rule for “invoice”, “renewal” and “subscription”."
+        },
+        "outlook": {
+          "s1": "On outlook.com, open Settings › Mail › Rules, and add a new rule.",
+          "s2": "Condition: the subject includes “receipt”, “invoice”, “renewal” or “subscription”. Action: Forward to your Latchet address.",
+          "s3": "Save the rule. New billing emails go to Latchet from then on."
         },
         "yahoo": {
           "s1": "Yahoo forwards automatically only on paid plans: open each billing email and tap Forward.",
@@ -171,7 +178,12 @@
     "loadFailed": "Couldn't reach Latchet. Pull down to try again.",
     "card": {
       "title": "Find subscriptions in your email",
-      "connect": "Connect Gmail or Outlook, or forward your receipts",
+      "connectEmail": "Connect your email",
+      "connectOrForward": "Connect %{providers}, or forward your receipts",
+      "connectOnly": "Connect %{providers}",
+      "forwardOnly": "Forward your receipts to find subscriptions",
+      "unavailable": "Not available yet",
+      "or": " or ",
       "attention": "%{provider} needs reconnecting",
       "and": " and ",
       "connected": {
@@ -200,7 +212,8 @@
     },
     "connect": "Connecter %{provider}",
     "connectAnother": "Connecter un autre compte %{provider}",
-    "noProviders": "La connexion de Gmail ou Outlook n'est pas encore disponible. Transférez plutôt vos reçus.",
+    "noProviders": "La connexion d'une boîte mail n'est pas encore disponible.",
+    "outlookForwarding": "Vous utilisez Outlook ? Transférez plutôt vos e-mails de facturation à votre adresse Latchet : les étapes sont ci-dessous.",
     "reads": {
       "title": "Ce que Latchet lit",
       "reads": "Uniquement les e-mails de facturation : reçus, renouvellements, essais gratuits, hausses de prix et résiliations.",
@@ -289,7 +302,7 @@
     },
     "forwarding": {
       "title": "Autres e-mails : transférez vos reçus",
-      "body": "Pour iCloud, Yahoo, GMX ou toute autre messagerie, transférez vos e-mails de facturation à votre adresse Latchet privée.",
+      "body": "Pour Outlook, iCloud, Yahoo, GMX ou toute autre messagerie, transférez vos e-mails de facturation à votre adresse Latchet privée.",
       "unavailable": "Le transfert n'est pas encore disponible.",
       "address": "Votre adresse privée",
       "copy": "Copier l'adresse",
@@ -302,6 +315,7 @@
       "loadFailed": "Impossible d'obtenir votre adresse. Tirez vers le bas pour réessayer.",
       "providers": {
         "icloud": "iCloud",
+        "outlook": "Outlook",
         "yahoo": "Yahoo",
         "gmx": "GMX",
         "gmail": "Gmail",
@@ -312,6 +326,11 @@
           "s1": "Sur icloud.com, ouvrez Mail, puis Réglages › Règles.",
           "s2": "Ajoutez une règle : si l'objet contient « reçu », transférez à votre adresse Latchet.",
           "s3": "Ajoutez la même règle pour « facture », « renouvellement » et « abonnement »."
+        },
+        "outlook": {
+          "s1": "Sur outlook.com, ouvrez Paramètres › Courrier › Règles, et ajoutez une règle.",
+          "s2": "Condition : l'objet contient « reçu », « facture », « renouvellement » ou « abonnement ». Action : Transférer à votre adresse Latchet.",
+          "s3": "Enregistrez la règle. Les nouveaux e-mails de facturation partent ensuite vers Latchet."
         },
         "yahoo": {
           "s1": "Yahoo ne transfère automatiquement qu'avec une offre payante : ouvrez chaque e-mail de facturation et touchez Transférer.",
@@ -358,7 +377,12 @@
     "loadFailed": "Impossible de joindre Latchet. Tirez vers le bas pour réessayer.",
     "card": {
       "title": "Trouver vos abonnements dans vos e-mails",
-      "connect": "Connectez Gmail ou Outlook, ou transférez vos reçus",
+      "connectEmail": "Connectez votre messagerie",
+      "connectOrForward": "Connectez %{providers}, ou transférez vos reçus",
+      "connectOnly": "Connectez %{providers}",
+      "forwardOnly": "Transférez vos reçus pour trouver vos abonnements",
+      "unavailable": "Pas encore disponible",
+      "or": " ou ",
       "attention": "%{provider} doit être reconnecté",
       "and": " et ",
       "connected": {
@@ -387,7 +411,8 @@
     },
     "connect": "连接 %{provider}",
     "connectAnother": "连接另一个 %{provider} 账户",
-    "noProviders": "暂时无法连接 Gmail 或 Outlook。请改为转发你的收据。",
+    "noProviders": "暂时无法连接邮箱。",
+    "outlookForwarding": "使用 Outlook？请改为把账单邮件转发到你的 Latchet 地址，步骤见下方。",
     "reads": {
       "title": "Latchet 读取什么",
       "reads": "只读取账单邮件：收据、续费、免费试用、涨价和取消通知。",
@@ -476,7 +501,7 @@
     },
     "forwarding": {
       "title": "其他邮箱：转发你的收据",
-      "body": "iCloud、Yahoo、GMX 或其他任何邮箱，都可以把账单邮件转发到你的 Latchet 专属地址。",
+      "body": "Outlook、iCloud、Yahoo、GMX 或其他任何邮箱，都可以把账单邮件转发到你的 Latchet 专属地址。",
       "unavailable": "转发功能暂不可用。",
       "address": "你的专属地址",
       "copy": "复制地址",
@@ -489,6 +514,7 @@
       "loadFailed": "无法获取你的地址。下拉重试。",
       "providers": {
         "icloud": "iCloud",
+        "outlook": "Outlook",
         "yahoo": "Yahoo",
         "gmx": "GMX",
         "gmail": "Gmail",
@@ -499,6 +525,11 @@
           "s1": "在 icloud.com 上打开“邮件”，然后进入 设置 › 规则。",
           "s2": "添加规则：如果主题包含“receipt”或“收据”，则转发到你的 Latchet 地址。",
           "s3": "为“invoice”“renewal”“subscription”（或“发票”“续费”“订阅”）添加同样的规则。"
+        },
+        "outlook": {
+          "s1": "在 outlook.com 上打开 设置 › 邮件 › 规则，然后添加新规则。",
+          "s2": "条件：主题包含“receipt”“invoice”“renewal”或“subscription”（或“收据”“发票”“续费”“订阅”）。操作：转发到你的 Latchet 地址。",
+          "s3": "保存规则。之后新的账单邮件都会转发到 Latchet。"
         },
         "yahoo": {
           "s1": "Yahoo 只有付费套餐才能自动转发：请打开每封账单邮件并轻点“转发”。",
@@ -545,7 +576,12 @@
     "loadFailed": "无法连接 Latchet。下拉重试。",
     "card": {
       "title": "在邮件中查找订阅",
-      "connect": "连接 Gmail 或 Outlook，或转发你的收据",
+      "connectEmail": "连接你的邮箱",
+      "connectOrForward": "连接 %{providers}，或转发你的收据",
+      "connectOnly": "连接 %{providers}",
+      "forwardOnly": "转发你的收据以查找订阅",
+      "unavailable": "暂不可用",
+      "or": "或",
       "attention": "%{provider} 需要重新连接",
       "and": "和",
       "connected": {
@@ -574,7 +610,8 @@
     },
     "connect": "اربط %{provider}",
     "connectAnother": "اربط حساب %{provider} آخر",
-    "noProviders": "ربط Gmail أو Outlook غير متاح بعد. أعد توجيه إيصالاتك بدلًا من ذلك.",
+    "noProviders": "ربط صندوق البريد غير متاح بعد.",
+    "outlookForwarding": "تستخدم Outlook؟ أعد توجيه رسائل الفواتير إلى عنوان Latchet بدلًا من ذلك: الخطوات أدناه.",
     "reads": {
       "title": "ما يقرؤه Latchet",
       "reads": "رسائل الفواتير فقط: الإيصالات والتجديدات والتجارب المجانية وتغييرات الأسعار والإلغاءات.",
@@ -681,7 +718,7 @@
     },
     "forwarding": {
       "title": "بريد آخر: أعد توجيه إيصالاتك",
-      "body": "مع iCloud أو Yahoo أو GMX أو أي بريد آخر، أعد توجيه رسائل الفواتير إلى عنوان Latchet الخاص بك.",
+      "body": "مع Outlook أو iCloud أو Yahoo أو GMX أو أي بريد آخر، أعد توجيه رسائل الفواتير إلى عنوان Latchet الخاص بك.",
       "unavailable": "إعادة التوجيه غير متاحة بعد.",
       "address": "عنوانك الخاص",
       "copy": "نسخ العنوان",
@@ -694,6 +731,7 @@
       "loadFailed": "تعذّر الحصول على عنوانك. اسحب للأسفل للمحاولة مجددًا.",
       "providers": {
         "icloud": "iCloud",
+        "outlook": "Outlook",
         "yahoo": "Yahoo",
         "gmx": "GMX",
         "gmail": "Gmail",
@@ -704,6 +742,11 @@
           "s1": "على icloud.com افتح البريد، ثم الإعدادات › القواعد.",
           "s2": "أضف قاعدة: إذا احتوى الموضوع على «receipt» أو «إيصال»، فأعد توجيهه إلى عنوان Latchet.",
           "s3": "أضف القاعدة نفسها لـ «invoice» و«renewal» و«subscription» (أو «فاتورة» و«تجديد» و«اشتراك»)."
+        },
+        "outlook": {
+          "s1": "على outlook.com افتح الإعدادات › البريد › القواعد، وأضف قاعدة جديدة.",
+          "s2": "الشرط: يحتوي الموضوع على «receipt» أو «invoice» أو «renewal» أو «subscription» (أو «إيصال» أو «فاتورة» أو «تجديد» أو «اشتراك»). الإجراء: إعادة التوجيه إلى عنوان Latchet.",
+          "s3": "احفظ القاعدة. بعدها تصل رسائل الفواتير الجديدة إلى Latchet."
         },
         "yahoo": {
           "s1": "لا يعيد Yahoo التوجيه تلقائيًا إلا في الخطط المدفوعة: افتح كل رسالة فاتورة واضغط «إعادة توجيه».",
@@ -753,7 +796,12 @@
     "loadFailed": "تعذّر الوصول إلى Latchet. اسحب للأسفل للمحاولة مجددًا.",
     "card": {
       "title": "اعثر على الاشتراكات في بريدك",
-      "connect": "اربط Gmail أو Outlook، أو أعد توجيه إيصالاتك",
+      "connectEmail": "اربط بريدك",
+      "connectOrForward": "اربط %{providers}، أو أعد توجيه إيصالاتك",
+      "connectOnly": "اربط %{providers}",
+      "forwardOnly": "أعد توجيه إيصالاتك للعثور على اشتراكاتك",
+      "unavailable": "غير متاح بعد",
+      "or": " أو ",
       "attention": "يحتاج %{provider} إلى إعادة الربط",
       "and": " و",
       "connected": {

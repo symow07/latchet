@@ -9,9 +9,11 @@ import {
   connectionViews,
   disconnectCopy,
   findingRows,
+  forwardingProviders,
   forwardingSteps,
   forwardingView,
   gmailCapReached,
+  outlookViaForwarding,
   pollInterval,
   progressText,
   providerOptions,
@@ -172,7 +174,7 @@ describe('email screen', () => {
     // Not set up on this server.
     expect(forwardingView(dto({ forwarding: false }), null)).toMatchObject({ available: false, address: null });
 
-    expect(FORWARDING_PROVIDERS).toEqual(['icloud', 'yahoo', 'gmx', 'gmail', 'other']);
+    expect(FORWARDING_PROVIDERS).toEqual(['icloud', 'outlook', 'yahoo', 'gmx', 'gmail', 'other']);
     for (const lang of ['en', 'fr', 'zh', 'ar'] as const) {
       setLocale(lang);
       for (const p of FORWARDING_PROVIDERS) {
@@ -181,6 +183,34 @@ describe('email screen', () => {
         for (const s of steps) expect(s).not.toContain('emailConnect.');
       }
     }
+  });
+
+  test('Outlook parked: it is never offered or named, and forwarding is its way in when the server has it', () => {
+    // Production today: Gmail only, no Microsoft keys, no forwarding domain yet.
+    const parked = dto({ outlook: false, forwarding: false });
+    expect(providerOptions(parked).filter((o) => o.availability !== 'unavailable').map((o) => o.provider)).toEqual(['gmail']);
+    expect(outlookViaForwarding(parked)).toBe(false);
+    expect(scanCardSummary(parked, NOW).body).toBe(t('emailConnect.card.connectOnly', { providers: 'Gmail' }));
+    expect(scanCardSummary(parked, NOW).body).not.toContain('Outlook');
+
+    // Once forwarding works, Outlook users are pointed to it and its steps come first.
+    const forwardingOn = dto({ outlook: false, forwarding: true });
+    expect(outlookViaForwarding(forwardingOn)).toBe(true);
+    expect(forwardingProviders(forwardingOn)[0]).toBe('outlook');
+    expect(forwardingProviders(forwardingOn).sort()).toEqual([...FORWARDING_PROVIDERS].sort());
+    expect(scanCardSummary(forwardingOn, NOW).body).toBe(t('emailConnect.card.connectOrForward', { providers: 'Gmail' }));
+
+    // Outlook connectable again: no pointer, the usual order, both named.
+    const both = dto({ outlook: true, forwarding: true });
+    expect(outlookViaForwarding(both)).toBe(false);
+    expect(forwardingProviders(both)).toEqual([...FORWARDING_PROVIDERS]);
+    expect(scanCardSummary(both, NOW).body).toBe(t('emailConnect.card.connectOrForward', { providers: 'Gmail or Outlook' }));
+    expect(outlookViaForwarding(undefined)).toBe(false);
+
+    // Nothing to connect: forwarding alone, or nothing yet.
+    const none = (forwarding: boolean) => dto({ gmail: { configured: false }, outlook: false, forwarding });
+    expect(scanCardSummary(none(true), NOW).body).toBe(t('emailConnect.card.forwardOnly'));
+    expect(scanCardSummary(none(false), NOW).body).toBe(t('emailConnect.card.unavailable'));
   });
 
   test('recent findings: billing emails only, newest first, merchant, kind and amount in its own currency', () => {
@@ -202,7 +232,7 @@ describe('email screen', () => {
   });
 
   test('the entry card says where email stands in one line', () => {
-    expect(scanCardSummary(undefined, NOW)).toEqual({ title: t('emailConnect.card.title'), body: t('emailConnect.card.connect'), attention: false });
+    expect(scanCardSummary(undefined, NOW)).toEqual({ title: t('emailConnect.card.title'), body: t('emailConnect.card.connectEmail'), attention: false });
     expect(scanCardSummary(dto({ connections: [conn({ id: 'o', provider: 'outlook', status: 'needs_reauth' })] }), NOW)).toEqual({
       title: t('emailConnect.card.title'),
       body: t('emailConnect.card.attention', { provider: 'Outlook' }),

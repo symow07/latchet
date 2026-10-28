@@ -36,6 +36,7 @@
       "emailBody": "Looks only for receipts, renewals and trial emails, and keeps just what they say about a charge. Never sends or deletes anything.",
       "unverified": "Google will say it hasn't verified Latchet yet. To go on, tap Advanced, then the link to continue.",
       "capReached": "Gmail is full for now: Google lets an app it hasn't verified connect 100 people. Use Outlook or a statement instead.",
+      "capReachedNoOutlook": "Gmail is full for now: Google lets an app it hasn't verified connect 100 people. Import a statement instead.",
       "emailUnreachable": "Email can't be connected right now. You can connect it later from Home.",
       "statement": "Import a bank statement",
       "statementBody": "A CSV export from your bank's website.",
@@ -51,6 +52,7 @@
         "denied": "Access wasn't allowed, so nothing was connected.",
         "notConfigured": "That inbox can't be connected right now.",
         "capReached": "Gmail is full for now. Use Outlook or a statement instead.",
+        "capReachedNoOutlook": "Gmail is full for now. Import a statement instead.",
         "locked": "A sign-in window is already open. Finish or close it first.",
         "offline": "Can't reach the server. Check your connection and try again.",
         "failed": "That didn't connect. Try again."
@@ -207,6 +209,7 @@
       "emailBody": "Ne cherche que les reçus, renouvellements et fins d'essai, et ne garde que ce qu'ils disent d'un paiement. N'envoie et ne supprime rien.",
       "unverified": "Google indiquera ne pas avoir encore validé Latchet. Pour continuer, touchez Paramètres avancés, puis le lien pour continuer.",
       "capReached": "Gmail est complet pour l'instant : Google limite à 100 personnes une app non validée. Utilisez Outlook ou un relevé.",
+      "capReachedNoOutlook": "Gmail est complet pour l'instant : Google limite à 100 personnes une app non validée. Importez plutôt un relevé.",
       "emailUnreachable": "Impossible de connecter un e-mail pour l'instant. Vous pourrez le faire plus tard depuis l'accueil.",
       "statement": "Importer un relevé bancaire",
       "statementBody": "Un export CSV du site de votre banque.",
@@ -222,6 +225,7 @@
         "denied": "L'accès n'a pas été autorisé : rien n'a été connecté.",
         "notConfigured": "Cette boîte ne peut pas être connectée pour l'instant.",
         "capReached": "Gmail est complet pour l'instant. Utilisez Outlook ou un relevé.",
+        "capReachedNoOutlook": "Gmail est complet pour l'instant. Importez plutôt un relevé.",
         "locked": "Une fenêtre de connexion est déjà ouverte. Terminez-la ou fermez-la d'abord.",
         "offline": "Impossible de joindre le serveur. Vérifiez votre connexion et réessayez.",
         "failed": "La connexion a échoué. Réessayez."
@@ -378,6 +382,7 @@
       "emailBody": "只查找收据、续订和试用邮件，并只保留其中与扣费相关的信息。不会发送或删除任何邮件。",
       "unverified": "Google 会提示尚未验证 Latchet。要继续，请点按“高级”，再点按继续的链接。",
       "capReached": "Gmail 名额已满：Google 只允许未验证的应用连接 100 人。请改用 Outlook 或账单。",
+      "capReachedNoOutlook": "Gmail 名额已满：Google 只允许未验证的应用连接 100 人。请改为导入账单。",
       "emailUnreachable": "暂时无法连接邮箱。之后可以在首页连接。",
       "statement": "导入银行账单",
       "statementBody": "从银行网站导出的 CSV 文件。",
@@ -393,6 +398,7 @@
         "denied": "未获得访问授权，因此没有连接任何内容。",
         "notConfigured": "暂时无法连接这个邮箱。",
         "capReached": "Gmail 名额已满。请改用 Outlook 或账单。",
+        "capReachedNoOutlook": "Gmail 名额已满。请改为导入账单。",
         "locked": "已有一个登录窗口打开。请先完成或关闭它。",
         "offline": "无法连接服务器。请检查网络后重试。",
         "failed": "连接失败，请重试。"
@@ -549,6 +555,7 @@
       "emailBody": "يبحث فقط عن الإيصالات ورسائل التجديد والفترات التجريبية، ولا يحتفظ إلا بما تقوله عن الدفعة. لا يرسل ولا يحذف أي شيء.",
       "unverified": "ستقول Google إنها لم تتحقق من Latchet بعد. للمتابعة، اضغط «خيارات متقدمة» ثم رابط المتابعة.",
       "capReached": "Gmail ممتلئ حاليًا: تسمح Google لتطبيق لم تتحقق منه بربط 100 شخص فقط. استخدم Outlook أو كشف حساب.",
+      "capReachedNoOutlook": "Gmail ممتلئ حاليًا: تسمح Google لتطبيق لم تتحقق منه بربط 100 شخص فقط. استورد كشف حساب بدلًا من ذلك.",
       "emailUnreachable": "لا يمكن ربط البريد الآن. يمكنك ربطه لاحقًا من الشاشة الرئيسية.",
       "statement": "استورد كشف حساب بنكي",
       "statementBody": "ملف CSV من موقع بنكك.",
@@ -564,6 +571,7 @@
         "denied": "لم يُسمح بالوصول، فلم يُربط أي شيء.",
         "notConfigured": "لا يمكن ربط هذا البريد الآن.",
         "capReached": "Gmail ممتلئ حاليًا. استخدم Outlook أو كشف حساب.",
+        "capReachedNoOutlook": "Gmail ممتلئ حاليًا. استورد كشف حساب بدلًا من ذلك.",
         "locked": "نافذة تسجيل دخول مفتوحة بالفعل. أكملها أو أغلقها أولًا.",
         "offline": "تعذّر الوصول إلى الخادم. تحقّق من اتصالك وحاول مرة أخرى.",
         "failed": "لم يتم الربط. حاول مرة أخرى."
