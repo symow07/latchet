@@ -22,6 +22,31 @@ jobs:
     defaults:
       run:
         working-directory: backend
+    # The suite runs against a real Postgres: test-setup.ts creates and
+    # migrates latchet_test on this server itself. The same major version as
+    # production's Railway service, and in Asia/Shanghai like the local server
+    # the suite is developed against, so raw SQL that forgets to convert to UTC
+    # fails here instead of passing on a UTC-only runner.
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          TZ: Asia/Shanghai
+          PGTZ: Asia/Shanghai
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      # env.ts exits the process on invalid config.
+      BETTER_AUTH_SECRET: ci-secret-at-least-32-characters-long
+      # The name must contain "test": test-setup.ts drops and rebuilds it.
+      TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/latchet_test
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
@@ -41,21 +66,21 @@ jobs:
       - name: Typecheck
         run: bun run typecheck
 
+      - name: Postgres
+        run: psql "postgresql://postgres:postgres@localhost:5432/postgres" -Atc "SHOW server_version" -c "SHOW timezone"
+
       - name: Test
         run: bun test
-        env:
-          # env.ts exits the process on invalid config, and the suite's preload
-          # provisions its own SQLite database.
-          BETTER_AUTH_SECRET: ci-secret-at-least-32-characters-long
 
       # Proves the migrations apply to an empty database in order — the state
       # a fresh deploy actually starts from, which no local run reproduces
       # once a dev database already exists.
       - name: Migrations apply from scratch
-        run: bunx prisma migrate deploy
+        run: |
+          psql "postgresql://postgres:postgres@localhost:5432/postgres" -c "CREATE DATABASE latchet_ci_migrations"
+          bunx prisma migrate deploy
         env:
-          DATABASE_URL: file:/tmp/ci-migrations.db
-          BETTER_AUTH_SECRET: ci-secret-at-least-32-characters-long
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/latchet_ci_migrations
 
   mobile:
     runs-on: ubuntu-latest
