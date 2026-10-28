@@ -86,7 +86,11 @@
       ],
       "./plugins/withIosDeploymentTarget",
       "@sentry/react-native",
-      "./plugins/withSentryOptionalUpload"
+      "./plugins/withSentryOptionalUpload",
+      "@react-native-community/datetimepicker",
+      "expo-font",
+      "expo-secure-store",
+      "expo-sqlite"
     ],
     "experiments": {
       "typedRoutes": true

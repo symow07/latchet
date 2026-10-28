@@ -80,11 +80,11 @@ export interface SqlDb {
 function databaseFiles(directory: string): DatabaseFiles {
   return {
     exists: async (fileName) => {
-      const FileSystem = await import('expo-file-system');
+      const FileSystem = await import('expo-file-system/legacy');
       return (await FileSystem.getInfoAsync(databaseFileUri(directory, fileName))).exists;
     },
     move: async (from, to) => {
-      const FileSystem = await import('expo-file-system');
+      const FileSystem = await import('expo-file-system/legacy');
       await FileSystem.moveAsync({ from: databaseFileUri(directory, from), to: databaseFileUri(directory, to) });
     },
   };

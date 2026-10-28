@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertCircle, Check, RefreshCw, Sparkles, Zap } from '@/components/icons';
 import * as ImagePicker from 'expo-image-picker';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as Haptics from 'expo-haptics';
 import { addTransaction, getSettings } from '@/lib/db';
 import { todayISO } from '@/lib/dates';

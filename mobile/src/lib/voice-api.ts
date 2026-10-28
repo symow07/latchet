@@ -12,7 +12,7 @@
  */
 import { requestRecordingPermissionsAsync, setAudioModeAsync } from 'expo-audio';
 import type { RecordingOptions } from 'expo-audio';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { api } from './api/api';
 import { todayISO } from './dates';
 import { getLocale } from './i18n/core';
@@ -43,6 +43,11 @@ export const SPEECH_RECORDING: RecordingOptions = {
     linearPCMBitDepth: 16,
     linearPCMIsBigEndian: false,
     linearPCMIsFloat: false,
+  },
+  // Required by expo-audio's type since SDK 54; the app does not record on the web.
+  web: {
+    mimeType: 'audio/webm',
+    bitsPerSecond: 32000,
   },
 };
 

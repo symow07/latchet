@@ -9,7 +9,7 @@ import {
 import { categoryIcon } from '@/components/category-icon';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { receiptSource } from '@/lib/receipt-image';
 import { hasLoadableReceipt, isLegacyLocalReceipt } from '@/lib/receipt-path';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';

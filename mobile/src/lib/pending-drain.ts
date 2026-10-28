@@ -11,7 +11,7 @@
  * app's own Documents directory — the same container expo-file-system reads,
  * which is why no App Group is involved.
  */
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { activeUserId, addTransaction } from './db';
 import { parsePendingQueue, selectDrainable } from './pending-capture';

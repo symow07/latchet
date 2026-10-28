@@ -8,7 +8,7 @@
  * directory it and the app can both reach. Its path contains a system-assigned
  * UUID, so it has to be asked for — see modules/app-group.
  */
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { activeUserId, addTransaction } from './db';
 import { appGroupPath } from '../../modules/app-group';
