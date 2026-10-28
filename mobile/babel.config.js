@@ -17,7 +17,8 @@ module.exports = function (api) {
         },
       ],
       "@babel/plugin-proposal-export-namespace-from",
-      "react-native-reanimated/plugin",
+      // No Reanimated plugin here: babel-preset-expo adds react-native-worklets/plugin
+      // itself (SDK 54+), and listing it again would run it twice.
     ],
   };
 };
