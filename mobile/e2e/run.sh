@@ -31,7 +31,7 @@ rm -rf "$shots" "$output"
 mkdir -p "$shots" "$output" "$state"
 
 backend="${E2E_BACKEND:-http://localhost:3000}"
-app="${E2E_APP:-$mobile/ios/build/Build/Products/Release-iphonesimulator/Latchet.app}"
+app="${E2E_APP:-$mobile/ios/DerivedData/Build/Products/Release-iphonesimulator/Latchet.app}"
 bundle="com.latchet.app"
 
 fail() { echo "e2e: $*" >&2; exit 2; }
@@ -89,6 +89,12 @@ xcrun simctl spawn "$device" notifyutil -p com.apple.BiometricKit.enrollmentChan
 # ── Hooks: what Maestro cannot do from inside a flow ────────────────────────
 before_flow() {
   case "$1" in
+    10-*)
+      # Enrolled again right before the lock: the simulator was seen to lose
+      # its enrollment during a run, and the app then (rightly) refuses.
+      xcrun simctl spawn "$device" notifyutil -s com.apple.BiometricKit.enrollmentChanged 1
+      xcrun simctl spawn "$device" notifyutil -p com.apple.BiometricKit.enrollmentChanged
+      ;;
     08-*)
       # The receipt, as the share extension would hand it to the app.
       local data; data="$(xcrun simctl get_app_container "$device" "$bundle" data)"
