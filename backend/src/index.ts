@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { env } from "./env";
 import { logger } from "hono/logger";
-import { auth, loginRateLimiter, generalAuthRateLimiter,
+import { auth, loginRateLimiter, generalAuthRateLimiter, sessionRateLimiter, isSessionRead,
   signupBurstRateLimiter,
   signupDailyRateLimiter,
 } from "./auth";
@@ -156,7 +156,10 @@ app.use("*", async (c, next) => {
 app.use("/api/auth/sign-up/*", signupBurstRateLimiter);
 app.use("/api/auth/sign-up/*", signupDailyRateLimiter);
 app.use("/api/auth/sign-in/*", loginRateLimiter);
-app.use("/api/auth/*", generalAuthRateLimiter);
+// Session reads have their own, wider limit (auth.ts, sessionRateLimiter).
+app.use("/api/auth/*", (c, next) =>
+  isSessionRead(c.req.method, c.req.path) ? sessionRateLimiter(c, next) : generalAuthRateLimiter(c, next)
+);
 app.on(["GET", "POST"], "/api/auth/*", async (c) => {
   const t0 = Date.now();
   debugLog(`[auth-route:enter] ${c.req.method} ${c.req.path}`);

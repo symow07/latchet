@@ -3,6 +3,9 @@ import type { Context } from "hono";
 import { prisma } from "./prisma";
 import {
   createRateLimiter,
+  generalAuthRateLimiter,
+  isSessionRead,
+  sessionRateLimiter,
   signupBurstRateLimiter,
   loginRateLimiter,
 } from "./auth";
@@ -194,4 +197,36 @@ test("an identifier header of any length is limited, not a server error", async 
   expect(await hit(limiter, addr(90), huge)).toBe(200);
   expect(await hit(limiter, addr(91), huge)).toBe(429);
   await prisma.rateLimitBucket.deleteMany({ where: { key: { startsWith: `test-long-${RUN}` } } });
+});
+
+// The app reads the session on every launch and every return to the
+// foreground. Under the general limit (30 per address per 15 minutes) that ran
+// out, the app took the refusal for "signed out", and the lockout then shut
+// sign-in too. Found by the end-to-end suite, which cold-starts the app often.
+test("session reads have their own wide window and leave the general limit alone", async () => {
+  const ip = addr(70);
+  const reads: number[] = [];
+  for (let i = 0; i < 100; i++) reads.push(await hit(sessionRateLimiter, ip));
+  expect(reads.every((s) => s === 200)).toBe(true);
+  // The same address still has its whole general budget for sign-out and the rest.
+  expect(await hit(generalAuthRateLimiter, ip)).toBe(200);
+});
+
+test("only GET /api/auth/get-session counts as a session read", () => {
+  expect(isSessionRead("GET", "/api/auth/get-session")).toBe(true);
+  expect(isSessionRead("GET", "/api/auth/get-session/")).toBe(true);
+  expect(isSessionRead("POST", "/api/auth/get-session")).toBe(false);
+  expect(isSessionRead("GET", "/api/auth/sign-in/email")).toBe(false);
+  expect(isSessionRead("GET", "/api/auth/get-session-and-more")).toBe(false);
+});
+
+test("the served app sends 40 session reads from one address without a 429", async () => {
+  const { app } = await import("./index");
+  const ip = addr(71);
+  const statuses: number[] = [];
+  for (let i = 0; i < 40; i++) {
+    const res = await app.request("/api/auth/get-session", { headers: { "x-forwarded-for": ip } });
+    statuses.push(res.status);
+  }
+  expect(statuses.filter((s) => s === 429)).toEqual([]);
 });
