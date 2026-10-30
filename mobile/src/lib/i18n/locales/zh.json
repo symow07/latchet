@@ -759,6 +759,7 @@
     "analysing2": "读取总额",
     "analysing3": "选择分类",
     "readFailed": "无法读取这张图片，请重试。",
+    "scanFailed": "暂时无法识别这张收据。请稍后重试，或手动添加这笔支出。",
     "errAmount": "请输入大于零的金额。"
   },
   "recurring": {
