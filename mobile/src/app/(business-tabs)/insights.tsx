@@ -72,15 +72,17 @@ function Meter({
   useFocusEffect(
     useCallback(() => {
       if (!animate || reduced) {
-        width.value = value;
+        width.set(value);
         return;
       }
-      width.value = 0;
+      width.set(0);
       const [x1, y1, x2, y2] = EASE[MOTION.progress.ease];
-      width.value = withTiming(value, {
-        duration: MOTION.progress.duration,
-        easing: Easing.bezier(x1, y1, x2, y2),
-      });
+      width.set(
+        withTiming(value, {
+          duration: MOTION.progress.duration,
+          easing: Easing.bezier(x1, y1, x2, y2),
+        }),
+      );
     }, [value, animate, reduced, width])
   );
 

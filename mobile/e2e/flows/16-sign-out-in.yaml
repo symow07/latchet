@@ -1,0 +1,30 @@
+# Log out from Settings, and sign back in.
+appId: com.latchet.app
+name: Sign out and in
+---
+- runFlow: common/home.yaml
+- tapOn: "Settings"
+# The last row cannot be centred: scroll to it, then to the end of the page,
+# whose padding keeps it clear of the tab bar.
+- scrollUntilVisible:
+    element: "Log Out"
+    direction: DOWN
+- scroll
+- takeScreenshot: 16a-settings-bottom
+- tapOn: "Log Out"
+# A confirmation, if the app asks one (its button repeats the action).
+- runFlow:
+    when:
+      visible: "Log Out|Sign out anyway"
+    commands:
+      - tapOn: "Log Out|Sign out anyway"
+- extendedWaitUntil:
+    visible: "Welcome back"
+    timeout: 20000
+- takeScreenshot: 16b-signed-out
+- runFlow: common/sign-in.yaml
+- runFlow: common/first-run.yaml
+- extendedWaitUntil:
+    visible: "Scan Receipt"
+    timeout: 20000
+- takeScreenshot: 16c-signed-back-in

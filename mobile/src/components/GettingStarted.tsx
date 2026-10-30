@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import { Pressable, View, type StyleProp, type ViewStyle } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect } from 'expo-router/react-navigation';
 import { useRouter } from 'expo-router';
 import { Building2, Check, ChevronRight, Mail, Target, Upload } from '@/components/icons';
 import { Card, IconTile, Touchable, Type, mirror } from '@/components/kit';

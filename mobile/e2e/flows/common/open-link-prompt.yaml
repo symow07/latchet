@@ -1,0 +1,13 @@
+# iOS asks "Open in “Latchet”?" the first time a link opens the app on a
+# simulator, and a simulator that has never been asked stops flows 02 and 08
+# there. Run straight after openLink: it answers Open when asked, and does
+# nothing on a simulator that has answered before.
+appId: com.latchet.app
+---
+- waitForAnimationToEnd:
+    timeout: 3000
+- runFlow:
+    when:
+      visible: "Open in .Latchet.\\?"
+    commands:
+      - tapOn: "Open"

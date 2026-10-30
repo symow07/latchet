@@ -1,0 +1,24 @@
+# Business Insights, the Budget screen, from Home's "Adjust budget": the one
+# way the app opens it as a screen of its own. The runner has put the month
+# over budget first (business-setup.mjs), which is when Home offers it.
+#
+# It is kept off the tab bar, and on SDK 58 a tab hidden with `href: null` was
+# sent straight back to the first one as it opened: the tap landed on Home.
+# So the screen is checked again once it has had time to bounce.
+appId: com.latchet.app
+name: Business Insights
+---
+- runFlow: common/business-home.yaml
+- extendedWaitUntil:
+    visible: "Adjust budget"
+    timeout: 20000
+- takeScreenshot: 18a-business-over-budget
+- tapOn: "Adjust budget"
+- extendedWaitUntil:
+    visible: "By category"
+    timeout: 10000
+- waitForAnimationToEnd:
+    timeout: 3000
+- assertVisible: "By category"
+- assertNotVisible: "Adjust budget"
+- takeScreenshot: 18b-business-insights

@@ -35,9 +35,6 @@ module.exports = defineConfig([
         },
       },
     },
-    plugins: {
-      "react-hooks": require("eslint-plugin-react-hooks"),
-    },
     rules: {
       // Formatting nits the sorter doesn't fix
       "comma-spacing": ["warn", { before: false, after: true }],

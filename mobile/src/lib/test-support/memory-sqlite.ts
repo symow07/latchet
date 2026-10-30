@@ -17,7 +17,8 @@ import type { UserDatabaseDriver } from '../user-db';
 function bindings(params?: SqlBindParams): SQLQueryBindings[] {
   if (!params) return [];
   if (!Array.isArray(params)) throw new Error('memory-sqlite: named parameters are not supported');
-  return params.map((v) => (typeof v === 'boolean' ? (v ? 1 : 0) : v));
+  // bun:sqlite binds a blob from a typed array only; expo-sqlite also takes an ArrayBuffer.
+  return params.map((v) => (typeof v === 'boolean' ? (v ? 1 : 0) : v instanceof ArrayBuffer ? new Uint8Array(v) : v));
 }
 
 export class MemorySqliteHandle implements SqlDb {

@@ -1,0 +1,24 @@
+# The bill reminder push (sent by the runner with simctl push) is delivered and
+# shown: permission, payload and presentation. Opening the app by tapping it
+# cannot be automated here (SpringBoard ignores synthesized taps on
+# notifications); where a tap leads is covered by notification-route.test.ts.
+appId: com.latchet.app
+name: Bill reminder notification
+---
+- runFlow:
+    when:
+      notVisible: "E2E: Rent is due tomorrow"
+    commands:
+      - swipe:
+          start: 15%,1%
+          end: 15%,65%
+          duration: 400
+- extendedWaitUntil:
+    visible: "E2E: Rent is due tomorrow"
+    timeout: 20000
+- assertVisible: "LATCHET, .*E2E: Rent is due tomorrow, €900\\.00 to Landlord"
+- takeScreenshot: 15a-notification
+- swipe:
+    start: 50%,99%
+    end: 50%,25%
+    duration: 400

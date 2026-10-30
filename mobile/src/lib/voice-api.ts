@@ -11,7 +11,7 @@
  * not, which is why the shape here changed rather than just the imports.
  */
 import { requestRecordingPermissionsAsync, setAudioModeAsync } from 'expo-audio';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { api } from './api/api';
 import { todayISO } from './dates';
 import { getLocale } from './i18n/core';

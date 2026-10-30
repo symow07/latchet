@@ -1,0 +1,24 @@
+# A fresh install signs in to the E2E business account (local backend) and
+# reaches the business Home. Flows 18 and 19 continue as this account; the
+# runner runs this flow whenever either of them is picked.
+appId: com.latchet.app
+name: Business sign-in
+---
+- launchApp:
+    clearState: true
+    clearKeychain: true
+    permissions:
+      all: allow
+- extendedWaitUntil:
+    visible: "Welcome back"
+    timeout: 30000
+- runFlow:
+    file: common/sign-in.yaml
+    env:
+      E2E_EMAIL: ${E2E_BIZ_EMAIL}
+      E2E_PASSWORD: ${E2E_BIZ_PASSWORD}
+- runFlow: common/first-run-business.yaml
+- extendedWaitUntil:
+    visible: "Business Tools"
+    timeout: 20000
+- takeScreenshot: 17c-business-home

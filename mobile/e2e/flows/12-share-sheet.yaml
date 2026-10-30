@@ -1,0 +1,52 @@
+# Photos › the test receipt › Share › Latchet: the share extension's sheet
+# opens with the photo. Maestro's taps cannot reach inside an extension's
+# sheet (it runs out of process), so the runner then writes exactly what its
+# Post writes into the App Group, and 13-share-received checks the app.
+appId: com.apple.mobileslideshow
+name: Share from Photos (the share sheet)
+---
+- launchApp:
+    appId: com.apple.mobileslideshow
+    stopApp: true
+- runFlow:
+    when:
+      visible: "Continue"
+    commands:
+      - tapOn: "Continue"
+# Photos reopens where it was left: back out of a photo to the grid.
+- runFlow:
+    when:
+      visible:
+        id: "PUOneUpBarButtonItemIdentifierDone"
+    commands:
+      - tapOn:
+          id: "PUOneUpBarButtonItemIdentifierDone"
+# The test receipt carries a fixed capture date (e2e/fixtures/README.md).
+- scrollUntilVisible:
+    element: "Photo, February 03, 2001.*"
+    direction: UP
+    centerElement: true
+- tapOn: "Photo, February 03, 2001.*"
+- extendedWaitUntil:
+    visible: "Share"
+    timeout: 10000
+- tapOn:
+    id: "PUOneUpBarButtonItemIdentifierShare"
+- extendedWaitUntil:
+    visible: "Latchet"
+    timeout: 10000
+- takeScreenshot: 12a-photos-share-sheet
+- tapOn:
+    text: "Latchet"
+    index: 0
+# The extension's sheet runs out of process: Maestro does not always see into
+# it, so its Post button is waited for but not required; the screenshot shows it.
+# When Maestro does see it, it sees it while the sheet is still fading in, so
+# the screenshot waits for the sheet to settle.
+- extendedWaitUntil:
+    visible: "Post"
+    timeout: 10000
+    optional: true
+- waitForAnimationToEnd:
+    timeout: 5000
+- takeScreenshot: 12b-share-extension

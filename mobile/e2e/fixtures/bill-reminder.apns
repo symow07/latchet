@@ -1,0 +1,13 @@
+{
+  "Simulator Target Bundle": "com.latchet.app",
+  "aps": {
+    "alert": {
+      "title": "E2E: Rent is due tomorrow",
+      "body": "€900.00 to Landlord"
+    },
+    "sound": "default"
+  },
+  "body": {
+    "type": "bill-reminder"
+  }
+}

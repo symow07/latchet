@@ -7,6 +7,7 @@ import { allowUsageTiered } from "../lib/usage-limit";
 import { aiAllowance } from "../lib/entitlement";
 import { userIsPro } from "../lib/user-entitlement";
 import { fetchWithTimeout } from "../lib/fetch-timeout";
+import { openaiUrl } from "../lib/openai-url";
 import {
   normaliseStatementRows,
   STATEMENT_CATEGORIES,
@@ -21,8 +22,8 @@ import { buildChatMessages } from "../lib/advisor-safety";
  * degrades to 503 instead of crashing the backend.
  */
 
-const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
-const OPENAI_TRANSCRIBE_URL = "https://api.openai.com/v1/audio/transcriptions";
+const OPENAI_URL = openaiUrl("/v1/chat/completions", env);
+const OPENAI_TRANSCRIBE_URL = openaiUrl("/v1/audio/transcriptions", env);
 const CHAT_MODEL = "gpt-4o-mini";
 const VISION_MODEL = "gpt-4o";
 const TRANSCRIBE_MODEL = "whisper-1";

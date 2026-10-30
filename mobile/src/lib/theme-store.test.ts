@@ -17,6 +17,7 @@ describe('resolveScheme', () => {
     // unknown platform to the derivation shows the wrong app.
     expect(resolveScheme('system', null)).toBe('light');
     expect(resolveScheme('system', undefined)).toBe('light');
+    expect(resolveScheme('system', 'unspecified')).toBe('light');
   });
 
   it('keeps an explicit choice even with no OS value', () => {

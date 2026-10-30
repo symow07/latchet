@@ -444,7 +444,7 @@ export default function TeamScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingTop: 8, paddingBottom: 90 }}
         refreshControl={
-          <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={B.accent} />
+          <RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} tintColor={B.accent} />
         }
       >
         {/* Team was a tab until it moved into Settings, and a tab needs no way

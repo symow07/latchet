@@ -67,13 +67,16 @@ export default function ResetPasswordScreen() {
   const [error, setError] = useState('');
   const [goSignIn, setGoSignIn] = useState(false);
 
-  // A second link opened while this screen is up arrives as new params.
-  useEffect(() => {
+  // A second link opened while this screen is up arrives as new params, and
+  // the form starts over for it.
+  const [formFor, setFormFor] = useState(linkKey);
+  if (formFor !== linkKey) {
+    setFormFor(linkKey);
     setStage(linkKey ? 'form' : 'invalid');
     setPassword('');
     setConfirm('');
     setError('');
-  }, [linkKey]);
+  }
 
   // Sign-in exists only while nobody is signed in (the public group in
   // _layout.tsx), so wait for the session to say so before going there.

@@ -107,7 +107,8 @@ export default function LinkBankScreen() {
   const [linkedBanks, setLinkedBanks] = useState<LinkedBank[]>([]);
   const [linkedAccounts, setLinkedAccounts] = useState<LinkedAccount[]>([]);
   const [selectedBank, setSelectedBank] = useState<LinkedBank | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  // The first load starts at mount.
+  const [isLoading, setIsLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showConsent, setShowConsent] = useState(false);
@@ -138,8 +139,7 @@ export default function LinkBankScreen() {
     availability.state === 'unknown' ||
     (availability.state === 'outside' && tryAnyway);
 
-  const loadData = useCallback(async () => {
-    setIsLoading(true);
+  const fetchData = useCallback(async () => {
     try {
       setLinkedBanks(await getLinkedBanks());
       setLinkedAccounts(await getLinkedAccounts());
@@ -149,9 +149,14 @@ export default function LinkBankScreen() {
     }
   }, []);
 
+  const loadData = useCallback(async () => {
+    setIsLoading(true);
+    await fetchData();
+  }, [fetchData]);
+
   useEffect(() => {
-    void loadData();
-  }, [loadData]);
+    void fetchData();
+  }, [fetchData]);
 
   const confirmBankConnection = async () => {
     setShowConsent(false);

@@ -7,6 +7,7 @@ import {
   ScrollView,
   TextInput,
   View,
+  type ScrollViewInstance,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useMutation, useQuery } from '@tanstack/react-query';
@@ -64,7 +65,7 @@ interface Msg {
 export default function BusinessAdvisorScreen() {
   const B = useC();
   const insets = useSafeAreaInsets();
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<ScrollViewInstance>(null);
   const { handleUpgradeRequired } = useEntitlement();
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState('');

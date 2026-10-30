@@ -9,6 +9,12 @@ changelog.txt
 CLAUDE.md
 AGENTS.md
 node_modules/
+# Signing keys, certificates and EAS's local credentials file
+*.p8
+*.p12
+*.pem
+*.mobileprovision
+credentials.json
 .test-db/
 _site/
 

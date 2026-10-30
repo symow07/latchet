@@ -1,0 +1,29 @@
+# Voice capture on the advisor: hold to speak, release, and the review sheet
+# shows what was heard. The backend sends the recording to the runner's fake
+# OpenAI (fake-openai.mjs), which answers with a fixed transcript and one
+# expense, and the runner then checks the recording it received was a real
+# one: an MP4 with seconds of audio in it (run.sh, check_flow).
+#
+# This flow used to accept "Could not read that recording." as an outcome, and
+# passed for weeks while iOS refused the recording format and nothing was
+# uploaded at all. Only the review sheet counts now. The simulator records the
+# Mac's microphone, so the words themselves are not under test.
+appId: com.latchet.app
+name: Voice capture
+---
+- runFlow: common/home.yaml
+- tapOn: "Home"
+- tapOn:
+    text: "Ask a question"
+    index: 0
+- extendedWaitUntil:
+    visible: "Hold to speak"
+    timeout: 15000
+- takeScreenshot: 09a-advisor
+- longPressOn: "Hold to speak"
+- extendedWaitUntil:
+    visible: "What I heard"
+    timeout: 60000
+- assertVisible: "Lunch was twelve dollars\\."
+- assertVisible: "Save 1 transaction"
+- takeScreenshot: 09b-voice-result

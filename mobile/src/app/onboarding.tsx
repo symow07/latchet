@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect } from 'expo-router/react-navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getLocales } from 'expo-localization';
@@ -142,7 +142,7 @@ export default function OnboardingScreen() {
     [],
   );
 
-  const suggested = useMemo(deviceCurrency, []);
+  const suggested = useMemo(() => deviceCurrency(), []);
   const [pickedCurrency, setPickedCurrency] = useState<string | null>(null);
   const [incomeText, setIncomeText] = useState('');
   const [budgetChoice, setBudgetChoice] = useState<BudgetStyle | 'none'>('moderate');
@@ -282,8 +282,8 @@ export default function OnboardingScreen() {
   const [scanned, setScanned] = useState<number | null>(null);
   /** Inbox connections still filling their first year; the search waits on them. */
   const pendingInboxes = useRef<Promise<unknown>[]>([]);
-  /** One per connection, and one for the search: "show what's found" sets them all. */
-  const stopSignals = useRef<{ aborted: boolean }[]>([]);
+  /** One per connection, and one for the search: "show what's found" runs them all. */
+  const aborts = useRef<(() => void)[]>([]);
 
   const connectInbox = async (provider: 'gmail' | 'outlook') => {
     setConnectError(null);
@@ -295,7 +295,9 @@ export default function OnboardingScreen() {
       if (alive.current) setConnecting(null);
     };
     const signal = { aborted: false };
-    stopSignals.current.push(signal);
+    aborts.current.push(() => {
+      signal.aborted = true;
+    });
     const run = connectEmailProvider(provider, {
       signal,
       // The payoff is where onboarding asks for notification permission, and
@@ -339,7 +341,9 @@ export default function OnboardingScreen() {
 
   const search = useCallback(async () => {
     const stop = { aborted: false };
-    stopSignals.current.push(stop);
+    aborts.current.push(() => {
+      stop.aborted = true;
+    });
     let connections: EmailConnectionDTO[] = [];
     let stillReading = false;
     try {
@@ -397,7 +401,7 @@ export default function OnboardingScreen() {
   }, [step, search]);
 
   const showNow = () => {
-    for (const s of stopSignals.current) s.aborted = true;
+    for (const abort of aborts.current) abort();
   };
 
   // A payoff with nothing behind it (the screen was rebuilt): search again.

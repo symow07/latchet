@@ -1,0 +1,28 @@
+# Business Payroll and Budget under the Money tab. Payroll is the route
+# (business-tabs)/subscriptions, kept off the bar like Insights; the app shows
+# both inside Money. The salary sheet opens and closes (nothing saved).
+appId: com.latchet.app
+name: Business Payroll
+---
+- runFlow: common/business-home.yaml
+- tapOn: "Money"
+- extendedWaitUntil:
+    visible: "Total payroll"
+    timeout: 15000
+- takeScreenshot: 19a-business-payroll
+- tapOn: "Add"
+- extendedWaitUntil:
+    visible: "Add Employee Salary"
+    timeout: 5000
+- takeScreenshot: 19b-business-salary-sheet
+# Closed from the dimmed backdrop: a drag that starts on the team list is the
+# list's (flow 05 drags a sheet closed).
+- tapOn:
+    point: 50%,15%
+- waitForAnimationToEnd
+- assertNotVisible: "Add Employee Salary"
+- tapOn: "Budget"
+- extendedWaitUntil:
+    visible: "By category"
+    timeout: 10000
+- takeScreenshot: 19c-business-budget

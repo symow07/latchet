@@ -350,7 +350,7 @@ export default function PayrollScreen({ embedded }: { embedded?: boolean } = {})
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: BAR.clearance(insets.bottom) }}
         refreshControl={
-          <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={B.accent} />
+          <RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} tintColor={B.accent} />
         }
       >
         {embedded ? null : (

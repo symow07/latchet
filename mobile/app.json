@@ -6,7 +6,6 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": false,
     "ios": {
       "bundleIdentifier": "com.latchet.app",
       "supportsTablet": true,
@@ -17,7 +16,6 @@
     },
     "android": {
       "package": "com.latchet.app",
-      "edgeToEdgeEnabled": true,
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.USE_BIOMETRIC",
@@ -68,7 +66,6 @@
           "savePhotosPermission": "Allow Latchet to save receipts to your photos."
         }
       ],
-      "./plugins/withFmtConstevalFix",
       "./plugins/withAppIntents",
       "./plugins/withShareExtension",
       "./plugins/withAppShortcutLocalization",
@@ -80,13 +77,20 @@
         "expo-build-properties",
         {
           "ios": {
-            "deploymentTarget": "15.1"
+            "deploymentTarget": "16.4"
           }
         }
       ],
       "./plugins/withIosDeploymentTarget",
       "@sentry/react-native",
-      "./plugins/withSentryOptionalUpload"
+      "./plugins/withSentryOptionalUpload",
+      "@react-native-community/datetimepicker",
+      "expo-font",
+      "expo-secure-store",
+      "expo-sqlite",
+      "expo-image",
+      "expo-sharing",
+      "expo-status-bar"
     ],
     "experiments": {
       "typedRoutes": true

@@ -1,0 +1,36 @@
+# A new account's first sign-in: the account-type picker and onboarding. Each
+# step runs only if it is on screen, so this is a no-op once the account has
+# been through it (the server remembers the answers).
+appId: com.latchet.app
+---
+- runFlow:
+    when:
+      visible: "How will you\\s+use Latchet\\?"
+    commands:
+      - takeScreenshot: 01b-account-type
+      - tapOn: "Personal"
+      - tapOn: "Continue"
+- runFlow:
+    when:
+      visible: "Which currency do you use\\?"
+    commands:
+      - takeScreenshot: 01c-onboarding-currency
+      - tapOn: "Continue"
+- runFlow:
+    when:
+      visible: "What comes in each month\\?"
+    commands:
+      - takeScreenshot: 01d-onboarding-income
+      - tapOn: "Skip"
+- runFlow:
+    when:
+      visible: "Connect your data"
+    commands:
+      - takeScreenshot: 01e-onboarding-connect
+      - tapOn: "Skip for now"
+- runFlow:
+    when:
+      visible: "Go to Home"
+    commands:
+      - takeScreenshot: 01f-onboarding-done
+      - tapOn: "Go to Home"

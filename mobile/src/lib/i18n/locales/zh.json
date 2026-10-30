@@ -1351,6 +1351,7 @@
     "thinking": "正在识别…",
     "micDenied": "录音需要访问麦克风。",
     "failed": "无法识别这段录音。",
+    "unavailable": "语音输入暂时无法使用。你仍然可以输入问题。",
     "selectedCount": {
       "zero": "未选择",
       "one": "已选 {{count}} 笔",

@@ -59,7 +59,7 @@ import { createUserDatabaseRegistry, type UserDatabaseDriver } from './user-db';
  * Structural, so code written against it (leaf-1.2.2's sync store, the tests)
  * does not depend on expo-sqlite itself.
  */
-export type SqlBindValue = string | number | null | boolean | Uint8Array;
+export type SqlBindValue = string | number | null | boolean | Uint8Array | ArrayBuffer;
 export type SqlBindParams = SqlBindValue[] | Record<string, SqlBindValue>;
 export interface SqlRunResult {
   lastInsertRowId: number;
@@ -80,11 +80,11 @@ export interface SqlDb {
 function databaseFiles(directory: string): DatabaseFiles {
   return {
     exists: async (fileName) => {
-      const FileSystem = await import('expo-file-system');
+      const FileSystem = await import('expo-file-system/legacy');
       return (await FileSystem.getInfoAsync(databaseFileUri(directory, fileName))).exists;
     },
     move: async (from, to) => {
-      const FileSystem = await import('expo-file-system');
+      const FileSystem = await import('expo-file-system/legacy');
       await FileSystem.moveAsync({ from: databaseFileUri(directory, from), to: databaseFileUri(directory, to) });
     },
   };

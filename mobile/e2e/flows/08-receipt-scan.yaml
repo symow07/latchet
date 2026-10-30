@@ -1,0 +1,54 @@
+# Receipt scan. The photo picker opens and cancels; the receipt itself arrives
+# the way a share from Photos delivers it (the runner copies the test photo
+# into the app first), because Maestro's taps cannot select inside the system
+# photo picker. Reading the receipt needs a working OpenAI key on the backend.
+appId: com.latchet.app
+name: Receipt scan
+---
+- runFlow: common/home.yaml
+- tapOn: "Home"
+- tapOn: "Scan Receipt"
+- extendedWaitUntil:
+    visible: "Choose Photo"
+    timeout: 10000
+- takeScreenshot: 08a-receipt-start
+- tapOn: "Choose Photo"
+# Up to iOS 26 Maestro reads the system photo picker. From iOS 27 the picker is
+# left out of the app's accessibility tree, so the flow sees only that the app
+# is covered and closes the picker by its X, top left of the full-height sheet.
+- runFlow:
+    when:
+      true: ${E2E_IOS < 27}
+    commands:
+      - extendedWaitUntil:
+          visible: "Collections"
+          timeout: 15000
+      - takeScreenshot: 08b-photo-picker
+      - tapOn:
+          id: "Cancel"
+- runFlow:
+    when:
+      true: ${E2E_IOS >= 27}
+    commands:
+      - extendedWaitUntil:
+          notVisible: "Choose Photo"
+          timeout: 15000
+      - waitForAnimationToEnd:
+          timeout: 3000
+      - takeScreenshot: 08b-photo-picker
+      - tapOn:
+          point: "9%,11%"
+- extendedWaitUntil:
+    visible: "Choose Photo"
+    timeout: 10000
+- openLink: "latchet://receipt-scan?sharedUri=${E2E_RECEIPT_URI}"
+- runFlow: common/open-link-prompt.yaml
+- extendedWaitUntil:
+    visible: "Review & save|Request failed.*|AI .*unavailable.*|Could not.*"
+    timeout: 60000
+- takeScreenshot: 08c-receipt-result
+- runFlow:
+    when:
+      visible: "Review & save"
+    commands:
+      - assertVisible: "11\\.20"

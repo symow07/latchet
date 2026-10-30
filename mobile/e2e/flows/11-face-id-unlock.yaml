@@ -1,0 +1,19 @@
+# After the runner's matching face: the app is open again. The lock is turned
+# off so the flows after this one start unlocked.
+appId: com.latchet.app
+name: Face ID unlock
+---
+- extendedWaitUntil:
+    visible: "Home"
+    timeout: 20000
+- assertNotVisible: "Authenticate to continue"
+- takeScreenshot: 11a-unlocked
+- tapOn: "Settings"
+- scrollUntilVisible:
+    element: "Biometric Lock"
+    direction: DOWN
+    centerElement: true
+- tapOn:
+    text: "Biometric Lock"
+    index: 1
+- tapOn: "Home"

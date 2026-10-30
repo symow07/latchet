@@ -1,0 +1,12 @@
+# Latchet picks up the shared receipt from the App Group on launch and opens
+# it in receipt scan. Reading it needs a working OpenAI key on the backend.
+appId: com.latchet.app
+name: Share from Photos (Latchet receives it)
+---
+- launchApp:
+    stopApp: true
+- extendedWaitUntil:
+    visible: "Review & save|Request failed.*|AI .*unavailable.*|Could not.*"
+    timeout: 60000
+- assertVisible: "Scan Receipt"
+- takeScreenshot: 13a-shared-receipt

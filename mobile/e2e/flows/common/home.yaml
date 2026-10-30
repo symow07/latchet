@@ -1,0 +1,9 @@
+# A cold start on Home, signed in: every flow starts here, so one flow's
+# failure cannot leave the next one on the wrong screen.
+appId: com.latchet.app
+---
+- launchApp:
+    stopApp: true
+- extendedWaitUntil:
+    visible: "Scan Receipt"
+    timeout: 30000

@@ -80,7 +80,11 @@ export default function TabLayout() {
       {/* Ask keeps its route — §8 still lists it as a core screen (#16) — but
           it stays off the bar. Home reaches it from the insight card, which is
           where a question about your money actually occurs to you. */}
-      <Tabs.Screen name="advisor" options={{ href: null }} />
+      {/* Off the bar because `tabs` has no entry for it, not `href: null`:
+          since SDK 58 expo-router sends a hidden tab that gains focus straight
+          back to the first one, so "Ask a question" would land on Home. */}
+      {/* No native header: the screen draws its own back button and title. */}
+      <Tabs.Screen name="advisor" options={{ headerShown: false }} />
     </Tabs>
   );
 }

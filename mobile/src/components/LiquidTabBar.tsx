@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo } from 'react';
 import { I18nManager, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
-import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
+import type { BottomTabBarProps } from 'expo-router/js-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
   Easing,
@@ -53,7 +53,7 @@ import { EASE, MOTION } from '@/lib/identity/motion';
  * the bar can be as clear as its measurement allows.
  */
 
-/** React Navigation's event name — an API constant, not display text. */
+/** The tab navigator's event name — an API constant, not display text. */
 const TAB_PRESS = 'tabPress' as const;
 
 /**
@@ -95,10 +95,11 @@ export interface LiquidTab {
 
 export function LiquidTabBar({
   state,
-  navigation,
+  emitter,
+  navigateToTab,
   pal,
   tabs,
-}: Pick<BottomTabBarProps, 'state' | 'navigation'> & {
+}: Pick<BottomTabBarProps, 'state' | 'emitter' | 'navigateToTab'> & {
   pal: Pal;
   /** Keyed by route name, so this does not depend on the navigator's order. */
   tabs: Record<string, LiquidTab>;
@@ -143,14 +144,16 @@ export function LiquidTabBar({
       const route = routes[i];
       if (!route) return;
       Haptics.selectionAsync();
-      const event = navigation.emit({
+      // As expo-router's own bar does since SDK 58, which hands a tab bar
+      // the navigator's emitter and a navigate-by-key, not `navigation`.
+      const event = emitter.emit({
         type: TAB_PRESS,
         target: route.key,
         canPreventDefault: true,
       });
-      if (i !== active && !event.defaultPrevented) navigation.navigate(route.name as never);
+      if (i !== active && !event.defaultPrevented) navigateToTab(route.key);
     },
-    [routes, navigation, active]
+    [routes, emitter, navigateToTab, active]
   );
 
   /**

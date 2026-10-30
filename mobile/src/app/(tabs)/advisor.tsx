@@ -5,17 +5,16 @@ import {
   Pressable,
   KeyboardAvoidingView,
   Platform,
-  ActivityIndicator, Alert } from 'react-native';
-import { useState, useRef, useEffect } from 'react';
+  Alert,
+  type ScrollViewInstance } from 'react-native';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { VoiceReviewSheet } from '@/components/VoiceReviewSheet';
-import {
-  requestMicrophone, extractFromRecording, discardRecording, SPEECH_RECORDING,
-} from '@/lib/voice-api';
-import { useAudioRecorder } from 'expo-audio';
+import { VoiceInput, type VoicePhase } from '@/components/VoiceInput';
 import { toTransactionInputs, type ReviewRow, type VoiceResult } from '@/lib/voice-capture';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ChevronLeft, Send, TrendingUp, PiggyBank, AlertCircle, Lightbulb, Mic } from '@/components/icons';
+import { ChevronLeft, Send, TrendingUp, PiggyBank, AlertCircle, Lightbulb } from '@/components/icons';
 import * as Haptics from 'expo-haptics';
 
 import { getTransactions, getSettings, addTransaction } from '@/lib/db';
@@ -25,7 +24,7 @@ import {
   sendAdvisorMessage,
   type SpendingAnalysis,
 } from '@/lib/ai-analysis';
-import { F, R, S, useC } from '@/lib/design';
+import { BAR, F, R, S, useC } from '@/lib/design';
 import { Card, Chip, CircleAction, Screen, Type, mirror } from '@/components/kit';
 import { useEntitlement } from '@/lib/useEntitlement';
 import { isUpgradeRequired } from '@/lib/entitlementApi';
@@ -52,25 +51,29 @@ function suggestedPrompts() {
   ];
 }
 
+const VOICE_PHASE_KEY = {
+  recording: 'voice.listening',
+  extracting: 'voice.thinking',
+  unavailable: 'voice.unavailable',
+} as const;
+
 export default function AdvisorTab() {
   const C = useC();
   const { handleUpgradeRequired } = useEntitlement();
   const router = useRouter();
-  const scrollViewRef = useRef<ScrollView>(null);
+  const insets = useSafeAreaInsets();
+  const scrollViewRef = useRef<ScrollViewInstance>(null);
   const [inputText, setInputText] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
-  const [analysis, setAnalysis] = useState<SpendingAnalysis | null>(null);
 
   const queryClient = useQueryClient();
   const { data: transactions = [] } = useQuery({ queryKey: ['transactions'], queryFn: getTransactions });
   const { data: settings } = useQuery({ queryKey: ['settings'], queryFn: getSettings });
 
-  const transactionsLength = transactions.length;
-  useEffect(() => {
-    if (transactionsLength > 0 && settings) {
-      setAnalysis(analyzeSpending(transactions, settings));
-    }
-  }, [transactions, settings, transactionsLength]);
+  const analysis = useMemo<SpendingAnalysis | null>(
+    () => (transactions.length > 0 && settings ? analyzeSpending(transactions, settings) : null),
+    [transactions, settings],
+  );
 
   const quickInsights = analysis && settings ? getQuickInsights(analysis, settings) : [];
 
@@ -127,54 +130,11 @@ export default function AdvisorTab() {
   const canSend = inputText.trim() && !sendMessageMutation.isPending;
 
   // ── Voice capture ──────────────────────────────────────────────────────────
-  // Hold to talk, release to extract. Nothing is written until the review sheet
-  // comes back confirmed: speech is the least reliable input here, and a
-  // misheard amount saved silently is worse than one the user corrects.
-  // expo-audio hands out the recorder through a hook rather than an object a
-  // module can own, so it lives here rather than in voice-api.
-  const recorder = useAudioRecorder(SPEECH_RECORDING);
-  const [recording, setRecording] = useState(false);
-  const [extracting, setExtracting] = useState(false);
+  // The button and its recorder are components/VoiceInput.tsx; this screen
+  // shows what it is doing and reviews what it heard.
+  const [voicePhase, setVoicePhase] = useState<VoicePhase>('idle');
   const [voiceResult, setVoiceResult] = useState<VoiceResult | null>(null);
   const [savingVoice, setSavingVoice] = useState(false);
-
-  const beginVoice = async () => {
-    if (recording || extracting) return;
-    if ((await requestMicrophone()) === 'denied') {
-      Alert.alert(t('dialogs.permissionNeeded'), t('voice.micDenied'));
-      return;
-    }
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    try {
-      await recorder.prepareToRecordAsync();
-      recorder.record();
-      setRecording(true);
-    } catch {
-      // Release the session even when preparing failed, or the next attempt
-      // inherits a half-configured one.
-      await discardRecording(null);
-      Alert.alert(t('dialogs.error'), t('voice.failed'));
-    }
-  };
-
-  const endVoice = async () => {
-    if (!recording) return;
-    setRecording(false);
-    setExtracting(true);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    try {
-      await recorder.stop();
-      // Read after stop: the uri is only final once the file is closed.
-      const uri = recorder.uri;
-      if (!uri) throw new Error('Recording produced no file');
-      setVoiceResult(await extractFromRecording(uri));
-    } catch {
-      await discardRecording(recorder.uri ?? null);
-      Alert.alert(t('dialogs.error'), t('voice.failed'));
-    } finally {
-      setExtracting(false);
-    }
-  };
 
   const saveVoiceRows = async (rows: ReviewRow[]) => {
     setSavingVoice(true);
@@ -325,10 +285,13 @@ export default function AdvisorTab() {
         </Type>
 
         {/* ── Input ── */}
-        <View style={{ paddingHorizontal: S.screen, paddingTop: 12, paddingBottom: 28 }}>
-          {recording || extracting ? (
-            <Type role="meta" color={recording ? C.negative : C.inkDim} style={{ marginBottom: 8 }}>
-              {recording ? t('voice.listening') : t('voice.thinking')}
+        {/* The floating tab bar sits over the bottom of this screen, so the
+            input row clears it by hand, as the business advisor's does. With a
+            fixed 28 the field, the mic and send were under the bar. */}
+        <View style={{ paddingHorizontal: S.screen, paddingTop: 12, paddingBottom: BAR.clearance(insets.bottom) }}>
+          {voicePhase !== 'idle' ? (
+            <Type role="meta" color={voicePhase === 'extracting' ? C.inkDim : C.negative} style={{ marginBottom: 8 }}>
+              {t(VOICE_PHASE_KEY[voicePhase])}
             </Type>
           ) : null}
 
@@ -358,19 +321,12 @@ export default function AdvisorTab() {
                 returnKeyType="send"
               />
 
-              {/* Hold to talk. */}
-              <Pressable
-                onPressIn={beginVoice}
-                onPressOut={endVoice}
-                disabled={extracting || sendMessageMutation.isPending}
-                accessibilityRole="button"
-                accessibilityLabel={t('voice.listening')}
-                style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}
-              >
-                {extracting
-                  ? <ActivityIndicator size="small" color={C.inkDim} />
-                  : <Mic size={20} color={recording ? C.negative : C.inkDim} strokeWidth={S.stroke} />}
-              </Pressable>
+              <VoiceInput
+                pal={C}
+                disabled={sendMessageMutation.isPending}
+                onPhase={setVoicePhase}
+                onResult={setVoiceResult}
+              />
 
               <Pressable
                 onPress={handleSend}

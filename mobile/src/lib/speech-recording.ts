@@ -25,13 +25,18 @@ export const SPEECH_RECORDING: RecordingOptions = {
     extension: '.m4a',
     // IOSOutputFormat.MPEG4AAC: AAC, the codec an .m4a carries. The type
     // accepts any string, and it held 'mp4f' (the MPEG-4 *file* type), which
-    // no recorder can be created with: expo-audio swallows that and hands back
-    // a recorder that never records, so nothing was ever uploaded. (From SDK
-    // 57 it throws instead, and the advisor crashed on open.)
+    // no recorder can be created with: expo-audio up to SDK 55 swallowed that
+    // and handed back a recorder that never recorded; from SDK 57 it throws,
+    // and the advisor crashed on open.
     outputFormat: 'aac ',
     audioQuality: 96,
     linearPCMBitDepth: 16,
     linearPCMIsBigEndian: false,
     linearPCMIsFloat: false,
+  },
+  // Required by expo-audio's type since SDK 54; the app does not record on the web.
+  web: {
+    mimeType: 'audio/webm',
+    bitsPerSecond: 32000,
   },
 };

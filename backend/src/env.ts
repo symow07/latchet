@@ -130,6 +130,12 @@ const envSchema = z.object({
   // `${EMAIL_PROVIDER_BASE_OVERRIDE}/oauth2.googleapis.com/token` — so the
   // whole inbox flow runs against a fake provider. Ignored in production.
   EMAIL_PROVIDER_BASE_OVERRIDE: z.url().optional(),
+  // Development and tests only: the AI routes (routes/ai.ts) call this base URL
+  // instead of https://api.openai.com — `/v1/audio/transcriptions` becomes
+  // `${OPENAI_BASE_OVERRIDE}/v1/audio/transcriptions` — so the end-to-end suite
+  // can see what the app uploads without a real key (mobile/e2e/fake-openai.mjs).
+  // Ignored in production.
+  OPENAI_BASE_OVERRIDE: z.url().optional(),
   // Development only: every user counts as Pro, so bank linking can be tried
   // without a purchase. Ignored when NODE_ENV is production.
   DEV_PRO_OVERRIDE: z.enum(["true", "false"]).optional().default("false"),

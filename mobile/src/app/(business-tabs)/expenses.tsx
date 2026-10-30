@@ -9,7 +9,7 @@ import {
 import { categoryIcon } from '@/components/category-icon';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { receiptSource } from '@/lib/receipt-image';
 import { hasLoadableReceipt, isLegacyLocalReceipt } from '@/lib/receipt-path';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -24,8 +24,8 @@ import { useSession } from '@/lib/auth/use-session';
 import { formatCurrency } from '@/lib/calculations';
 import { BAR, R, S, useC, type Palette } from '@/lib/design';
 import {
-  Amount, BalanceCard, Card, CircleAction, Empty, Field, FilterChip, FormError,
-  Header, IconTile, PrimaryButton, Screen, Sheet, Stat, Touchable, Type,
+  Amount, BalanceCard, Card, CategoryTile, CircleAction, Empty, Field, FilterChip, FormError,
+  Header, PrimaryButton, Screen, Sheet, Stat, Touchable, Type,
 } from '@/components/kit';
 import { t, getDateFnsLocale } from '@/lib/i18n/core';
 import { expenseCategoryLabel, expenseStatusLabel } from '@/lib/expense-meta';
@@ -243,16 +243,11 @@ function ExpenseCard({
   const [showImage, setShowImage] = useState(false);
   const date = format(new Date(expense.submittedAt), 'd MMM', { locale: getDateFnsLocale() });
   const note = reviewNote(expense, viewerId, role);
-  const Glyph = categoryIcon(expense.category);
 
   return (
     <Card pal={pal}>
       <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12 }}>
-        {/* The category's glyph on a sunk tile, as every transaction row
-            draws it. */}
-        <IconTile pal={pal} size={40} style={{ backgroundColor: pal.groundSunk }}>
-          <Glyph size={22} color={pal.ink} />
-        </IconTile>
+        <CategoryTile pal={pal} icon={categoryIcon(expense.category)} />
         <View style={{ flex: 1 }}>
           <Type role="cardTitle" color={pal.ink} numberOfLines={2}>{expense.description}</Type>
           <Type role="meta" color={pal.inkDim} numberOfLines={1}>
@@ -416,7 +411,7 @@ export default function ExpensesScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingTop: 8, paddingBottom: BAR.clearance(insets.bottom) }}
         refreshControl={
-          <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={B.accent} />
+          <RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} tintColor={B.accent} />
         }
       >
         <Header

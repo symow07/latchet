@@ -11,7 +11,7 @@
  * by hand was silently replaced by a keyword guess — and Impulse was never
  * written at all, so it could not be recovered by any means.
  */
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import { Share, Platform } from 'react-native';
 import { getTransactions } from './db';

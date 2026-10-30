@@ -1,6 +1,6 @@
 import { View, ScrollView, Alert } from 'react-native';
 import { useState, useCallback, useRef } from 'react';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect } from 'expo-router/react-navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, parseISO, startOfMonth, endOfMonth } from 'date-fns';
 import { getTransactions, deleteTransaction, getSettings } from '@/lib/db';

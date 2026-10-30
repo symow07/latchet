@@ -20,8 +20,8 @@ import { R, S, useC, type Palette } from '@/lib/design';
 import {
   BalanceCard,
   Card,
+  CategoryTile,
   Empty,
-  IconTile,
   InfoRow,
   PrimaryButton,
   Screen,
@@ -166,7 +166,7 @@ function ToolRow({
   // a coloured dot for how soon the charge falls, which was colour carrying a
   // meaning on its own; the meta line already says it in words ("Overdue",
   // "In 3 days").
-  const Glyph = categoryIcon(sub.category);
+  const glyph = categoryIcon(sub.category);
 
   // Business categories (Software, Travel, Meals, Office) are their own
   // vocabulary; the personal categoryLabel left them in English.
@@ -187,11 +187,7 @@ function ToolRow({
         amount={sub.amount}
         format={formatCurrency}
         onPress={() => setExpanded((v) => !v)}
-        lead={
-          <IconTile pal={pal} size={40} style={{ backgroundColor: pal.groundSunk }}>
-            <Glyph size={22} color={pal.ink} />
-          </IconTile>
-        }
+        lead={<CategoryTile pal={pal} icon={glyph} />}
         trailing={
           expanded ? (
             <ChevronUp size={17} color={pal.inkFaint} strokeWidth={S.stroke} />
@@ -306,7 +302,7 @@ export default function BusinessToolsScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingTop: 8, paddingBottom: 60 }}
         refreshControl={
-          <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={B.accent} />
+          <RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} tintColor={B.accent} />
         }
       >
         <SubHeader pal={B} title={t('businessTools.title')} onBack={() => router.back()} />

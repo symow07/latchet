@@ -1,0 +1,70 @@
+# Settings › Import: a bank CSV from Files (On My iPhone), previewed and imported.
+appId: com.latchet.app
+name: CSV import
+---
+- runFlow: common/home.yaml
+- tapOn: "Settings"
+- scrollUntilVisible:
+    element: "Import Transactions"
+    direction: DOWN
+    centerElement: true
+- tapOn: "Import Transactions"
+- tapOn: "Bank statement"
+- extendedWaitUntil:
+    visible: "Browse"
+    timeout: 10000
+- tapOn: "Browse"
+- runFlow:
+    when:
+      visible: "On My iPhone"
+    commands:
+      - tapOn: "On My iPhone"
+- tapOn:
+    id: "latchet-e2e-statement, csv"
+- extendedWaitUntil:
+    visible: "Import summary"
+    timeout: 10000
+- takeScreenshot: 06a-import-preview
+- tapOn: "Import \\d+ transactions?"
+- extendedWaitUntil:
+    visible: "Import Complete!"
+    timeout: 15000
+- takeScreenshot: 06b-import-done
+# The new subscription in the statement makes the app ask for notifications.
+- extendedWaitUntil:
+    visible: "Allow"
+    timeout: 15000
+    optional: true
+- runFlow:
+    when:
+      visible: "Allow"
+    commands:
+      - takeScreenshot: 06c-notification-permission
+      - tapOn: "Allow"
+- waitForAnimationToEnd
+- tapOn:
+    text: "Go to Dashboard"
+    retryTapIfNoChange: true
+- extendedWaitUntil:
+    visible: "Scan Receipt"
+    timeout: 10000
+# Detection finds the monthly charge (it drops the run number from the
+# merchant, so every run's charge is the same "E2E Stream"). A manual check
+# then asks for notifications on this fresh install if they are missing, which
+# flow 15 needs; Maestro accepts the system prompt.
+- tapOn: "Subscriptions"
+- extendedWaitUntil:
+    visible: "E2E Stream"
+    timeout: 45000
+- takeScreenshot: 06d-subscriptions-found
+- tapOn: "Check now"
+- extendedWaitUntil:
+    visible: "Allow"
+    timeout: 10000
+    optional: true
+- runFlow:
+    when:
+      visible: "Allow"
+    commands:
+      - tapOn: "Allow"
+- waitForAnimationToEnd
