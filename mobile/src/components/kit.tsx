@@ -55,6 +55,7 @@ import { DARK as ON_ESPRESSO, ELEVATION, RADIUS } from '@/lib/identity/tokens';
 import { EASE, MOTION, type EaseName, type Tween } from '@/lib/identity/motion';
 import { F, R, S, T, type Palette } from '@/lib/design';
 import { t } from '@/lib/i18n/core';
+import { stepProgressValue } from '@/lib/progress-a11y';
 
 /** Either profile's palette — one and the same object now. */
 export type Pal = Palette;
@@ -1681,19 +1682,22 @@ export function StepProgress({
   pal,
   total,
   current,
+  label,
   style,
 }: {
   pal: Pal;
   total: number;
   /** Zero-based. */
   current: number;
+  /** The step in words ("Step 2 of 4"), which VoiceOver reads (lib/progress-a11y). */
+  label?: string;
   style?: StyleProp<ViewStyle>;
 }) {
   return (
     <View
       accessible
       accessibilityRole="progressbar"
-      accessibilityValue={{ min: 1, max: total, now: current + 1 }}
+      accessibilityValue={stepProgressValue(total, current, label)}
       style={[{ flexDirection: 'row', gap: 6 }, style]}
     >
       {Array.from({ length: total }, (_, i) => (
