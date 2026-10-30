@@ -20,7 +20,7 @@ const path = require("path");
  * A .lproj per language rather than a String Catalog. The catalog is one file
  * instead of three and would have been less work, but Xcode rejects it:
  * "AppShortcuts.xcstrings is only supported for iOS 17.0 and above". This app
- * deploys to 15.1, and dropping iOS 15 and 16 users to save two files is not a
+ * deploys to 16.4, and dropping iOS 16 users to save two files is not a
  * trade worth making.
  *
  * That means PBXVariantGroups, which the xcode library has no helper for, so

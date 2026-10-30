@@ -35,9 +35,6 @@ module.exports = defineConfig([
         },
       },
     },
-    plugins: {
-      "react-hooks": require("eslint-plugin-react-hooks"),
-    },
     rules: {
       // Formatting nits the sorter doesn't fix
       "comma-spacing": ["warn", { before: false, after: true }],
@@ -49,6 +46,15 @@ module.exports = defineConfig([
       // Enforce React Hooks rules
       "react-hooks/rules-of-hooks": "error",
       "react-hooks/exhaustive-deps": "warn",
+      // React Hooks 7 (eslint-config-expo 56) adds the React Compiler's checks.
+      // These five flag 32 places written before them, mostly setState in an
+      // effect. Off until those are rewritten on their own; the other new
+      // checks stay on.
+      "react-hooks/set-state-in-effect": "off",
+      "react-hooks/immutability": "off",
+      "react-hooks/static-components": "off",
+      "react-hooks/purity": "off",
+      "react-hooks/use-memo": "off",
 
       "react/no-unescaped-entities": "off",
     },

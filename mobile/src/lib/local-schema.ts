@@ -483,7 +483,7 @@ export const LOCAL_SCHEMA_STEPS: readonly LocalSchemaStep[] = [
   },
 ];
 
-type LocalBindValue = string | number | null | boolean | Uint8Array;
+type LocalBindValue = string | number | null | boolean | Uint8Array | ArrayBuffer;
 type LocalBindParams = LocalBindValue[] | Record<string, LocalBindValue>;
 
 /**

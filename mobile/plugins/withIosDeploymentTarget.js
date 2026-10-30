@@ -49,7 +49,7 @@ function iosDeploymentTarget(config) {
 const POST_INSTALL = `
     # ${MARKER} No pod target below the app's iOS minimum, resource bundles
     # included: Xcode 26 fails a device build on any target below iOS 15.
-    ios_minimum = Gem::Version.new(podfile_properties['ios.deploymentTarget'] || '15.1')
+    ios_minimum = Gem::Version.new(podfile_properties['ios.deploymentTarget'] || '16.4')
     installer.generated_projects.each do |project|
       project.targets.each do |pod_target|
         pod_target.build_configurations.each do |build_configuration|

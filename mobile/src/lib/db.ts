@@ -59,7 +59,7 @@ import { createUserDatabaseRegistry, type UserDatabaseDriver } from './user-db';
  * Structural, so code written against it (leaf-1.2.2's sync store, the tests)
  * does not depend on expo-sqlite itself.
  */
-export type SqlBindValue = string | number | null | boolean | Uint8Array;
+export type SqlBindValue = string | number | null | boolean | Uint8Array | ArrayBuffer;
 export type SqlBindParams = SqlBindValue[] | Record<string, SqlBindValue>;
 export interface SqlRunResult {
   lastInsertRowId: number;
