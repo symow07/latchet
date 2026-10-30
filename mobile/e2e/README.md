@@ -39,6 +39,12 @@ whether a change is that or the app.
   (or "Backend (local, e2e)" in `.claude/launch.json`). The runner starts the
   fake itself, on port 3999 (`fake-openai.mjs`). Values set this way win over
   `backend/.env`, and the override is ignored in production.
+
+  **The backend must run in this mode, or flow 09 fails.** Started the ordinary
+  way (`bun run dev`, or "Backend (local)"), it calls the real OpenAI with
+  whatever key `backend/.env` holds, never the fake: the advisor's review sheet
+  does not appear, and no recording reaches `openai-uploads.jsonl`. Restart it
+  in e2e mode before a run, and back afterwards if you need the real one.
 - **A booted simulator.** The runner uses the first booted one, or the UDID in
   `E2E_DEVICE`. Developed on "iPhone 17 Pro", iOS 26.5.
 - **The app under test**, a Release build that talks to the local backend.
