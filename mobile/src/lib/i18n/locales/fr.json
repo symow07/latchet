@@ -1350,6 +1350,7 @@
     "thinking": "Je relis…",
     "micDenied": "L’accès au micro est nécessaire pour enregistrer.",
     "failed": "Impossible de lire cet enregistrement.",
+    "unavailable": "La saisie vocale ne fonctionne pas pour le moment. Vous pouvez toujours écrire votre question.",
     "selectedCount": {
       "zero": "aucune sélectionnée",
       "one": "1 sélectionnée",

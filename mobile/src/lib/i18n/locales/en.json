@@ -1350,6 +1350,7 @@
     "thinking": "Reading that back…",
     "micDenied": "Microphone access is needed to record.",
     "failed": "Could not read that recording.",
+    "unavailable": "Voice input isn't working right now. You can still type your question.",
     "selectedCount": {
       "zero": "none selected",
       "one": "1 selected",
