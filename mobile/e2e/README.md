@@ -29,8 +29,16 @@ whether a change is that or the app.
 ## What it needs
 
 - **Maestro**: `brew install mobile-dev-inc/tap/maestro`.
-- **The local backend** on http://localhost:3000 (`cd backend && bun run dev`,
-  database `latchet_dev`). Never production.
+- **The local backend** on http://localhost:3000, database `latchet_dev`,
+  calling the runner's fake OpenAI. Never production.
+
+  ```bash
+  cd backend && OPENAI_BASE_OVERRIDE=http://localhost:3999 OPENAI_API_KEY=e2e-fake bun run dev
+  ```
+
+  (or "Backend (local, e2e)" in `.claude/launch.json`). The runner starts the
+  fake itself, on port 3999 (`fake-openai.mjs`). Values set this way win over
+  `backend/.env`, and the override is ignored in production.
 - **A booted simulator.** The runner uses the first booted one, or the UDID in
   `E2E_DEVICE`. Developed on "iPhone 17 Pro", iOS 26.5.
 - **The app under test**, a Release build that talks to the local backend.
@@ -62,7 +70,7 @@ whether a change is that or the app.
 | 06 csv-import | Files › On My iPhone › a bank CSV, preview, import; detection finds the monthly charge; notifications are allowed |
 | 07 export | Export Data › CSV opens the share sheet with the file |
 | 08 receipt-scan | The photo picker opens; a receipt goes through the reader |
-| 09 voice | Hold to speak on the advisor; the app answers either way |
+| 09 voice | Hold to speak on the advisor; the review sheet shows what was heard, and the runner checks the recording that reached the backend was an MP4 with audio in it |
 | 10, 11 face-id | The biometric lock locks a cold start; a matching face opens it |
 | 12, 13 share | Photos › Share › Latchet shows the extension; Latchet opens the shared receipt |
 | 14, 15 bill-reminder | A bill reminder push arrives and is shown |
@@ -84,9 +92,15 @@ stands in for the share extension's Post (below).
   taps on notifications. Flow 15 checks the notification is delivered and
   shown. Where a tap leads is unit-tested in `src/lib/notification-route.test.ts`.
 - **What the receipt reader and voice capture extract.** Both call OpenAI from
-  the backend: with no valid `OPENAI_API_KEY` in `backend/.env`, the flows see
-  the app's error and still pass, because the app handled it. The simulator
-  records the Mac's microphone, so voice capture's words are never under test.
+  the backend, which here calls `fake-openai.mjs` instead. The fake answers the
+  voice calls with a fixed transcript and one expense, so flow 09 sees the
+  review sheet, and writes down every recording it is sent
+  (`e2e/output/<label>/openai-uploads.jsonl`), which the runner checks after
+  flow 09. Everything else gets the 401 an invalid key gets, so flow 08 sees
+  the app's error and passes because the app handled it. The simulator
+  records the Mac's microphone, so voice capture's words are never under test,
+  only that a real recording arrives. (Flow 09 used to accept the error too,
+  and passed for weeks while no recording was uploaded at all.)
 - **The camera.** The simulator has none.
 
 ## Fixtures

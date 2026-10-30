@@ -8,9 +8,10 @@
 #   e2e/run.sh step2 03 04         only flows 03 and 04 (01 is always run first:
 #                                  it signs in on a fresh install)
 #
-# Needs: maestro, the local backend on http://localhost:3000 (latchet_dev),
-# a booted simulator, and an app built with EXPO_PUBLIC_BACKEND_URL pointing at
-# that backend (README: "Build the app under test"). Uses the E2E account from
+# Needs: maestro, the local backend on http://localhost:3000 (latchet_dev)
+# calling the fake OpenAI this starts on :3999, a booted simulator, and an app
+# built with EXPO_PUBLIC_BACKEND_URL pointing at that backend (README: "Build
+# the app under test", "The local backend"). Uses the E2E account from
 # .claude/test-accounts.local.json (never a real account, never Gmail).
 set -uo pipefail
 
@@ -51,6 +52,18 @@ case "$E2E_EMAIL" in *@example.test) ;; *) fail "the E2E account must be an @exa
 E2E_RUN="$(date +%m%d-%H%M%S)"
 
 echo "e2e: $label on $device, account $E2E_EMAIL, run $E2E_RUN"
+
+# ── A stand-in for OpenAI ───────────────────────────────────────────────────
+# The backend calls it when started with OPENAI_BASE_OVERRIDE (README), and it
+# writes down every recording voice capture uploads, which flow 09 checks.
+fake_port="${FAKE_OPENAI_PORT:-3999}"
+uploads="$output/openai-uploads.jsonl"
+: > "$uploads"
+FAKE_OPENAI_PORT="$fake_port" node "$here/fake-openai.mjs" "$uploads" >"$output/fake-openai.log" 2>&1 &
+fake=$!
+trap 'kill "$fake" 2>/dev/null' EXIT
+for _ in $(seq 50); do curl -s -o /dev/null --max-time 1 "http://127.0.0.1:$fake_port/" && break; sleep 0.1; done
+kill -0 "$fake" 2>/dev/null || fail "the fake OpenAI did not start on port $fake_port ($(tail -1 "$output/fake-openai.log"))"
 
 # ── The simulator ───────────────────────────────────────────────────────────
 xcrun simctl install "$device" "$app" || fail "could not install $app"
@@ -131,6 +144,29 @@ after_flow() {
   esac
 }
 
+# What a flow's screens cannot show. Run once the flow has passed; prints why
+# and fails it when something does not hold.
+check_flow() {
+  case "$1" in
+    09-*)
+      # The voice flow passed for weeks while the app uploaded nothing: iOS
+      # refused the recording format, the backend answered with an error, and
+      # the error was one of the outcomes the flow accepted. So the recording
+      # itself is checked, as the backend handed it to OpenAI.
+      python3 - "$uploads" <<'CHECK'
+import json, sys
+uploads = [json.loads(line) for line in open(sys.argv[1]) if line.strip()]
+if not uploads:
+    sys.exit("no recording reached OpenAI's stand-in: is the backend started with OPENAI_BASE_OVERRIDE=http://localhost:3999 and an OPENAI_API_KEY? (README)")
+last = uploads[-1]
+# A hold of about three seconds at 32 kbit/s is some 12 kB of audio.
+if not last["mp4"] or last["audioBytes"] < 4000:
+    sys.exit(f"the recording that reached the backend was {last['bytes']} bytes with {last['audioBytes']} of audio (MP4: {last['mp4']})")
+CHECK
+      ;;
+  esac
+}
+
 # ── The flows ───────────────────────────────────────────────────────────────
 E2E_RECEIPT_URI=""
 selected() {
@@ -151,7 +187,11 @@ for flow in "$flows"/[0-9][0-9]-*.yaml; do
       -e E2E_EMAIL="$E2E_EMAIL" -e E2E_PASSWORD="$E2E_PASSWORD" \
       -e E2E_RUN="$E2E_RUN" -e E2E_RECEIPT_URI="$E2E_RECEIPT_URI" \
       --test-output-dir "$output/$name" "$flow" >"$output/$name.log" 2>&1; then
-    echo "passed"; passed+=("$name")
+    if problem="$(check_flow "$name" 2>&1)"; then
+      echo "passed"; passed+=("$name")
+    else
+      echo "FAILED  ($problem)"; failed+=("$name")
+    fi
   else
     echo "FAILED  ($(grep -E 'FAILED|Element not found|Assertion is false' "$output/$name.log" | grep -v '^Run ' | head -2 | tr '\n' ' '))"
     failed+=("$name")

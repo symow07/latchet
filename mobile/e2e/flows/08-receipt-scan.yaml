@@ -23,6 +23,7 @@ name: Receipt scan
     visible: "Choose Photo"
     timeout: 10000
 - openLink: "latchet://receipt-scan?sharedUri=${E2E_RECEIPT_URI}"
+- runFlow: common/open-link-prompt.yaml
 - extendedWaitUntil:
     visible: "Review & save|Request failed.*|AI .*unavailable.*|Could not.*"
     timeout: 60000

@@ -36,6 +36,7 @@ name: Tabs and main screens
 - waitForAnimationToEnd
 - takeScreenshot: 02h-subscriptions
 - openLink: "latchet://email-inbox"
+- runFlow: common/open-link-prompt.yaml
 - extendedWaitUntil:
     visible: "Email receipts"
     timeout: 10000
