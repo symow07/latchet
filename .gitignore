@@ -3,6 +3,9 @@
 .DS_Store
 .env
 .env.*
+# Google OAuth client downloads carry the client secret.
+client_secret*.json
+*OAuth*.json
 # ...but the template carries no secrets and should be shared.
 !.env.example
 changelog.txt

@@ -8,7 +8,7 @@ import {
   RESEND_COOLDOWN_MS,
 } from './auth-links';
 
-const TOKEN = 'aB3dE5gH7jK9mN1pQ3sT5vW7'; // 24, like Better Auth's
+const TOKEN = 'aB3dE5gH7jK9mN1pQ3sT5vW7'; // 24, like Better Auth's. gitleaks:allow (a test value)
 
 describe('the reset link landing', () => {
   test('a token from the server is ready to use', () => {

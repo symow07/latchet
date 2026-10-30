@@ -79,7 +79,7 @@ Notifications.setNotificationHandler({
 
 const STREAK_NUDGE_ID = 'daily-streak-nudge';
 /** Device key: the nudge's on-by-default was applied here (storage-keys.ts). */
-const STREAK_DEFAULT_KEY = 'streak_reminder_default_v1';
+const STREAK_DEFAULT_KEY = 'streak_reminder_default_v1'; // gitleaks:allow (a storage key's name)
 
 /**
  * The actionable-notification category the streak nudge carries.
@@ -105,7 +105,7 @@ const SUBSCRIPTION_IDS: SubscriptionNotificationIds = {
 };
 
 /** Per user (storage-keys.ts): the subscription notices already shown. */
-const NOTIFIED_KEY = 'subs_notified_v1';
+const NOTIFIED_KEY = 'subs_notified_v1'; // gitleaks:allow (a storage key's name)
 
 /**
  * Notification work, one piece at a time, in the order it was asked for.

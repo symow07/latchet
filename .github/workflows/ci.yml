@@ -44,7 +44,7 @@ jobs:
           --health-retries 12
     env:
       # env.ts exits the process on invalid config.
-      BETTER_AUTH_SECRET: ci-secret-at-least-32-characters-long
+      BETTER_AUTH_SECRET: ci-secret-at-least-32-characters-long # gitleaks:allow (a test value)
       # The name must contain "test": test-setup.ts drops and rebuilds it.
       TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/latchet_test
     steps:

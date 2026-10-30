@@ -1,0 +1,18 @@
+#!/bin/sh
+# Stops a commit that adds a secret: an API key, a token, a private key, a
+# filled-in .env. The repository is public, so a secret that reaches a commit
+# is leaked even if a later commit removes it; the only fix then is rotating
+# it. Only what is staged is scanned.
+#
+# On once per clone: git config core.hooksPath .githooks (README, "Secrets").
+#
+# A false positive (a test value, a storage key's name): put `gitleaks:allow`
+# in a comment on that line.
+
+if ! command -v gitleaks >/dev/null 2>&1; then
+  echo "pre-commit: gitleaks is not installed, so the commit was not checked for secrets." >&2
+  echo "Install it (brew install gitleaks) and commit again." >&2
+  exit 1
+fi
+
+exec gitleaks git --pre-commit --staged --redact --no-banner --verbose .
