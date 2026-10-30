@@ -29,6 +29,23 @@ import {
 // account became ten — and a restart cleared every lockout. They still read
 // headers only, never the body, for the reason given on extractIdentifier.
 
+// The client's address is the leftmost X-Forwarded-For entry, and the client
+// cannot choose it: Railway's edge replaces a client-sent X-Forwarded-For
+// rather than appending to it. Checked against production on 2026-10-30: four
+// sign-up requests, each sending a different made-up X-Forwarded-For, still
+// shared one Better Auth bucket (three per 10 s, keyed on this same leftmost
+// entry), so the fourth was refused. Had the client's value reached the app,
+// each would have had a bucket of its own. Every one of those requests reached
+// the edge directly; whether the CDN path also drops a client's value was not
+// observed.
+//
+// Not the rightmost entry, and not X-Real-IP, though those are the usual
+// answer behind a proxy that appends. On requests Railway routes through its
+// CDN, X-Real-IP holds the CDN node's address (a bug Railway's staff have
+// acknowledged), and the chain is reported as [client, CDN node], so either
+// would put everyone reaching us through one node into a single bucket.
+// "unknown" is local development, where nothing in front of the server sets
+// the header.
 function getIp(c: Context): string {
   return c.req.header("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
 }
