@@ -76,6 +76,37 @@ test('transactions with real merchant text still detect', () => {
   expect(found[0]!.cadence).toBe('monthly');
 });
 
+// ── Bug: dollars on a yuan account ───────────────────────────────────────────
+
+test("a row the app wrote is in the account's currency; a code a row names, and a bank's, stand", () => {
+  // db.ts writes 'USD' on a row saved without a currency, so Subscriptions
+  // showed "$12.99" for charges History showed as CN¥12.99.
+  const row = (id: string, currency: string | null) => ({
+    id,
+    amount: 12.99,
+    category: 'Subscriptions',
+    type: 'Expense',
+    note: 'E2E STREAM',
+    dateISO: '2026-09-20',
+    currency,
+  });
+  const sourceOf = (tx: { id: string }) => (tx.id.startsWith('bank') ? 'bank' : tx.id.startsWith('imp') ? 'import' : 'manual');
+  const txs = [row('manual', 'USD'), row('manual-none', null), row('imp-usd', 'USD'), row('imp-eur', 'eur'), row('bank', 'USD')];
+  const currencies = (ledger?: string | null) =>
+    chargesFromTransactions(txs, sourceOf, ledger).map((c) => [c.id, c.currency]);
+
+  expect(currencies('CNY')).toEqual([
+    ['manual', 'CNY'],
+    ['manual-none', 'CNY'],
+    ['imp-usd', 'CNY'],
+    ['imp-eur', 'EUR'],
+    ['bank', 'USD'],
+  ]);
+  // On a dollar account nothing changes; nor without the account's currency.
+  expect(currencies('USD').map(([, c]) => c)).toEqual(['USD', 'USD', 'USD', 'EUR', 'USD']);
+  expect(currencies().map(([, c]) => c)).toEqual(['USD', 'USD', 'USD', 'eur', 'USD']);
+});
+
 // ── Bug: id embeds the amount ────────────────────────────────────────────────
 
 test('a price change updates the subscription instead of minting a new one', () => {

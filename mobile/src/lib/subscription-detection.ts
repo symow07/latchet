@@ -458,13 +458,15 @@ export function createDetectionRunner(deps: DetectionDeps): DetectionRunner {
       }
       deferred = false;
 
-      const [transactions, findings, stored, batches] = await Promise.all([
+      const [transactions, findings, stored, batches, userCurrency] = await Promise.all([
         deps.getTransactions(),
         deps.getEmailFindings(),
         deps.getSubscriptions(),
         deps.importBatches().catch(() => [] as ImportBatch[]),
+        deps.userCurrency().catch(() => ''),
       ]);
-      const charges = chargesFromTransactions(transactions, transactionSourceOf(batches));
+      const currency = userCurrency || 'USD';
+      const charges = chargesFromTransactions(transactions, transactionSourceOf(batches), currency);
       const today = deps.today();
       const { result, wrote } = await writeResult(uid, stored, findings, today, charges);
 
@@ -488,7 +490,6 @@ export function createDetectionRunner(deps: DetectionDeps): DetectionRunner {
           .map((e) => e.subscriptionId),
       );
       const running = after.filter((s) => RUNNING.has(s.status));
-      const currency = (await deps.userCurrency().catch(() => '')) || 'USD';
       const rates = await deps.rates().catch(() => null);
       const { total, notInTotal } = monthlyTotalIn(running, currency, rates);
       return {

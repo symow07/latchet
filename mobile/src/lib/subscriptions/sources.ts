@@ -49,10 +49,12 @@ export function merchantTextOf(note: string | null | undefined): string | null {
  * Device transactions as charges. `sourceOf` says where each one came from (a
  * statement import, a bank feed, a hand-typed entry) so the engine can fold
  * the copies of one payment together; without it every row is a 'transaction'.
+ * `ledgerCurrency` is the account's currency (see rowCurrency).
  */
 export function chargesFromTransactions(
   txs: TransactionLike[],
-  sourceOf: (tx: TransactionLike) => ChargeSource = () => 'transaction'
+  sourceOf: (tx: TransactionLike) => ChargeSource = () => 'transaction',
+  ledgerCurrency?: string | null
 ): SourceCharge[] {
   const charges: SourceCharge[] = [];
   for (const tx of txs) {
@@ -60,17 +62,36 @@ export function chargesFromTransactions(
     const merchant = merchantTextOf(tx.note);
     if (!merchant) continue;
 
+    const source = sourceOf(tx);
     charges.push({
       id: tx.id,
       merchant,
       amount: Math.abs(tx.amount),
       dateISO: tx.dateISO.slice(0, 10),
-      currency: tx.currency || 'USD',
-      source: sourceOf(tx),
+      currency: rowCurrency(tx.currency, source, ledgerCurrency),
+      source,
       category: tx.category,
     });
   }
   return charges;
+}
+
+/**
+ * The currency a ledger row was paid in.
+ *
+ * db.ts writes 'USD' on any row saved without a currency: a receipt scan, the
+ * share sheet, quick-add, a statement with no currency column. On a row the
+ * app wrote, then, 'USD' says nothing, and the row is in the account's
+ * currency, as History shows it; reading it as dollars made Subscriptions
+ * show "$" on a yuan account. A code the row names otherwise stands (an
+ * Alipay bill is in yuan whatever the account's currency), and a bank feed's
+ * rows carry the bank's own.
+ */
+function rowCurrency(stated: string | null | undefined, source: ChargeSource, ledgerCurrency: string | null | undefined): string {
+  const mine = (ledgerCurrency ?? '').trim().toUpperCase();
+  if (source === 'bank' || !mine) return stated || 'USD';
+  const code = (stated ?? '').trim().toUpperCase();
+  return !code || code === 'USD' ? mine : code;
 }
 
 export function chargesFromExpenses(expenses: ExpenseLike[]): SourceCharge[] {
