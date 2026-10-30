@@ -61,9 +61,11 @@ export default function BusinessTabLayout() {
       {/* Still routes, deliberately off the bar. Payroll and Budget are hosted
           by the Money tab, which renders them with `embedded`; keeping them
           registered means a deep link or a stale navigation state still
-          resolves instead of 404ing. */}
-      <Tabs.Screen name="subscriptions" options={{ href: null }} />
-      <Tabs.Screen name="insights" options={{ href: null }} />
+          resolves instead of 404ing. They are off the bar because `tabs` has
+          no entry for them, not `href: null`: since SDK 58 expo-router sends a
+          hidden tab that gains focus straight back to the first one. */}
+      <Tabs.Screen name="subscriptions" />
+      <Tabs.Screen name="insights" />
     </Tabs>
   );
 }

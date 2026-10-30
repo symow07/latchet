@@ -411,7 +411,7 @@ export default function ExpensesScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingTop: 8, paddingBottom: BAR.clearance(insets.bottom) }}
         refreshControl={
-          <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={B.accent} />
+          <RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} tintColor={B.accent} />
         }
       >
         <Header

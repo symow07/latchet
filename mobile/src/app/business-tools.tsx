@@ -302,7 +302,7 @@ export default function BusinessToolsScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingTop: 8, paddingBottom: 60 }}
         refreshControl={
-          <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={B.accent} />
+          <RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} tintColor={B.accent} />
         }
       >
         <SubHeader pal={B} title={t('businessTools.title')} onBack={() => router.back()} />

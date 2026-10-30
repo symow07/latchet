@@ -5,7 +5,8 @@ import {
   Pressable,
   KeyboardAvoidingView,
   Platform,
-  Alert } from 'react-native';
+  Alert,
+  type ScrollViewInstance } from 'react-native';
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -61,7 +62,7 @@ export default function AdvisorTab() {
   const { handleUpgradeRequired } = useEntitlement();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const scrollViewRef = useRef<ScrollView>(null);
+  const scrollViewRef = useRef<ScrollViewInstance>(null);
   const [inputText, setInputText] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
 
