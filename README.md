@@ -124,6 +124,13 @@ git clone https://github.com/symow07/latchet
 cd latchet
 ```
 
+Then turn on the secret check, once per clone (see [Secrets](#secrets)):
+
+```bash
+brew install gitleaks
+git config core.hooksPath .githooks
+```
+
 **Backend**
 
 ```bash
@@ -177,6 +184,26 @@ back with local getters puts month-boundary transactions in the wrong month.
 Pure logic lives in modules importing nothing native, so it can be tested without a
 simulator. See `import-parser`, `subscriptions/engine`, `sync-merge` on the mobile side and
 `recurrence`, `crypto`, `plaid-webhook` on the backend.
+
+
+### Secrets
+
+The repository is public. A secret that reaches a commit is leaked even if a later commit
+deletes it, and the only fix is rotating it, so the pre-commit hook in `.githooks/` stops the
+commit instead: [gitleaks](https://github.com/gitleaks/gitleaks) scans what is staged for API
+keys, tokens, private keys and filled-in `.env` files, prints what it found (the value
+redacted) and refuses the commit. It is on once `core.hooksPath` points at `.githooks`
+(above). Without gitleaks installed the hook refuses every commit rather than letting one
+through unchecked.
+
+- **A real secret:** unstage it, move it to the `.env` it belongs in (gitignored), and commit
+  again.
+- **A false positive** (a test value, a storage key's name): put `gitleaks:allow` in a comment
+  on that line.
+- To check by hand: `gitleaks git --pre-commit --staged --redact` before committing, or
+  `gitleaks dir --redact <path>` for files.
+
+GitHub's secret scanning and push protection catch what gets past the hook on the server side.
 
 ---
 
