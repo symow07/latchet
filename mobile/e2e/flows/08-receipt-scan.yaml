@@ -13,12 +13,31 @@ name: Receipt scan
     timeout: 10000
 - takeScreenshot: 08a-receipt-start
 - tapOn: "Choose Photo"
-- extendedWaitUntil:
-    visible: "Collections"
-    timeout: 15000
-- takeScreenshot: 08b-photo-picker
-- tapOn:
-    id: "Cancel"
+# Up to iOS 26 Maestro reads the system photo picker. From iOS 27 the picker is
+# left out of the app's accessibility tree, so the flow sees only that the app
+# is covered and closes the picker by its X, top left of the full-height sheet.
+- runFlow:
+    when:
+      true: ${E2E_IOS < 27}
+    commands:
+      - extendedWaitUntil:
+          visible: "Collections"
+          timeout: 15000
+      - takeScreenshot: 08b-photo-picker
+      - tapOn:
+          id: "Cancel"
+- runFlow:
+    when:
+      true: ${E2E_IOS >= 27}
+    commands:
+      - extendedWaitUntil:
+          notVisible: "Choose Photo"
+          timeout: 15000
+      - waitForAnimationToEnd:
+          timeout: 3000
+      - takeScreenshot: 08b-photo-picker
+      - tapOn:
+          point: "9%,11%"
 - extendedWaitUntil:
     visible: "Choose Photo"
     timeout: 10000

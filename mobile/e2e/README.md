@@ -46,7 +46,10 @@ whether a change is that or the app.
   does not appear, and no recording reaches `openai-uploads.jsonl`. Restart it
   in e2e mode before a run, and back afterwards if you need the real one.
 - **A booted simulator.** The runner uses the first booted one, or the UDID in
-  `E2E_DEVICE`. Developed on "iPhone 17 Pro", iOS 26.5.
+  `E2E_DEVICE`. Developed on "iPhone 17 Pro", iOS 26.5, and passes on iOS 27.0
+  there too. The iOS 27.1 runtime runs only the "iPhone Duo" foldable, whose
+  screen the flows are not made for: iPhone 17 Pro on iOS 27 needs the iOS 27.0
+  runtime (`xcodebuild -downloadPlatform iOS -buildVersion 27.0`).
 - **The app under test**, a Release build that talks to the local backend.
   The runner installs it from `ios/DerivedData/Build/Products/Release-iphonesimulator/Latchet.app`
   (or `E2E_APP`):
@@ -113,7 +116,9 @@ budget (above).
 - **Selecting a photo in the system photo picker, and tapping Post in the share
   extension.** Both run in another process, and Maestro's taps do not reach
   them. Flow 08 opens and cancels the picker, then hands the receipt in the
-  way the share extension does. Flow 12 stops at the extension's sheet. The
+  way the share extension does. From iOS 27 Maestro cannot read the picker at
+  all, so on that version flow 08 checks that the app is covered and closes the
+  picker by its X's position (the runner passes the iOS version as `E2E_IOS`). Flow 12 stops at the extension's sheet. The
   runner then writes the same App Group entry Post writes
   (`ShareViewController.swift`), and flow 13 checks that Latchet picks it up.
 - **Opening the app by tapping a notification.** SpringBoard ignores synthesized

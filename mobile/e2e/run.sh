@@ -44,6 +44,9 @@ curl -sf --max-time 10 "$backend/health" | grep -q '"ok"' || fail "the backend a
 
 device="${E2E_DEVICE:-$(xcrun simctl list devices booted | sed -nE 's/.*\(([0-9A-F-]{36})\) \(Booted\).*/\1/p' | head -1)}"
 [ -n "$device" ] || fail "no booted simulator (boot one, or set E2E_DEVICE to its UDID)"
+# Its iOS major version: a flow that drives system UI can differ by it (08).
+E2E_IOS="$(xcrun simctl list devices | awk -v d="$device" '/^-- iOS /{split($3,v,".")} index($0,d){print v[1]; exit}')"
+[ -n "$E2E_IOS" ] || fail "could not tell which iOS $device runs"
 
 accounts="$root/.claude/test-accounts.local.json"
 E2E_EMAIL="${E2E_EMAIL:-$(python3 -c "import json,sys;print(json.load(open(sys.argv[1]))['e2e']['email'])" "$accounts" 2>/dev/null)}"
@@ -56,7 +59,7 @@ E2E_BIZ_PASSWORD="$(python3 -c "import json,sys;print(json.load(open(sys.argv[1]
 case "$E2E_BIZ_EMAIL" in *@example.test|"") ;; *) fail "the E2E business account must be an @example.test address on the local backend" ;; esac
 E2E_RUN="$(date +%m%d-%H%M%S)"
 
-echo "e2e: $label on $device, account $E2E_EMAIL, run $E2E_RUN"
+echo "e2e: $label on $device (iOS $E2E_IOS), account $E2E_EMAIL, run $E2E_RUN"
 
 # ── A stand-in for OpenAI ───────────────────────────────────────────────────
 # The backend calls it when started with OPENAI_BASE_OVERRIDE (README), and it
@@ -206,7 +209,7 @@ for flow in "$flows"/[0-9][0-9]-*.yaml; do
   if maestro --device "$device" test \
       -e E2E_EMAIL="$E2E_EMAIL" -e E2E_PASSWORD="$E2E_PASSWORD" \
       -e E2E_BIZ_EMAIL="$E2E_BIZ_EMAIL" -e E2E_BIZ_PASSWORD="$E2E_BIZ_PASSWORD" \
-      -e E2E_RUN="$E2E_RUN" -e E2E_RECEIPT_URI="$E2E_RECEIPT_URI" \
+      -e E2E_RUN="$E2E_RUN" -e E2E_RECEIPT_URI="$E2E_RECEIPT_URI" -e E2E_IOS="$E2E_IOS" \
       --test-output-dir "$output/$name" "$flow" >"$output/$name.log" 2>&1; then
     if problem="$(check_flow "$name" 2>&1)"; then
       echo "passed"; passed+=("$name")
