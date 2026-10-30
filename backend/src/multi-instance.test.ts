@@ -69,7 +69,7 @@ async function status(limiter: ReturnType<typeof createRateLimiter>, c: Context)
 // The sign-in limiter's settings, built once per instance.
 const LOGIN = {
   scope: `login-${RUN}`, ipMax: 15, ipWindowMs: 10 * 60_000,
-  identifierMax: 5, identifierWindowMs: 10 * 60_000, lockoutThreshold: 5,
+  identifierMax: 5, identifierWindowMs: 10 * 60_000, identifierLockoutThreshold: 5,
 };
 
 test("the sign-in limit is one budget across instances, not one per instance", async () => {

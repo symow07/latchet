@@ -55,7 +55,7 @@ function extractIdentifier(c: Context): string | null {
   return null;
 }
 
-/** How long a tripped lockout lasts. */
+/** How long a tripped account lockout lasts. */
 const LOCKOUT_MS = 15 * 60 * 1000;
 
 export function createRateLimiter(opts: {
@@ -63,15 +63,25 @@ export function createRateLimiter(opts: {
    * Namespace for this limiter's counters. Without it every limiter shared a
    * single record per IP, so whichever one fired first decided the window for
    * all of them and their budgets cancelled each other out. Lockouts are
-   * namespaced too, so tripping the sign-up limit cannot lock a legitimate
-   * user out of sign-in from the same (often NAT-shared) address.
+   * namespaced too, so tripping the sign-up limit cannot lock an account out
+   * of sign-in.
    */
   scope: string;
   ipMax: number;
   ipWindowMs: number;
   identifierMax: number;
   identifierWindowMs: number;
-  lockoutThreshold: number;
+  /**
+   * Once an account's window count has reached this, a refused attempt locks
+   * that account for LOCKOUT_MS, from every address. Absent, or above
+   * identifierMax: the account is refused while over its window, never locked.
+   *
+   * Addresses are never locked. One address is often many people (a
+   * carrier's NAT, an office, a VPN exit), and an address lockout shut sign-in
+   * for all of them for 15 minutes once anyone there went over. The address
+   * window already caps what one address can do, and reopens when it ends.
+   */
+  identifierLockoutThreshold?: number;
 }, db: Db = prisma) {
   return async (c: Context, next: Next) => {
     const ip = getIp(c);
@@ -79,21 +89,14 @@ export function createRateLimiter(opts: {
     const ipKey = `${opts.scope}:ip:${ip}`;
     const idKey = identifier ? `${opts.scope}:id:${identifier}` : null;
 
-    // Check lockout (by identifier first, then IP). One query for both.
-    const locked = await lockedKeys(idKey ? [idKey, ipKey] : [ipKey], db);
-    if (idKey && locked.has(idKey)) {
+    // A locked account is refused from any address.
+    if (idKey && (await lockedKeys([idKey], db)).has(idKey)) {
       return c.json({ error: "Account temporarily locked, try again later" }, 429);
     }
-    if (locked.has(ipKey)) {
-      return c.json({ error: "Too many requests, try again later" }, 429);
-    }
 
-    // Check IP rate limit. A refused hit locks the key once the window's
-    // count has reached the threshold; a limit set below its threshold
-    // (sign-up's per-identifier ones) refuses without ever locking.
+    // The address's window: refused while over it, never locked (above).
     const byIp = await hitWindow(ipKey, opts.ipMax, opts.ipWindowMs, db);
     if (!byIp.allowed) {
-      if (byIp.count >= opts.lockoutThreshold) await lockFor(ipKey, LOCKOUT_MS, db);
       return c.json({ error: "Too many requests, try again later" }, 429);
     }
 
@@ -101,7 +104,8 @@ export function createRateLimiter(opts: {
     if (idKey) {
       const byId = await hitWindow(idKey, opts.identifierMax, opts.identifierWindowMs, db);
       if (!byId.allowed) {
-        if (byId.count >= opts.lockoutThreshold) await lockFor(idKey, LOCKOUT_MS, db);
+        const threshold = opts.identifierLockoutThreshold;
+        if (threshold !== undefined && byId.count >= threshold) await lockFor(idKey, LOCKOUT_MS, db);
         return c.json({ error: "Too many requests for this account, try again later" }, 429);
       }
     }
@@ -117,7 +121,7 @@ export const loginRateLimiter = createRateLimiter({
   ipWindowMs: 10 * 60 * 1000,     // 10 min
   identifierMax: 5,
   identifierWindowMs: 10 * 60 * 1000,
-  lockoutThreshold: 5,
+  identifierLockoutThreshold: 5,
 });
 
 export const generalAuthRateLimiter = createRateLimiter({
@@ -126,7 +130,7 @@ export const generalAuthRateLimiter = createRateLimiter({
   ipWindowMs: 15 * 60 * 1000,     // 15 min
   identifierMax: 20,
   identifierWindowMs: 15 * 60 * 1000,
-  lockoutThreshold: 20,
+  identifierLockoutThreshold: 20,
 });
 
 /**
@@ -145,12 +149,28 @@ export const sessionRateLimiter = createRateLimiter({
   ipWindowMs: 15 * 60 * 1000,
   identifierMax: 600,
   identifierWindowMs: 15 * 60 * 1000,
-  lockoutThreshold: 6000,
 });
 
 /** A session read, which sessionRateLimiter counts instead of the general limit. */
 export function isSessionRead(method: string, path: string): boolean {
   return method === "GET" && /^\/api\/auth\/get-session\/?$/.test(path);
+}
+
+/**
+ * The limit index.ts applies to a request under /api/auth/*, besides the ones
+ * it mounts on a path of their own: none for sign-in and sign-up, which have
+ * those, the session limit for a session read, and the general one for the
+ * rest.
+ *
+ * Sign-in was counted by the general limit too, so whatever used up an
+ * address's general budget (password resets, verification mails, sign-outs)
+ * refused sign-in to everyone at that address until the window ended. Its own
+ * limit already counts every attempt, per address and per account.
+ */
+export function sharedAuthLimiter(method: string, path: string) {
+  if (isSessionRead(method, path)) return sessionRateLimiter;
+  if (/^\/api\/auth\/sign-(in|up)\//.test(path)) return null;
+  return generalAuthRateLimiter;
 }
 
 // Sign-up is the expensive one: each attempt creates an account and runs a
@@ -163,7 +183,6 @@ export const signupBurstRateLimiter = createRateLimiter({
   ipWindowMs: 60 * 60 * 1000,     // 1 hour
   identifierMax: 3,
   identifierWindowMs: 60 * 60 * 1000,
-  lockoutThreshold: 5,
 });
 
 export const signupDailyRateLimiter = createRateLimiter({
@@ -172,7 +191,6 @@ export const signupDailyRateLimiter = createRateLimiter({
   ipWindowMs: 24 * 60 * 60 * 1000, // 24 hours
   identifierMax: 10,
   identifierWindowMs: 24 * 60 * 60 * 1000,
-  lockoutThreshold: 20,
 });
 
 // ── Password hashing (PBKDF2-SHA256) ────────────────────────────────────────
