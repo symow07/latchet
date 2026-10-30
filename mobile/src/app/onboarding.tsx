@@ -446,6 +446,7 @@ export default function OnboardingScreen() {
   }
 
   const position = progressPosition(step);
+  const stepCounter = t('onboardingFlow.stepCounter', { step: position.index + 1, total: position.total });
   const asking = step === 'currency' || step === 'income' || step === 'connect';
   const report =
     payoff &&
@@ -716,10 +717,10 @@ export default function OnboardingScreen() {
       <View style={{ paddingHorizontal: S.screen, paddingTop: S.group }}>
         {asking ? (
           <Type role="meta" color={C.inkDim} style={{ marginBottom: 12 }}>
-            {t('onboardingFlow.stepCounter', { step: position.index + 1, total: position.total })}
+            {stepCounter}
           </Type>
         ) : null}
-        <StepProgress pal={C} total={position.total} current={position.index} />
+        <StepProgress pal={C} total={position.total} current={position.index} label={stepCounter} />
       </View>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <View style={{ flex: 1 }}>{body()}</View>
