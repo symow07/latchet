@@ -56,6 +56,7 @@ import {
   Type,
 } from '@/components/kit';
 import { t } from '@/lib/i18n/core';
+import { useNow } from '@/lib/use-now';
 
 /**
  * Email receipts: where Latchet reads billing email from.
@@ -131,6 +132,7 @@ export default function EmailInboxScreen() {
     refetchInterval: (query) => pollInterval(query.state.data),
   });
   const dto = connections.data;
+  const now = useNow(60_000);
   // An inbox listed here that this phone never pulled from (its browser
   // closed before the app heard back, or it was connected on another device):
   // bring its findings in once its first read is over.
@@ -160,8 +162,9 @@ export default function EmailInboxScreen() {
   const userCurrency = (settings?.currency || 'USD').toUpperCase();
 
   const options = providerOptions(dto).filter((o) => o.availability !== 'unavailable');
-  // "Up to date · 5 min ago" as of the connections' last fetch.
-  const inboxes = connectionViews(dto, connections.dataUpdatedAt);
+  // "Up to date · 5 min ago" keeps counting while the screen is open, not
+  // only when the connections are fetched again. Minutes are the finest step.
+  const inboxes = connectionViews(dto, now);
   const fwd = forwardingView(dto, forwarding.data);
   const forwardList = forwardingProviders(dto);
   const forwardFor = pickedForward ?? forwardList[0]!;
