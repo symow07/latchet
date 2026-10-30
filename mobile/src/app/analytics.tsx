@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { format, parseISO } from 'date-fns';
 import { ScrollView, View } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
@@ -115,7 +115,6 @@ export default function AnalyticsScreen() {
   const initialTab: TabType =
     tab === 'subscriptions' || tab === 'insights' || tab === 'alerts' ? tab : 'overview';
   const [activeTab, setActiveTab] = useState<TabType>(initialTab);
-  const [analytics, setAnalytics] = useState<AnalyticsSummary | null>(null);
 
   const { data: transactions = [] } = useQuery({
     queryKey: ['transactions'],
@@ -125,10 +124,10 @@ export default function AnalyticsScreen() {
   // themselves go through the shared formatter.
   useQuery({ queryKey: ['settings'], queryFn: getSettings });
 
-  const transactionsLength = transactions.length;
-  useEffect(() => {
-    if (transactionsLength > 0) setAnalytics(generateAnalyticsSummary(transactions));
-  }, [transactionsLength, transactions]);
+  const analytics = useMemo<AnalyticsSummary | null>(
+    () => (transactions.length > 0 ? generateAnalyticsSummary(transactions) : null),
+    [transactions],
+  );
 
   const alertCount = analytics?.alertCount ?? 0;
   const tabs: readonly { id: TabType; label: string }[] = [

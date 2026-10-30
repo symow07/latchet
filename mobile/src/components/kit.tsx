@@ -1134,10 +1134,10 @@ export function Touchable({
     <Pressable
       onPress={onPress}
       onPressIn={() => {
-        on.value = 1;
+        on.set(1);
       }}
       onPressOut={() => {
-        on.value = withTiming(0, timed(MOTION.press.out));
+        on.set(withTiming(0, timed(MOTION.press.out)));
       }}
       accessibilityRole={accessibilityRole}
       accessibilityLabel={accessibilityLabel}
@@ -1464,6 +1464,19 @@ export function IconTile({
     >
       {children}
     </View>
+  );
+}
+
+/**
+ * A category's glyph on a sunk tile, as every transaction row draws it. The
+ * glyph comes in as a component (categoryIcon's), and the tile owns its size
+ * and colour.
+ */
+export function CategoryTile({ pal, icon: Glyph }: { pal: Pal; icon: IconComponent }) {
+  return (
+    <IconTile pal={pal} size={40} style={{ backgroundColor: pal.groundSunk }}>
+      <Glyph size={22} color={pal.ink} />
+    </IconTile>
   );
 }
 
@@ -2006,7 +2019,7 @@ export function SwipeRow({
   }, []);
 
   const close = useCallback(() => {
-    reveal.value = withTiming(0, timed(MOTION.settle.tween));
+    reveal.set(withTiming(0, timed(MOTION.settle.tween)));
     setOpen(false);
   }, [reveal]);
 
@@ -2018,16 +2031,16 @@ export function SwipeRow({
     .onBegin(() => {
       // Start from where the row actually *is*, not from where it was last
       // told to go — grabbing a row mid-flight must not make it jump.
-      startReveal.value = reveal.value;
+      startReveal.set(reveal.value);
     })
     .onUpdate((e) => {
       const raw = startReveal.value - e.translationX * dir;
       if (raw < 0) {
-        reveal.value = -rubberband(-raw, screenWidth);
+        reveal.set(-rubberband(-raw, screenWidth));
       } else if (raw > actionWidth) {
-        reveal.value = actionWidth + rubberband(raw - actionWidth, screenWidth);
+        reveal.set(actionWidth + rubberband(raw - actionWidth, screenWidth));
       } else {
-        reveal.value = raw;
+        reveal.set(raw);
       }
     })
     .onEnd((e) => {
@@ -2037,7 +2050,7 @@ export function SwipeRow({
       // Settles on a timed ease-out, not a spring: the identity never
       // overshoots. The projection above still lets a flick decide the
       // outcome from a short throw.
-      reveal.value = withTiming(target, timed(reduced ? MOTION.crossfade : MOTION.settle.tween));
+      reveal.set(withTiming(target, timed(reduced ? MOTION.crossfade : MOTION.settle.tween)));
       runOnJS(setOpen)(target > 0);
       // The tick fires on the decision, not on arrival — the haptic has to
       // land on the same frame as the commit or it reads as a second event.
@@ -2157,46 +2170,49 @@ export function Sheet({
   const startY = useSharedValue(0);
   const entered = useRef(false);
 
-  useEffect(() => {
-    if (visible) setMounted(true);
-  }, [visible]);
+  // Mounted as soon as it is asked for; unmounted only once it has left.
+  if (visible && !mounted) setMounted(true);
 
   useEffect(() => {
     if (!mounted || height === 0) return;
     if (visible && !entered.current) {
       entered.current = true;
-      y.value = height;
+      y.set(height);
       // Rises in 280 ms on the identity's ease-out; no spring, no overshoot.
-      y.value = withTiming(0, timed(reduced ? MOTION.crossfade : MOTION.sheet.open));
+      y.set(withTiming(0, timed(reduced ? MOTION.crossfade : MOTION.sheet.open)));
     }
   }, [mounted, height, visible, reduced, y]);
 
   useEffect(() => {
     if (visible || !mounted || height === 0) return;
     entered.current = false;
-    y.value = withTiming(height, timed(MOTION.sheet.close), (finished) => {
-      if (finished) runOnJS(setMounted)(false);
-    });
+    y.set(
+      withTiming(height, timed(MOTION.sheet.close), (finished) => {
+        if (finished) runOnJS(setMounted)(false);
+      }),
+    );
   }, [visible, mounted, height, y]);
 
   const pan = Gesture.Pan()
     .onBegin(() => {
-      startY.value = y.value;
+      startY.set(y.value);
     })
     .onUpdate((e) => {
       const raw = startY.value + e.translationY;
       // Above the resting position the sheet resists rather than lifting off
       // the bottom edge, which would break the "arrived from below" reading.
-      y.value = raw < 0 ? -rubberband(-raw, screenHeight) : raw;
+      y.set(raw < 0 ? -rubberband(-raw, screenHeight) : raw);
     })
     .onEnd((e) => {
       const projected = y.value + project(e.velocityY);
       if (projected > height * 0.4) {
-        y.value = withTiming(height, timed(MOTION.sheet.close), (finished) => {
-          if (finished) runOnJS(onClose)();
-        });
+        y.set(
+          withTiming(height, timed(MOTION.sheet.close), (finished) => {
+            if (finished) runOnJS(onClose)();
+          }),
+        );
       } else {
-        y.value = withTiming(0, timed(MOTION.settle.tween));
+        y.set(withTiming(0, timed(MOTION.settle.tween)));
       }
     });
 

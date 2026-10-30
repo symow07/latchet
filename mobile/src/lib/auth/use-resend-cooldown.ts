@@ -12,7 +12,6 @@ export function useResendCooldown(sentAt: number | null, cooldownMs: number = RE
 
   useEffect(() => {
     if (sentAt === null) return;
-    setNow(Date.now());
     const timer = setInterval(() => {
       const tick = Date.now();
       setNow(tick);
@@ -21,5 +20,7 @@ export function useResendCooldown(sentAt: number | null, cooldownMs: number = RE
     return () => clearInterval(timer);
   }, [sentAt, cooldownMs]);
 
-  return cooldownSecondsLeft(sentAt, now, cooldownMs);
+  // A send is never later than the clock: until the first tick, `now` can
+  // predate it, and the count starts from the send instead.
+  return cooldownSecondsLeft(sentAt, Math.max(now, sentAt ?? now), cooldownMs);
 }

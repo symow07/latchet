@@ -12,8 +12,9 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Sparkles } from '@/components/icons';
 
-import { getSettings, getTransactions } from '@/lib/db';
+import { getSettings, getTransactions, type Settings } from '@/lib/db';
 import { calculateHealthScore, type HealthScoreResult } from '@/lib/health-score';
+import type { Transaction } from '@/lib/transaction';
 import { S, useC, type Palette } from '@/lib/design';
 import { EASE, MOTION } from '@/lib/identity/motion';
 import { CountUp } from '@/components/motion';
@@ -45,6 +46,22 @@ const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 /** The identity's progress line: 280 ms, eased both ways, no overshoot. */
 const [IO_X1, IO_Y1, IO_X2, IO_Y2] = EASE.inOut;
 const easeInOut = Easing.bezier(IO_X1, IO_Y1, IO_X2, IO_Y2);
+
+/** One identity while transactions load, so the score is not recomputed on every render. */
+const NO_TRANSACTIONS: Transaction[] = [];
+
+/** The score, or `previous` if it cannot be worked out: the previous score stays up rather than the screen blanking. */
+function scoreOr(
+  transactions: Transaction[],
+  settings: Settings,
+  previous: HealthScoreResult | null,
+): HealthScoreResult | null {
+  try {
+    return calculateHealthScore(transactions, settings);
+  } catch {
+    return previous;
+  }
+}
 
 /**
  * The grade's colour, only where it says something: an A is good news, a C
@@ -84,24 +101,25 @@ export default function HealthScoreScreen() {
   const C = useC();
   const router = useRouter();
   const reduced = useReducedMotion();
-  const [health, setHealth] = useState<HealthScoreResult | null>(null);
 
-  const { data: transactions = [] } = useQuery({
+  const { data: transactions = NO_TRANSACTIONS } = useQuery({
     queryKey: ['transactions'],
     queryFn: getTransactions,
   });
   const { data: settings } = useQuery({ queryKey: ['settings'], queryFn: getSettings });
 
-  useEffect(() => {
-    // Compute as soon as settings load — a brand-new user with zero
-    // transactions should still get a (low) score, not an endless "Loading…".
-    if (!settings) return;
-    try {
-      setHealth(calculateHealthScore(transactions, settings));
-    } catch {
-      // Leave the previous score up rather than blanking the screen.
-    }
-  }, [transactions, settings]);
+  // Scored again whenever either input changes, as soon as settings load — a
+  // brand-new user with zero transactions should still get a (low) score, not
+  // an endless "Loading…".
+  const [scored, setScored] = useState<{
+    transactions: Transaction[];
+    settings: Settings;
+    health: HealthScoreResult | null;
+  } | null>(null);
+  if (settings && (scored?.transactions !== transactions || scored.settings !== settings)) {
+    setScored({ transactions, settings, health: scoreOr(transactions, settings, scored?.health ?? null) });
+  }
+  const health = scored?.health ?? null;
 
   const target = health?.totalScore ?? 0;
   const sweep = useSharedValue(0);
