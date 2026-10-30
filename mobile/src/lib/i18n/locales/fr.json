@@ -759,6 +759,7 @@
     "analysing2": "Lecture du total",
     "analysing3": "Choix d’une catégorie",
     "readFailed": "Impossible de lire l'image. Veuillez réessayer.",
+    "scanFailed": "Impossible de lire ce reçu pour le moment. Réessayez dans un instant, ou ajoutez la dépense à la main.",
     "errAmount": "Saisissez un montant supérieur à zéro."
   },
   "recurring": {

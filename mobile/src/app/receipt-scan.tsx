@@ -12,6 +12,7 @@ import * as Haptics from 'expo-haptics';
 import { addTransaction, getSettings } from '@/lib/db';
 import { todayISO } from '@/lib/dates';
 import { api } from '@/lib/api/api';
+import { receiptScanError } from '@/lib/receipt-scan-error';
 import { t } from '@/lib/i18n/core';
 import { categoryLabel } from '@/lib/category-meta';
 import { txTypeLabel } from '@/lib/tx-display';
@@ -176,8 +177,7 @@ export default function ReceiptScanScreen() {
       setStep('review');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : t('errors.aiFailed');
-      setErrorMsg(msg);
+      setErrorMsg(receiptScanError(err));
       setStep('pick');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     }

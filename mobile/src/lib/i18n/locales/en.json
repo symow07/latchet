@@ -759,6 +759,7 @@
     "analysing2": "Reading the total",
     "analysing3": "Choosing a category",
     "readFailed": "Could not read that image. Please try again.",
+    "scanFailed": "We couldn't read this receipt just now. Try again in a moment, or add the expense by hand.",
     "errAmount": "Enter an amount greater than zero."
   },
   "recurring": {
