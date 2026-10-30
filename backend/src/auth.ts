@@ -27,16 +27,28 @@ import {
 // ── Rate limiter (per address) ──────────────────────────────────
 // Counters live in Postgres (lib/distributed/counter.ts), shared by every
 // instance. They were Maps in this process, so each instance kept its own
-// copy of every limit, and a restart cleared them.
+// copy of every limit, and a restart cleared them. They read headers only,
+// never the body, for the reason below.
+
+// Identifier extraction is intentionally body-free.
 //
-// These run before Better Auth and read headers only, never the body.
-// Reading it here (`c.req.raw.clone()` + `await cloned.json()`) deadlocked on
-// Bun under production load: tee-ing the body and consuming one branch before
-// `auth.handler` reads the original can stall the socket stream, so the
-// handler waits on a body that never arrives and the request 503s at the 30 s
-// wrapper timeout. Limits per account (per email) need the body, so they run
-// inside Better Auth instead, from its hooks below, once it has parsed the body
-// itself: lib/account-limits.ts.
+// Why: previously this did `c.req.raw.clone()` + `await cloned.json()` to get
+// `email` / `phone` for per-identifier rate-limiting on POST /api/auth/*.
+// On Bun under production load, tee-ing the request body via `clone()` and
+// fully consuming one branch before the original is read by `auth.handler`
+// can deadlock the original branch — the underlying socket stream stalls
+// instead of completing. That manifests exactly as the observed bug:
+// `auth.handler(c.req.raw)` awaits body parsing and never returns, no DB
+// query issues, no hooks fire, request 503s at the 30s wrapper timeout.
+//
+// We can recover identifier-style limits later from query string or a
+// header without touching the body. Per-IP limits (which still run below)
+// already cover the same misuse vector for unauthenticated POSTs.
+//
+// Recovered since, without a header: the limits per account (per email) run
+// inside Better Auth, from its hooks below, on the body it has already parsed
+// itself (lib/account-limits.ts). Nothing here reads the body. The header the
+// app was meant to send never arrived, so those limits had never run.
 
 function getIp(c: Context): string {
   return c.req.header("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
