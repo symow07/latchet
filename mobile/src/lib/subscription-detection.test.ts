@@ -257,6 +257,35 @@ describe('detection runner', () => {
     expect(monthlyTotalIn([{ cadence: 'weekly', typicalAmount: 7, currency: 'usd' }], 'USD', null).total).toBe(30.42);
   });
 
+  test("on a yuan account, a statement with no currency column is a yuan subscription, and one stored in dollars is put right", async () => {
+    await db.setPersonalCurrency('CNY', '¥');
+    // Saved the way import.tsx saves a row whose file names no currency.
+    const from = new Date().toISOString();
+    for (const dateISO of months(5, 9, 20)) {
+      await db.addTransaction({ amount: 12.99, category: 'Subscriptions', type: 'Expense', isImpulse: false, note: 'SPOTIFY AB', dateISO });
+    }
+    batches.push({ from, to: new Date().toISOString() });
+    // A bank's own currency stands.
+    for (const [i, d] of months(7, 9, 5).entries()) await bankCharge(`plaid_us${i}`, 'NETFLIX.COM', 15.49, d, 'USD');
+
+    // As a run before this fix read it: every such row in dollars.
+    await createDetectionRunner(deps({ userCurrency: async () => 'USD' })).runDetection('import');
+    const before = Object.fromEntries((await db.getSubscriptions()).map((s) => [s.merchantNormalized, s.currency]));
+    expect(before).toEqual({ netflix: 'USD', spotify: 'USD' });
+
+    const summary = await createDetectionRunner(deps()).runDetection('manual');
+    const after = await db.getSubscriptions();
+    const spotify = after.find((s) => s.merchantNormalized === 'spotify')!;
+    expect(spotify.status).toBe('active');
+    expect(spotify.currency).toBe('CNY');
+    expect(after.find((s) => s.merchantNormalized === 'netflix')!.currency).toBe('USD');
+    // The yuan subscription is in the yuan total as it is; the dollar one
+    // needs a rate this test's table lacks, so it is counted, not added.
+    expect(summary.currency).toBe('CNY');
+    expect(summary.monthlyTotal).toBe(12.99);
+    expect(summary.notInTotal).toBe(1);
+  });
+
   test('a run never rejects into its trigger, and the next one works', async () => {
     for (const [i, d] of months(5, 9, 12).entries()) await bankCharge(`plaid_x${i}`, 'NETFLIX.COM', 15.49, d);
     let fail = true;
