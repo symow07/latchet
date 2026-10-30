@@ -27,6 +27,9 @@
  * file): iOS keeps what it was given, and nothing else would reword it.
  */
 import * as Notifications from 'expo-notifications';
+// By name: lint's import/namespace cannot see an enum the package re-exports
+// from a declaration file, so `Notifications.AndroidImportance` fails it.
+import { AndroidImportance } from 'expo-notifications';
 import * as Device from 'expo-device';
 import { Platform } from 'react-native';
 import { api } from './api/api';
@@ -223,7 +226,7 @@ async function ensurePermission(): Promise<boolean> {
 function setDefaultChannel(): Promise<unknown> {
   return Notifications.setNotificationChannelAsync('default', {
     name: notificationChannelName(),
-    importance: Notifications.AndroidImportance.DEFAULT,
+    importance: AndroidImportance.DEFAULT,
   });
 }
 
