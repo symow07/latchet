@@ -674,6 +674,7 @@
     "errorCreateFailed": "无法创建账户，请稍后再试。",
     "forgotLink": "忘记密码？",
     "errorRateLimited": "尝试次数过多，请等几分钟后再试。",
+    "errorSignInPaused": "此账户密码错误次数过多。请 15 分钟后再试，或重置密码。",
     "errorExists": "该邮箱已有账户。请直接登录，或重置其密码。",
     "errorInvalidEmail": "请输入有效的邮箱地址。",
     "errorLongPassword": "请不要超过 128 个字符。",

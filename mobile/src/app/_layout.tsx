@@ -17,7 +17,8 @@ import { loadRates } from '@/lib/rates';
 import { applyUserLocale, initDeviceLocale } from '@/lib/i18n/bootstrap';
 import { useLocaleStore } from '@/lib/i18n/locale-store';
 import { useThemeStore } from '@/lib/theme-store';
-import { useSession, SESSION_QUERY_KEY } from '@/lib/auth/use-session';
+import { useSession, SESSION_QUERY_KEY, checkSessionNow } from '@/lib/auth/use-session';
+import { sessionGate } from '@/lib/auth/session-check';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { isBiometricAvailable, authenticateWithBiometrics } from '@/lib/biometric';
 import { useSafeAreaInsets, SafeAreaProvider } from 'react-native-safe-area-context';
@@ -277,32 +278,45 @@ function RootLayoutNav({ colorScheme }: { colorScheme: 'light' | 'dark' | null |
   const C = useC();
   // Memoised so the navigation context only changes when the scheme does.
   const navTheme = useMemo(() => navigationTheme(C, colorScheme === 'dark'), [C, colorScheme]);
-  const { data: session, isLoading: sessionLoading, error: sessionError } = useSession();
+  const {
+    data: session,
+    isLoading: sessionLoading,
+    error: sessionError,
+    failureCount: sessionFailures,
+    failureReason: sessionFailure,
+  } = useSession();
   const router = useRouter();
   const queryClient = useQueryClient();
   const loadAccountType = useAccountTypeStore((s: AccountTypeStore) => s.load);
   const accountType = useAccountTypeStore((s: AccountTypeStore) => s.accountType);
   const accountTypeLoaded = useAccountTypeStore((s: AccountTypeStore) => s.loaded);
 
-  // Manual bail-out only: if useSession surfaces an error, the user can tap
-  // "Continue offline" (below) to set sessionTimedOut=true and reach the public
-  // stack. There is intentionally no auto-trigger — the new useSession config
-  // (10s timeout + 1 retry) needs up to ~21s to complete, so any timed
-  // backstop shorter than that races the retry and produces a fake
-  // logged-out state.
+  // Manual bail-out only: while the server cannot answer and there is no
+  // session to fall back on, the user can tap "Continue offline" (below) to set
+  // sessionTimedOut=true and reach the public stack. There is intentionally no
+  // auto-trigger: useSession keeps retrying with backoff, and a timed backstop
+  // would race those retries and produce a fake logged-out state.
   const [sessionTimedOut, setSessionTimedOut] = useState(false);
+  const sessionState = sessionGate({
+    hasSession: !!session,
+    isLoading: sessionLoading,
+    error: sessionError,
+    failureCount: sessionFailures,
+  });
 
   useEffect(() => {
     console.log('[mobile:gate] state', {
       sessionLoading,
+      sessionState,
+      sessionFailures,
       hasUser: !!session?.user,
       userId: session?.user?.id ?? null,
       sessionTimedOut,
       accountTypeLoaded,
       accountType,
-      error: sessionError?.message ?? null,
+      error: (sessionError ?? sessionFailure)?.message ?? null,
     });
-  }, [sessionLoading, session?.user, sessionError, sessionTimedOut, accountTypeLoaded, accountType]);
+  }, [sessionLoading, sessionState, sessionFailures, session?.user, sessionError, sessionFailure, sessionTimedOut, accountTypeLoaded, accountType]);
 
   const userId = session?.user?.id ?? null;
   const resetAccountType = useAccountTypeStore((s: AccountTypeStore) => s.reset);
@@ -572,22 +586,24 @@ function RootLayoutNav({ colorScheme }: { colorScheme: 'light' | 'dark' | null |
     setCrashReportingUser(userId);
   }, [sessionLoading, userId]);
 
-  // Surface session-fetch errors with a visible Retry instead of silently
-  // forcing a logged-out state. The 6s sessionTimedOut backstop below remains
-  // as the final escape hatch ("Continue offline" → fall through to public stack).
-  if (!sessionLoading && sessionError && !sessionTimedOut) {
+  // The server has not answered and there is no session to fall back on: say
+  // so with a visible Retry instead of silently forcing a logged-out state.
+  // useSession keeps retrying behind this screen, which clears itself when an
+  // answer comes. "Continue offline" falls through to the public stack.
+  if (sessionState === 'unreachable' && !sessionTimedOut) {
+    const reason = sessionError ?? sessionFailure;
     return (
       <View style={{ flex: 1, backgroundColor: C.ground, alignItems: 'center', justifyContent: 'center', padding: S.screen }}>
         <Type role="section" color={C.negative} style={{ marginBottom: 8, textAlign: 'center' }}>
           {t('startup.serverUnreachable')}
         </Type>
         <Type role="meta" color={C.inkDim} style={{ textAlign: 'center', marginBottom: 24 }}>
-          {sessionError instanceof Error ? sessionError.message : t('errors.unknown')}
+          {reason instanceof Error ? reason.message : t('errors.unknown')}
         </Type>
         <PrimaryButton
           pal={C}
           label={t('startup.retry')}
-          onPress={() => queryClient.invalidateQueries({ queryKey: SESSION_QUERY_KEY })}
+          onPress={() => checkSessionNow(queryClient)}
           style={{ alignSelf: 'stretch' }}
         />
         <Pressable
@@ -601,7 +617,7 @@ function RootLayoutNav({ colorScheme }: { colorScheme: 'light' | 'dark' | null |
     );
   }
 
-  if (sessionLoading && !sessionTimedOut) return <StartupScreen stage={t('startup.stageSession')} />;
+  if (sessionState === 'checking' && !sessionTimedOut) return <StartupScreen stage={t('startup.stageSession')} />;
 
   // Signed in, but this user's database is not open yet, or failed to open.
   const activationGate = dbError ? (

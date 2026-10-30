@@ -674,6 +674,7 @@
     "errorCreateFailed": "Couldn't create the account. Try again in a moment.",
     "forgotLink": "Forgot password?",
     "errorRateLimited": "Too many attempts. Wait a few minutes and try again.",
+    "errorSignInPaused": "Too many wrong passwords for this account. Try again in 15 minutes, or reset your password.",
     "errorExists": "An account already uses this email. Sign in, or reset its password.",
     "errorInvalidEmail": "Enter a valid email address.",
     "errorLongPassword": "Use 128 characters or fewer.",

@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { env } from "./env";
 import { logger } from "hono/logger";
-import { auth, loginRateLimiter, generalAuthRateLimiter,
+import { auth, loginRateLimiter, sharedAuthLimiter,
   signupBurstRateLimiter,
   signupDailyRateLimiter,
 } from "./auth";
@@ -148,15 +148,21 @@ app.use("*", async (c, next) => {
 
 // Auth routes (path-specific rate limiting) — both versioned and unversioned.
 //
-// sign-up and sign-in were previously exempted from generalAuthRateLimiter, a
-// stabilization measure from the signup-hang investigation that was never
-// reverted. The hang's actual cause was body-cloning inside extractIdentifier
-// (see auth.ts) and is long gone — these limiters read headers only, so the
-// exemption bought nothing and left account creation completely unmetered.
+// sign-up and sign-in were once exempted from every limit, a stabilization
+// measure from the signup-hang investigation that was never reverted. The
+// hang's actual cause was body-cloning inside the limiters (see auth.ts) and
+// is long gone — these limiters read headers only, and the limits per account
+// run inside Better Auth, from its hooks. Each now has its own
+// limit, on its path below, and the general one no longer counts them
+// (auth.ts, sharedAuthLimiter): it used to refuse sign-in to a whole address.
 app.use("/api/auth/sign-up/*", signupBurstRateLimiter);
 app.use("/api/auth/sign-up/*", signupDailyRateLimiter);
 app.use("/api/auth/sign-in/*", loginRateLimiter);
-app.use("/api/auth/*", generalAuthRateLimiter);
+// Session reads have their own, wider limit; everything else shares the general one.
+app.use("/api/auth/*", (c, next) => {
+  const limiter = sharedAuthLimiter(c.req.method, c.req.path);
+  return limiter ? limiter(c, next) : next();
+});
 app.on(["GET", "POST"], "/api/auth/*", async (c) => {
   const t0 = Date.now();
   debugLog(`[auth-route:enter] ${c.req.method} ${c.req.path}`);

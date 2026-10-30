@@ -4,6 +4,7 @@ import { PrismaClient } from "@prisma/client";
 import { prisma } from "./prisma";
 import { withDefaultUser } from "./lib/database-url";
 import { createRateLimiter } from "./auth";
+import { FAILED_SIGN_IN_MAX, clearFailedSignIns, recordFailedSignIn, signInPaused } from "./lib/account-limits";
 import { allowUsageTiered } from "./lib/usage-limit";
 import { aiAllowance, FREE_AI_CALLS_PER_DAY } from "./lib/entitlement";
 import { makeJoinRateLimiter, JOIN_MAX } from "./lib/group-invites";
@@ -49,14 +50,10 @@ afterAll(async () => {
   await B.$disconnect();
 });
 
-/** The slice of Hono's Context the auth limiters read: two headers. */
-function authRequest(ip: string, identifier: string) {
+/** The slice of Hono's Context the address limiters read: one header. */
+function authRequest(ip: string) {
   return {
-    req: {
-      header: (name: string) =>
-        name === "x-forwarded-for" ? ip : name === "x-rate-limit-identifier" ? identifier : undefined,
-      query: () => undefined,
-    },
+    req: { header: (name: string) => (name === "x-forwarded-for" ? ip : undefined) },
     json: (body: unknown, status?: number) => ({ body, status: status ?? 200 }),
   } as unknown as Context;
 }
@@ -66,33 +63,31 @@ async function status(limiter: ReturnType<typeof createRateLimiter>, c: Context)
   return res?.status ?? 200;
 }
 
-// The sign-in limiter's settings, built once per instance.
-const LOGIN = {
-  scope: `login-${RUN}`, ipMax: 15, ipWindowMs: 10 * 60_000,
-  identifierMax: 5, identifierWindowMs: 10 * 60_000, lockoutThreshold: 5,
-};
-
-test("the sign-in limit is one budget across instances, not one per instance", async () => {
+test("the sign-in limit per address is one budget across instances, not one per instance", async () => {
+  // The sign-in limiter's settings, built once per instance.
+  const LOGIN = { scope: `login-${RUN}`, ipMax: 15, ipWindowMs: 10 * 60_000 };
   const onA = createRateLimiter(LOGIN, A);
   const onB = createRateLimiter(LOGIN, B);
-  const who = `victim-${RUN}@x.test`;
   const statuses = [];
-  for (let i = 0; i < 6; i++) statuses.push(await status(i % 2 ? onB : onA, authRequest("10.0.0.1", who)));
-  // In-process counters would have allowed five on each, ten in all.
-  expect(statuses).toEqual([200, 200, 200, 200, 200, 429]);
+  for (let i = 0; i < 16; i++) statuses.push(await status(i % 2 ? onB : onA, authRequest("10.0.0.1")));
+  // In-process counters would have allowed fifteen on each, thirty in all.
+  expect(statuses.slice(0, 15).every((s) => s === 200)).toBe(true);
+  expect(statuses[15]).toBe(429);
 });
 
-test("a lockout tripped on one instance is enforced by the other", async () => {
-  const onA = createRateLimiter(LOGIN, A);
-  const onB = createRateLimiter(LOGIN, B);
-  const who = `locked-${RUN}@x.test`;
-  for (let i = 0; i < 6; i++) await status(onA, authRequest(`10.0.1.${i}`, who));
-  const res = (await onB(authRequest("10.0.2.1", who), async () => {})) as unknown as {
-    status: number;
-    body: { error: string };
-  };
-  expect(res.status).toBe(429);
-  expect(res.body.error).toBe("Account temporarily locked, try again later");
+test("an account's wrong passwords are one count across instances", async () => {
+  const who = `victim-${RUN}@x.test`;
+  for (let i = 0; i < FAILED_SIGN_IN_MAX; i++) await recordFailedSignIn(who, i % 2 ? B : A);
+  // In-process counters would have seen five on each and paused neither.
+  expect(await signInPaused(who, A)).toBe(true);
+  expect(await signInPaused(who, B)).toBe(true);
+});
+
+test("a pause lifted on one instance (a reset, a good sign-in) is lifted on the other", async () => {
+  const who = `paused-${RUN}@x.test`;
+  for (let i = 0; i < FAILED_SIGN_IN_MAX; i++) await recordFailedSignIn(who, A);
+  await clearFailedSignIns(who, B);
+  expect(await signInPaused(who, A)).toBe(false);
 });
 
 test("a free user's AI allowance is counted once across instances", async () => {
