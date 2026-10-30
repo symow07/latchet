@@ -275,6 +275,11 @@ since sign-up sends an OTP, unlimited outbound Resend mail on your bill and your
 `identifierMax` and identifier-lockout path is unreachable — only per-IP limits are live, which on
 mobile CGNAT is simultaneously too loose for an attacker and too tight for real users. The body-free
 design is correct (see the excellent comment at `auth.ts:25-38`); the client just needs to send the header.
+*Resolved on `fix/session-rate-limit`, differently:* the header and the identifier paths are gone, and
+the address limiters are address-only. Limits per account run inside Better Auth's hooks, which see
+the parsed body (`backend/src/lib/account-limits.ts`): 10 wrong passwords in 15 minutes pause sign-in
+for that address for 15 minutes (a good sign-in or a password reset clears it), and sign-up allows 3
+attempts an hour and 10 a day per email.
 
 **S5. `BETTER_AUTH_SECRET` has no minimum length.** `env.ts:8` accepts any non-empty string — and
 `lib/crypto.ts:10` derives the **AES-256-GCM key protecting every Plaid access token and Gmail

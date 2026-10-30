@@ -20,6 +20,8 @@ describe('the auth error mapper', () => {
     expect(authErrorKey(new TypeError('Network request failed'), 'auth.errorFailed')).toBe('auth.errorNetwork');
     expect(authErrorKey({ message: 'The request timed out.' }, 'auth.errorFailed')).toBe('auth.errorNetwork');
     expect(authErrorKey({ status: 429, statusText: 'Too Many Requests' }, 'auth.errorFailed')).toBe('auth.errorRateLimited');
+    // A paused account is a 429 too, with a code and a way back in.
+    expect(authErrorKey({ status: 429, code: 'TOO_MANY_FAILED_SIGN_INS' }, 'auth.errorFailed')).toBe('auth.errorSignInPaused');
   });
 
   test('anything else is the screen’s fallback, never the server’s English', () => {

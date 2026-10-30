@@ -212,6 +212,8 @@ Verify the original hang does not return — the cause was body-cloning in `extr
 `x-rate-limit-identifier` header, and the mobile client sends neither — so every per-identifier
 limit and lockout is unreachable. Fix by having `mobile/src/lib/api/api.ts` send
 `x-rate-limit-identifier` on auth calls. **Do not** reintroduce body parsing.
+*Superseded on `fix/session-rate-limit`:* no header. Per-account limits run in Better Auth's hooks on
+the body it has already parsed (`backend/src/lib/account-limits.ts`), so nothing reads the body twice.
 
 **Verify:** 6 rapid sign-ups from one IP → the 6th returns 429. Then confirm a normal sign-up still
 completes end to end without timing out.

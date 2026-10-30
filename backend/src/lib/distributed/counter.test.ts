@@ -1,6 +1,6 @@
 import { test, expect, afterAll } from "bun:test";
 import { prisma } from "../../prisma";
-import { bucketKey, hitWindow, lockFor, lockedKeys } from "./counter";
+import { bucketKey, forget, hitWindow, lockFor, lockedKeys } from "./counter";
 
 // Rows outlive the run; every key carries this run's tag and is removed after.
 const RUN = `ctr-${process.pid}-${Date.now().toString(36)}`;
@@ -71,6 +71,18 @@ test("a lock and a counter on the same key do not collide", async () => {
   await lockFor(k, 60_000);
   expect((await hitWindow(k, 1, 60_000)).allowed).toBe(true);
   expect(await lockedKeys([k])).toEqual(new Set([k]));
+});
+
+test("forgetting a key clears its count and its lock, and nothing else", async () => {
+  const k = key("forget");
+  const other = key("forget-other");
+  for (let i = 0; i < 3; i++) await hitWindow(k, 2, 60_000);
+  await lockFor(k, 60_000);
+  await hitWindow(other, 2, 60_000);
+  await forget(k);
+  expect(await lockedKeys([k])).toEqual(new Set());
+  expect(await hitWindow(k, 2, 60_000)).toMatchObject({ allowed: true, count: 1 });
+  expect((await hitWindow(other, 2, 60_000)).count).toBe(2);
 });
 
 test("long keys are stored bounded and still distinct", () => {

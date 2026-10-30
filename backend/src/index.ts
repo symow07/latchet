@@ -150,8 +150,9 @@ app.use("*", async (c, next) => {
 //
 // sign-up and sign-in were once exempted from every limit, a stabilization
 // measure from the signup-hang investigation that was never reverted. The
-// hang's actual cause was body-cloning inside extractIdentifier (see auth.ts)
-// and is long gone — these limiters read headers only. Each now has its own
+// hang's actual cause was body-cloning inside the limiters (see auth.ts) and
+// is long gone — these limiters read headers only, and the limits per account
+// run inside Better Auth, from its hooks. Each now has its own
 // limit, on its path below, and the general one no longer counts them
 // (auth.ts, sharedAuthLimiter): it used to refuse sign-in to a whole address.
 app.use("/api/auth/sign-up/*", signupBurstRateLimiter);
