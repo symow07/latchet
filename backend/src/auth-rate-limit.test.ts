@@ -28,7 +28,7 @@ afterAll(async () => {
 });
 
 /** Minimal stand-in for the slice of Hono's Context the limiters touch. */
-function ctx(ip: string) {
+function ctx(ip: string | undefined) {
   return {
     req: { header: (name: string) => (name === "x-forwarded-for" ? ip : undefined) },
     json: (body: unknown, status?: number) => ({ body, status: status ?? 200 }),
@@ -40,7 +40,7 @@ const next = async () => {};
 /** Runs a limiter once; returns the HTTP status it would produce. */
 async function hit(
   limiter: (c: Context, n: typeof next) => Promise<unknown>,
-  ip: string
+  ip: string | undefined
 ): Promise<number> {
   const res = (await limiter(ctx(ip), next)) as
     | { status: number }
@@ -62,6 +62,35 @@ test("a different IP is unaffected by another's sign-up limit", async () => {
   for (let i = 0; i < 6; i++) await hit(signupBurstRateLimiter, busy);
 
   expect(await hit(signupBurstRateLimiter, addr(21))).toBe(200);
+});
+
+// ── Client address ───────────────────────────────────────────────────────────
+// Railway's edge writes X-Forwarded-For itself: the client first, then any CDN
+// node it came through (see getIp). Only the first entry names the client.
+
+test("clients reaching us through one CDN node keep separate budgets", async () => {
+  const node = "192.0.2.1";
+  for (let i = 0; i < 5; i++) await hit(signupBurstRateLimiter, `${addr(120)}, ${node}`);
+  expect(await hit(signupBurstRateLimiter, `${addr(120)}, ${node}`)).toBe(429);
+
+  expect(await hit(signupBurstRateLimiter, `${addr(121)}, ${node}`)).toBe(200);
+});
+
+test("a client is one address whichever CDN node relays it", async () => {
+  const via = (node: string) => `${addr(122)}, ${node}`;
+  for (let i = 0; i < 3; i++) expect(await hit(signupBurstRateLimiter, via("192.0.2.1"))).toBe(200);
+  for (let i = 0; i < 2; i++) expect(await hit(signupBurstRateLimiter, via("192.0.2.2"))).toBe(200);
+  expect(await hit(signupBurstRateLimiter, via("192.0.2.3"))).toBe(429);
+});
+
+test("a request without X-Forwarded-For is counted as \"unknown\"", async () => {
+  // Local development: nothing in front of the server sets the header.
+  const key = "signup-burst:ip:unknown";
+  await prisma.rateLimitBucket.deleteMany({ where: { key } });
+  expect(await hit(signupBurstRateLimiter, undefined)).toBe(200);
+  const bucket = await prisma.rateLimitBucket.findUnique({ where: { key } });
+  expect(bucket?.count).toBe(1);
+  await prisma.rateLimitBucket.deleteMany({ where: { key } });
 });
 
 test("exhausting the sign-up limit does not lock the same IP out of sign-in", async () => {
