@@ -11,45 +11,13 @@
  * not, which is why the shape here changed rather than just the imports.
  */
 import { requestRecordingPermissionsAsync, setAudioModeAsync } from 'expo-audio';
-import type { RecordingOptions } from 'expo-audio';
 import * as FileSystem from 'expo-file-system/legacy';
 import { api } from './api/api';
 import { todayISO } from './dates';
 import { getLocale } from './i18n/core';
 import type { VoiceResult, VoiceRow } from './voice-capture';
 
-/**
- * Recording settings tuned for speech, not music.
- *
- * Mono at 22 kHz and 32 kbps is well inside what Whisper needs and keeps a
- * two-minute recording to a few hundred kilobytes — it has to survive being
- * base64'd into a JSON body, which inflates it by a third.
- */
-export const SPEECH_RECORDING: RecordingOptions = {
-  isMeteringEnabled: true,
-  extension: '.m4a',
-  sampleRate: 22050,
-  numberOfChannels: 1,
-  bitRate: 32000,
-  android: {
-    extension: '.m4a',
-    outputFormat: 'mpeg4',
-    audioEncoder: 'aac',
-  },
-  ios: {
-    extension: '.m4a',
-    outputFormat: 'mp4f',
-    audioQuality: 96,
-    linearPCMBitDepth: 16,
-    linearPCMIsBigEndian: false,
-    linearPCMIsFloat: false,
-  },
-  // Required by expo-audio's type since SDK 54; the app does not record on the web.
-  web: {
-    mimeType: 'audio/webm',
-    bitsPerSecond: 32000,
-  },
-};
+export { SPEECH_RECORDING } from './speech-recording';
 
 export type MicPermission = 'granted' | 'denied';
 
