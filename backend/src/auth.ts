@@ -6,7 +6,9 @@ import { prisma } from "./prisma";
 import { env } from "./env";
 import { debugLog } from "./lib/log";
 import type { Context, Next } from "hono";
-import { hitWindow, lockFor, lockedKeys } from "./lib/distributed/counter";
+import { APIError, createAuthMiddleware, isAPIError } from "better-auth/api";
+import { hitWindow } from "./lib/distributed/counter";
+import { clearFailedSignIns, recordFailedSignIn, signInPaused, signUpAllowed } from "./lib/account-limits";
 import { cacheGet, cacheSet } from "./lib/distributed/cache";
 import type { Db } from "./lib/distributed/clock";
 import { sendEmail, type EmailMessage } from "./lib/email";
@@ -22,94 +24,47 @@ import {
   withAppCallback,
 } from "./lib/auth-emails";
 
-// ── Rate limiter (per-IP + per-identifier, with lockout) ────────
-// Counters and lockouts live in Postgres (lib/distributed/counter.ts), shared
-// by every instance. They were Maps in this process, so each instance kept its
-// own copy of every limit — with two instances, five sign-in attempts per
-// account became ten — and a restart cleared every lockout. They still read
-// headers only, never the body, for the reason given on extractIdentifier.
+// ── Rate limiter (per address) ──────────────────────────────────
+// Counters live in Postgres (lib/distributed/counter.ts), shared by every
+// instance. They were Maps in this process, so each instance kept its own
+// copy of every limit, and a restart cleared them.
+//
+// These run before Better Auth and read headers only, never the body.
+// Reading it here (`c.req.raw.clone()` + `await cloned.json()`) deadlocked on
+// Bun under production load: tee-ing the body and consuming one branch before
+// `auth.handler` reads the original can stall the socket stream, so the
+// handler waits on a body that never arrives and the request 503s at the 30 s
+// wrapper timeout. Limits per account (per email) need the body, so they run
+// inside Better Auth instead, from its hooks below, once it has parsed the body
+// itself: lib/account-limits.ts.
 
 function getIp(c: Context): string {
   return c.req.header("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
 }
 
-// Identifier extraction is intentionally body-free.
-//
-// Why: previously this did `c.req.raw.clone()` + `await cloned.json()` to get
-// `email` / `phone` for per-identifier rate-limiting on POST /api/auth/*.
-// On Bun under production load, tee-ing the request body via `clone()` and
-// fully consuming one branch before the original is read by `auth.handler`
-// can deadlock the original branch — the underlying socket stream stalls
-// instead of completing. That manifests exactly as the observed bug:
-// `auth.handler(c.req.raw)` awaits body parsing and never returns, no DB
-// query issues, no hooks fire, request 503s at the 30s wrapper timeout.
-//
-// We can recover identifier-style limits later from query string or a
-// header without touching the body. Per-IP limits (which still run below)
-// already cover the same misuse vector for unauthenticated POSTs.
-function extractIdentifier(c: Context): string | null {
-  const fromQuery = c.req.query("email") || c.req.query("phone");
-  if (fromQuery) return fromQuery;
-  const fromHeader = c.req.header("x-rate-limit-identifier");
-  if (fromHeader) return fromHeader;
-  return null;
-}
-
-/** How long a tripped account lockout lasts. */
-const LOCKOUT_MS = 15 * 60 * 1000;
-
+/**
+ * Refuse an address over `ipMax` requests per `ipWindowMs`.
+ *
+ * Addresses are never locked out. One address is often many people (a
+ * carrier's NAT, an office, a VPN exit), and an address lockout shut sign-in
+ * for all of them for 15 minutes once anyone there went over. The window
+ * already caps what one address can do, and reopens when it ends.
+ */
 export function createRateLimiter(opts: {
   /**
    * Namespace for this limiter's counters. Without it every limiter shared a
    * single record per IP, so whichever one fired first decided the window for
-   * all of them and their budgets cancelled each other out. Lockouts are
-   * namespaced too, so tripping the sign-up limit cannot lock an account out
-   * of sign-in.
+   * all of them and their budgets cancelled each other out.
    */
   scope: string;
   ipMax: number;
   ipWindowMs: number;
-  identifierMax: number;
-  identifierWindowMs: number;
-  /**
-   * Once an account's window count has reached this, a refused attempt locks
-   * that account for LOCKOUT_MS, from every address. Absent, or above
-   * identifierMax: the account is refused while over its window, never locked.
-   *
-   * Addresses are never locked. One address is often many people (a
-   * carrier's NAT, an office, a VPN exit), and an address lockout shut sign-in
-   * for all of them for 15 minutes once anyone there went over. The address
-   * window already caps what one address can do, and reopens when it ends.
-   */
-  identifierLockoutThreshold?: number;
 }, db: Db = prisma) {
   return async (c: Context, next: Next) => {
-    const ip = getIp(c);
-    const identifier = extractIdentifier(c);
-    const ipKey = `${opts.scope}:ip:${ip}`;
-    const idKey = identifier ? `${opts.scope}:id:${identifier}` : null;
-
-    // A locked account is refused from any address.
-    if (idKey && (await lockedKeys([idKey], db)).has(idKey)) {
-      return c.json({ error: "Account temporarily locked, try again later" }, 429);
-    }
-
-    // The address's window: refused while over it, never locked (above).
-    const byIp = await hitWindow(ipKey, opts.ipMax, opts.ipWindowMs, db);
+    const byIp = await hitWindow(`${opts.scope}:ip:${getIp(c)}`, opts.ipMax, opts.ipWindowMs, db);
     if (!byIp.allowed) {
       return c.json({ error: "Too many requests, try again later" }, 429);
     }
-
-    // Check identifier rate limit. Not counted when the IP was refused.
-    if (idKey) {
-      const byId = await hitWindow(idKey, opts.identifierMax, opts.identifierWindowMs, db);
-      if (!byId.allowed) {
-        const threshold = opts.identifierLockoutThreshold;
-        if (threshold !== undefined && byId.count >= threshold) await lockFor(idKey, LOCKOUT_MS, db);
-        return c.json({ error: "Too many requests for this account, try again later" }, 429);
-      }
-    }
-
     return next();
   };
 }
@@ -119,18 +74,12 @@ export const loginRateLimiter = createRateLimiter({
   scope: "login",
   ipMax: 15,
   ipWindowMs: 10 * 60 * 1000,     // 10 min
-  identifierMax: 5,
-  identifierWindowMs: 10 * 60 * 1000,
-  identifierLockoutThreshold: 5,
 });
 
 export const generalAuthRateLimiter = createRateLimiter({
   scope: "general",
   ipMax: 30,
   ipWindowMs: 15 * 60 * 1000,     // 15 min
-  identifierMax: 20,
-  identifierWindowMs: 15 * 60 * 1000,
-  identifierLockoutThreshold: 20,
 });
 
 /**
@@ -147,8 +96,6 @@ export const sessionRateLimiter = createRateLimiter({
   scope: "session",
   ipMax: 600,
   ipWindowMs: 15 * 60 * 1000,
-  identifierMax: 600,
-  identifierWindowMs: 15 * 60 * 1000,
 });
 
 /** A session read, which sessionRateLimiter counts instead of the general limit. */
@@ -165,7 +112,8 @@ export function isSessionRead(method: string, path: string): boolean {
  * Sign-in was counted by the general limit too, so whatever used up an
  * address's general budget (password resets, verification mails, sign-outs)
  * refused sign-in to everyone at that address until the window ended. Its own
- * limit already counts every attempt, per address and per account.
+ * limit counts every attempt from an address, and wrong passwords are counted
+ * per account in Better Auth's hooks (lib/account-limits.ts).
  */
 export function sharedAuthLimiter(method: string, path: string) {
   if (isSessionRead(method, path)) return sessionRateLimiter;
@@ -176,21 +124,18 @@ export function sharedAuthLimiter(method: string, path: string) {
 // Sign-up is the expensive one: each attempt creates an account and runs a
 // 600,000-iteration password hash, and sends a verification mail through
 // Resend — on our bill and our domain's reputation. Two windows, applied
-// together — a short burst limit and a daily ceiling.
+// together — a short burst limit and a daily ceiling — per address here, and
+// per email in Better Auth's hooks (lib/account-limits.ts).
 export const signupBurstRateLimiter = createRateLimiter({
   scope: "signup-burst",
   ipMax: 5,
   ipWindowMs: 60 * 60 * 1000,     // 1 hour
-  identifierMax: 3,
-  identifierWindowMs: 60 * 60 * 1000,
 });
 
 export const signupDailyRateLimiter = createRateLimiter({
   scope: "signup-daily",
   ipMax: 20,
   ipWindowMs: 24 * 60 * 60 * 1000, // 24 hours
-  identifierMax: 10,
-  identifierWindowMs: 24 * 60 * 60 * 1000,
 });
 
 // ── Password hashing (PBKDF2-SHA256) ────────────────────────────────────────
@@ -392,6 +337,12 @@ interface RateLimit {
   lastRequest: number;
 }
 
+/** The email in an auth request body, when there is one. */
+function emailOf(body: unknown): string | null {
+  const email = (body as { email?: unknown } | null | undefined)?.email;
+  return typeof email === "string" && email.trim() ? email : null;
+}
+
 /**
  * How long a Better Auth rate-limit record is kept. It compares lastRequest
  * against its own window (10 or 60 s) itself, so this only needs to outlast
@@ -418,6 +369,11 @@ export const auth = betterAuth({
     sendResetPassword: authMailer.sendResetPassword,
     resetPasswordTokenExpiresIn: RESET_LINK_TTL_SECONDS,
     revokeSessionsOnPasswordReset: true,
+    // A reset lifts any pause on sign-in (lib/account-limits.ts), so the
+    // owner of an address someone has been guessing at gets straight back in.
+    onPasswordReset: async ({ user }) => {
+      await clearFailedSignIns(user.email);
+    },
     // Sign-in does not wait for verification (PLAN decision 2): requiring it
     // would lock out every existing account, none of which has verified, and
     // would change what sign-up returns. Verification is offered instead.
@@ -441,6 +397,36 @@ export const auth = betterAuth({
   // a password. Better Auth still finds a token stored before this was set.
   verification: {
     storeIdentifier: { default: "plain", overrides: { "reset-password:": "hashed" } },
+  },
+  // Limits per account (lib/account-limits.ts). They need the email, which
+  // the address limiters ahead of Better Auth cannot read (see the top of
+  // this file); here Better Auth has already parsed the body.
+  hooks: {
+    before: createAuthMiddleware(async (ctx) => {
+      const email = emailOf(ctx.body);
+      if (!email) return;
+      if (ctx.path === "/sign-in/email" && (await signInPaused(email))) {
+        throw new APIError("TOO_MANY_REQUESTS", {
+          code: "TOO_MANY_FAILED_SIGN_INS",
+          message: "Too many wrong passwords for this account. Try again in 15 minutes, or reset the password.",
+        });
+      }
+      if (ctx.path === "/sign-up/email" && !(await signUpAllowed(email))) {
+        throw new APIError("TOO_MANY_REQUESTS", { message: "Too many sign-ups for this address, try again later" });
+      }
+    }),
+    after: createAuthMiddleware(async (ctx) => {
+      if (ctx.path !== "/sign-in/email") return;
+      const email = emailOf(ctx.body);
+      if (!email) return;
+      // Only a wrong password counts: not a malformed request, not a pause,
+      // not a server error.
+      const returned = ctx.context.returned;
+      if (ctx.context.newSession) await clearFailedSignIns(email);
+      else if (isAPIError(returned) && returned.body?.code === "INVALID_EMAIL_OR_PASSWORD") {
+        await recordFailedSignIn(email);
+      }
+    }),
   },
   // Diagnostic-only: log the FIRST adapter call BetterAuth makes on each path.
   // The "auth.handler timeout" with no other logs means we can't tell whether

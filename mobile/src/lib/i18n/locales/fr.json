@@ -674,6 +674,7 @@
     "errorCreateFailed": "Impossible de créer le compte. Réessayez dans un instant.",
     "forgotLink": "Mot de passe oublié ?",
     "errorRateLimited": "Trop de tentatives. Patientez quelques minutes, puis réessayez.",
+    "errorSignInPaused": "Trop de mots de passe erronés pour ce compte. Réessayez dans 15 minutes, ou réinitialisez votre mot de passe.",
     "errorExists": "Un compte utilise déjà cet e-mail. Connectez-vous ou réinitialisez son mot de passe.",
     "errorInvalidEmail": "Saisissez une adresse e-mail valide.",
     "errorLongPassword": "Utilisez 128 caractères au maximum.",

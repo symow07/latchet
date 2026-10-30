@@ -26,6 +26,9 @@ const BY_CODE: Record<string, string> = {
   PASSWORD_TOO_LONG: 'auth.errorLongPassword',
   INVALID_TOKEN: 'resetPassword.invalidBody',
   TOKEN_EXPIRED: 'resetPassword.invalidBody',
+  // Sign-in paused after ten wrong passwords (backend lib/account-limits.ts):
+  // a 429 that says how to get back in, by resetting the password.
+  TOO_MANY_FAILED_SIGN_INS: 'auth.errorSignInPaused',
 };
 
 /** Every key this module can resolve to, so a test can hold the catalogue to them. */
@@ -53,10 +56,10 @@ export function authErrorKey(error: unknown, fallbackKey: string): string {
   if (typeof error === 'string' ? NETWORK.test(error) : typeof message === 'string' && NETWORK.test(message)) {
     return 'auth.errorNetwork';
   }
-  // The backend's own limiters answer 429 with no code; Better Auth's too.
-  if (status === 429) return 'auth.errorRateLimited';
   const code = authErrorCode(error);
   if (code && BY_CODE[code]) return BY_CODE[code];
+  // The backend's address limiters answer 429 with no code; Better Auth's too.
+  if (status === 429) return 'auth.errorRateLimited';
   return fallbackKey;
 }
 

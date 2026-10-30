@@ -190,7 +190,10 @@ describe("password reset and email verification, through the app", () => {
   });
   afterAll(async () => {
     warnSpy.mockRestore();
-    await prisma.rateLimitBucket.deleteMany({ where: { OR: userIds.map((id) => ({ key: { contains: id } })) } });
+    // Counts per account are keyed by address, and every address here carries RUN.
+    await prisma.rateLimitBucket.deleteMany({
+      where: { OR: [{ key: { contains: RUN } }, ...userIds.map((id) => ({ key: { contains: id } }))] },
+    });
     await prisma.verification.deleteMany({ where: { value: { in: userIds } } });
     await prisma.user.deleteMany({ where: { id: { in: userIds } } });
   });
@@ -325,5 +328,69 @@ describe("password reset and email verification, through the app", () => {
     await waitForLink(u.email, "/api/auth/reset-password/", 5);
     await Bun.sleep(300);
     expect(linksTo(u.email, "/api/auth/reset-password/")).toHaveLength(5);
+  });
+
+  // ── Limits per account (lib/account-limits.ts, run from Better Auth's hooks) ──
+  // Every request here comes from a fresh address, so no address limit binds:
+  // only the account's own count can refuse these.
+
+  const signIn = (email: string, password: string) => call("POST", "/api/auth/sign-in/email", { body: { email, password } });
+  const wrong = async (email: string, times: number) => {
+    for (let i = 0; i < times; i++) expect((await signIn(email, `Wrong-${i}-Zz9!`)).status).toBe(401);
+  };
+
+  test("ten wrong passwords pause sign-in for the account, from every address, the right password included", async () => {
+    const u = await signUp("guessed");
+    await wrong(u.email, 10);
+    const right = await signIn(u.email, u.password);
+    expect(right.status).toBe(429);
+    expect(JSON.parse(right.text).code).toBe("TOO_MANY_FAILED_SIGN_INS");
+    // The address typed differently is the same account.
+    expect((await signIn(u.email.toUpperCase(), u.password)).status).toBe(429);
+  });
+
+  test("a successful sign-in starts the count again", async () => {
+    const u = await signUp("forgetful");
+    await wrong(u.email, 9);
+    expect((await signIn(u.email, u.password)).status).toBe(200);
+    await wrong(u.email, 9);
+    expect((await signIn(u.email, u.password)).status).toBe(200);
+  });
+
+  test("a password reset lifts the pause, and the new password signs in straight away", async () => {
+    const u = await signUp("unpaused");
+    await wrong(u.email, 10);
+    expect((await signIn(u.email, u.password)).status).toBe(429);
+
+    // Asking for the reset is not refused by the pause.
+    const asked = await call("POST", "/api/auth/request-password-reset", { body: { email: u.email, redirectTo: "latchet://reset-password" } });
+    expect(asked.status).toBe(200);
+    const opened = await call("GET", await waitForLink(u.email, "/api/auth/reset-password/"));
+    const token = new URL(opened.location.replace("latchet://", "http://x/")).searchParams.get("token")!;
+    const NEW = `New-pass-${RUN}-Pq4!`;
+    expect((await call("POST", "/api/auth/reset-password", { body: { newPassword: NEW, token } })).status).toBe(200);
+
+    expect((await signIn(u.email, NEW)).status).toBe(200);
+  });
+
+  test("an address with no account is paused the same way, so a pause says nothing about who has one", async () => {
+    const nobody = `nobody-paused-${RUN}@e2e.test`;
+    await wrong(nobody, 10);
+    const refused = await signIn(nobody, "Anything-1-Zz9!");
+    expect(refused.status).toBe(429);
+    expect(JSON.parse(refused.text).code).toBe("TOO_MANY_FAILED_SIGN_INS");
+  });
+
+  test("an address gets three sign-up attempts an hour, from any network", async () => {
+    const email = `signup-flood-${RUN}@e2e.test`;
+    const statuses: number[] = [];
+    for (let i = 0; i < 4; i++) {
+      const r = await call("POST", "/api/auth/sign-up/email", { body: { email, password: `Pass-${RUN}-Kk3!`, name: "Flood" } });
+      if (r.status === 200) userIds.push(JSON.parse(r.text).user.id as string);
+      statuses.push(r.status);
+    }
+    expect(statuses[0]).toBe(200);
+    expect(statuses.slice(1, 3)).not.toContain(429);
+    expect(statuses[3]).toBe(429);
   });
 });

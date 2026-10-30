@@ -110,3 +110,9 @@ export async function lockedKeys(keys: string[], db: Db = prisma): Promise<Set<s
        AND "expiresAt" >= ${DB_NOW}`;
   return new Set(rows.map((r) => stored.get(r.key)!));
 }
+
+/** Forget `key`: its window count and any lock on it, as if it had never been hit. */
+export async function forget(key: string, db: Db = prisma): Promise<void> {
+  const keys = [bucketKey(key), bucketKey(LOCK_PREFIX + key)];
+  await db.$executeRaw`DELETE FROM "RateLimitBucket" WHERE "key" = ANY(${keys}::text[])`;
+}

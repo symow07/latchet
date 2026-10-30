@@ -29,15 +29,6 @@ export const authClient = createAuthClient({
       // language; an account that has none yet (the verification mail goes
       // out at sign-up) gets the language the app is showing, from this.
       headers.set("accept-language", getLocale());
-      // The backend's per-identifier rate limits and lockouts read the
-      // identifier from a header or the query string — never from the request
-      // body, which deadlocks under Bun (see backend/src/auth.ts). The client
-      // sent neither, so every per-identifier limit was unreachable and only
-      // the per-IP ones did anything. Surface the email explicitly.
-      const email = (ctx.body as { email?: unknown } | undefined)?.email;
-      if (typeof email === "string" && email) {
-        headers.set("x-rate-limit-identifier", email);
-      }
       return { ...ctx, headers };
     },
   },
