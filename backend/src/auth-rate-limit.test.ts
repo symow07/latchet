@@ -6,6 +6,7 @@ import {
   generalAuthRateLimiter,
   isSessionRead,
   sessionRateLimiter,
+  sharedAuthLimiter,
   signupBurstRateLimiter,
   loginRateLimiter,
 } from "./auth";
@@ -75,7 +76,6 @@ test("per-identifier limits apply once the client sends the header", async () =>
     ipWindowMs: 60_000,
     identifierMax: 2,
     identifierWindowMs: 60_000,
-    lockoutThreshold: 99,
   });
 
   // Same identifier from different IPs — only the identifier budget binds.
@@ -91,7 +91,6 @@ test("a request with no identifier still passes the identifier check", async () 
     ipWindowMs: 60_000,
     identifierMax: 1,
     identifierWindowMs: 60_000,
-    lockoutThreshold: 99,
   });
 
   expect(await hit(limiter, addr(109))).toBe(200);
@@ -100,7 +99,7 @@ test("a request with no identifier still passes the identifier check", async () 
 
 test("exhausting the sign-up limit does not lock the same IP out of sign-in", async () => {
   const ip = addr(30);
-  // Blow well past the sign-up budget, tripping its lockout.
+  // Blow well past the sign-up budget.
   for (let i = 0; i < 12; i++) await hit(signupBurstRateLimiter, ip);
   expect(await hit(signupBurstRateLimiter, ip)).toBe(429);
 
@@ -116,7 +115,6 @@ test("limiters do not consume each other's budget", async () => {
     ipWindowMs: 60_000,
     identifierMax: 99,
     identifierWindowMs: 60_000,
-    lockoutThreshold: 99,
   });
   const scopeB = createRateLimiter({
     scope: `scope-b-${RUN}`,
@@ -124,7 +122,6 @@ test("limiters do not consume each other's budget", async () => {
     ipWindowMs: 60_000,
     identifierMax: 99,
     identifierWindowMs: 60_000,
-    lockoutThreshold: 99,
   });
 
   expect(await hit(scopeA, ip)).toBe(200);
@@ -151,9 +148,9 @@ test("tripping the sign-in limit for an account locks it, from any address", asy
   expect(res.body.error).toBe("Account temporarily locked, try again later");
 });
 
-test("a limit below its lockout threshold refuses without locking", async () => {
-  // Sign-up allows three per identifier with a threshold of five: the fourth
-  // is refused for the account, but nothing is locked, so the message stays
+test("a limit with no lockout refuses without locking", async () => {
+  // Sign-up allows three per identifier and never locks: the fourth is
+  // refused for the account, but nothing is locked, so the message stays
   // the rate-limit one and other addresses are not refused for the lockout.
   const who = `signup-${RUN}@example.com`;
   for (let i = 0; i < 3; i++) expect(await hit(signupBurstRateLimiter, addr(70 + i), who)).toBe(200);
@@ -163,24 +160,43 @@ test("a limit below its lockout threshold refuses without locking", async () => 
   expect(locks).toBe(0);
 });
 
-test("an IP over its limit is locked out once the threshold is reached", async () => {
+test("an account lockout lasts fifteen minutes, by the database's clock", async () => {
+  const who = `lock-${RUN}@example.com`;
+  for (let i = 0; i < 6; i++) await hit(loginRateLimiter, addr(81 + i), who);
+  const lock = await prisma.rateLimitBucket.findUnique({ where: { key: `lockout:login:id:${who}` } });
+  expect(lock).not.toBeNull();
+  const minutes = (lock!.expiresAt.getTime() - lock!.windowStart.getTime()) / 60_000;
+  expect(minutes).toBe(15);
+});
+
+// One address is often many people: a carrier's NAT, an office, a VPN exit.
+// An address over its limit used to be locked for 15 minutes, which shut
+// sign-in for all of them because one of them went over.
+test("an address over the sign-in limit is refused, and never locked", async () => {
+  const ip = addr(80);
+  const statuses: number[] = [];
+  for (let i = 0; i < 16; i++) statuses.push(await hit(loginRateLimiter, ip, `nat-${i}-${RUN}@example.com`));
+  expect(statuses.slice(0, 15).every((s) => s === 200)).toBe(true);
+  expect(statuses[15]).toBe(429);
+  const locks = await prisma.rateLimitBucket.count({ where: { key: { startsWith: "lockout:", contains: ip } } });
+  expect(locks).toBe(0);
+});
+
+test("an address refused by its window is let in again when the window ends", async () => {
   const limiter = createRateLimiter({
-    scope: `test-lock-${RUN}`,
+    scope: `test-window-${RUN}`,
     ipMax: 2,
-    ipWindowMs: 60_000,
+    ipWindowMs: 1_000,
     identifierMax: 99,
     identifierWindowMs: 60_000,
-    lockoutThreshold: 2,
+    identifierLockoutThreshold: 1,
   });
-  const ip = addr(80);
+  const ip = addr(87);
   expect(await hit(limiter, ip)).toBe(200);
   expect(await hit(limiter, ip)).toBe(200);
   expect(await hit(limiter, ip)).toBe(429);
-  const lock = await prisma.rateLimitBucket.findUnique({ where: { key: `lockout:test-lock-${RUN}:ip:${ip}` } });
-  expect(lock).not.toBeNull();
-  // Fifteen minutes, by the database's clock.
-  const minutes = (lock!.expiresAt.getTime() - lock!.windowStart.getTime()) / 60_000;
-  expect(minutes).toBe(15);
+  await Bun.sleep(1_100);
+  expect(await hit(limiter, ip)).toBe(200);
 });
 
 test("an identifier header of any length is limited, not a server error", async () => {
@@ -192,7 +208,6 @@ test("an identifier header of any length is limited, not a server error", async 
     ipWindowMs: 60_000,
     identifierMax: 1,
     identifierWindowMs: 60_000,
-    lockoutThreshold: 99,
   });
   expect(await hit(limiter, addr(90), huge)).toBe(200);
   expect(await hit(limiter, addr(91), huge)).toBe(429);
@@ -218,6 +233,35 @@ test("only GET /api/auth/get-session counts as a session read", () => {
   expect(isSessionRead("POST", "/api/auth/get-session")).toBe(false);
   expect(isSessionRead("GET", "/api/auth/sign-in/email")).toBe(false);
   expect(isSessionRead("GET", "/api/auth/get-session-and-more")).toBe(false);
+});
+
+test("sign-in and sign-up are counted by their own limits only, not the general one", () => {
+  expect(sharedAuthLimiter("POST", "/api/auth/sign-in/email")).toBeNull();
+  expect(sharedAuthLimiter("POST", "/api/auth/sign-in/social")).toBeNull();
+  expect(sharedAuthLimiter("POST", "/api/auth/sign-up/email")).toBeNull();
+  expect(sharedAuthLimiter("GET", "/api/auth/get-session")).toBe(sessionRateLimiter);
+  expect(sharedAuthLimiter("POST", "/api/auth/sign-out")).toBe(generalAuthRateLimiter);
+  expect(sharedAuthLimiter("POST", "/api/auth/request-password-reset")).toBe(generalAuthRateLimiter);
+  expect(sharedAuthLimiter("GET", "/api/auth/sign-in-elsewhere")).toBe(generalAuthRateLimiter);
+});
+
+test("the served app still lets an address sign in after it used up the general limit", async () => {
+  const { app } = await import("./index");
+  const ip = addr(72);
+  const general: number[] = [];
+  for (let i = 0; i < 31; i++) {
+    const res = await app.request("/api/auth/list-sessions", { headers: { "x-forwarded-for": ip } });
+    general.push(res.status);
+  }
+  // The general limit (30 per address) is spent...
+  expect(general[30]).toBe(429);
+  // ...and sign-in from the same address is answered, not refused.
+  const signIn = await app.request("/api/auth/sign-in/email", {
+    method: "POST",
+    headers: { "x-forwarded-for": ip, "content-type": "application/json" },
+    body: JSON.stringify({ email: `nobody-${RUN}@example.test`, password: "not-the-password-1" }),
+  });
+  expect(signIn.status).not.toBe(429);
 });
 
 test("the served app sends 40 session reads from one address without a 429", async () => {
