@@ -66,25 +66,40 @@ export function DeleteAccountModal({
   const [deleteError, setDeleteError] = useState('');
   const signOutDeps = useSignOutDeps();
 
-  const load = useCallback(async () => {
+  const fetchPreview = useCallback(
+    () =>
+      fetchDeletionPreview()
+        .then(setPreview)
+        .catch((e) => {
+          console.error('[delete-account] preview failed:', e);
+          setLoadError(t('deleteAccount.loadFailed'));
+        })
+        .finally(() => setLoading(false)),
+    [],
+  );
+
+  const load = () => {
     setLoading(true);
     setLoadError('');
-    try {
-      setPreview(await fetchDeletionPreview());
-    } catch (e) {
-      console.error('[delete-account] preview failed:', e);
-      setLoadError(t('deleteAccount.loadFailed'));
-    } finally {
-      setLoading(false);
+    void fetchPreview();
+  };
+
+  // Each opening starts clean: nothing typed, no error from last time, and
+  // the preview loading again.
+  const [wasVisible, setWasVisible] = useState(visible);
+  if (visible !== wasVisible) {
+    setWasVisible(visible);
+    if (visible) {
+      setTyped('');
+      setDeleteError('');
+      setLoading(true);
+      setLoadError('');
     }
-  }, []);
+  }
 
   useEffect(() => {
-    if (!visible) return;
-    setTyped('');
-    setDeleteError('');
-    load();
-  }, [visible, load]);
+    if (visible) void fetchPreview();
+  }, [visible, fetchPreview]);
 
   const confirmed =
     !!preview && typed.trim().toLowerCase() === preview.email.trim().toLowerCase();

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -28,11 +28,11 @@ export default function GoalScreen() {
   const [error, setError] = useState('');
   const [loaded, setLoaded] = useState(false);
 
-  useEffect(() => {
-    if (!settings || loaded) return;
+  // The saved goal fills the field once, when settings first arrive.
+  if (settings && !loaded) {
     setLoaded(true);
     if (settings.savingsGoal > 0) setText(String(settings.savingsGoal));
-  }, [settings, loaded]);
+  }
 
   const save = useMutation({
     mutationFn: async (value: number | null) => updateSettings(profileEdit('goal', value)),

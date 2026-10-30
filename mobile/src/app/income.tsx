@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -26,11 +26,11 @@ export default function IncomeScreen() {
   const [error, setError] = useState('');
   const [loaded, setLoaded] = useState(false);
 
-  useEffect(() => {
-    if (!settings || loaded) return;
+  // The saved income fills the field once, when settings first arrive.
+  if (settings && !loaded) {
     setLoaded(true);
     if (settings.monthlyIncome > 0) setText(String(settings.monthlyIncome));
-  }, [settings, loaded]);
+  }
 
   const save = useMutation({
     mutationFn: async (value: number | null) => updateSettings(profileEdit('income', value)),

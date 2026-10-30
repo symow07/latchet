@@ -159,9 +159,9 @@ export default function EmailInboxScreen() {
   const { data: settings } = useQuery({ queryKey: ['settings'], queryFn: getSettings });
   const userCurrency = (settings?.currency || 'USD').toUpperCase();
 
-  const now = Date.now();
   const options = providerOptions(dto).filter((o) => o.availability !== 'unavailable');
-  const inboxes = connectionViews(dto, now);
+  // "Up to date · 5 min ago" as of the connections' last fetch.
+  const inboxes = connectionViews(dto, connections.dataUpdatedAt);
   const fwd = forwardingView(dto, forwarding.data);
   const forwardList = forwardingProviders(dto);
   const forwardFor = pickedForward ?? forwardList[0]!;

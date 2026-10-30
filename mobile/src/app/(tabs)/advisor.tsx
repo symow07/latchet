@@ -6,7 +6,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert } from 'react-native';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { VoiceReviewSheet } from '@/components/VoiceReviewSheet';
@@ -64,18 +64,15 @@ export default function AdvisorTab() {
   const scrollViewRef = useRef<ScrollView>(null);
   const [inputText, setInputText] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
-  const [analysis, setAnalysis] = useState<SpendingAnalysis | null>(null);
 
   const queryClient = useQueryClient();
   const { data: transactions = [] } = useQuery({ queryKey: ['transactions'], queryFn: getTransactions });
   const { data: settings } = useQuery({ queryKey: ['settings'], queryFn: getSettings });
 
-  const transactionsLength = transactions.length;
-  useEffect(() => {
-    if (transactionsLength > 0 && settings) {
-      setAnalysis(analyzeSpending(transactions, settings));
-    }
-  }, [transactions, settings, transactionsLength]);
+  const analysis = useMemo<SpendingAnalysis | null>(
+    () => (transactions.length > 0 && settings ? analyzeSpending(transactions, settings) : null),
+    [transactions, settings],
+  );
 
   const quickInsights = analysis && settings ? getQuickInsights(analysis, settings) : [];
 

@@ -84,34 +84,6 @@ export default function ReceiptScanScreen() {
   const [dateISO, setDateISO] = useState<string>(() => todayISO());
   const [isImpulse, setIsImpulse] = useState<boolean>(false);
 
-  /**
-   * A receipt sent in from another app via the share sheet.
-   *
-   * share-drain.ts has already copied it out of the App Group and into the
-   * app's own storage, so this only has to read it. Guarded by a ref rather
-   * than the param alone: expo-router re-renders with the same params, and
-   * re-analysing would bill a second vision call and overwrite the user's edits.
-   */
-  const { sharedUri } = useLocalSearchParams<{ sharedUri?: string }>();
-  const analysedShare = useRef<string | null>(null);
-
-  useEffect(() => {
-    if (!sharedUri || analysedShare.current === sharedUri) return;
-    analysedShare.current = sharedUri;
-
-    (async () => {
-      try {
-        const base64 = await FileSystem.readAsStringAsync(sharedUri, {
-          encoding: FileSystem.EncodingType.Base64,
-        });
-        await analyze(sharedUri, base64);
-      } catch {
-        setErrorMsg(t('errors.aiFailed'));
-        setStep('pick');
-      }
-    })();
-  }, [sharedUri]);
-
   async function pickImage(source: 'camera' | 'library') {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setErrorMsg(null);
@@ -182,6 +154,34 @@ export default function ReceiptScanScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     }
   }
+
+  /**
+   * A receipt sent in from another app via the share sheet.
+   *
+   * share-drain.ts has already copied it out of the App Group and into the
+   * app's own storage, so this only has to read it. Guarded by a ref rather
+   * than the param alone: expo-router re-renders with the same params, and
+   * re-analysing would bill a second vision call and overwrite the user's edits.
+   */
+  const { sharedUri } = useLocalSearchParams<{ sharedUri?: string }>();
+  const analysedShare = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!sharedUri || analysedShare.current === sharedUri) return;
+    analysedShare.current = sharedUri;
+
+    (async () => {
+      try {
+        const base64 = await FileSystem.readAsStringAsync(sharedUri, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+        await analyze(sharedUri, base64);
+      } catch {
+        setErrorMsg(t('errors.aiFailed'));
+        setStep('pick');
+      }
+    })();
+  }, [sharedUri]);
 
   function resetScan() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);

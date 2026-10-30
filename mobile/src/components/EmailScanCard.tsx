@@ -24,13 +24,13 @@ export function EmailScanCard(_props: {
   const C = useC();
   const router = useRouter();
 
-  const { data } = useQuery({
+  const { data, dataUpdatedAt } = useQuery({
     queryKey: EMAIL_CONNECTIONS_QUERY_KEY,
     queryFn: getEmailConnections,
     retry: false,
     staleTime: 60_000,
   });
-  const summary = scanCardSummary(data, Date.now());
+  const summary = scanCardSummary(data, dataUpdatedAt);
 
   return (
     <View style={{ paddingHorizontal: S.screen }}>

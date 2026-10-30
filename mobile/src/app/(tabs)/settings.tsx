@@ -2,7 +2,7 @@ import { View, ScrollView, Alert, ActivityIndicator, Pressable } from 'react-nat
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import { getSettings, updateSettings, getAccounts, resetAllData } from '@/lib/db';
+import { getSettings, updateSettings, getAccounts, resetAllData, type Settings } from '@/lib/db';
 import { exportTransactionsCSV, exportTransactionsJSON } from '@/lib/export-data';
 import {
   Award, Bell, Building2, ChevronRight, Cloud, CreditCard, Download, Eye, Fingerprint, Flame,
@@ -150,14 +150,16 @@ export default function SettingsScreen() {
   const { data: settings } = useQuery({ queryKey: ['settings'], queryFn: getSettings });
   const { data: accounts = [] } = useQuery({ queryKey: ['accounts'], queryFn: getAccounts });
 
-  useEffect(() => {
-    if (settings) {
-      setMonthlyBudget(settings.monthlyBudget.toString());
-      setStartingBalance(settings.startingBalance.toString());
-      setHourlyValue(settings.hourlyValue.toString());
-      setShowTimeCost(Boolean(settings.showTimeCost));
-    }
-  }, [settings]);
+  // The fields follow the saved settings: filled when they load, and again
+  // whenever they change.
+  const [fieldsFrom, setFieldsFrom] = useState<Settings | undefined>(undefined);
+  if (settings && settings !== fieldsFrom) {
+    setFieldsFrom(settings);
+    setMonthlyBudget(settings.monthlyBudget.toString());
+    setStartingBalance(settings.startingBalance.toString());
+    setHourlyValue(settings.hourlyValue.toString());
+    setShowTimeCost(Boolean(settings.showTimeCost));
+  }
 
   const mutation = useMutation({
     mutationFn: async () => {

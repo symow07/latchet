@@ -349,6 +349,7 @@ function RootLayoutNav({ colorScheme }: { colorScheme: 'light' | 'dark' | null |
     previousUser.current = userId;
 
     if (!userId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- dbUser mirrors the database registry, an external system this effect opens and closes
       setDbUser(null);
       localeAppliedFor = null;
       detectionStartedFor = null;
@@ -412,9 +413,7 @@ function RootLayoutNav({ colorScheme }: { colorScheme: 'light' | 'dark' | null |
   // navigator is already up and has to stay up, so the gate covers it instead.
   const [navigatorUp, setNavigatorUp] = useState(false);
   const showNavigator = navigatorUp || !(signedIn && !dbReady);
-  useEffect(() => {
-    if (showNavigator && !navigatorUp) setNavigatorUp(true);
-  }, [showNavigator, navigatorUp]);
+  if (showNavigator && !navigatorUp) setNavigatorUp(true);
 
   // Siri and share-sheet captures, only into an open user database.
   usePendingCaptures(dbUser);
@@ -494,10 +493,7 @@ function RootLayoutNav({ colorScheme }: { colorScheme: 'light' | 'dark' | null |
   // finishing it is what lets Home through.
   const [onboardingPending, setOnboardingPending] = useState(false);
   useEffect(() => {
-    if (!dbUser) {
-      setOnboardingPending(false);
-      return;
-    }
+    if (!dbUser) return;
     let live = true;
     const stop = onOnboardingChange((state) => {
       if (live) setOnboardingPending(state.inProgress);
@@ -510,6 +506,9 @@ function RootLayoutNav({ colorScheme }: { colorScheme: 'light' | 'dark' | null |
     return () => {
       live = false;
       stop();
+      // This user's database is closing; nobody's onboarding is pending until
+      // the next one's is read.
+      setOnboardingPending(false);
     };
   }, [dbUser]);
 
@@ -904,8 +903,8 @@ function RootLayout() {
     loadTheme();
   }, [loadTheme]);
 
+  // Runs once, at mount, so the stage is still the initial 'starting'.
   const initApp = useCallback(async () => {
-    setStage('starting');
     try {
       // Language before any screen renders, so nothing flashes in English
       // first: the phone's own until a user is known (the login screen), then
@@ -942,6 +941,7 @@ function RootLayout() {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- every setState in initApp follows an await; the check does not see awaits
     initApp();
   }, [initApp]);
 
