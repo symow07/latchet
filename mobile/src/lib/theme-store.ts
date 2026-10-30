@@ -28,11 +28,12 @@ const KEY = 'theme.preference';
  *
  * `system` with an unknown OS value resolves to light rather than dark: light
  * is the designed default, and falling back to the derivation would show the
- * wrong app to anyone whose platform does not report a scheme.
+ * wrong app to anyone whose platform does not report a scheme. React Native
+ * 0.83 says so as "unspecified"; older versions as null.
  */
 export function resolveScheme(
   preference: ThemePreference,
-  systemScheme: Scheme | null | undefined
+  systemScheme: Scheme | 'unspecified' | null | undefined
 ): Scheme {
   if (preference === 'light' || preference === 'dark') return preference;
   return systemScheme === 'dark' ? 'dark' : 'light';

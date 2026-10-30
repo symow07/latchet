@@ -16,7 +16,6 @@
     },
     "android": {
       "package": "com.latchet.app",
-      "edgeToEdgeEnabled": true,
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.USE_BIOMETRIC",
@@ -89,7 +88,9 @@
       "@react-native-community/datetimepicker",
       "expo-font",
       "expo-secure-store",
-      "expo-sqlite"
+      "expo-sqlite",
+      "expo-image",
+      "expo-sharing"
     ],
     "experiments": {
       "typedRoutes": true

@@ -14,6 +14,18 @@ screen the flows visit is saved, in order, in `e2e/screenshots/<label>/`;
 a failed flow adds `FAILED-<flow>.png`, the screen at the moment it failed.
 Maestro's own logs are in `e2e/output/<label>/`. Both folders are gitignored.
 
+To see what an upgrade changed on screen, compare two runs:
+
+```bash
+node e2e/compare.mjs step2 step3
+```
+
+It lists every screen by the share of its pixels that changed (the status bar
+left out) and writes before | after | changed-in-red images to
+`e2e/screenshots/compare-step2-step3/`. Some change is always there: each run
+adds its own expenses, dated today and named after the run. The images show
+whether a change is that or the app.
+
 ## What it needs
 
 - **Maestro**: `brew install mobile-dev-inc/tap/maestro`.
