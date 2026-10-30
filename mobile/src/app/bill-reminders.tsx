@@ -41,6 +41,7 @@ import {
   Type,
 } from '@/components/kit';
 import { t, getDateFnsLocale } from '@/lib/i18n/core';
+import { askForNotifications } from '@/lib/notifications';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -326,6 +327,12 @@ export default function BillRemindersScreen() {
       queryClient.invalidateQueries({ queryKey: ['bill-reminders'] });
       setAdding(false);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      // The reminder arrives as a push, which needs permission and the token
+      // a grant registers. Someone who only keeps bills is otherwise never
+      // asked (subscriptions ask when they find one), and their reminders
+      // never arrive. The user just asked for a reminder, so the prompt
+      // answers them; once asked, the OS shows it no more.
+      void askForNotifications();
     },
     onError: () => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error),
   });

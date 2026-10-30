@@ -438,4 +438,15 @@ describe('permission when useful', () => {
       /permissionStep\(await permissionState\(\), request\.interactive && planIsWorthNotifying\(plan\)\)/,
     );
   });
+
+  test('saving a bill reminder asks too, so someone with no subscriptions still gets their reminders', () => {
+    const screen = code('../app/bill-reminders.tsx');
+    expect(screen).toMatch(/import \{ askForNotifications \} from '@\/lib\/notifications'/);
+    // After the bill is saved, not when the sheet opens: a prompt for a
+    // reminder the user may still cancel would come with no reason.
+    const create = screen.slice(screen.indexOf('const createMutation = useMutation('));
+    const onSuccess = create.slice(create.indexOf('onSuccess:'), create.indexOf('onError:'));
+    expect(onSuccess).toMatch(/askForNotifications\(\)/);
+    expect(screen.match(/askForNotifications\(/g)).toHaveLength(1);
+  });
 });
