@@ -12,7 +12,8 @@
 # calling the fake OpenAI this starts on :3999, a booted simulator, and an app
 # built with EXPO_PUBLIC_BACKEND_URL pointing at that backend (README: "Build
 # the app under test", "The local backend"). Uses the E2E account from
-# .claude/test-accounts.local.json (never a real account, never Gmail).
+# .claude/test-accounts.local.json (never a real account, never Gmail), and
+# for flows 17-19 the E2E business accounts there.
 set -uo pipefail
 
 here="$(cd "$(dirname "$0")" && pwd)"
@@ -49,6 +50,10 @@ E2E_EMAIL="${E2E_EMAIL:-$(python3 -c "import json,sys;print(json.load(open(sys.a
 E2E_PASSWORD="${E2E_PASSWORD:-$(python3 -c "import json,sys;print(json.load(open(sys.argv[1]))['e2e']['password'])" "$accounts" 2>/dev/null)}"
 [ -n "$E2E_EMAIL" ] && [ -n "$E2E_PASSWORD" ] || fail "no E2E account: add an \"e2e\" entry to $accounts (README)"
 case "$E2E_EMAIL" in *@example.test) ;; *) fail "the E2E account must be an @example.test address on the local backend" ;; esac
+# The business flows sign in as a second account, which owns the business.
+E2E_BIZ_EMAIL="$(python3 -c "import json,sys;print(json.load(open(sys.argv[1]))['e2e-business']['email'])" "$accounts" 2>/dev/null)"
+E2E_BIZ_PASSWORD="$(python3 -c "import json,sys;print(json.load(open(sys.argv[1]))['e2e-business']['password'])" "$accounts" 2>/dev/null)"
+case "$E2E_BIZ_EMAIL" in *@example.test|"") ;; *) fail "the E2E business account must be an @example.test address on the local backend" ;; esac
 E2E_RUN="$(date +%m%d-%H%M%S)"
 
 echo "e2e: $label on $device, account $E2E_EMAIL, run $E2E_RUN"
@@ -107,6 +112,13 @@ before_flow() {
       # its enrollment during a run, and the app then (rightly) refuses.
       xcrun simctl spawn "$device" notifyutil -s com.apple.BiometricKit.enrollmentChanged 1
       xcrun simctl spawn "$device" notifyutil -p com.apple.BiometricKit.enrollmentChanged
+      ;;
+    18-*)
+      # Over budget this month with nothing waiting for review, which is when
+      # business Home offers "Adjust budget". Through the local backend's API:
+      # it takes a second account, since an owner cannot approve their own.
+      node "$here/business-setup.mjs" "$backend" "$E2E_RUN" >"$output/business-setup.log" 2>&1 \
+        || echo "e2e: business setup failed: $(tail -1 "$output/business-setup.log")"
       ;;
     08-*)
       # The receipt, as the share extension would hand it to the app.
@@ -173,7 +185,11 @@ selected() {
   local name="$1" n
   [ ${#only[@]} -eq 0 ] && return 0
   case "$name" in 01-*) return 0 ;; esac
-  for n in "${only[@]}"; do case "$name" in "$n"-*) return 0 ;; esac; done
+  for n in "${only[@]}"; do
+    case "$name" in "$n"-*) return 0 ;; esac
+    # 18 and 19 run as the business account, which 17 signs in.
+    case "$name:$n" in 17-*:18|17-*:19) return 0 ;; esac
+  done
   return 1
 }
 
@@ -181,10 +197,15 @@ passed=() failed=()
 for flow in "$flows"/[0-9][0-9]-*.yaml; do
   name="$(basename "$flow" .yaml)"
   selected "$name" || continue
+  case "$name" in 17-*|18-*|19-*)
+    [ -n "$E2E_BIZ_EMAIL" ] && [ -n "$E2E_BIZ_PASSWORD" ] \
+      || fail "no E2E business account: add \"e2e-business\" and \"e2e-business-member\" entries to $accounts (README)" ;;
+  esac
   before_flow "$name"
   printf 'e2e: %-34s ' "$name"
   if maestro --device "$device" test \
       -e E2E_EMAIL="$E2E_EMAIL" -e E2E_PASSWORD="$E2E_PASSWORD" \
+      -e E2E_BIZ_EMAIL="$E2E_BIZ_EMAIL" -e E2E_BIZ_PASSWORD="$E2E_BIZ_PASSWORD" \
       -e E2E_RUN="$E2E_RUN" -e E2E_RECEIPT_URI="$E2E_RECEIPT_URI" \
       --test-output-dir "$output/$name" "$flow" >"$output/$name.log" 2>&1; then
     if problem="$(check_flow "$name" 2>&1)"; then

@@ -63,6 +63,12 @@ whether a change is that or the app.
   (`POST /api/auth/sign-up/email`). The runner refuses any other address.
   Never a real account, and the flows never connect Gmail: each connection uses
   up one of Google's 100 places for the unverified app.
+- **Two business accounts** for flows 17-19, entries `"e2e-business"` (it signs
+  in to the app, picks Business and creates the business) and
+  `"e2e-business-member"` (it never signs in to the app: `business-setup.mjs`
+  joins it to the business and submits the expense the owner approves). Both
+  `@example.test`, created on the local backend the same way. A run without
+  them stops before flow 17.
 
 ## The flows
 
@@ -81,10 +87,26 @@ whether a change is that or the app.
 | 12, 13 share | Photos › Share › Latchet shows the extension; Latchet opens the shared receipt |
 | 14, 15 bill-reminder | A bill reminder push arrives and is shown |
 | 16 sign-out-in | Log out, and sign back in |
+| 17 business-sign-in | A fresh install signs in to the business account; the account-type picker (Business, Create a business) |
+| 18 business-insights | Home's "Adjust budget" opens business Insights (the Budget screen), and it stays open |
+| 19 business-payroll | Money › Payroll (the route `(business-tabs)/subscriptions`), the salary sheet, Money › Budget |
+
+Flows 18 and 19 run as the business account, so picking either also runs 17
+(`e2e/run.sh step5 18` runs 01, 17 and 18).
+
+Business Insights and Payroll are kept off the tab bar. On SDK 58 a tab hidden
+with `href: null` was sent back to the first tab as it opened, and "Adjust
+budget" landed on Home; flow 18 fails on that build. Home offers "Adjust
+budget" only when the month's approved spending is over the budget with
+nothing waiting for review, and an owner cannot approve their own expense, so
+before flow 18 the runner sets that up through the local backend's API
+(`business-setup.mjs`): the member joins, the budget is 10, and the member's
+expense of 25, named after the run, is approved.
 
 Between flows the runner does what a flow cannot: it stages the receipt photo
-and the CSV, enrols Face ID and sends the matching face, sends the push, and
-stands in for the share extension's Post (below).
+and the CSV, enrols Face ID and sends the matching face, sends the push,
+stands in for the share extension's Post (below), and puts the business over
+budget (above).
 
 ## What it cannot automate, and what covers it instead
 

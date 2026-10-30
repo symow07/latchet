@@ -1,0 +1,12 @@
+# The business account's first sign-in: the account-type picker, where it
+# picks Business and creates its business. A no-op once it has (the server
+# remembers). A business account has no onboarding after this.
+appId: com.latchet.app
+---
+- runFlow:
+    when:
+      visible: "How will you\\s+use Latchet\\?"
+    commands:
+      - takeScreenshot: 17b-account-type
+      - tapOn: "Business"
+      - tapOn: "Create a business"

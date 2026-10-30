@@ -1,0 +1,9 @@
+# A cold start on the business Home, signed in to the business account (flow
+# 17): flows 18 and 19 start here, as the personal flows start at home.yaml.
+appId: com.latchet.app
+---
+- launchApp:
+    stopApp: true
+- extendedWaitUntil:
+    visible: "Business Tools"
+    timeout: 30000
